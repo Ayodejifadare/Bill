@@ -1,5 +1,18 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, Minus, Users, Building2, Copy, Send, Smartphone, UserPlus, Repeat, ChevronDown, ChevronUp } from 'lucide-react';
+import {
+  ArrowLeft,
+  Plus,
+  Minus,
+  Users,
+  Building2,
+  Copy,
+  Send,
+  Smartphone,
+  UserPlus,
+  Repeat,
+  ChevronDown,
+  ChevronUp,
+} from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -13,25 +26,18 @@ import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible';
 import { toast } from 'sonner';
 import { useUserProfile } from './UserProfileContext';
-
-interface Friend {
-  id: string;
-  name: string;
-  avatar?: string;
-  phoneNumber?: string;
-}
-
+import {
+  fetchFriends,
+  fetchGroups,
+  fetchExternalAccounts,
+  Friend,
+  Group,
+  ExternalAccount,
+} from '../utils/split-bill-api';
 interface SplitParticipant {
   friend: Friend;
   amount: number;
   percentage?: number;
-}
-
-interface Group {
-  id: string;
-  name: string;
-  members: Friend[];
-  color: string;
 }
 
 interface PaymentMethod {
@@ -51,26 +57,6 @@ interface PaymentMethod {
   // External account metadata
   isExternal?: boolean;
   externalName?: string;
-}
-
-interface ExternalAccount {
-  id: string;
-  name: string;
-  type: 'bank' | 'mobile_money';
-  // Bank fields
-  bankName?: string;
-  accountNumber?: string;
-  accountHolderName?: string;
-  sortCode?: string;
-  routingNumber?: string;
-  accountType?: 'checking' | 'savings';
-  // Mobile money fields
-  provider?: string;
-  phoneNumber?: string;
-  // Metadata
-  isDefault: boolean;
-  createdBy: string;
-  createdDate: string;
 }
 
 interface SplitBillProps {
@@ -97,6 +83,15 @@ export function SplitBill({ onNavigate, groupId }: SplitBillProps) {
   const [recurringDay, setRecurringDay] = useState('1');
   const [recurringDayOfWeek, setRecurringDayOfWeek] = useState('monday');
 
+  // Async data states
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [externalAccounts, setExternalAccounts] = useState<ExternalAccount[]>([]);
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [accountsLoading, setAccountsLoading] = useState(false);
+  const [accountsError, setAccountsError] = useState<string | null>(null);
+
   // Progressive disclosure states - recurring expanded by default
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
   const [showRecurringOptions, setShowRecurringOptions] = useState(true); // Changed to true
@@ -110,221 +105,169 @@ export function SplitBill({ onNavigate, groupId }: SplitBillProps) {
     phoneNumber: isNigeria ? '+234 800 000 0000' : '+1 (555) 000-0000'
   };
 
-  // Mock data for friends
-  const allFriends: Friend[] = [
-    { 
-      id: '1', 
-      name: 'Alice Johnson', 
-      avatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b47c?w=150', 
-      phoneNumber: isNigeria ? '+234 801 123 4567' : '+1 (555) 123-4567' 
-    },
-    { 
-      id: '2', 
-      name: 'Bob Wilson', 
-      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150', 
-      phoneNumber: isNigeria ? '+234 802 234 5678' : '+1 (555) 234-5678' 
-    },
-    { 
-      id: '3', 
-      name: 'Carol Davis', 
-      avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150', 
-      phoneNumber: isNigeria ? '+234 803 345 6789' : '+1 (555) 345-6789' 
-    },
-    { 
-      id: '4', 
-      name: 'David Brown', 
-      avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150', 
-      phoneNumber: isNigeria ? '+234 804 456 7890' : '+1 (555) 456-7890' 
-    },
-    { 
-      id: '5', 
-      name: 'Emma Garcia', 
-      avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150', 
-      phoneNumber: isNigeria ? '+234 805 567 8901' : '+1 (555) 567-8901' 
-    },
-  ];
-
-  // Mock groups
-  const groups: Group[] = [
-    {
-      id: '1',
-      name: 'Work Team',
-      members: allFriends.slice(0, 3),
-      color: 'bg-blue-500'
-    },
-    {
-      id: '2', 
-      name: 'College Friends',
-      members: allFriends.slice(1, 4),
-      color: 'bg-green-500'
-    },
-    {
-      id: '3',
-      name: 'Roommates',
-      members: allFriends.slice(2, 5),
-      color: 'bg-purple-500'
-    }
-  ];
-
-  // Mock external accounts for groups
-  const mockExternalAccounts: Record<string, ExternalAccount[]> = {
-    '1': [
-      {
-        id: '1',
-        name: 'Team Lunch Account',
-        type: 'bank',
-        bankName: 'Chase Bank',
-        accountNumber: '1234567890',
-        accountHolderName: 'Emily Davis',
-        routingNumber: '021000021',
-        accountType: 'checking',
-        isDefault: true,
-        createdBy: 'Emily Davis',
-        createdDate: '2025-01-10T10:00:00Z'
-      },
-      {
-        id: '2',
-        name: 'Office Supplies Fund',
-        type: 'mobile_money',
-        provider: 'Zelle',
-        phoneNumber: '+1 (555) 123-4567',
-        isDefault: false,
-        createdBy: 'John Doe',
-        createdDate: '2025-01-05T15:30:00Z'
-      }
-    ],
-    '2': [
-      {
-        id: '1',
-        name: 'Utilities & Rent',
-        type: 'bank',
-        bankName: 'Bank of America',
-        accountNumber: '9876543210',
-        accountHolderName: 'Alex Rodriguez',
-        routingNumber: '026009593',
-        accountType: 'checking',
-        isDefault: true,
-        createdBy: 'Alex Rodriguez',
-        createdDate: '2024-12-01T10:00:00Z'
-      }
-    ],
-    '3': [
-      {
-        id: '1',
-        name: 'Travel Expenses',
-        type: 'bank',
-        bankName: 'Wells Fargo',
-        accountNumber: '5432109876',
-        accountHolderName: 'Sarah Johnson',
-        routingNumber: '121000248',
-        accountType: 'savings',
-        isDefault: true,
-        createdBy: 'Sarah Johnson',
-        createdDate: '2024-03-15T14:20:00Z'
-      }
-    ]
-  };
 
   // Personal payment methods based on region
-  const personalPaymentMethods: PaymentMethod[] = isNigeria ? [
-    {
-      id: '1',
-      type: 'bank',
-      bankName: 'Access Bank',
-      accountNumber: '0123456789',
-      accountHolderName: 'John Doe',
-      sortCode: '044',
-      isDefault: true
-    },
-    {
-      id: '2',
-      type: 'mobile_money',
-      provider: 'Opay',
-      phoneNumber: '+234 801 234 5678',
-      isDefault: false
-    },
-    {
-      id: '3',
-      type: 'bank',
-      bankName: 'GTBank',
-      accountNumber: '0234567890',
-      accountHolderName: 'John Doe',
-      sortCode: '058',
-      isDefault: false
-    }
-  ] : [
-    {
-      id: '1',
-      type: 'bank',
-      bankName: 'Chase Bank',
-      accountType: 'checking',
-      accountNumber: '****1234',
-      routingNumber: '021000021',
-      accountHolderName: 'John Doe',
-      isDefault: true
-    },
-    {
-      id: '2',
-      type: 'bank',
-      bankName: 'Bank of America',
-      accountType: 'savings',
-      accountNumber: '****5678',
-      routingNumber: '026009593',
-      accountHolderName: 'John Doe',
-      isDefault: false
-    }
-  ];
+  const personalPaymentMethods: PaymentMethod[] = isNigeria
+    ? [
+        {
+          id: '1',
+          type: 'bank',
+          bankName: 'Access Bank',
+          accountNumber: '0123456789',
+          accountHolderName: 'John Doe',
+          sortCode: '044',
+          isDefault: true,
+        },
+        {
+          id: '2',
+          type: 'mobile_money',
+          provider: 'Opay',
+          phoneNumber: '+234 801 234 5678',
+          isDefault: false,
+        },
+        {
+          id: '3',
+          type: 'bank',
+          bankName: 'GTBank',
+          accountNumber: '0234567890',
+          accountHolderName: 'John Doe',
+          sortCode: '058',
+          isDefault: false,
+        },
+      ]
+    : [
+        {
+          id: '1',
+          type: 'bank',
+          bankName: 'Chase Bank',
+          accountType: 'checking',
+          accountNumber: '****1234',
+          routingNumber: '021000021',
+          accountHolderName: 'John Doe',
+          isDefault: true,
+        },
+        {
+          id: '2',
+          type: 'bank',
+          bankName: 'Bank of America',
+          accountType: 'savings',
+          accountNumber: '****5678',
+          routingNumber: '026009593',
+          accountHolderName: 'John Doe',
+          isDefault: false,
+        },
+      ];
 
-  // Get all available payment methods (personal + group external accounts)
-  const getAllPaymentMethods = (): PaymentMethod[] => {
-    const methods = [...personalPaymentMethods];
-    
-    // Add group external accounts if in a group
-    if (groupId) {
-      const externalAccounts = mockExternalAccounts[groupId] || [];
-      const convertedExternalAccounts = externalAccounts.map(account => ({
-        ...account,
-        isExternal: true,
-        externalName: account.name
-      }));
-      methods.push(...convertedExternalAccounts);
-    }
-    
-    return methods;
-  };
-
-  const paymentMethods = getAllPaymentMethods();
-
+  // Fetch friends and groups
   useEffect(() => {
-    // Set default payment method only once
-    const defaultMethod = paymentMethods.find(method => method.isDefault);
-    if (defaultMethod) {
+    let cancelled = false;
+    async function load() {
+      try {
+        setLoading(true);
+        setError(null);
+        const [friends, fetchedGroups] = await Promise.all([
+          fetchFriends(isNigeria),
+          fetchGroups(isNigeria),
+        ]);
+        if (cancelled) return;
+        setGroups(fetchedGroups);
+
+        const creatorParticipant: SplitParticipant = {
+          friend: currentUser,
+          amount: 0,
+          percentage: 0,
+        };
+
+        if (groupId) {
+          const group = fetchedGroups.find((g) => g.id === groupId);
+          const groupMembers = group ? group.members : [];
+          const groupParticipants = groupMembers.map((friend) => ({
+            friend,
+            amount: 0,
+            percentage: 0,
+          }));
+          setParticipants([creatorParticipant, ...groupParticipants]);
+          setAvailableFriends(
+            friends.filter(
+              (friend) => !groupMembers.some((member) => member.id === friend.id)
+            )
+          );
+        } else {
+          setParticipants([creatorParticipant]);
+          setAvailableFriends(friends);
+        }
+      } catch (err) {
+        if (!cancelled) setError('Failed to load data');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [groupId, isNigeria]);
+
+  // Fetch external accounts when group changes
+  useEffect(() => {
+    let cancelled = false;
+    async function loadAccounts() {
+      if (!groupId) {
+        setExternalAccounts([]);
+        setAccountsError(null);
+        setAccountsLoading(false);
+        return;
+      }
+      try {
+        setAccountsLoading(true);
+        setAccountsError(null);
+        const accounts = await fetchExternalAccounts(groupId);
+        if (!cancelled) {
+          setExternalAccounts(accounts);
+        }
+      } catch (err) {
+        if (!cancelled) setAccountsError('Failed to load payment methods');
+      } finally {
+        if (!cancelled) setAccountsLoading(false);
+      }
+    }
+    loadAccounts();
+    return () => {
+      cancelled = true;
+    };
+  }, [groupId]);
+
+  // Combine personal methods with external accounts
+  useEffect(() => {
+    const methods = [...personalPaymentMethods];
+    if (groupId && externalAccounts.length > 0) {
+      methods.push(
+        ...externalAccounts.map((account) => ({
+          ...account,
+          id: `external-${account.id}`,
+          isExternal: true,
+          externalName: account.name,
+        }))
+      );
+    }
+    setPaymentMethods(methods);
+  }, [externalAccounts, groupId, isNigeria]);
+
+  // Ensure a default payment method is selected
+  useEffect(() => {
+    if (paymentMethods.length === 0) {
+      setSelectedPaymentMethod(null);
+      return;
+    }
+    if (
+      !selectedPaymentMethod ||
+      !paymentMethods.find((m) => m.id === selectedPaymentMethod.id)
+    ) {
+      const defaultMethod =
+        paymentMethods.find((m) => m.isDefault) || paymentMethods[0];
       setSelectedPaymentMethod(defaultMethod);
     }
-
-    // Always include the creator by default
-    const creatorParticipant: SplitParticipant = {
-      friend: currentUser,
-      amount: 0,
-      percentage: 0
-    };
-
-    // If coming from a group, pre-select group members
-    if (groupId) {
-      const groupMembers = allFriends.slice(0, 3); // Mock: first 3 friends are in the group
-      const groupParticipants = groupMembers.map(friend => ({
-        friend,
-        amount: 0,
-        percentage: 0
-      }));
-      const initialParticipants = [creatorParticipant, ...groupParticipants];
-      setParticipants(initialParticipants);
-      setAvailableFriends(allFriends.filter(friend => !groupMembers.some(member => member.id === friend.id)));
-    } else {
-      setParticipants([creatorParticipant]);
-      setAvailableFriends(allFriends);
-    }
-  }, [groupId]);
+  }, [paymentMethods, selectedPaymentMethod]);
 
   const addParticipant = (friend: Friend) => {
     const newParticipant: SplitParticipant = {
@@ -677,6 +620,14 @@ ${myShare > 0 ? `👥 Your Share: ${currencySymbol}${myShare.toFixed(2)}\n` : ''
     return recurringFrequency;
   };
 
+  if (loading) {
+    return <div className="p-4">Loading...</div>;
+  }
+
+  if (error) {
+    return <div className="p-4 text-red-500">{error}</div>;
+  }
+
   return (
     <div className="pb-20">
       {/* Static Header */}
@@ -760,86 +711,88 @@ ${myShare > 0 ? `👥 Your Share: ${currencySymbol}${myShare.toFixed(2)}\n` : ''
             }
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <Select
-            value={selectedPaymentMethod?.id || ''}
-            onValueChange={(value) => {
-              let method = null;
-              
-              // Check if it's an external account
-              if (value.startsWith('external-') && groupId) {
-                const externalId = value.replace('external-', '');
-                const externalAccount = mockExternalAccounts[groupId]?.find(acc => acc.id === externalId);
-                if (externalAccount) {
-                  method = {
-                    ...externalAccount,
-                    isExternal: true,
-                    externalName: externalAccount.name
-                  };
-                }
-              } else {
-                // Personal payment method
-                method = personalPaymentMethods.find(acc => acc.id === value);
-              }
-              
-              setSelectedPaymentMethod(method || null);
-            }}
-          >
-            <SelectTrigger className="min-h-[48px]">
-              <SelectValue placeholder="Select payment method" />
-            </SelectTrigger>
-            <SelectContent>
-              {groupId && mockExternalAccounts[groupId] && mockExternalAccounts[groupId].length > 0 && (
-                <>
-                  <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
-                    Group External Accounts
-                  </div>
-                  {mockExternalAccounts[groupId].map((method) => (
-                    <SelectItem key={`external-${method.id}`} value={`external-${method.id}`}>
+          <CardContent className="space-y-4">
+            {accountsError && (
+              <p className="text-sm text-red-500">{accountsError}</p>
+            )}
+            <Select
+              value={selectedPaymentMethod?.id || ''}
+              disabled={accountsLoading}
+              onValueChange={(value) => {
+                const method = paymentMethods.find((m) => m.id === value) || null;
+                setSelectedPaymentMethod(method);
+              }}
+            >
+              <SelectTrigger className="min-h-[48px]">
+                <SelectValue placeholder="Select payment method" />
+              </SelectTrigger>
+              <SelectContent>
+                {groupId && externalAccounts.length > 0 && (
+                  <>
+                    <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
+                      Group External Accounts
+                    </div>
+                    {paymentMethods
+                      .filter((m) => m.isExternal)
+                      .map((method) => (
+                        <SelectItem key={method.id} value={method.id}>
+                          <div className="flex items-center gap-2">
+                            {method.type === 'bank' ? (
+                              <Building2 className="h-4 w-4" />
+                            ) : (
+                              <Smartphone className="h-4 w-4" />
+                            )}
+                            <span>{method.name}</span>
+                            <span className="text-muted-foreground">•</span>
+                            <span className="text-muted-foreground">
+                              {method.type === 'bank'
+                                ? method.bankName
+                                : method.provider}
+                            </span>
+                            {method.isDefault && (
+                              <Badge variant="secondary" className="text-xs">
+                                Default
+                              </Badge>
+                            )}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
+                      Personal Accounts
+                    </div>
+                  </>
+                )}
+                {paymentMethods
+                  .filter((m) => !m.isExternal)
+                  .map((method) => (
+                    <SelectItem key={method.id} value={method.id}>
                       <div className="flex items-center gap-2">
                         {method.type === 'bank' ? (
                           <Building2 className="h-4 w-4" />
                         ) : (
                           <Smartphone className="h-4 w-4" />
                         )}
-                        <span>{method.name}</span>
-                        <span className="text-muted-foreground">•</span>
-                        <span className="text-muted-foreground">
-                          {method.type === 'bank' ? method.bankName : method.provider}
+                        <span>
+                          {method.type === 'bank'
+                            ? method.bankName
+                            : method.provider}
                         </span>
-                        {method.isDefault && <Badge variant="secondary" className="text-xs">Default</Badge>}
+                        <span className="text-muted-foreground">•</span>
+                        <span className="text-muted-foreground text-sm">
+                          {method.type === 'bank'
+                            ? formatAccountNumber(method.accountNumber || '')
+                            : method.phoneNumber}
+                        </span>
+                        {method.isDefault && (
+                          <Badge variant="secondary" className="text-xs">
+                            Default
+                          </Badge>
+                        )}
                       </div>
                     </SelectItem>
                   ))}
-                  <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
-                    Personal Accounts
-                  </div>
-                </>
-              )}
-              {personalPaymentMethods.map((method) => (
-                <SelectItem key={method.id} value={method.id}>
-                  <div className="flex items-center gap-2">
-                    {method.type === 'bank' ? (
-                      <Building2 className="h-4 w-4" />
-                    ) : (
-                      <Smartphone className="h-4 w-4" />
-                    )}
-                    <span>
-                      {method.type === 'bank' ? method.bankName : method.provider}
-                    </span>
-                    <span className="text-muted-foreground">•</span>
-                    <span className="text-muted-foreground text-sm">
-                      {method.type === 'bank' 
-                        ? formatAccountNumber(method.accountNumber || '')
-                        : method.phoneNumber
-                      }
-                    </span>
-                    {method.isDefault && <Badge variant="secondary" className="text-xs">Default</Badge>}
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+              </SelectContent>
+            </Select>
 
           {selectedPaymentMethod && (
             <Card className="bg-muted/50 p-4">
