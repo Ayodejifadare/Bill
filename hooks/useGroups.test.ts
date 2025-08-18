@@ -120,7 +120,7 @@ describe('useGroups', () => {
 
     vi.spyOn(global, 'fetch')
       .mockResolvedValueOnce({ ok: true, json: async () => ({ groups: [group1, group2] }) } as unknown as Response)
-      .mockResolvedValueOnce({ ok: true } as unknown as Response);
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ group: group2 }) } as unknown as Response);
 
     const { result } = renderHook(() => useGroups());
 
