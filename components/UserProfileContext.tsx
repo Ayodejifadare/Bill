@@ -97,7 +97,7 @@ const mockUserProfile: UserProfile = {
 };
 
 // Helper function to get saved settings from localStorage
-const getSavedSettings = (): AppSettings => {
+export const getSavedSettings = (): AppSettings => {
   try {
     const saved = localStorage.getItem('biltip-app-settings');
     if (saved) {
@@ -118,8 +118,8 @@ const getSavedSettings = (): AppSettings => {
   const isNigerianLocale = locale.includes('ng') || locale.includes('nigeria');
   
   return {
-    region: isNigerianLocale ? 'NG' : 'NG', // Default to Nigeria as primary market
-    currency: isNigerianLocale ? 'NGN' : 'NGN'
+    region: isNigerianLocale ? 'NG' : 'US',
+    currency: isNigerianLocale ? 'NGN' : 'USD'
   };
 };
 
