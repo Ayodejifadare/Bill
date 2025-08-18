@@ -20,6 +20,7 @@ interface Friend {
     amount: number;
     type: 'owes' | 'owed';
   };
+  requestId?: string;
 }
 
 interface FriendsListProps {
@@ -68,6 +69,38 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
 
   const activeFriends = filteredFriends.filter(f => f.status === 'active');
   const pendingFriends = filteredFriends.filter(f => f.status === 'pending');
+
+  async function handleAcceptRequest(requestId: string) {
+    try {
+      const res = await fetch(`/api/friends/requests/${requestId}/accept`, {
+        method: 'POST'
+      });
+      if (!res.ok) {
+        throw new Error('Failed to accept friend request');
+      }
+      setFriends(prev =>
+        prev.map(f =>
+          f.requestId === requestId ? { ...f, status: 'active', requestId: undefined } : f
+        )
+      );
+    } catch (error) {
+      console.error('Failed to accept friend request', error);
+    }
+  }
+
+  async function handleDeclineRequest(requestId: string) {
+    try {
+      const res = await fetch(`/api/friends/requests/${requestId}/decline`, {
+        method: 'POST'
+      });
+      if (!res.ok) {
+        throw new Error('Failed to decline friend request');
+      }
+      setFriends(prev => prev.filter(f => f.requestId !== requestId));
+    } catch (error) {
+      console.error('Failed to decline friend request', error);
+    }
+  }
 
   return (
     <div>
@@ -127,10 +160,17 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
                       </div>
                     </div>
                     <div className="flex space-x-2">
-                      <Button size="sm" variant="outline">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => friend.requestId && handleDeclineRequest(friend.requestId)}
+                      >
                         Decline
                       </Button>
-                      <Button size="sm">
+                      <Button
+                        size="sm"
+                        onClick={() => friend.requestId && handleAcceptRequest(friend.requestId)}
+                      >
                         Accept
                       </Button>
                     </div>
