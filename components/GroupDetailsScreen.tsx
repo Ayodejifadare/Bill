@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ArrowLeft, Users, Plus, MoreHorizontal, Settings, UserPlus, Receipt, Building2, Calendar, Edit, UserMinus, LogOut, Crown, DollarSign, User, Phone } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
@@ -40,220 +40,20 @@ interface GroupTransaction {
   participants: string[];
 }
 
-const mockGroupData = {
-  '1': {
-    id: '1',
-    name: 'Work Squad',
-    description: 'Office lunches and team events',
-    totalSpent: 1250.50,
-    totalMembers: 8,
-    isAdmin: true,
-    createdDate: 'January 15, 2024',
-    color: 'bg-blue-500',
-    members: [
-      {
-        id: '1',
-        name: 'Emily Davis',
-        avatar: 'ED',
-        email: 'emily@company.com',
-        isAdmin: true,
-        balance: 45.25,
-        totalSpent: 285.50,
-        joinedDate: 'Jan 2024'
-      },
-      {
-        id: '2',
-        name: 'John Doe',
-        avatar: 'JD',
-        email: 'john@company.com',
-        isAdmin: false,
-        balance: -28.50,
-        totalSpent: 156.75,
-        joinedDate: 'Jan 2024'
-      },
-      {
-        id: '3',
-        name: 'Sarah Johnson',
-        avatar: 'SJ',
-        email: 'sarah@company.com',
-        isAdmin: false,
-        balance: 15.75,
-        totalSpent: 198.25,
-        joinedDate: 'Feb 2024'
-      },
-      {
-        id: '4',
-        name: 'Mike Chen',
-        avatar: 'MC',
-        email: 'mike@company.com',
-        isAdmin: false,
-        balance: -12.00,
-        totalSpent: 142.80,
-        joinedDate: 'Jan 2024'
-      },
-      {
-        id: '5',
-        name: 'Alex Rodriguez',
-        avatar: 'AR',
-        email: 'alex@company.com',
-        isAdmin: false,
-        balance: 8.50,
-        totalSpent: 167.20,
-        joinedDate: 'Mar 2024'
-      }
-    ] as GroupMember[],
-    recentTransactions: [
-      {
-        id: '1',
-        type: 'bill_split',
-        amount: 142.50,
-        description: 'Team lunch at Tony\'s Pizza',
-        date: '2025-01-13T12:30:00Z',
-        status: 'pending',
-        paidBy: 'Emily Davis',
-        participants: ['John Doe', 'Sarah Johnson', 'Mike Chen', 'Alex Rodriguez']
-      },
-      {
-        id: '2',
-        type: 'bill_split',
-        amount: 85.00,
-        description: 'Coffee run',
-        date: '2025-01-10T15:20:00Z',
-        status: 'completed',
-        paidBy: 'Mike Chen',
-        participants: ['Emily Davis', 'John Doe', 'Sarah Johnson']
-      },
-      {
-        id: '3',
-        type: 'bill_split',
-        amount: 325.75,
-        description: 'Team dinner after project completion',
-        date: '2025-01-08T19:45:00Z',
-        status: 'completed',
-        paidBy: 'Sarah Johnson',
-        participants: ['Emily Davis', 'John Doe', 'Mike Chen', 'Alex Rodriguez']
-      }
-    ] as GroupTransaction[]
-  },
-  '2': {
-    id: '2',
-    name: 'Roommates',
-    description: 'Shared expenses and utilities',
-    totalSpent: 2840.75,
-    totalMembers: 4,
-    isAdmin: false,
-    createdDate: 'December 1, 2023',
-    color: 'bg-green-500',
-    members: [
-      {
-        id: '1',
-        name: 'Alex Rodriguez',
-        avatar: 'AR',
-        email: 'alex@example.com',
-        isAdmin: true,
-        balance: 125.00,
-        totalSpent: 890.25,
-        joinedDate: 'Dec 2023'
-      },
-      {
-        id: '2',
-        name: 'Lisa Wang',
-        avatar: 'LW',
-        email: 'lisa@example.com',
-        isAdmin: false,
-        balance: -85.50,
-        totalSpent: 645.75,
-        joinedDate: 'Dec 2023'
-      },
-      {
-        id: '3',
-        name: 'Tom Wilson',
-        avatar: 'TW',
-        email: 'tom@example.com',
-        isAdmin: false,
-        balance: -39.50,
-        totalSpent: 567.25,
-        joinedDate: 'Jan 2024'
-      },
-      {
-        id: '4',
-        name: 'John Doe',
-        avatar: 'JD',
-        email: 'john@example.com',
-        isAdmin: false,
-        balance: 0,
-        totalSpent: 737.50,
-        joinedDate: 'Dec 2023'
-      }
-    ] as GroupMember[],
-    recentTransactions: [
-      {
-        id: '1',
-        type: 'bill_split',
-        amount: 250.00,
-        description: 'Monthly utilities',
-        date: '2025-01-01T10:00:00Z',
-        status: 'pending',
-        paidBy: 'Alex Rodriguez',
-        participants: ['Lisa Wang', 'Tom Wilson', 'John Doe']
-      }
-    ] as GroupTransaction[]
-  },
-  '3': {
-    id: '3',
-    name: 'Travel Buddies',
-    description: 'Weekend trips and adventures',
-    totalSpent: 895.25,
-    totalMembers: 6,
-    isAdmin: true,
-    createdDate: 'March 10, 2024',
-    color: 'bg-purple-500',
-    members: [
-      {
-        id: '1',
-        name: 'Sarah Johnson',
-        avatar: 'SJ',
-        email: 'sarah@example.com',
-        isAdmin: true,
-        balance: 65.25,
-        totalSpent: 195.50,
-        joinedDate: 'Mar 2024'
-      },
-      {
-        id: '2',
-        name: 'Mike Chen',
-        avatar: 'MC',
-        email: 'mike@example.com',
-        isAdmin: false,
-        balance: -45.00,
-        totalSpent: 156.75,
-        joinedDate: 'Mar 2024'
-      },
-      {
-        id: '3',
-        name: 'Amy Park',
-        avatar: 'AP',
-        email: 'amy@example.com',
-        isAdmin: false,
-        balance: 20.25,
-        totalSpent: 178.25,
-        joinedDate: 'Apr 2024'
-      }
-    ] as GroupMember[],
-    recentTransactions: [
-      {
-        id: '1',
-        type: 'bill_split',
-        amount: 450.00,
-        description: 'Cabin rental for ski trip',
-        date: '2025-01-05T16:00:00Z',
-        status: 'completed',
-        paidBy: 'Sarah Johnson',
-        participants: ['Mike Chen', 'Amy Park']
-      }
-    ] as GroupTransaction[]
-  }
-};
+interface Group {
+  id: string;
+  name: string;
+  description: string;
+  totalSpent: number;
+  totalMembers: number;
+  isAdmin: boolean;
+  createdDate: string;
+  color: string;
+  members: GroupMember[];
+  recentTransactions: GroupTransaction[];
+  hasMoreTransactions?: boolean;
+}
+
 
 export function GroupDetailsScreen({ groupId, onNavigate, onGroupNavigation }: GroupDetailsScreenProps) {
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
@@ -262,7 +62,55 @@ export function GroupDetailsScreen({ groupId, onNavigate, onGroupNavigation }: G
   const [showMemberActions, setShowMemberActions] = useState(false);
   const [selectedMemberForActions, setSelectedMemberForActions] = useState<GroupMember | null>(null);
 
-  const group = groupId ? mockGroupData[groupId as keyof typeof mockGroupData] : null;
+  const [group, setGroup] = useState<Group | null>(null);
+  const [transactions, setTransactions] = useState<GroupTransaction[]>([]);
+  const [page, setPage] = useState(1);
+  const [hasMoreTransactions, setHasMoreTransactions] = useState(true);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchGroup = async () => {
+      if (!groupId) return;
+      try {
+        const res = await fetch(`/api/groups/${groupId}`);
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        setGroup(data.group);
+        setTransactions(data.group?.recentTransactions ?? []);
+        setHasMoreTransactions(data.group?.hasMoreTransactions ?? false);
+      } catch {
+        setGroup(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchGroup();
+  }, [groupId]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen">
+        {/* Static Header */}
+        <div className="sticky top-0 z-50 bg-background/80 backdrop-blur-sm border-b border-border">
+          <div className="max-w-md mx-auto px-4 py-4">
+            <div className="flex items-center space-x-4">
+              <Button variant="ghost" size="sm" onClick={() => onNavigate('friends')}>
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+              <h2>Group Details</h2>
+            </div>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="max-w-md mx-auto px-4 py-6">
+          <div className="text-center py-8">
+            <p className="text-muted-foreground">Loading...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!group) {
     return (
@@ -292,23 +140,57 @@ export function GroupDetailsScreen({ groupId, onNavigate, onGroupNavigation }: G
   const totalOwed = group.members.reduce((sum, member) => sum + Math.max(0, member.balance), 0);
   const totalOwe = group.members.reduce((sum, member) => sum + Math.abs(Math.min(0, member.balance)), 0);
 
-  const handleSplitBill = () => {
-    onNavigate('split', { groupId: group.id });
+  const handleSplitBill = async () => {
+    try {
+      const res = await fetch(`/api/groups/${group.id}/split-bill`, { method: 'POST' });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      if (data.transaction) {
+        setTransactions(prev => [data.transaction, ...prev]);
+      }
+      toast.success('Bill split successfully');
+    } catch {
+      toast.error('Failed to split bill');
+    }
   };
 
-  const handleLeaveGroup = () => {
-    toast.success('Left group successfully');
-    onNavigate('friends');
+  const handleLeaveGroup = async () => {
+    try {
+      const res = await fetch(`/api/groups/${group.id}/leave`, { method: 'POST' });
+      if (!res.ok) throw new Error();
+      toast.success('Left group successfully');
+      onNavigate('friends');
+    } catch {
+      toast.error('Failed to leave group');
+    }
   };
 
-  const handleRemoveMember = (memberId: string) => {
-    const member = group.members.find(m => m.id === memberId);
-    if (member) {
-      toast.success(`Removed ${member.name} from group`);
+  const handleRemoveMember = async (memberId: string) => {
+    try {
+      const res = await fetch(`/api/groups/${group.id}/members/${memberId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error();
+      setGroup(prev => prev ? { ...prev, members: prev.members.filter(m => m.id !== memberId), totalMembers: prev.totalMembers - 1 } : prev);
+      toast.success('Removed member from group');
       setShowRemoveMemberDialog(false);
       setSelectedMemberId(null);
       setShowMemberActions(false);
       setSelectedMemberForActions(null);
+    } catch {
+      toast.error('Failed to remove member');
+    }
+  };
+
+  const loadMoreTransactions = async () => {
+    try {
+      const res = await fetch(`/api/groups/${group.id}/transactions?page=${page + 1}`);
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      const newTx = Array.isArray(data.transactions) ? data.transactions : [];
+      setTransactions(prev => [...prev, ...newTx]);
+      setPage(p => p + 1);
+      if (newTx.length === 0) setHasMoreTransactions(false);
+    } catch {
+      toast.error('Failed to load more transactions');
     }
   };
 
@@ -473,9 +355,9 @@ export function GroupDetailsScreen({ groupId, onNavigate, onGroupNavigation }: G
               </Button>
             </div>
 
-            {group.recentTransactions.length > 0 ? (
+            {transactions.length > 0 ? (
               <div className="space-y-2 sm:space-y-3">
-                {group.recentTransactions.map((transaction) => (
+                {transactions.map((transaction) => (
                   <TransactionCard
                     key={transaction.id}
                     transaction={{
@@ -490,6 +372,11 @@ export function GroupDetailsScreen({ groupId, onNavigate, onGroupNavigation }: G
                     onClick={() => onNavigate('transaction-details', { transactionId: transaction.id })}
                   />
                 ))}
+                {hasMoreTransactions && (
+                  <Button variant="outline" className="w-full mt-2" onClick={loadMoreTransactions}>
+                    Load more
+                  </Button>
+                )}
               </div>
             ) : (
               <Card className="p-6 sm:p-8 text-center">

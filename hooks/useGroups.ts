@@ -22,6 +22,8 @@ interface UseGroupsResult {
   loading: boolean;
   error: string | null;
   refetch: () => void;
+  joinGroup: (groupId: string) => Promise<void>;
+  leaveGroup: (groupId: string) => Promise<void>;
 }
 
 export function useGroups(): UseGroupsResult {
@@ -51,5 +53,34 @@ export function useGroups(): UseGroupsResult {
     fetchGroups();
   }, [fetchGroups]);
 
-  return { groups, loading, error, refetch: fetchGroups };
+  const joinGroup = useCallback(async (groupId: string) => {
+    setError(null);
+    try {
+      const res = await fetch(`/api/groups/${groupId}/join`, { method: 'POST' });
+      if (!res.ok) {
+        throw new Error('Failed to join group');
+      }
+      const data = await res.json();
+      if (data.group) {
+        setGroups(prev => [...prev, data.group]);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to join group');
+    }
+  }, []);
+
+  const leaveGroup = useCallback(async (groupId: string) => {
+    setError(null);
+    try {
+      const res = await fetch(`/api/groups/${groupId}/leave`, { method: 'POST' });
+      if (!res.ok) {
+        throw new Error('Failed to leave group');
+      }
+      setGroups(prev => prev.filter(g => g.id !== groupId));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to leave group');
+    }
+  }, []);
+
+  return { groups, loading, error, refetch: fetchGroups, joinGroup, leaveGroup };
 }
