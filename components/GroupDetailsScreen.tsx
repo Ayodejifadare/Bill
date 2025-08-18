@@ -10,6 +10,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from './ui/sheet';
 import { Separator } from './ui/separator';
 import { TransactionCard } from './TransactionCard';
+import { EmptyState } from './ui/empty-state';
 import { toast } from 'sonner';
 
 interface GroupDetailsScreenProps {
@@ -410,52 +411,62 @@ export function GroupDetailsScreen({ groupId, onNavigate, onGroupNavigation }: G
               )}
             </div>
 
-            <div className="space-y-2 sm:space-y-3">
-              {group.members.map((member) => (
-                <Card 
-                  key={member.id} 
-                  className="p-3 sm:p-4 cursor-pointer hover:bg-accent/50 transition-colors" 
-                  onClick={() => handleMemberClick(member)}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3 min-w-0 flex-1">
-                      <Avatar className="h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0">
-                        <AvatarFallback className="text-sm">{member.avatar}</AvatarFallback>
-                      </Avatar>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center space-x-2 mb-1">
-                          <p className="font-medium text-sm sm:text-base truncate">{member.name}</p>
-                          {member.isAdmin && (
-                            <Badge variant="secondary" className="text-xs flex-shrink-0">
-                              <Crown className="h-3 w-3 mr-1" />
-                              <span className="hidden sm:inline">Admin</span>
-                              <span className="sm:hidden">A</span>
-                            </Badge>
-                          )}
+            {group.members.length > 0 ? (
+              <div className="space-y-2 sm:space-y-3">
+                {group.members.map((member) => (
+                  <Card
+                    key={member.id}
+                    className="p-3 sm:p-4 cursor-pointer hover:bg-accent/50 transition-colors"
+                    onClick={() => handleMemberClick(member)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3 min-w-0 flex-1">
+                        <Avatar className="h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0">
+                          <AvatarFallback className="text-sm">{member.avatar}</AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center space-x-2 mb-1">
+                            <p className="font-medium text-sm sm:text-base truncate">{member.name}</p>
+                            {member.isAdmin && (
+                              <Badge variant="secondary" className="text-xs flex-shrink-0">
+                                <Crown className="h-3 w-3 mr-1" />
+                                <span className="hidden sm:inline">Admin</span>
+                                <span className="sm:hidden">A</span>
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-xs sm:text-sm text-muted-foreground truncate">{member.email}</p>
+                          <p className="text-xs text-muted-foreground">
+                            <span className="hidden sm:inline">Joined {member.joinedDate} • </span>
+                            <span className="sm:hidden">{member.joinedDate} • </span>
+                            Spent ${member.totalSpent.toFixed(0)}
+                          </p>
                         </div>
-                        <p className="text-xs sm:text-sm text-muted-foreground truncate">{member.email}</p>
-                        <p className="text-xs text-muted-foreground">
-                          <span className="hidden sm:inline">Joined {member.joinedDate} • </span>
-                          <span className="sm:hidden">{member.joinedDate} • </span>
-                          Spent ${member.totalSpent.toFixed(0)}
-                        </p>
                       </div>
-                    </div>
 
-                    <div className="text-right flex-shrink-0 ml-2">
-                      <div>
-                        <p className={`font-medium text-sm sm:text-base ${member.balance >= 0 ? 'text-success' : 'text-destructive'}`}>
-                          {member.balance >= 0 ? '+' : ''}${member.balance.toFixed(2)}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {member.balance >= 0 ? 'gets back' : 'owes'}
-                        </p>
+                      <div className="text-right flex-shrink-0 ml-2">
+                        <div>
+                          <p className={`font-medium text-sm sm:text-base ${member.balance >= 0 ? 'text-success' : 'text-destructive'}`}>
+                            {member.balance >= 0 ? '+' : ''}${member.balance.toFixed(2)}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {member.balance >= 0 ? 'gets back' : 'owes'}
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </Card>
-              ))}
-            </div>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <EmptyState
+                icon={Users}
+                title="No members yet"
+                description="Invite friends to join this group"
+                actionLabel={group.isAdmin ? 'Invite Members' : undefined}
+                onAction={group.isAdmin ? () => onNavigate('add-group-member', { groupId: group.id }) : undefined}
+              />
+            )}
 
             {/* View All Members Button */}
             <div className="text-center mt-4">
