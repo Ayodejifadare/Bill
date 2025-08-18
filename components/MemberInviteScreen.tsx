@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -58,55 +58,6 @@ interface InviteSettings {
   linkExpireDays: number;
 }
 
-const mockPendingInvites: PendingInvite[] = [
-  {
-    id: '1',
-    name: 'Jessica Wilson',
-    contact: '+1234567890',
-    method: 'whatsapp',
-    invitedBy: 'Sarah Johnson',
-    invitedAt: '2024-01-15T10:30:00Z',
-    status: 'delivered',
-    expiresAt: '2024-01-22T10:30:00Z',
-    attempts: 1
-  },
-  {
-    id: '2',
-    name: 'David Kim',
-    contact: 'david@example.com',
-    method: 'email',
-    invitedBy: 'You',
-    invitedAt: '2024-01-14T14:20:00Z',
-    status: 'opened',
-    expiresAt: '2024-01-21T14:20:00Z',
-    attempts: 2,
-    lastAttempt: '2024-01-16T09:15:00Z'
-  },
-  {
-    id: '3',
-    contact: '+1234567891',
-    method: 'sms',
-    invitedBy: 'Mike Chen',
-    invitedAt: '2024-01-13T16:45:00Z',
-    status: 'sent',
-    expiresAt: '2024-01-20T16:45:00Z',
-    attempts: 1
-  }
-];
-
-const mockInviteLinks: InviteLink[] = [
-  {
-    id: '1',
-    link: 'https://biltip.com/invite/work-squad-abc123',
-    createdAt: '2024-01-15T12:00:00Z',
-    expiresAt: '2024-01-22T12:00:00Z',
-    maxUses: 10,
-    currentUses: 3,
-    createdBy: 'You',
-    isActive: true
-  }
-];
-
 interface MemberInviteScreenProps {
   groupId: string | null;
   onNavigate: (tab: string, data?: any) => void;
@@ -114,8 +65,8 @@ interface MemberInviteScreenProps {
 
 export function MemberInviteScreen({ groupId, onNavigate }: MemberInviteScreenProps) {
   const [activeTab, setActiveTab] = useState<'pending' | 'links' | 'settings'>('pending');
-  const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>(mockPendingInvites);
-  const [inviteLinks, setInviteLinks] = useState<InviteLink[]>(mockInviteLinks);
+  const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
+  const [inviteLinks, setInviteLinks] = useState<InviteLink[]>([]);
   const [settings, setSettings] = useState<InviteSettings>({
     autoExpire: true,
     expireDays: 7,
@@ -126,42 +77,85 @@ export function MemberInviteScreen({ groupId, onNavigate }: MemberInviteScreenPr
     linkExpireDays: 7
   });
 
-  const handleResendInvite = (inviteId: string) => {
-    setPendingInvites(prev => prev.map(invite => 
-      invite.id === inviteId 
-        ? { 
-            ...invite, 
-            attempts: invite.attempts + 1,
-            lastAttempt: new Date().toISOString(),
-            status: 'sent' as const
-          }
-        : invite
-    ));
-    
-    const invite = pendingInvites.find(i => i.id === inviteId);
-    toast.success(`Invitation resent to ${invite?.name || invite?.contact}`);
-  };
+  useEffect(() => {
+    if (!groupId) return;
 
-  const handleCancelInvite = (inviteId: string) => {
-    const invite = pendingInvites.find(i => i.id === inviteId);
-    setPendingInvites(prev => prev.filter(i => i.id !== inviteId));
-    toast.success(`Invitation cancelled for ${invite?.name || invite?.contact}`);
-  };
-
-  const handleCreateInviteLink = () => {
-    const newLink: InviteLink = {
-      id: Date.now().toString(),
-      link: `https://biltip.com/invite/work-squad-${Math.random().toString(36).substr(2, 6)}`,
-      createdAt: new Date().toISOString(),
-      expiresAt: new Date(Date.now() + settings.linkExpireDays * 24 * 60 * 60 * 1000).toISOString(),
-      maxUses: settings.linkMaxUses,
-      currentUses: 0,
-      createdBy: 'You',
-      isActive: true
+    const fetchInvites = async () => {
+      try {
+        const res = await fetch(`/api/groups/${groupId}/invites`);
+        if (!res.ok) throw new Error('Failed to load invites');
+        const data = await res.json();
+        setPendingInvites(Array.isArray(data.invites) ? data.invites : []);
+      } catch (err) {
+        setPendingInvites([]);
+        toast.error('Failed to load invitations');
+      }
     };
-    
-    setInviteLinks(prev => [newLink, ...prev]);
-    toast.success('New invite link created');
+
+    const fetchLinks = async () => {
+      try {
+        const res = await fetch(`/api/groups/${groupId}/invite-links`);
+        if (!res.ok) throw new Error('Failed to load invite links');
+        const data = await res.json();
+        setInviteLinks(Array.isArray(data.links) ? data.links : []);
+      } catch (err) {
+        setInviteLinks([]);
+        toast.error('Failed to load invite links');
+      }
+    };
+
+    fetchInvites();
+    fetchLinks();
+  }, [groupId]);
+
+  const handleResendInvite = async (inviteId: string) => {
+    try {
+      const res = await fetch(`/api/groups/${groupId}/invites/${inviteId}/resend`, {
+        method: 'POST'
+      });
+      if (!res.ok) throw new Error('Failed to resend invite');
+      const data = await res.json();
+      if (data.invite) {
+        setPendingInvites(prev => prev.map(invite => invite.id === inviteId ? data.invite : invite));
+      }
+      const invite = data.invite || pendingInvites.find(i => i.id === inviteId);
+      toast.success(`Invitation resent to ${invite?.name || invite?.contact}`);
+    } catch (err) {
+      toast.error('Failed to resend invitation');
+    }
+  };
+
+  const handleCancelInvite = async (inviteId: string) => {
+    try {
+      const res = await fetch(`/api/groups/${groupId}/invites/${inviteId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed to cancel invite');
+      const invite = pendingInvites.find(i => i.id === inviteId);
+      setPendingInvites(prev => prev.filter(i => i.id !== inviteId));
+      toast.success(`Invitation cancelled for ${invite?.name || invite?.contact}`);
+    } catch (err) {
+      toast.error('Failed to cancel invitation');
+    }
+  };
+
+  const handleCreateInviteLink = async () => {
+    try {
+      const res = await fetch(`/api/groups/${groupId}/invite-links`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          maxUses: settings.linkMaxUses,
+          expireDays: settings.linkExpireDays
+        })
+      });
+      if (!res.ok) throw new Error('Failed to create invite link');
+      const data = await res.json();
+      if (data.link) {
+        setInviteLinks(prev => [data.link, ...prev]);
+      }
+      toast.success('New invite link created');
+    } catch (err) {
+      toast.error('Failed to create invite link');
+    }
   };
 
   const handleCopyLink = (link: string) => {
@@ -347,6 +341,7 @@ export function MemberInviteScreen({ groupId, onNavigate }: MemberInviteScreenPr
                               size="sm"
                               variant="outline"
                               onClick={() => handleResendInvite(invite.id)}
+                              aria-label="Resend invitation"
                             >
                               <RotateCcw className="h-4 w-4 mr-1" />
                               Resend
@@ -356,6 +351,7 @@ export function MemberInviteScreen({ groupId, onNavigate }: MemberInviteScreenPr
                             size="sm"
                             variant="destructive"
                             onClick={() => handleCancelInvite(invite.id)}
+                            aria-label="Cancel invitation"
                           >
                             <X className="h-4 w-4" />
                           </Button>
