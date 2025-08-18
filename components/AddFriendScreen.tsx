@@ -308,17 +308,42 @@ export function AddFriendScreen({ onNavigate }: AddFriendScreenProps) {
     localStorage.removeItem('biltip_contacts_synced');
   };
 
-  const handleAddSelectedContacts = () => {
+  const handleAddSelectedContacts = async () => {
     if (selectedContacts.length === 0) {
       toast.error('Please select at least one contact to add');
       return;
     }
 
-    const selectedFriends = syncedContacts.filter(contact => selectedContacts.includes(contact.id));
-    const names = selectedFriends.map(f => f.name).join(', ');
-    
-    toast.success(`Sent friend request${selectedContacts.length > 1 ? 's' : ''} to: ${names}`);
-    setSelectedContacts([]);
+    const selectedFriends = syncedContacts.filter(contact =>
+      selectedContacts.includes(contact.id)
+    );
+
+    let allSucceeded = true;
+
+    for (const friend of selectedFriends) {
+      try {
+        const res = await fetch('/api/friends/request', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ userId: friend.userId })
+        });
+
+        if (!res.ok) {
+          throw new Error('Request failed');
+        }
+
+        toast.success(`Sent friend request to: ${friend.name}`);
+      } catch (error) {
+        allSucceeded = false;
+        toast.error(`Failed to send friend request to: ${friend.name}`);
+      }
+    }
+
+    if (allSucceeded) {
+      setSelectedContacts([]);
+    }
   };
 
   const handleInviteContacts = () => {
