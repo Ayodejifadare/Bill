@@ -1,0 +1,151 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  phone     String?
+  avatar    String?
+  balance   Float    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  sentTransactions     Transaction[] @relation("SentTransactions")
+  receivedTransactions Transaction[] @relation("ReceivedTransactions")
+  billSplits          BillSplit[]
+  friendRequestsSent  FriendRequest[] @relation("FriendRequestSender")
+  friendRequestsReceived FriendRequest[] @relation("FriendRequestReceiver")
+  friendships1        Friendship[] @relation("User1")
+  friendships2        Friendship[] @relation("User2")
+
+  @@map("users")
+}
+
+model Transaction {
+  id          String            @id @default(cuid())
+  amount      Float
+  description String?
+  status      TransactionStatus @default(PENDING)
+  type        TransactionType
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  // Foreign keys
+  senderId   String
+  receiverId String
+  billSplitId String?
+
+  // Relationships
+  sender    User       @relation("SentTransactions", fields: [senderId], references: [id])
+  receiver  User       @relation("ReceivedTransactions", fields: [receiverId], references: [id])
+  billSplit BillSplit? @relation(fields: [billSplitId], references: [id])
+
+  @@map("transactions")
+}
+
+model BillSplit {
+  id          String           @id @default(cuid())
+  title       String
+  description String?
+  totalAmount Float
+  status      BillSplitStatus @default(PENDING)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  // Foreign keys
+  createdBy String
+
+  // Relationships
+  creator      User          @relation(fields: [createdBy], references: [id])
+  transactions Transaction[]
+  participants BillSplitParticipant[]
+
+  @@map("bill_splits")
+}
+
+model BillSplitParticipant {
+  id       String @id @default(cuid())
+  amount   Float
+  isPaid   Boolean @default(false)
+
+  // Foreign keys
+  billSplitId String
+  userId      String
+
+  // Relationships
+  billSplit BillSplit @relation(fields: [billSplitId], references: [id])
+  user      User      @relation(fields: [userId], references: [id])
+
+  @@unique([billSplitId, userId])
+  @@map("bill_split_participants")
+}
+
+model Friendship {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  // Foreign keys
+  user1Id String
+  user2Id String
+
+  // Relationships
+  user1 User @relation("User1", fields: [user1Id], references: [id])
+  user2 User @relation("User2", fields: [user2Id], references: [id])
+
+  @@unique([user1Id, user2Id])
+  @@map("friendships")
+}
+
+model FriendRequest {
+  id        String              @id @default(cuid())
+  status    FriendRequestStatus @default(PENDING)
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  // Foreign keys
+  senderId   String
+  receiverId String
+
+  // Relationships
+  sender   User @relation("FriendRequestSender", fields: [senderId], references: [id])
+  receiver User @relation("FriendRequestReceiver", fields: [receiverId], references: [id])
+
+  @@unique([senderId, receiverId])
+  @@map("friend_requests")
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum TransactionType {
+  SEND
+  REQUEST
+  SPLIT
+}
+
+enum BillSplitStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
+enum FriendRequestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}

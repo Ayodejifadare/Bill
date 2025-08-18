@@ -1,0 +1,533 @@
+import { useState } from 'react';
+import { Card } from './ui/card';
+import { Button } from './ui/button';
+import { Avatar, AvatarFallback } from './ui/avatar';
+import { Badge } from './ui/badge';
+import { Separator } from './ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+import { 
+  ArrowLeft, 
+  Send, 
+  Users, 
+  MessageCircle, 
+  UserMinus,
+  MoreVertical,
+  DollarSign,
+  Clock,
+  Receipt,
+  Bell,
+  CreditCard
+} from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
+import { TransactionCard } from './TransactionCard';
+
+interface FriendProfileScreenProps {
+  friendId: string | null;
+  onNavigate: (tab: string, data?: any) => void;
+}
+
+interface Transaction {
+  id: string;
+  type: 'sent' | 'received' | 'request' | 'split';
+  amount: number;
+  description: string;
+  date: string;
+  status: 'completed' | 'pending' | 'cancelled';
+}
+
+interface Friend {
+  id: string;
+  name: string;
+  username: string;
+  status: 'active' | 'pending' | 'blocked';
+  avatar?: string;
+  joinedDate: string;
+  totalTransactions: number;
+  currentBalance: {
+    amount: number;
+    type: 'owes' | 'owed';
+  } | null;
+}
+
+interface SharedGroup {
+  id: string;
+  name: string;
+  memberCount: number;
+  totalSpent: number;
+  color: string;
+}
+
+const mockFriends: Record<string, Friend> = {
+  '1': {
+    id: '1',
+    name: 'Sarah Johnson',
+    username: '@sarah_j',
+    status: 'active',
+    joinedDate: '2023-06-15',
+    totalTransactions: 12,
+    currentBalance: { amount: 25.50, type: 'owed' }
+  },
+  '2': {
+    id: '2',
+    name: 'Mike Chen',
+    username: '@mike_chen',
+    status: 'active',
+    joinedDate: '2023-08-22',
+    totalTransactions: 8,
+    currentBalance: { amount: 15.00, type: 'owes' }
+  },
+  '3': {
+    id: '3',
+    name: 'Emily Davis',
+    username: '@emily_d',
+    status: 'active',
+    joinedDate: '2023-09-10',
+    totalTransactions: 5,
+    currentBalance: null
+  }
+};
+
+const mockTransactions: Record<string, Transaction[]> = {
+  '1': [
+    {
+      id: 't1',
+      type: 'split',
+      amount: 42.50,
+      description: 'Dinner at Luigi\'s',
+      date: '2024-01-15T19:30:00Z',
+      status: 'completed'
+    },
+    {
+      id: 't2',
+      type: 'sent',
+      amount: 25.00,
+      description: 'Coffee and lunch',
+      date: '2024-01-10T14:20:00Z',
+      status: 'completed'
+    },
+    {
+      id: 't3',
+      type: 'request',
+      amount: 15.75,
+      description: 'Movie tickets',
+      date: '2024-01-08T16:45:00Z',
+      status: 'pending'
+    }
+  ],
+  '2': [
+    {
+      id: 't4',
+      type: 'split',
+      amount: 30.00,
+      description: 'Uber ride',
+      date: '2024-01-12T22:15:00Z',
+      status: 'pending'
+    },
+    {
+      id: 't5',
+      type: 'received',
+      amount: 20.00,
+      description: 'Lunch split',
+      date: '2024-01-05T12:30:00Z',
+      status: 'completed'
+    }
+  ],
+  '3': [
+    {
+      id: 't6',
+      type: 'split',
+      amount: 18.50,
+      description: 'Coffee shop',
+      date: '2024-01-14T09:20:00Z',
+      status: 'completed'
+    }
+  ]
+};
+
+const mockSharedGroups: Record<string, SharedGroup[]> = {
+  '1': [
+    {
+      id: 'g1',
+      name: 'Weekend Squad',
+      memberCount: 5,
+      totalSpent: 248.50,
+      color: 'bg-blue-500'
+    },
+    {
+      id: 'g2',
+      name: 'Work Lunch Group',
+      memberCount: 4,
+      totalSpent: 156.75,
+      color: 'bg-green-500'
+    }
+  ],
+  '2': [
+    {
+      id: 'g3',
+      name: 'Gym Buddies',
+      memberCount: 3,
+      totalSpent: 89.25,
+      color: 'bg-purple-500'
+    }
+  ],
+  '3': [
+    {
+      id: 'g1',
+      name: 'Weekend Squad',
+      memberCount: 5,
+      totalSpent: 248.50,
+      color: 'bg-blue-500'
+    }
+  ]
+};
+
+export function FriendProfileScreen({ friendId, onNavigate }: FriendProfileScreenProps) {
+  const [activeTab, setActiveTab] = useState('activity');
+  
+  if (!friendId || !mockFriends[friendId]) {
+    return (
+      <div className="min-h-screen">
+        {/* Static Header */}
+        <div className="sticky top-0 z-50 bg-background/80 backdrop-blur-sm border-b border-border">
+          <div className="max-w-md mx-auto px-4 py-4">
+            <div className="flex items-center space-x-4">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onNavigate('friends')}
+                className="p-2"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <h1>Friend Profile</h1>
+            </div>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="max-w-md mx-auto px-4 py-6">
+          <div className="text-center py-8">
+            <p className="text-muted-foreground">Friend not found</p>
+            <Button onClick={() => onNavigate('friends')} className="mt-4">
+              Back to Friends
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const friend = mockFriends[friendId];
+  const transactions = mockTransactions[friendId] || [];
+  const sharedGroups = mockSharedGroups[friendId] || [];
+
+  const handleSendMoney = () => {
+    onNavigate('send', { 
+      recipientId: friend.id,
+      recipientName: friend.name 
+    });
+  };
+
+  const handleRequestMoney = () => {
+    onNavigate('request', { 
+      requestData: { 
+        recipientId: friend.id,
+        recipientName: friend.name 
+      }
+    });
+  };
+
+  const handleSplitBill = () => {
+    onNavigate('split');
+  };
+
+  const handleSendReminder = () => {
+    if (friend.currentBalance && friend.currentBalance.type === 'owed') {
+      onNavigate('send-reminder', {
+        friendId: friend.id,
+        friendName: friend.name,
+        amount: friend.currentBalance.amount,
+        paymentType: 'outstanding_balance'
+      });
+    }
+  };
+
+  const handlePayOutstanding = () => {
+    if (friend.currentBalance && friend.currentBalance.type === 'owes') {
+      onNavigate('send', { 
+        recipientId: friend.id,
+        recipientName: friend.name,
+        prefillAmount: friend.currentBalance.amount,
+        description: 'Outstanding balance payment'
+      });
+    }
+  };
+
+  const handleGroupClick = (groupId: string) => {
+    onNavigate('group-details', { groupId });
+  };
+
+  // Transform transaction data for TransactionCard component
+  const transformTransaction = (transaction: Transaction) => {
+    const statusMap = {
+      'completed': 'completed' as const,
+      'pending': 'pending' as const,
+      'cancelled': 'failed' as const
+    };
+
+    return {
+      id: transaction.id,
+      type: transaction.type,
+      amount: transaction.amount,
+      description: transaction.description,
+      date: transaction.date,
+      status: statusMap[transaction.status],
+      sender: { name: friend.name, avatar: friend.name.split(' ').map(n => n[0]).join('') },
+      recipient: { name: friend.name, avatar: friend.name.split(' ').map(n => n[0]).join('') },
+      avatarFallback: friend.name.split(' ').map(n => n[0]).join('')
+    };
+  };
+
+  return (
+    <div className="min-h-screen">
+      {/* Static Header */}
+      <div className="sticky top-0 z-50 bg-background/80 backdrop-blur-sm border-b border-border">
+        <div className="max-w-md mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onNavigate('friends')}
+                className="p-2"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <h1>Friend Profile</h1>
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm">
+                  <MoreVertical className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem>
+                  <MessageCircle className="h-4 w-4 mr-2" />
+                  Send Message
+                </DropdownMenuItem>
+                <DropdownMenuItem className="text-destructive">
+                  <UserMinus className="h-4 w-4 mr-2" />
+                  Remove Friend
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="max-w-md mx-auto px-4 py-6 space-y-6 pb-20">
+        {/* Friend Info */}
+        <Card className="p-6">
+          <div className="flex items-center space-x-4">
+            <Avatar className="h-16 w-16">
+              <AvatarFallback className="text-xl">
+                {friend.name.split(' ').map(n => n[0]).join('')}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1">
+              <h2>{friend.name}</h2>
+              <p className="text-muted-foreground">{friend.username}</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Friends since {new Date(friend.joinedDate).toLocaleDateString('en-US', { 
+                  month: 'long', 
+                  year: 'numeric' 
+                })}
+              </p>
+            </div>
+          </div>
+
+          {/* Balance Info */}
+          {friend.currentBalance && (
+            <div className="mt-4 p-3 bg-muted rounded-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex-1 text-center">
+                  <p className={`text-2xl ${friend.currentBalance.type === 'owed' ? 'text-success' : 'text-destructive'}`}>
+                    ${friend.currentBalance.amount.toFixed(2)}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {friend.currentBalance.type === 'owed' 
+                      ? `${friend.name} owes you` 
+                      : `You owe ${friend.name}`
+                    }
+                  </p>
+                </div>
+                <div className="flex flex-col space-y-2 ml-3">
+                  {friend.currentBalance.type === 'owed' && (
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={handleSendReminder}
+                      className="text-xs px-2 py-1"
+                    >
+                      <Bell className="h-3 w-3 mr-1" />
+                      Remind
+                    </Button>
+                  )}
+                  {friend.currentBalance.type === 'owes' && (
+                    <Button 
+                      size="sm"
+                      onClick={handlePayOutstanding}
+                      className="text-xs px-2 py-1"
+                    >
+                      <CreditCard className="h-3 w-3 mr-1" />
+                      Pay Now
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="grid grid-cols-3 gap-3 mt-4">
+            <Button onClick={handleSendMoney} className="flex flex-col items-center py-3 h-auto">
+              <Send className="h-5 w-5 mb-1" />
+              <span className="text-xs">Send</span>
+            </Button>
+            <Button onClick={handleRequestMoney} variant="outline" className="flex flex-col items-center py-3 h-auto">
+              <DollarSign className="h-5 w-5 mb-1" />
+              <span className="text-xs">Request</span>
+            </Button>
+            <Button onClick={handleSplitBill} variant="outline" className="flex flex-col items-center py-3 h-auto">
+              <Users className="h-5 w-5 mb-1" />
+              <span className="text-xs">Split</span>
+            </Button>
+          </div>
+        </Card>
+
+        {/* Stats */}
+        <div className="grid grid-cols-2 gap-4">
+          <Card className="p-4 text-center">
+            <p className="text-2xl">{friend.totalTransactions}</p>
+            <p className="text-sm text-muted-foreground">Total Transactions</p>
+          </Card>
+          <Card className="p-4 text-center">
+            <p className="text-2xl text-success">{transactions.filter(t => t.status === 'completed').length}</p>
+            <p className="text-sm text-muted-foreground">Completed</p>
+          </Card>
+        </div>
+
+        {/* Shared Groups Section */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h3>Shared Groups</h3>
+            {sharedGroups.length > 0 && (
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => onNavigate('create-group')}
+              >
+                Create New
+              </Button>
+            )}
+          </div>
+          
+          {sharedGroups.length > 0 ? (
+            <div className="grid gap-3 mb-6">
+              {sharedGroups.map((group) => (
+                <Card 
+                  key={group.id} 
+                  className="p-4 cursor-pointer hover:bg-muted/50 transition-colors"
+                  onClick={() => handleGroupClick(group.id)}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className={`${group.color} p-2 rounded-full text-white`}>
+                        <Users className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <p className="font-medium">{group.name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {group.memberCount} members • ${group.totalSpent.toFixed(2)} total spent
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <Button variant="ghost" size="sm">
+                        View
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <Card className="p-6 text-center mb-6">
+              <Users className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+              <p className="text-muted-foreground mb-2">No shared groups yet</p>
+              <p className="text-sm text-muted-foreground mb-4">Create a group to split expenses together!</p>
+              <Button 
+                onClick={() => onNavigate('create-group')}
+                size="sm"
+              >
+                Create Group
+              </Button>
+            </Card>
+          )}
+        </div>
+
+        {/* Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="activity">Activity</TabsTrigger>
+            <TabsTrigger value="shared">Bills</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="activity" className="space-y-4 mt-4">
+            {transactions.length > 0 ? (
+              <div className="space-y-3">
+                {transactions.map((transaction) => (
+                  <TransactionCard
+                    key={transaction.id}
+                    transaction={transformTransaction(transaction)}
+                    onNavigate={onNavigate}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <Receipt className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+                <p className="text-muted-foreground">No transactions yet</p>
+                <p className="text-sm text-muted-foreground">Start by sending money or splitting a bill!</p>
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="shared" className="space-y-4 mt-4">
+            {transactions.filter(t => t.type === 'split').length > 0 ? (
+              <div className="space-y-3">
+                {transactions
+                  .filter(transaction => transaction.type === 'split')
+                  .map((transaction) => (
+                    <TransactionCard
+                      key={transaction.id}
+                      transaction={transformTransaction(transaction)}
+                      onNavigate={onNavigate}
+                    />
+                  ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <Receipt className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+                <p className="text-muted-foreground">No shared bills yet</p>
+                <p className="text-sm text-muted-foreground">Split your first bill together!</p>
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
+      </div>
+    </div>
+  );
+}
