@@ -344,17 +344,33 @@ export function SplitBill({ onNavigate, groupId }: SplitBillProps) {
   const calculateEqualSplit = (participantsList: SplitParticipant[]) => {
     const total = parseFloat(totalAmount) || 0;
     if (participantsList.length === 0) return; // Prevent division by zero
-    
-    const perPerson = total / participantsList.length;
-    const perPersonPercentage = 100 / participantsList.length;
-    
-    const updatedParticipants = participantsList.map(p => ({
-      ...p,
-      amount: perPerson,
-      percentage: perPersonPercentage
-    }));
-    
+
+    const totalCents = Math.round(total * 100);
+    const perPersonRaw = total / participantsList.length;
+    const perPersonCents = Math.round(perPersonRaw * 100);
+    let remainder = totalCents - perPersonCents * participantsList.length;
+
+    const updatedParticipants = participantsList.map((p, index) => {
+      let shareCents = perPersonCents;
+      if (remainder > 0) {
+        shareCents += 1;
+        remainder -= 1;
+      } else if (remainder < 0 && index === participantsList.length - 1) {
+        // Adjust the last participant if we have distributed too much
+        shareCents += remainder;
+        remainder = 0;
+      }
+
+      const amount = shareCents / 100;
+      return {
+        ...p,
+        amount,
+        percentage: total === 0 ? 0 : (amount / total) * 100
+      };
+    });
+
     setParticipants(updatedParticipants);
+    return updatedParticipants;
   };
 
   const updateParticipantAmount = (friendId: string, amount: number) => {
@@ -464,11 +480,20 @@ export function SplitBill({ onNavigate, groupId }: SplitBillProps) {
       return;
     }
     
-    const splitTotal = getTotalSplit();
-    const expectedTotal = parseFloat(totalAmount);
-    
-    if (Math.abs(splitTotal - expectedTotal) > 0.01) {
-      toast.error(`Split amounts (${currencySymbol}${splitTotal.toFixed(2)}) don't match total (${currencySymbol}${expectedTotal.toFixed(2)})`);
+    let currentParticipants = participants;
+    if (splitMethod === 'equal') {
+      currentParticipants = calculateEqualSplit(participants);
+    }
+
+    const splitTotalCents = Math.round(
+      currentParticipants.reduce((sum, p) => sum + (isNaN(p.amount) ? 0 : p.amount), 0) * 100
+    );
+    const expectedTotalCents = Math.round(parseFloat(totalAmount) * 100);
+
+    if (splitTotalCents !== expectedTotalCents) {
+      toast.error(
+        `Split amounts (${currencySymbol}${(splitTotalCents / 100).toFixed(2)}) don't match total (${currencySymbol}${(expectedTotalCents / 100).toFixed(2)})`
+      );
       return;
     }
 
