@@ -1,16 +1,16 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
 import { Switch } from './ui/switch';
-import { 
-  Settings, 
-  CreditCard, 
-  Shield, 
-  Bell, 
-  HelpCircle, 
+import {
+  Settings,
+  CreditCard,
+  Shield,
+  Bell,
+  HelpCircle,
   LogOut,
   Edit3,
   Wallet,
@@ -19,31 +19,11 @@ import {
   TrendingUp,
   ChevronRight,
   MessageCircle,
-  Mail
+  Mail,
+  Clock
 } from 'lucide-react';
 import { ThemeToggleButton } from './ThemeToggleButton';
-
-const mockUserData = {
-  name: 'John Doe',
-  email: 'john.doe@example.com',
-  phone: '+1 (555) 123-4567',
-  balance: 234.56,
-  joinDate: 'March 2023',
-  verified: true,
-  stats: {
-    totalSent: 1250.00,
-    totalReceived: 890.50,
-    totalSplits: 15,
-    friends: 23,
-  },
-  preferences: {
-    notifications: true,
-    emailAlerts: false,
-    whatsappAlerts: true,
-    darkMode: false,
-    biometrics: true,
-  }
-};
+import { useUserProfile } from './UserProfileContext';
 
 interface ProfileScreenProps {
   onNavigate: (tab: string) => void;
@@ -51,13 +31,25 @@ interface ProfileScreenProps {
 }
 
 export function ProfileScreen({ onNavigate, onLogout }: ProfileScreenProps) {
-  const [preferences, setPreferences] = useState(mockUserData.preferences);
+  const { userProfile, updateUserProfile, refreshUserProfile } = useUserProfile();
+  const [preferences, setPreferences] = useState(userProfile.preferences);
 
-  const updatePreference = (key: string, value: boolean) => {
-    setPreferences(prev => ({
-      ...prev,
-      [key]: value
-    }));
+  useEffect(() => {
+    setPreferences(userProfile.preferences);
+  }, [userProfile.preferences]);
+
+  useEffect(() => {
+    refreshUserProfile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const updatePreference = (key: keyof typeof preferences, value: boolean) => {
+    const newPrefs = {
+      ...preferences,
+      [key]: value,
+    };
+    setPreferences(newPrefs);
+    updateUserProfile({ preferences: newPrefs });
   };
 
   const menuItems = [
@@ -105,21 +97,26 @@ export function ProfileScreen({ onNavigate, onLogout }: ProfileScreenProps) {
         <div className="flex items-center space-x-4">
           <Avatar className="h-16 w-16">
             <AvatarFallback className="bg-primary text-primary-foreground text-xl">
-              {mockUserData.name.split(' ').map(n => n[0]).join('')}
+              {userProfile.name.split(' ').map(n => n[0]).join('')}
             </AvatarFallback>
           </Avatar>
           <div className="flex-1">
             <div className="flex items-center gap-2">
-              <h2>{mockUserData.name}</h2>
-              {mockUserData.verified && (
+              <h2>{userProfile.name}</h2>
+              {userProfile.kycStatus === 'verified' ? (
                 <Badge variant="secondary" className="bg-green-100 text-green-800">
                   <Shield className="h-3 w-3 mr-1" />
                   Verified
                 </Badge>
+              ) : (
+                <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
+                  <Clock className="h-3 w-3 mr-1" />
+                  Pending
+                </Badge>
               )}
             </div>
-            <p className="text-sm text-muted-foreground">{mockUserData.email}</p>
-            <p className="text-sm text-muted-foreground">Member since {mockUserData.joinDate}</p>
+            <p className="text-sm text-muted-foreground">{userProfile.email}</p>
+            <p className="text-sm text-muted-foreground">Member since {userProfile.joinDate}</p>
           </div>
           <Button size="sm" variant="outline">
             <Edit3 className="h-4 w-4" />
@@ -133,25 +130,25 @@ export function ProfileScreen({ onNavigate, onLogout }: ProfileScreenProps) {
         <div className="grid grid-cols-2 gap-4">
           <div className="text-center">
             <p className="text-2xl font-medium text-green-600">
-              ${mockUserData.stats.totalReceived.toFixed(0)}
+              ${userProfile.stats.totalReceived.toFixed(0)}
             </p>
             <p className="text-sm text-muted-foreground">Received</p>
           </div>
           <div className="text-center">
             <p className="text-2xl font-medium text-blue-600">
-              ${mockUserData.stats.totalSent.toFixed(0)}
+              ${userProfile.stats.totalSent.toFixed(0)}
             </p>
             <p className="text-sm text-muted-foreground">Sent</p>
           </div>
           <div className="text-center">
             <p className="text-2xl font-medium text-purple-600">
-              {mockUserData.stats.totalSplits}
+              {userProfile.stats.totalSplits}
             </p>
             <p className="text-sm text-muted-foreground">Bill Splits</p>
           </div>
           <div className="text-center">
             <p className="text-2xl font-medium text-orange-600">
-              {mockUserData.stats.friends}
+              {userProfile.stats.friends}
             </p>
             <p className="text-sm text-muted-foreground">Friends</p>
           </div>
