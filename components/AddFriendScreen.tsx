@@ -37,79 +37,6 @@ interface AddFriendScreenProps {
   onNavigate: (screen: string, data?: any) => void;
 }
 
-// Mock contacts data for demonstration
-const mockContacts: Contact[] = [
-  {
-    id: '1',
-    name: 'Alice Johnson',
-    username: '@alice_j',
-    phoneNumber: '+1 (555) 123-4567',
-    avatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b47c?w=150',
-    mutualFriends: 5,
-    isAlreadyFriend: false,
-    status: 'existing_user',
-    isOnApp: true,
-    userId: 'user_1',
-    isFriend: false
-  },
-  {
-    id: '2',
-    name: 'Bob Wilson',
-    username: '@bob_wilson',
-    phoneNumber: '+1 (555) 234-5678',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
-    mutualFriends: 3,
-    isAlreadyFriend: false,
-    status: 'existing_user',
-    isOnApp: true,
-    userId: 'user_2',
-    isFriend: false
-  },
-  {
-    id: '3',
-    name: 'Carol Davis',
-    phoneNumber: '+1 (555) 345-6789',
-    mutualFriends: 0,
-    isAlreadyFriend: false,
-    status: 'not_on_app',
-    isOnApp: false,
-    isFriend: false
-  },
-  {
-    id: '4',
-    name: 'David Brown',
-    phoneNumber: '+1 (555) 456-7890',
-    mutualFriends: 0,
-    isAlreadyFriend: false,
-    status: 'not_on_app',
-    isOnApp: false,
-    isFriend: false
-  },
-  {
-    id: '5',
-    name: 'Emma Garcia',
-    username: '@emma_g',
-    phoneNumber: '+1 (555) 567-8901',
-    avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150',
-    mutualFriends: 4,
-    isAlreadyFriend: false,
-    status: 'pending',
-    isOnApp: true,
-    userId: 'user_5',
-    isFriend: false
-  },
-  {
-    id: '6',
-    name: 'Frank Miller',
-    phoneNumber: '+1 (555) 678-9012',
-    mutualFriends: 0,
-    isAlreadyFriend: false,
-    status: 'not_on_app',
-    isOnApp: false,
-    isFriend: false
-  }
-];
-
 export function AddFriendScreen({ onNavigate }: AddFriendScreenProps) {
   const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -133,19 +60,64 @@ export function AddFriendScreen({ onNavigate }: AddFriendScreenProps) {
   
   // Progressive disclosure states
   const [showInvitePreview, setShowInvitePreview] = useState(false);
+  const syncDeviceContacts = async () => {
+    try {
+      setSyncProgress(40);
+      const contacts = await contactsAPI.getContacts();
+      setSyncProgress(70);
+      const matched = await contactsAPI.matchContacts(contacts);
 
-  // Check for existing synced contacts on mount
+      const mappedContacts: Contact[] = matched.map((c: any) => ({
+        id: c.id,
+        name: c.name,
+        username: c.username,
+        phoneNumber: c.phone,
+        email: c.email,
+        mutualFriends: c.mutualFriends,
+        status: c.status,
+        isOnApp: c.status === 'existing_user',
+        userId: c.userId,
+        isAlreadyFriend: false,
+        isFriend: false,
+      }));
+
+      setSyncProgress(100);
+      setSyncedContacts(mappedContacts);
+      setHasSyncedContacts(true);
+      setShowSyncPrompt(false);
+      localStorage.setItem('biltip_contacts_synced', 'true');
+
+      const existing = mappedContacts.filter(c => c.status === 'existing_user').length;
+      const inviteable = mappedContacts.filter(c => c.status === 'not_on_app').length;
+      toast.success(`Found ${existing} friends on Biltip and ${inviteable} contacts to invite!`);
+    } catch (error) {
+      console.error('Contact sync failed:', error);
+      toast.error('Contact sync failed. Please try again.');
+    }
+  };
+
+  // Initialize contacts based on existing permission
   useEffect(() => {
-    const checkExistingSync = () => {
-      const hasExistingSync = localStorage.getItem('biltip_contacts_synced') === 'true';
-      if (hasExistingSync) {
-        setHasSyncedContacts(true);
-        setSyncedContacts(mockContacts);
-        setShowSyncPrompt(false);
+    const init = async () => {
+      try {
+        const status = await contactsAPI.checkPermissionStatus();
+        if (status.granted) {
+          setIsSyncing(true);
+          setSyncProgress(0);
+          await syncDeviceContacts();
+        } else if (status.denied) {
+          toast.error('Contact access denied. You can still add friends manually or try again.');
+        } else {
+          toast.error('Contact access not available. Please try importing a contact file.');
+        }
+      } catch (err) {
+        console.error('Permission check failed:', err);
+      } finally {
+        setIsSyncing(false);
       }
     };
-    
-    checkExistingSync();
+
+    init();
   }, []);
 
   const existingUsers = syncedContacts.filter(c => c.status === 'existing_user');
@@ -242,39 +214,11 @@ export function AddFriendScreen({ onNavigate }: AddFriendScreenProps) {
       const permission = await contactsAPI.requestPermission();
 
       if (!permission.granted) {
-        toast.error('Contact access denied. Please enable it in your settings.');
+        toast.error('Contact access denied. You can still add friends manually or try again.');
         return;
       }
 
-      setSyncProgress(40);
-      const contacts = await contactsAPI.getContacts();
-
-      setSyncProgress(70);
-      const matched = await contactsAPI.matchContacts(contacts);
-
-      const mappedContacts: Contact[] = matched.map((c: any) => ({
-        id: c.id,
-        name: c.name,
-        username: c.username,
-        phoneNumber: c.phone,
-        email: c.email,
-        mutualFriends: c.mutualFriends,
-        status: c.status,
-        isOnApp: c.status === 'existing_user',
-        userId: c.userId,
-        isAlreadyFriend: false,
-        isFriend: false,
-      }));
-
-      setSyncProgress(100);
-      setSyncedContacts(mappedContacts);
-      setHasSyncedContacts(true);
-      setShowSyncPrompt(false);
-      localStorage.setItem('biltip_contacts_synced', 'true');
-
-      const existing = mappedContacts.filter(c => c.status === 'existing_user').length;
-      const inviteable = mappedContacts.filter(c => c.status === 'not_on_app').length;
-      toast.success(`Found ${existing} friends on Biltip and ${inviteable} contacts to invite!`);
+      await syncDeviceContacts();
     } catch (error) {
       console.error('Contact sync failed:', error);
       toast.error('Contact sync failed. Please try again.');

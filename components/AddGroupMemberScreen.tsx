@@ -60,18 +60,63 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
   const [showSyncPrompt, setShowSyncPrompt] = useState(true);
   const [contactSubTab, setContactSubTab] = useState<'on_app' | 'invite'>('on_app');
   const [isInviting, setIsInviting] = useState(false);
-  
+
   // Progressive disclosure states
   const [showInvitePreview, setShowInvitePreview] = useState(false);
+  const syncDeviceContacts = async () => {
+    try {
+      setSyncProgress(20);
+      const deviceContacts = await contactsAPI.getContacts();
+      setSyncProgress(50);
+      const response = await fetch(`/api/groups/${groupId}/potential-members`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contacts: deviceContacts })
+      });
 
-  // Check for existing synced contacts on mount
-  useEffect(() => {
-    const hasExistingSync = localStorage.getItem('biltip_contacts_synced') === 'true';
-    if (hasExistingSync) {
+      if (!response.ok) {
+        throw new Error('Failed to fetch potential members');
+      }
+
+      const data = await response.json();
+      setSyncProgress(90);
+
+      setSyncedContacts(data.contacts || []);
       setHasSyncedContacts(true);
       setShowSyncPrompt(false);
+      localStorage.setItem('biltip_contacts_synced', 'true');
+
+      toast.success(`Found ${data.contacts?.length || 0} potential members!`);
+    } catch (error) {
+      console.error('Contact sync failed:', error);
+      toast.error('Contact sync failed. Please try again.');
     }
-  }, []);
+  };
+
+  // Initialize contacts based on existing permission
+  useEffect(() => {
+    const init = async () => {
+      try {
+        const status = await contactsAPI.checkPermissionStatus();
+        if (status.granted) {
+          setIsSyncing(true);
+          setSyncProgress(0);
+          await syncDeviceContacts();
+        } else if (status.denied) {
+          toast.error('Contact access denied. You can still add friends manually or try again.');
+        } else {
+          toast.error('Contact access not available. Please try importing a contact file.');
+        }
+      } catch (err) {
+        console.error('Permission check failed:', err);
+      } finally {
+        setIsSyncing(false);
+        setSyncProgress(100);
+      }
+    };
+
+    init();
+  }, [groupId]);
 
   // Separate friends and non-friends on Biltip
   const friendsOnBiltip = syncedContacts.filter(c => 
@@ -177,33 +222,11 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
     try {
       const permission = await contactsAPI.requestPermission();
       if (!permission.granted) {
-        toast.error('Contact access denied.');
+        toast.error('Contact access denied. You can still add friends manually or try again.');
         return;
       }
 
-      setSyncProgress(20);
-      const deviceContacts = await contactsAPI.getContacts();
-
-      setSyncProgress(50);
-      const response = await fetch(`/api/groups/${groupId}/potential-members`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contacts: deviceContacts })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch potential members');
-      }
-
-      const data = await response.json();
-      setSyncProgress(90);
-
-      setSyncedContacts(data.contacts || []);
-      setHasSyncedContacts(true);
-      setShowSyncPrompt(false);
-      localStorage.setItem('biltip_contacts_synced', 'true');
-
-      toast.success(`Found ${data.contacts?.length || 0} potential members!`);
+      await syncDeviceContacts();
     } catch (error) {
       console.error('Contact sync failed:', error);
       toast.error('Contact sync failed. Please try again.');
