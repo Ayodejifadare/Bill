@@ -523,14 +523,14 @@ export function SplitBill({ onNavigate, groupId }: SplitBillProps) {
     }
   };
 
-  const shareSplitDetails = () => {
+  const shareSplitDetails = async () => {
     if (!selectedPaymentMethod) {
       toast.error('No payment method selected');
       return;
     }
 
     const myShare = participants.find(p => p.friend.id === 'me')?.amount || 0;
-    
+
     let splitDetails = `📄 Split Bill: ${billName || 'Untitled Bill'}
 💰 Total Amount: ${currencySymbol}${totalAmount}
 ${description ? `📝 Description: ${description}\n` : ''}
@@ -538,7 +538,7 @@ ${myShare > 0 ? `👥 Your Share: ${currencySymbol}${myShare.toFixed(2)}\n` : ''
 💳 Send payment to:`;
 
     if (selectedPaymentMethod.type === 'bank') {
-      splitDetails += isNigeria 
+      splitDetails += isNigeria
         ? `
 🏦 ${selectedPaymentMethod.bankName}
 👤 ${selectedPaymentMethod.accountHolderName}
@@ -555,8 +555,21 @@ ${myShare > 0 ? `👥 Your Share: ${currencySymbol}${myShare.toFixed(2)}\n` : ''
 📞 ${selectedPaymentMethod.phoneNumber}`;
     }
 
-    navigator.clipboard.writeText(splitDetails);
-    toast.success('Split details copied to clipboard');
+    try {
+      if (navigator.share) {
+        await navigator.share({ text: splitDetails });
+        toast.success('Split details shared');
+        return;
+      }
+      throw new Error('Share not supported');
+    } catch {
+      try {
+        await navigator.clipboard.writeText(splitDetails);
+        toast.success('Split details copied to clipboard');
+      } catch {
+        toast.error('Failed to share split details');
+      }
+    }
   };
 
   const formatAccountNumber = (accountNumber: string) => {
