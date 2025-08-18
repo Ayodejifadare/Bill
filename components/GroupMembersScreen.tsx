@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -9,14 +9,12 @@ import { EmptyState } from './ui/empty-state';
 import { FilterTabs } from './ui/filter-tabs';
 import { 
   Users, 
-  UserPlus, 
-  Crown, 
-  MoreHorizontal, 
-  UserMinus, 
-  Shield, 
+  UserPlus,
+  Crown,
+  MoreHorizontal,
+  UserMinus,
+  Shield,
   MessageCircle,
-  Settings,
-  Calendar,
   Activity
 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
@@ -51,118 +49,6 @@ interface PendingInvite {
   method: 'whatsapp' | 'sms' | 'app';
 }
 
-const mockGroupMembers: GroupMember[] = [
-  {
-    id: '1',
-    name: 'John Doe',
-    username: '@john_doe',
-    role: 'member',
-    joinedAt: '2024-01-01T10:00:00Z',
-    lastActive: '2 minutes ago',
-    totalSpent: 245.50,
-    totalOwed: 18.75,
-    isYou: true,
-    status: 'active',
-    permissions: {
-      canAddMembers: false,
-      canRemoveMembers: false,
-      canCreateSplits: true,
-      canEditGroup: false,
-    }
-  },
-  {
-    id: '2',
-    name: 'Sarah Johnson',
-    username: '@sarah_j',
-    role: 'admin',
-    joinedAt: '2024-01-01T09:00:00Z',
-    lastActive: '5 minutes ago',
-    totalSpent: 420.75,
-    totalOwed: 0,
-    isYou: false,
-    status: 'active',
-    permissions: {
-      canAddMembers: true,
-      canRemoveMembers: true,
-      canCreateSplits: true,
-      canEditGroup: true,
-    }
-  },
-  {
-    id: '3',
-    name: 'Mike Chen',
-    username: '@mike_chen',
-    role: 'member',
-    joinedAt: '2024-01-02T14:30:00Z',
-    lastActive: '1 hour ago',
-    totalSpent: 180.25,
-    totalOwed: 25.50,
-    isYou: false,
-    status: 'active',
-    permissions: {
-      canAddMembers: false,
-      canRemoveMembers: false,
-      canCreateSplits: true,
-      canEditGroup: false,
-    }
-  },
-  {
-    id: '4',
-    name: 'Emily Davis',
-    username: '@emily_d',
-    role: 'member',
-    joinedAt: '2024-01-03T11:15:00Z',
-    lastActive: '1 day ago',
-    totalSpent: 98.00,
-    totalOwed: 45.30,
-    isYou: false,
-    status: 'active',
-    permissions: {
-      canAddMembers: false,
-      canRemoveMembers: false,
-      canCreateSplits: true,
-      canEditGroup: false,
-    }
-  },
-  {
-    id: '5',
-    name: 'Alex Rodriguez',
-    username: '@alex_r',
-    role: 'member',
-    joinedAt: '2024-01-04T16:45:00Z',
-    lastActive: '3 days ago',
-    totalSpent: 65.80,
-    totalOwed: 12.25,
-    isYou: false,
-    status: 'inactive',
-    permissions: {
-      canAddMembers: false,
-      canRemoveMembers: false,
-      canCreateSplits: true,
-      canEditGroup: false,
-    }
-  }
-];
-
-const mockPendingInvites: PendingInvite[] = [
-  {
-    id: '1',
-    name: 'Jessica Wilson',
-    username: '@jessica_w',
-    invitedBy: 'Sarah Johnson',
-    invitedAt: '2024-01-15T10:30:00Z',
-    method: 'whatsapp'
-  },
-  {
-    id: '2',
-    name: 'David Kim',
-    username: '@david_k',
-    invitedBy: 'You',
-    invitedAt: '2024-01-14T14:20:00Z',
-    method: 'app'
-  }
-];
-
 interface GroupMembersScreenProps {
   groupId: string | null;
   onNavigate: (tab: string, data?: any) => void;
@@ -171,8 +57,38 @@ interface GroupMembersScreenProps {
 export function GroupMembersScreen({ groupId, onNavigate }: GroupMembersScreenProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'pending'>('all');
-  const [members, setMembers] = useState<GroupMember[]>(mockGroupMembers);
-  const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>(mockPendingInvites);
+  const [members, setMembers] = useState<GroupMember[]>([]);
+  const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!groupId) return;
+      try {
+        const [membersRes, invitesRes] = await Promise.all([
+          fetch(`/api/groups/${groupId!}/members`),
+          fetch(`/api/groups/${groupId!}/invites`)
+        ]);
+
+        if (membersRes.ok) {
+          const data = await membersRes.json();
+          setMembers(Array.isArray(data.members) ? data.members : []);
+        } else {
+          setMembers([]);
+        }
+
+        if (invitesRes.ok) {
+          const data = await invitesRes.json();
+          setPendingInvites(Array.isArray(data.invites) ? data.invites : []);
+        } else {
+          setPendingInvites([]);
+        }
+      } catch {
+        setMembers([]);
+        setPendingInvites([]);
+      }
+    };
+    fetchData();
+  }, [groupId]);
 
   // Find current user to check permissions
   const currentUser = members.find(m => m.isYou);
@@ -212,53 +128,70 @@ export function GroupMembersScreen({ groupId, onNavigate }: GroupMembersScreenPr
     })) : [])
   ];
 
-  const handleRemoveMember = (memberId: string) => {
+  const handleRemoveMember = async (memberId: string) => {
     const member = members.find(m => m.id === memberId);
     if (member?.isYou) {
       toast.error("You can't remove yourself from the group");
       return;
     }
-    
-    setMembers(prev => prev.filter(m => m.id !== memberId));
-    toast.success(`${member?.name} removed from group`);
+    try {
+      const res = await fetch(`/api/groups/${groupId!}/members/${memberId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error();
+      setMembers(prev => prev.filter(m => m.id !== memberId));
+      toast.success(`${member?.name} removed from group`);
+    } catch {
+      toast.error('Failed to remove member');
+    }
   };
 
-  const handleMakeAdmin = (memberId: string) => {
-    setMembers(prev => prev.map(m => 
-      m.id === memberId 
-        ? { 
-            ...m, 
-            role: 'admin' as const,
-            permissions: {
-              canAddMembers: true,
-              canRemoveMembers: true,
-              canCreateSplits: true,
-              canEditGroup: true,
+  const handleMakeAdmin = async (memberId: string) => {
+    try {
+      const res = await fetch(`/api/groups/${groupId!}/members/${memberId}/promote`, { method: 'POST' });
+      if (!res.ok) throw new Error();
+      setMembers(prev => prev.map(m =>
+        m.id === memberId
+          ? {
+              ...m,
+              role: 'admin' as const,
+              permissions: {
+                canAddMembers: true,
+                canRemoveMembers: true,
+                canCreateSplits: true,
+                canEditGroup: true,
+              }
             }
-          }
-        : m
-    ));
-    const member = members.find(m => m.id === memberId);
-    toast.success(`${member?.name} is now an admin`);
+          : m
+      ));
+      const member = members.find(m => m.id === memberId);
+      toast.success(`${member?.name} is now an admin`);
+    } catch {
+      toast.error('Failed to promote member');
+    }
   };
 
-  const handleRemoveAdmin = (memberId: string) => {
-    setMembers(prev => prev.map(m => 
-      m.id === memberId 
-        ? { 
-            ...m, 
-            role: 'member' as const,
-            permissions: {
-              canAddMembers: false,
-              canRemoveMembers: false,
-              canCreateSplits: true,
-              canEditGroup: false,
+  const handleRemoveAdmin = async (memberId: string) => {
+    try {
+      const res = await fetch(`/api/groups/${groupId!}/members/${memberId}/demote`, { method: 'POST' });
+      if (!res.ok) throw new Error();
+      setMembers(prev => prev.map(m =>
+        m.id === memberId
+          ? {
+              ...m,
+              role: 'member' as const,
+              permissions: {
+                canAddMembers: false,
+                canRemoveMembers: false,
+                canCreateSplits: true,
+                canEditGroup: false,
+              }
             }
-          }
-        : m
-    ));
-    const member = members.find(m => m.id === memberId);
-    toast.success(`${member?.name} is now a regular member`);
+          : m
+      ));
+      const member = members.find(m => m.id === memberId);
+      toast.success(`${member?.name} is now a regular member`);
+    } catch {
+      toast.error('Failed to update member');
+    }
   };
 
   const handleCancelInvite = (inviteId: string) => {
@@ -316,7 +249,7 @@ export function GroupMembersScreen({ groupId, onNavigate }: GroupMembersScreenPr
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="sm">
+          <Button variant="ghost" size="sm" aria-label="Member actions">
             <MoreHorizontal className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
