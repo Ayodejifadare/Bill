@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 
 interface LinkedBankAccount {
   id: string;
@@ -17,11 +17,31 @@ interface LinkedBankAccount {
   addedDate: string;
 }
 
+interface UserStats {
+  totalSent: number;
+  totalReceived: number;
+  totalSplits: number;
+  friends: number;
+}
+
+interface UserPreferences {
+  notifications: boolean;
+  emailAlerts: boolean;
+  whatsappAlerts: boolean;
+  darkMode: boolean;
+  biometrics: boolean;
+}
+
 interface UserProfile {
   id: string;
   name: string;
   email: string;
   phone?: string;
+  avatar?: string;
+  joinDate?: string;
+  kycStatus?: 'pending' | 'verified' | 'rejected';
+  stats: UserStats;
+  preferences: UserPreferences;
   linkedBankAccounts: LinkedBankAccount[];
 }
 
@@ -33,6 +53,7 @@ interface AppSettings {
 interface UserProfileContextType {
   userProfile: UserProfile;
   appSettings: AppSettings;
+  refreshUserProfile: () => Promise<void>;
   updateUserProfile: (profile: Partial<UserProfile>) => void;
   updateAppSettings: (settings: Partial<AppSettings>) => void;
   addBankAccount: (account: Omit<LinkedBankAccount, 'id' | 'addedDate'>) => void;
@@ -47,6 +68,21 @@ const mockUserProfile: UserProfile = {
   name: 'John Doe',
   email: 'john.doe@example.com',
   phone: '+2348012345678',
+  joinDate: 'March 2023',
+  kycStatus: 'verified',
+  stats: {
+    totalSent: 1250.0,
+    totalReceived: 890.5,
+    totalSplits: 15,
+    friends: 23,
+  },
+  preferences: {
+    notifications: true,
+    emailAlerts: false,
+    whatsappAlerts: true,
+    darkMode: false,
+    biometrics: true,
+  },
   linkedBankAccounts: [
     {
       id: 'bank-1',
@@ -126,12 +162,59 @@ export const getSavedSettings = (): AppSettings => {
 export function UserProfileProvider({ children }: { children: ReactNode }) {
   const [userProfile, setUserProfile] = useState<UserProfile>(mockUserProfile);
   const [appSettings, setAppSettings] = useState<AppSettings>(getSavedSettings());
+  const refreshUserProfile = async () => {
+    try {
+      const storedAuth = localStorage.getItem('biltip_auth');
+      const token = storedAuth ? JSON.parse(storedAuth).token : null;
+      const userId = userProfile.id;
+      if (!token || !userId) return;
 
-  const updateUserProfile = (profileUpdate: Partial<UserProfile>) => {
+      const response = await fetch(`/api/users/${userId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch user profile');
+      }
+      const data = await response.json();
+      const fetched = data.user;
+      setUserProfile(prev => ({
+        ...prev,
+        ...fetched,
+        joinDate: fetched.createdAt ? new Date(fetched.createdAt).toLocaleDateString() : prev.joinDate,
+      }));
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+    }
+  };
+
+  useEffect(() => {
+    refreshUserProfile();
+  }, []);
+
+  const updateUserProfile = async (profileUpdate: Partial<UserProfile>) => {
     setUserProfile(prev => ({
       ...prev,
       ...profileUpdate
     }));
+
+    try {
+      const storedAuth = localStorage.getItem('biltip_auth');
+      const token = storedAuth ? JSON.parse(storedAuth).token : null;
+      const userId = userProfile.id;
+      if (!token || !userId) return;
+      await fetch(`/api/users/${userId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(profileUpdate),
+      });
+    } catch (error) {
+      console.error('Error updating user profile:', error);
+    }
   };
 
   const updateAppSettings = (settingsUpdate: Partial<AppSettings>) => {
@@ -181,10 +264,11 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <UserProfileContext.Provider 
+    <UserProfileContext.Provider
       value={{
         userProfile,
         appSettings,
+        refreshUserProfile,
         updateUserProfile,
         updateAppSettings,
         addBankAccount,
