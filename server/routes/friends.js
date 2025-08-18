@@ -248,4 +248,31 @@ router.post('/requests/:id/decline', authenticateToken, async (req, res) => {
   }
 })
 
+// Remove a friend
+router.delete('/:friendId', authenticateToken, async (req, res) => {
+  try {
+    const { friendId } = req.params
+
+    const friendship = await req.prisma.friendship.findFirst({
+      where: {
+        OR: [
+          { user1Id: req.userId, user2Id: friendId },
+          { user1Id: friendId, user2Id: req.userId }
+        ]
+      }
+    })
+
+    if (!friendship) {
+      return res.status(404).json({ error: 'Friendship not found' })
+    }
+
+    await req.prisma.friendship.delete({ where: { id: friendship.id } })
+
+    res.json({ message: 'Friend removed' })
+  } catch (error) {
+    console.error('Delete friend error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
 export default router
