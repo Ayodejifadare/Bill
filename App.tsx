@@ -7,7 +7,7 @@ import { LoadingStateProvider } from './components/LoadingStateContext';
 import { ErrorBoundary, PageErrorBoundary, CriticalErrorBoundary } from './components/ErrorBoundary';
 import { NetworkErrorHandler, useNetworkStatus } from './components/NetworkErrorHandler';
 import { PageLoading } from './components/ui/loading';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 // Lazy load components for code splitting
 const HomeScreen = lazy(() => import('./components/HomeScreen').then(m => ({ default: m.HomeScreen })));

@@ -20,7 +20,7 @@ import {
   Activity
 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface GroupMember {
   id: string;

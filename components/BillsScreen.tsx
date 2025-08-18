@@ -7,7 +7,7 @@ import { EmptyState } from './ui/empty-state';
 import { ScreenHeader } from './ui/screen-header';
 import { FilterTabs } from './ui/filter-tabs';
 import { Plus, Clock, CheckCircle, AlertCircle, Receipt } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 const mockBillSplits = [
   {

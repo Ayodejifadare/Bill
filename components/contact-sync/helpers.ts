@@ -1,7 +1,7 @@
 import { whatsappAPI } from '../ui/contacts-api';
 import { MatchedContact } from './types';
 import { WHATSAPP_INVITE_MESSAGE } from './constants';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 export const handleBulkInviteContacts = async (
   selectedContactsList: MatchedContact[],

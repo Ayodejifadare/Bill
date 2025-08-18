@@ -11,7 +11,7 @@ import { Separator } from './ui/separator';
 import { Switch } from './ui/switch';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { useUserProfile } from './UserProfileContext';
 
 interface Friend {

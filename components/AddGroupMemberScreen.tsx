@@ -15,7 +15,7 @@ import { ScrollArea } from './ui/scroll-area';
 import { Alert, AlertDescription } from './ui/alert';
 import { Progress } from './ui/progress';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 // Simple contacts API for demo purposes
 const contactsAPI = {

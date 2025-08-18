@@ -7,7 +7,7 @@ export {
   createDeepLink,
   type ShareData
 } from './ShareUtils';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { useUserProfile } from './UserProfileContext';
