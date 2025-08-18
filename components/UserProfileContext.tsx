@@ -34,9 +34,16 @@ interface UserPreferences {
 
 interface UserProfile {
   id: string;
+  /** Display name - typically first and last name combined */
   name: string;
   email: string;
   phone?: string;
+  /** Optional separated name fields */
+  firstName?: string;
+  lastName?: string;
+  dateOfBirth?: string;
+  address?: string;
+  bio?: string;
   avatar?: string;
   joinDate?: string;
   kycStatus?: 'pending' | 'verified' | 'rejected';
@@ -66,8 +73,13 @@ const UserProfileContext = createContext<UserProfileContextType | undefined>(und
 const mockUserProfile: UserProfile = {
   id: 'user-123',
   name: 'John Doe',
+  firstName: 'John',
+  lastName: 'Doe',
   email: 'john.doe@example.com',
   phone: '+2348012345678',
+  dateOfBirth: '1990-01-15',
+  address: '123 Main St, San Francisco, CA 94102',
+  bio: 'Coffee enthusiast and frequent bill splitter',
   joinDate: 'March 2023',
   kycStatus: 'verified',
   stats: {
