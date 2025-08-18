@@ -2,24 +2,32 @@ import { useState } from 'react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Avatar, AvatarFallback } from './ui/avatar';
-import { Badge } from './ui/badge';
-import { Separator } from './ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { 
   ArrowLeft, 
-  Send, 
-  Users, 
-  MessageCircle, 
+  Send,
+  Users,
+  MessageCircle,
   UserMinus,
   MoreVertical,
   DollarSign,
-  Clock,
   Receipt,
   Bell,
   CreditCard
 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { TransactionCard } from './TransactionCard';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from './ui/alert-dialog';
+import { toast } from 'sonner';
 
 interface FriendProfileScreenProps {
   friendId: string | null;
@@ -183,6 +191,7 @@ const mockSharedGroups: Record<string, SharedGroup[]> = {
 
 export function FriendProfileScreen({ friendId, onNavigate }: FriendProfileScreenProps) {
   const [activeTab, setActiveTab] = useState('activity');
+  const [showRemoveDialog, setShowRemoveDialog] = useState(false);
   
   if (!friendId || !mockFriends[friendId]) {
     return (
@@ -254,12 +263,30 @@ export function FriendProfileScreen({ friendId, onNavigate }: FriendProfileScree
 
   const handlePayOutstanding = () => {
     if (friend.currentBalance && friend.currentBalance.type === 'owes') {
-      onNavigate('send', { 
+      onNavigate('send', {
         recipientId: friend.id,
         recipientName: friend.name,
         prefillAmount: friend.currentBalance.amount,
         description: 'Outstanding balance payment'
       });
+    }
+  };
+
+  const handleRemoveFriend = async () => {
+    try {
+      const res = await fetch(`/api/friends/${friend.id}`, {
+        method: 'DELETE'
+      });
+      if (!res.ok) {
+        throw new Error('Failed to remove friend');
+      }
+      toast.success('Friend removed');
+      onNavigate('friends');
+    } catch (error) {
+      console.error('Failed to remove friend', error);
+      toast.error('Failed to remove friend');
+    } finally {
+      setShowRemoveDialog(false);
     }
   };
 
@@ -316,7 +343,10 @@ export function FriendProfileScreen({ friendId, onNavigate }: FriendProfileScree
                   <MessageCircle className="h-4 w-4 mr-2" />
                   Send Message
                 </DropdownMenuItem>
-                <DropdownMenuItem className="text-destructive">
+                <DropdownMenuItem
+                  className="text-destructive"
+                  onSelect={() => setShowRemoveDialog(true)}
+                >
                   <UserMinus className="h-4 w-4 mr-2" />
                   Remove Friend
                 </DropdownMenuItem>
@@ -528,6 +558,26 @@ export function FriendProfileScreen({ friendId, onNavigate }: FriendProfileScree
           </TabsContent>
         </Tabs>
       </div>
+      {/* Remove Friend Dialog */}
+      <AlertDialog open={showRemoveDialog} onOpenChange={setShowRemoveDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove Friend</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove {friend.name}? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleRemoveFriend}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
