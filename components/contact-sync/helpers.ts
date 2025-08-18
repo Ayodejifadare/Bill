@@ -1,4 +1,4 @@
-import { whatsappAPI } from '../../utils/contacts-api';
+import { whatsappAPI, showContactError } from '../../utils/contacts-api';
 import { MatchedContact } from './types';
 import { WHATSAPP_INVITE_MESSAGE } from './constants';
 import { toast } from 'sonner';
@@ -10,7 +10,7 @@ export const handleBulkInviteContacts = async (
   setSelectedContacts: (value: Set<string>) => void
 ) => {
   if (selectedContacts.size === 0) {
-    toast.error('Please select contacts to invite');
+    showContactError('Please select contacts to invite');
     return;
   }
 
@@ -45,18 +45,18 @@ export const handleBulkInviteContacts = async (
     const totalSelected = selectedContacts.size;
     if (successCount > 0) {
       toast.success(
-        successCount === totalSelected 
+        successCount === totalSelected
           ? `Opened WhatsApp to invite ${successCount} contact${successCount > 1 ? 's' : ''}!`
           : `Opened WhatsApp for ${successCount} of ${totalSelected} contacts`
       );
     } else {
-      toast.error('Failed to open WhatsApp invites');
+      showContactError('Failed to open WhatsApp invites');
     }
     
     setSelectedContacts(new Set());
   } catch (error) {
     console.error('Bulk invite failed:', error);
-    toast.error('Failed to send invites. Please try again.');
+    showContactError('Failed to send invites. Please try again.');
   } finally {
     setIsInviting(false);
   }
@@ -73,11 +73,11 @@ export const handleSingleInvite = async (contact: MatchedContact) => {
     if (success) {
       toast.success(`Opened WhatsApp to invite ${contact.name}!`);
     } else {
-      toast.error('Failed to open WhatsApp');
+      showContactError('Failed to open WhatsApp');
     }
   } catch (error) {
     console.error('Single invite failed:', error);
-    toast.error('Failed to open WhatsApp invite');
+    showContactError('Failed to open WhatsApp invite');
   }
 };
 

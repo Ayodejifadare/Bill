@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { contactsAPI } from '../utils/contacts-api';
+import { contactsAPI, showContactError } from '../utils/contacts-api';
 import { PermissionRequestScreen } from './contact-sync/PermissionRequestScreen';
 import { SyncingProgressScreen } from './contact-sync/SyncingProgressScreen';
 import { ContactResultsScreen } from './contact-sync/ContactResultsScreen';
@@ -114,11 +114,11 @@ export function ContactSyncScreen({ onNavigate }: ContactSyncScreenProps) {
       
       // Better error messaging
       if (error.message?.includes('Permission denied')) {
-        toast.error('Contact access was denied. Please enable it in your browser settings.');
+        showContactError('permission-denied');
       } else if (error.message?.includes('Network')) {
-        toast.error('Network error. Please check your connection and try again.');
+        showContactError('network-failure');
       } else {
-        toast.error('Contact sync failed. Please try again.');
+        showContactError('Contact sync failed. Please try again.');
       }
     }
   };
@@ -141,9 +141,9 @@ export function ContactSyncScreen({ onNavigate }: ContactSyncScreenProps) {
 
         // More specific permission denied messaging
         if (permission.denied) {
-          toast.error('Contact access denied. You can still add friends manually or try again.');
+          showContactError('permission-denied');
         } else {
-          toast.error('Contact access not available. Please try importing a contact file.');
+          showContactError('Contact access not available. Please try importing a contact file.');
         }
         return;
       }
@@ -154,7 +154,7 @@ export function ContactSyncScreen({ onNavigate }: ContactSyncScreenProps) {
     } catch (error) {
       console.error('Contact permission request failed:', error);
       setSyncStep('permission');
-      toast.error('Failed to request contact access. Please try again.');
+      showContactError('Failed to request contact access. Please try again.');
     }
   };
 
@@ -199,15 +199,15 @@ export function ContactSyncScreen({ onNavigate }: ContactSyncScreenProps) {
       
       // Enhanced error handling for file import
       if (error.message === 'CROSS_ORIGIN_RESTRICTION') {
-        toast.error('File picker not available in this environment. Please try the upload option.');
+        showContactError('File picker not available in this environment. Please try the upload option.');
       } else if (error.name === 'SecurityError') {
-        toast.error('File access restricted. Please check your browser settings.');
+        showContactError('permission-denied');
       } else if (error.message === 'No file selected') {
         toast.info('File import cancelled');
       } else if (error.message?.includes('format')) {
-        toast.error('Invalid file format. Please use CSV or VCF files.');
+        showContactError('invalid-file');
       } else {
-        toast.error('File import failed. Please check your file and try again.');
+        showContactError('invalid-file');
       }
     }
   };
@@ -243,7 +243,7 @@ export function ContactSyncScreen({ onNavigate }: ContactSyncScreenProps) {
     } catch (error) {
       console.error('Demo mode failed:', error);
       setSyncStep('permission');
-      toast.error('Demo mode failed. Please try again.');
+      showContactError('Demo mode failed. Please try again.');
     }
   };
 

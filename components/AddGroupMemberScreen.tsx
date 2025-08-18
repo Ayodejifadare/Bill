@@ -16,7 +16,7 @@ import { Alert, AlertDescription } from './ui/alert';
 import { Progress } from './ui/progress';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { toast } from 'sonner';
-import { contactsAPI } from '../utils/contacts-api';
+import { contactsAPI, showContactError } from '../utils/contacts-api';
 
 interface Contact {
   id: string;
@@ -89,7 +89,7 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
       toast.success(`Found ${data.contacts?.length || 0} potential members!`);
     } catch (error) {
       console.error('Contact sync failed:', error);
-      toast.error('Contact sync failed. Please try again.');
+      showContactError('network-failure');
     }
   };
 
@@ -103,9 +103,9 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
           setSyncProgress(0);
           await syncDeviceContacts();
         } else if (status.denied) {
-          toast.error('Contact access denied. You can still add friends manually or try again.');
+          showContactError('permission-denied');
         } else {
-          toast.error('Contact access not available. Please try importing a contact file.');
+          showContactError('Contact access not available. Please try importing a contact file.');
         }
       } catch (err) {
         console.error('Permission check failed:', err);
@@ -222,14 +222,14 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
     try {
       const permission = await contactsAPI.requestPermission();
       if (!permission.granted) {
-        toast.error('Contact access denied. You can still add friends manually or try again.');
+        showContactError('permission-denied');
         return;
       }
 
       await syncDeviceContacts();
     } catch (error) {
       console.error('Contact sync failed:', error);
-      toast.error('Contact sync failed. Please try again.');
+      showContactError('network-failure');
     } finally {
       setSyncProgress(100);
       setIsSyncing(false);
@@ -246,7 +246,7 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
 
   const handleAddSelectedMembers = () => {
     if (selectedMembers.length === 0) {
-      toast.error('Please select at least one member to add');
+      showContactError('Please select at least one member to add');
       return;
     }
 
@@ -293,7 +293,7 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
       setSelectedMembers([]);
     } catch (error) {
       console.error('Bulk invite failed:', error);
-      toast.error('Failed to send invites. Please try again.');
+      showContactError('Failed to send invites. Please try again.');
     } finally {
       setIsInviting(false);
     }
@@ -320,11 +320,11 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
         window.open(whatsappUrl, '_blank');
         toast.success(`Group invitation sent to ${contact.name}!`);
       } catch (error) {
-        toast.error('Failed to open WhatsApp. Please try again.');
+        showContactError('Failed to open WhatsApp. Please try again.');
       }
     } catch (error) {
       console.error('Single invite failed:', error);
-      toast.error('Failed to send invite.');
+      showContactError('Failed to send invite.');
     } finally {
       setIsInviting(false);
     }
@@ -332,17 +332,17 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
 
   const handleSendInvite = async () => {
     if (!inviteData.name.trim()) {
-      toast.error('Please enter the person\'s name');
+      showContactError("Please enter the person's name");
       return;
     }
 
     if (inviteMethod === 'email' && !inviteData.email.trim()) {
-      toast.error('Please enter an email address');
+      showContactError('Please enter an email address');
       return;
     }
 
     if ((inviteMethod === 'whatsapp' || inviteMethod === 'sms') && !inviteData.phone.trim()) {
-      toast.error('Please enter a phone number');
+      showContactError('Please enter a phone number');
       return;
     }
 
@@ -381,7 +381,7 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
       });
     } catch (error) {
       console.error('Invite submission failed:', error);
-      toast.error('Failed to send invite. Please try again.');
+      showContactError('Failed to send invite. Please try again.');
     } finally {
       setIsInviting(false);
     }

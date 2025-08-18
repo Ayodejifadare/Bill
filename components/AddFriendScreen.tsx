@@ -16,7 +16,7 @@ import { Alert, AlertDescription } from './ui/alert';
 import { Progress } from './ui/progress';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { toast } from 'sonner';
-import { contactsAPI } from '../utils/contacts-api';
+import { contactsAPI, showContactError } from '../utils/contacts-api';
 
 interface Contact {
   id: string;
@@ -92,7 +92,7 @@ export function AddFriendScreen({ onNavigate }: AddFriendScreenProps) {
       toast.success(`Found ${existing} friends on Biltip and ${inviteable} contacts to invite!`);
     } catch (error) {
       console.error('Contact sync failed:', error);
-      toast.error('Contact sync failed. Please try again.');
+      showContactError('network-failure');
     }
   };
 
@@ -106,9 +106,9 @@ export function AddFriendScreen({ onNavigate }: AddFriendScreenProps) {
           setSyncProgress(0);
           await syncDeviceContacts();
         } else if (status.denied) {
-          toast.error('Contact access denied. You can still add friends manually or try again.');
+          showContactError('permission-denied');
         } else {
-          toast.error('Contact access not available. Please try importing a contact file.');
+          showContactError('Contact access not available. Please try importing a contact file.');
         }
       } catch (err) {
         console.error('Permission check failed:', err);
@@ -214,14 +214,14 @@ export function AddFriendScreen({ onNavigate }: AddFriendScreenProps) {
       const permission = await contactsAPI.requestPermission();
 
       if (!permission.granted) {
-        toast.error('Contact access denied. You can still add friends manually or try again.');
+        showContactError('permission-denied');
         return;
       }
 
       await syncDeviceContacts();
     } catch (error) {
       console.error('Contact sync failed:', error);
-      toast.error('Contact sync failed. Please try again.');
+      showContactError('network-failure');
     } finally {
       setIsSyncing(false);
     }
@@ -237,7 +237,7 @@ export function AddFriendScreen({ onNavigate }: AddFriendScreenProps) {
 
   const handleAddSelectedContacts = async () => {
     if (selectedContacts.length === 0) {
-      toast.error('Please select at least one contact to add');
+      showContactError('Please select at least one contact to add');
       return;
     }
 
@@ -264,7 +264,7 @@ export function AddFriendScreen({ onNavigate }: AddFriendScreenProps) {
         toast.success(`Sent friend request to: ${friend.name}`);
       } catch (error) {
         allSucceeded = false;
-        toast.error(`Failed to send friend request to: ${friend.name}`);
+        showContactError(`Failed to send friend request to: ${friend.name}`);
       }
     }
 
@@ -303,23 +303,23 @@ export function AddFriendScreen({ onNavigate }: AddFriendScreenProps) {
       window.open(whatsappUrl, '_blank');
       toast.success(`WhatsApp invitation sent to ${contact.name}!`);
     } catch (error) {
-      toast.error('Failed to open WhatsApp. Please try again.');
+      showContactError('Failed to open WhatsApp. Please try again.');
     }
   };
 
   const handleSendInvite = () => {
     if (!inviteData.name.trim()) {
-      toast.error('Please enter the person\'s name');
+      showContactError("Please enter the person's name");
       return;
     }
 
     if (inviteMethod === 'email' && !inviteData.email.trim()) {
-      toast.error('Please enter an email address');
+      showContactError('Please enter an email address');
       return;
     }
 
     if ((inviteMethod === 'whatsapp' || inviteMethod === 'sms') && !inviteData.phone.trim()) {
-      toast.error('Please enter a phone number');
+      showContactError('Please enter a phone number');
       return;
     }
 
