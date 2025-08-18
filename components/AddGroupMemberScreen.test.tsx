@@ -4,16 +4,20 @@ import { AddGroupMemberScreen } from './AddGroupMemberScreen';
 import { contactsAPI } from '../utils/contacts-api';
 import { toast } from 'sonner';
 
-vi.mock('../utils/contacts-api', () => ({
-  contactsAPI: {
-    isSupported: () => true,
-    requestPermission: vi.fn(),
-    getContacts: vi.fn(),
-    checkPermissionStatus: vi.fn(),
-  },
-}));
-
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));
+
+vi.mock('../utils/contacts-api', async () => {
+  const { toast } = await import('sonner');
+  return {
+    contactsAPI: {
+      isSupported: () => true,
+      requestPermission: vi.fn(),
+      getContacts: vi.fn(),
+      checkPermissionStatus: vi.fn(),
+    },
+    showContactError: (msg: string) => toast.error(msg)
+  };
+});
 
 afterEach(() => {
   vi.clearAllMocks();

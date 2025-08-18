@@ -2,6 +2,34 @@
 // This handles web limitations and provides fallbacks
 
 import type { MatchedContact } from '../components/contact-sync/types';
+import { toast } from 'sonner';
+
+export type ContactErrorCode =
+  | 'permission-denied'
+  | 'network-failure'
+  | 'invalid-file'
+  | 'default';
+
+const CONTACT_ERROR_MESSAGES: Record<ContactErrorCode, string> = {
+  'permission-denied':
+    'Contact access denied. Please enable permissions and try again.',
+  'network-failure':
+    'Network error. Please check your connection and try again.',
+  'invalid-file':
+    'Invalid file. Please use a supported contacts file.',
+  default: 'Contact operation failed. Please try again.'
+};
+
+export function showContactError(
+  typeOrMessage: ContactErrorCode | string = 'default',
+  fallback?: string
+): void {
+  const message =
+    CONTACT_ERROR_MESSAGES[typeOrMessage as ContactErrorCode] ||
+    fallback ||
+    String(typeOrMessage);
+  toast.error(message);
+}
 
 export interface Contact {
   id: string;
