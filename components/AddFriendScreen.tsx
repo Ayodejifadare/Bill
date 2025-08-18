@@ -16,42 +16,7 @@ import { Alert, AlertDescription } from './ui/alert';
 import { Progress } from './ui/progress';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { toast } from 'sonner';
-
-// Simple contacts API for demo purposes
-const contactsAPI = {
-  isSupported: () => typeof navigator !== 'undefined' && 'contacts' in navigator,
-  requestPermission: async () => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({ granted: true, denied: false, prompt: false });
-      }, 1000);
-    });
-  },
-  checkPermissionStatus: async () => {
-    return { granted: false, denied: false, prompt: true };
-  },
-  getContacts: async () => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve([]);
-      }, 500);
-    });
-  },
-  matchContacts: async (contacts: any[]) => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve([]);
-      }, 500);
-    });
-  },
-  importContactsFromFile: async () => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve([]);
-      }, 1000);
-    });
-  }
-};
+import { contactsAPI } from '../utils/contacts-api';
 
 interface Contact {
   id: string;
@@ -271,27 +236,45 @@ export function AddFriendScreen({ onNavigate }: AddFriendScreenProps) {
   const handleSyncContacts = async () => {
     setIsSyncing(true);
     setSyncProgress(0);
-    
+
     try {
-      setSyncProgress(20);
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      setSyncProgress(50);
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      setSyncProgress(80);
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
+      setSyncProgress(10);
+      const permission = await contactsAPI.requestPermission();
+
+      if (!permission.granted) {
+        toast.error('Contact access denied. Please enable it in your settings.');
+        return;
+      }
+
+      setSyncProgress(40);
+      const contacts = await contactsAPI.getContacts();
+
+      setSyncProgress(70);
+      const matched = await contactsAPI.matchContacts(contacts);
+
+      const mappedContacts: Contact[] = matched.map((c: any) => ({
+        id: c.id,
+        name: c.name,
+        username: c.username,
+        phoneNumber: c.phone,
+        email: c.email,
+        mutualFriends: c.mutualFriends,
+        status: c.status,
+        isOnApp: c.status === 'existing_user',
+        userId: c.userId,
+        isAlreadyFriend: false,
+        isFriend: false,
+      }));
+
       setSyncProgress(100);
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      setSyncedContacts(mockContacts);
+      setSyncedContacts(mappedContacts);
       setHasSyncedContacts(true);
       setShowSyncPrompt(false);
       localStorage.setItem('biltip_contacts_synced', 'true');
-      
-      toast.success(`Found ${existingUsers.length} friends on Biltip and ${inviteableContacts.length} contacts to invite!`);
-      
+
+      const existing = mappedContacts.filter(c => c.status === 'existing_user').length;
+      const inviteable = mappedContacts.filter(c => c.status === 'not_on_app').length;
+      toast.success(`Found ${existing} friends on Biltip and ${inviteable} contacts to invite!`);
     } catch (error) {
       console.error('Contact sync failed:', error);
       toast.error('Contact sync failed. Please try again.');
