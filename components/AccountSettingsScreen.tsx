@@ -1,35 +1,56 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card } from './ui/card';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
-import { Avatar, AvatarFallback } from './ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
 import { ArrowLeft, Edit, Mail, Phone, MapPin, Calendar, Shield, Camera } from 'lucide-react';
+import { useUserProfile } from './UserProfileContext';
 
 interface AccountSettingsScreenProps {
   onNavigate: (tab: string) => void;
 }
 
 export function AccountSettingsScreen({ onNavigate }: AccountSettingsScreenProps) {
+  const { userProfile, updateUserProfile } = useUserProfile();
   const [isEditing, setIsEditing] = useState(false);
-  const [userData, setUserData] = useState({
-    firstName: 'John',
-    lastName: 'Doe',
-    email: 'john.doe@example.com',
-    phone: '+1 (555) 123-4567',
-    dateOfBirth: '1990-01-15',
-    address: '123 Main St, San Francisco, CA 94102',
-    bio: 'Coffee enthusiast and frequent bill splitter',
+
+  const profileToState = () => ({
+    firstName: userProfile.firstName || userProfile.name.split(' ')[0] || '',
+    lastName: userProfile.lastName || userProfile.name.split(' ').slice(1).join(' ') || '',
+    email: userProfile.email || '',
+    phone: userProfile.phone || '',
+    dateOfBirth: userProfile.dateOfBirth || '',
+    address: userProfile.address || '',
+    bio: userProfile.bio || '',
+    avatar: userProfile.avatar || '',
   });
 
-  const [originalData, setOriginalData] = useState(userData);
+  const [userData, setUserData] = useState(profileToState());
+  const [originalData, setOriginalData] = useState(profileToState());
 
-  const handleSave = () => {
-    // Mock save functionality
+  useEffect(() => {
+    const data = profileToState();
+    setUserData(data);
+    setOriginalData(data);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userProfile]);
+
+  const handleSave = async () => {
+    await updateUserProfile({
+      firstName: userData.firstName,
+      lastName: userData.lastName,
+      name: `${userData.firstName} ${userData.lastName}`.trim(),
+      email: userData.email,
+      phone: userData.phone,
+      dateOfBirth: userData.dateOfBirth,
+      address: userData.address,
+      bio: userData.bio,
+      avatar: userData.avatar,
+    });
     setOriginalData(userData);
     setIsEditing(false);
-    alert('Profile updated successfully!');
   };
 
   const handleCancel = () => {
@@ -39,6 +60,41 @@ export function AccountSettingsScreen({ onNavigate }: AccountSettingsScreenProps
 
   const updateField = (field: string, value: string) => {
     setUserData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handlePhotoSelect = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const storedAuth = localStorage.getItem('biltip_auth');
+      const token = storedAuth ? JSON.parse(storedAuth).token : null;
+      const formData = new FormData();
+      formData.append('avatar', file);
+      const response = await fetch(`/api/users/${userProfile.id}/avatar`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+      if (!response.ok) {
+        throw new Error('Upload failed');
+      }
+      const data = await response.json();
+      const avatarUrl = data.avatar || data.avatarUrl || data.url;
+      if (avatarUrl) {
+        setUserData(prev => ({ ...prev, avatar: avatarUrl }));
+        updateUserProfile({ avatar: avatarUrl });
+      }
+    } catch (error) {
+      console.error('Error uploading profile photo:', error);
+    }
   };
 
   return (
@@ -79,14 +135,28 @@ export function AccountSettingsScreen({ onNavigate }: AccountSettingsScreenProps
         <div className="flex items-center space-x-4">
           <div className="relative">
             <Avatar className="h-20 w-20">
+              {userData.avatar && <AvatarImage src={userData.avatar} />}
               <AvatarFallback className="text-xl">
                 {userData.firstName[0]}{userData.lastName[0]}
               </AvatarFallback>
             </Avatar>
             {isEditing && (
-              <button className="absolute -bottom-2 -right-2 bg-primary text-primary-foreground p-2 rounded-full">
-                <Camera className="h-4 w-4" />
-              </button>
+              <>
+                <input
+                  type="file"
+                  accept="image/*"
+                  ref={fileInputRef}
+                  onChange={handlePhotoChange}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={handlePhotoSelect}
+                  className="absolute -bottom-2 -right-2 bg-primary text-primary-foreground p-2 rounded-full"
+                >
+                  <Camera className="h-4 w-4" />
+                </button>
+              </>
             )}
           </div>
           <div className="flex-1">

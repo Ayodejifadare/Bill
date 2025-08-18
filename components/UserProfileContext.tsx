@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 
 interface LinkedBankAccount {
   id: string;
@@ -17,11 +17,38 @@ interface LinkedBankAccount {
   addedDate: string;
 }
 
+interface UserStats {
+  totalSent: number;
+  totalReceived: number;
+  totalSplits: number;
+  friends: number;
+}
+
+interface UserPreferences {
+  notifications: boolean;
+  emailAlerts: boolean;
+  whatsappAlerts: boolean;
+  darkMode: boolean;
+  biometrics: boolean;
+}
+
 interface UserProfile {
   id: string;
+  /** Display name - typically first and last name combined */
   name: string;
   email: string;
   phone?: string;
+  /** Optional separated name fields */
+  firstName?: string;
+  lastName?: string;
+  dateOfBirth?: string;
+  address?: string;
+  bio?: string;
+  avatar?: string;
+  joinDate?: string;
+  kycStatus?: 'pending' | 'verified' | 'rejected';
+  stats: UserStats;
+  preferences: UserPreferences;
   linkedBankAccounts: LinkedBankAccount[];
 }
 
@@ -33,7 +60,8 @@ interface AppSettings {
 interface UserProfileContextType {
   userProfile: UserProfile;
   appSettings: AppSettings;
-  updateUserProfile: (profile: Partial<UserProfile>) => void;
+  refreshUserProfile: () => Promise<void>;
+  updateUserProfile: (profile: Partial<UserProfile>) => Promise<void>;
   updateAppSettings: (settings: Partial<AppSettings>) => void;
   addBankAccount: (account: Omit<LinkedBankAccount, 'id' | 'addedDate'>) => void;
   removeBankAccount: (accountId: string) => void;
@@ -45,8 +73,28 @@ const UserProfileContext = createContext<UserProfileContextType | undefined>(und
 const mockUserProfile: UserProfile = {
   id: 'user-123',
   name: 'John Doe',
+  firstName: 'John',
+  lastName: 'Doe',
   email: 'john.doe@example.com',
   phone: '+2348012345678',
+  dateOfBirth: '1990-01-15',
+  address: '123 Main St, San Francisco, CA 94102',
+  bio: 'Coffee enthusiast and frequent bill splitter',
+  joinDate: 'March 2023',
+  kycStatus: 'verified',
+  stats: {
+    totalSent: 1250.0,
+    totalReceived: 890.5,
+    totalSplits: 15,
+    friends: 23,
+  },
+  preferences: {
+    notifications: true,
+    emailAlerts: false,
+    whatsappAlerts: true,
+    darkMode: false,
+    biometrics: true,
+  },
   linkedBankAccounts: [
     {
       id: 'bank-1',
@@ -97,7 +145,7 @@ const mockUserProfile: UserProfile = {
 };
 
 // Helper function to get saved settings from localStorage
-const getSavedSettings = (): AppSettings => {
+export const getSavedSettings = (): AppSettings => {
   try {
     const saved = localStorage.getItem('biltip-app-settings');
     if (saved) {
@@ -118,20 +166,75 @@ const getSavedSettings = (): AppSettings => {
   const isNigerianLocale = locale.includes('ng') || locale.includes('nigeria');
   
   return {
-    region: isNigerianLocale ? 'NG' : 'NG', // Default to Nigeria as primary market
-    currency: isNigerianLocale ? 'NGN' : 'NGN'
+    region: isNigerianLocale ? 'NG' : 'US',
+    currency: isNigerianLocale ? 'NGN' : 'USD'
   };
 };
 
 export function UserProfileProvider({ children }: { children: ReactNode }) {
   const [userProfile, setUserProfile] = useState<UserProfile>(mockUserProfile);
   const [appSettings, setAppSettings] = useState<AppSettings>(getSavedSettings());
+  const refreshUserProfile = async () => {
+    try {
+      const storedAuth = localStorage.getItem('biltip_auth');
+      const token = storedAuth ? JSON.parse(storedAuth).token : null;
+      const userId = userProfile.id;
+      if (!token || !userId) return;
 
-  const updateUserProfile = (profileUpdate: Partial<UserProfile>) => {
+      const response = await fetch(`/api/users/${userId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch user profile');
+      }
+      const data = await response.json();
+      const fetched = data.user;
+      setUserProfile(prev => ({
+        ...prev,
+        ...fetched,
+        joinDate: fetched.createdAt ? new Date(fetched.createdAt).toLocaleDateString() : prev.joinDate,
+      }));
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+    }
+  };
+
+  useEffect(() => {
+    refreshUserProfile();
+  }, []);
+
+  const updateUserProfile = async (profileUpdate: Partial<UserProfile>) => {
     setUserProfile(prev => ({
       ...prev,
       ...profileUpdate
     }));
+
+    try {
+      const storedAuth = localStorage.getItem('biltip_auth');
+      const token = storedAuth ? JSON.parse(storedAuth).token : null;
+      const userId = userProfile.id;
+      if (!token || !userId) return;
+
+      const { name, email, phone, avatar } = profileUpdate;
+      const payload: Record<string, unknown> = {};
+      if (name !== undefined) payload.name = name;
+      if (email !== undefined) payload.email = email;
+      if (phone !== undefined) payload.phone = phone;
+      if (avatar !== undefined) payload.avatar = avatar;
+
+      await fetch(`/api/users/${userId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+    } catch (error) {
+      console.error('Error updating user profile:', error);
+    }
   };
 
   const updateAppSettings = (settingsUpdate: Partial<AppSettings>) => {
@@ -181,10 +284,11 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <UserProfileContext.Provider 
+    <UserProfileContext.Provider
       value={{
         userProfile,
         appSettings,
+        refreshUserProfile,
         updateUserProfile,
         updateAppSettings,
         addBankAccount,

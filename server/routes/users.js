@@ -1,5 +1,6 @@
 import express from 'express'
 import jwt from 'jsonwebtoken'
+import { body, validationResult } from 'express-validator'
 
 const router = express.Router()
 
@@ -81,5 +82,58 @@ router.get('/:id', authenticateToken, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' })
   }
 })
+
+// Update user profile
+router.put(
+  '/:id',
+  [
+    authenticateToken,
+    body('name').optional().isString().trim().notEmpty(),
+    body('email').optional().isEmail(),
+    body('phone').optional().isString().trim().notEmpty(),
+    body('avatar').optional().isURL()
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req)
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() })
+      }
+
+      if (req.userId !== req.params.id) {
+        return res.status(403).json({ error: 'Unauthorized' })
+      }
+
+      const { name, email, phone, avatar } = req.body
+      const data = {}
+      if (name !== undefined) data.name = name
+      if (email !== undefined) data.email = email
+      if (phone !== undefined) data.phone = phone
+      if (avatar !== undefined) data.avatar = avatar
+
+      if (Object.keys(data).length === 0) {
+        return res.status(400).json({ error: 'No valid fields provided' })
+      }
+
+      const user = await req.prisma.user.update({
+        where: { id: req.params.id },
+        data,
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+          avatar: true,
+          createdAt: true
+        }
+      })
+
+      res.json({ user })
+    } catch (error) {
+      console.error('Update user error:', error)
+      res.status(500).json({ error: 'Internal server error' })
+    }
+  }
+)
 
 export default router
