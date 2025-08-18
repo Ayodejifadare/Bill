@@ -380,17 +380,13 @@ export function GroupDetailsScreen({ groupId, onNavigate, onGroupNavigation }: G
                 )}
               </div>
             ) : (
-              <Card className="p-6 sm:p-8 text-center">
-                <Receipt className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mx-auto mb-3" />
-                <h3 className="font-medium mb-2">No activity yet</h3>
-                <p className="text-sm text-muted-foreground mb-4 px-2">
-                  Start splitting bills with your group
-                </p>
-                <Button onClick={handleSplitBill} size="sm">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Split First Bill
-                </Button>
-              </Card>
+              <EmptyState
+                icon={Receipt}
+                title="No activity yet"
+                description="Start splitting bills with your group"
+                actionLabel="Split First Bill"
+                onAction={handleSplitBill}
+              />
             )}
           </TabsContent>
 

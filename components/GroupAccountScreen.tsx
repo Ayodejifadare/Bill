@@ -6,6 +6,7 @@ import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Badge } from './ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
+import { EmptyState } from './ui/empty-state';
 import { ArrowLeft, Plus, Building2, Smartphone, Copy, Trash2, Check, Edit2, Crown } from 'lucide-react';
 import { toast } from 'sonner';
 import { useUserProfile } from './UserProfileContext';
@@ -511,31 +512,17 @@ export function GroupAccountScreen({ groupId, onNavigate }: GroupAccountScreenPr
         {/* Group Accounts List */}
         <div className="space-y-3 sm:space-y-4">
           {groupAccounts.length === 0 ? (
-            <Card>
-              <CardContent className="p-6 sm:p-8 text-center">
-                {isNigeria ? (
-                  <div className="flex items-center justify-center gap-3 sm:gap-4 mb-3 sm:mb-4">
-                    <Building2 className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground" />
-                    <Smartphone className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground" />
-                  </div>
-                ) : (
-                  <Building2 className="h-10 w-10 sm:h-12 sm:w-12 mx-auto text-muted-foreground mb-3 sm:mb-4" />
-                )}
-                <h3 className="mb-2 text-sm sm:text-base">No group accounts</h3>
-                <p className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4 px-2">
-                  {group.isAdmin 
-                    ? "Add payment accounts that group members can use when creating splits"
-                    : "No payment accounts have been added to this group yet"
-                  }
-                </p>
-                {group.isAdmin && (
-                  <Button onClick={() => setIsAddingMethod(true)} size="sm">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add First Group Account
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
+            <EmptyState
+              icon={Building2}
+              title="No group accounts"
+              description={
+                group.isAdmin
+                  ? 'Add payment accounts that group members can use when creating splits'
+                  : 'No payment accounts have been added to this group yet'
+              }
+              actionLabel={group.isAdmin ? 'Add First Group Account' : undefined}
+              onAction={group.isAdmin ? () => setIsAddingMethod(true) : undefined}
+            />
           ) : (
             groupAccounts.map((account) => (
               <Card key={account.id} className="relative">
