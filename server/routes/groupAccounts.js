@@ -1,6 +1,7 @@
-import express from 'express';
+import express from 'express'
 
-const router = express.Router();
+// Use mergeParams to access groupId from parent router
+const router = express.Router({ mergeParams: true })
 
 const groupAccounts = {};
 
@@ -39,28 +40,30 @@ const isValidProvider = (provider) => {
   return MOBILE_MONEY_PROVIDERS.some(p => p.name === provider);
 };
 
-router.get('/:groupId/accounts', (req, res) => {
-  const accounts = groupAccounts[req.params.groupId] || [];
-  res.json({ accounts });
-});
+// List all accounts for a specific group
+router.get('/', (req, res) => {
+  const accounts = groupAccounts[req.params.groupId] || []
+  res.json({ accounts })
+})
 
-router.post('/:groupId/accounts', (req, res) => {
-  const { type } = req.body;
+// Create a new account for a group
+router.post('/', (req, res) => {
+  const { type } = req.body
   if (type === 'bank') {
-    const { bank, accountNumber, accountName } = req.body;
+    const { bank, accountNumber, accountName } = req.body
     if (!bank || !accountNumber || !accountName || !isValidBank(bank)) {
-      return res.status(400).json({ error: 'Invalid bank details' });
+      return res.status(400).json({ error: 'Invalid bank details' })
     }
   } else if (type === 'mobile_money') {
-    const { provider, phoneNumber } = req.body;
+    const { provider, phoneNumber } = req.body
     if (!provider || !phoneNumber || !isValidProvider(provider)) {
-      return res.status(400).json({ error: 'Invalid provider details' });
+      return res.status(400).json({ error: 'Invalid provider details' })
     }
   } else {
-    return res.status(400).json({ error: 'Invalid account type' });
+    return res.status(400).json({ error: 'Invalid account type' })
   }
 
-  const list = groupAccounts[req.params.groupId] || [];
+  const list = groupAccounts[req.params.groupId] || []
   const newAccount = {
     id: Date.now().toString(),
     name:
@@ -70,43 +73,45 @@ router.post('/:groupId/accounts', (req, res) => {
     isDefault: list.length === 0,
     createdBy: 'Server',
     createdDate: new Date().toISOString(),
-    ...req.body
-  };
-  list.push(newAccount);
-  groupAccounts[req.params.groupId] = list;
-  res.status(201).json({ account: newAccount });
-});
+    ...req.body,
+  }
+  list.push(newAccount)
+  groupAccounts[req.params.groupId] = list
+  res.status(201).json({ account: newAccount })
+})
 
-router.put('/:groupId/accounts/:accountId', (req, res) => {
-  const list = groupAccounts[req.params.groupId] || [];
-  const idx = list.findIndex(a => a.id === req.params.accountId);
+// Update a specific account
+router.put('/:accountId', (req, res) => {
+  const list = groupAccounts[req.params.groupId] || []
+  const idx = list.findIndex((a) => a.id === req.params.accountId)
   if (idx === -1) {
-    return res.status(404).json({ error: 'Account not found' });
+    return res.status(404).json({ error: 'Account not found' })
   }
   if (req.body.isDefault) {
-    list.forEach(a => {
-      a.isDefault = false;
-    });
-    list[idx].isDefault = true;
+    list.forEach((a) => {
+      a.isDefault = false
+    })
+    list[idx].isDefault = true
   } else {
-    list[idx] = { ...list[idx], ...req.body };
+    list[idx] = { ...list[idx], ...req.body }
   }
-  res.json({ account: list[idx] });
-});
+  res.json({ account: list[idx] })
+})
 
-router.delete('/:groupId/accounts/:accountId', (req, res) => {
-  const list = groupAccounts[req.params.groupId] || [];
-  const idx = list.findIndex(a => a.id === req.params.accountId);
+// Delete an account from a group
+router.delete('/:accountId', (req, res) => {
+  const list = groupAccounts[req.params.groupId] || []
+  const idx = list.findIndex((a) => a.id === req.params.accountId)
   if (idx === -1) {
-    return res.status(404).json({ error: 'Account not found' });
+    return res.status(404).json({ error: 'Account not found' })
   }
-  const [removed] = list.splice(idx, 1);
+  const [removed] = list.splice(idx, 1)
   if (removed.isDefault && list.length > 0) {
-    list[0].isDefault = true;
+    list[0].isDefault = true
   }
-  groupAccounts[req.params.groupId] = list;
-  res.json({ message: 'Deleted' });
-});
+  groupAccounts[req.params.groupId] = list
+  res.json({ message: 'Deleted' })
+})
 
 export default router;
 
