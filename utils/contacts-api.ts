@@ -76,6 +76,43 @@ class ContactsAPI {
     return !('showOpenFilePicker' in window) || this.isInCrossOriginContext();
   }
 
+  // Check current permission status
+  async checkPermissionStatus(): Promise<ContactPermissionStatus> {
+    try {
+      // Mobile platforms (Capacitor/Cordova) typically handle permissions internally
+      if ('Capacitor' in window) {
+        // const { Contacts } = Capacitor.Plugins;
+        // const permission = await Contacts.checkPermissions();
+        // const state = permission?.contacts;
+        // return { granted: state === 'granted', denied: state === 'denied', prompt: state === 'prompt' };
+      }
+
+      if ('cordova' in window && window.cordova?.plugins?.contacts) {
+        return { granted: true, denied: false, prompt: false };
+      }
+
+      // Browser Permissions API
+      if (typeof navigator !== 'undefined' && (navigator as any).permissions?.query) {
+        try {
+          const result = await (navigator as any).permissions.query({ name: 'contacts' as any });
+          return {
+            granted: result.state === 'granted',
+            denied: result.state === 'denied',
+            prompt: result.state === 'prompt',
+          };
+        } catch (error) {
+          // Permission name not supported; fall through to default
+        }
+      }
+
+      // Default to prompting if status cannot be determined
+      return { granted: false, denied: false, prompt: true };
+    } catch (error) {
+      console.warn('Failed to check contact permission status:', error);
+      return { granted: false, denied: true, prompt: false };
+    }
+  }
+
   // Request permission to access contacts
   async requestPermission(): Promise<ContactPermissionStatus> {
     try {

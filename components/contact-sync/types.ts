@@ -19,7 +19,8 @@ export type ActiveTab = 'on_app' | 'invite';
 
 export interface ContactPermission {
   granted: boolean;
-  userDenied?: boolean;
+  denied?: boolean;
+  prompt?: boolean;
   message?: string;
 }
 

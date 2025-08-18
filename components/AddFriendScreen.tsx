@@ -23,12 +23,12 @@ const contactsAPI = {
   requestPermission: async () => {
     return new Promise((resolve) => {
       setTimeout(() => {
-        resolve({ granted: true, userDenied: false });
+        resolve({ granted: true, denied: false, prompt: false });
       }, 1000);
     });
   },
   checkPermissionStatus: async () => {
-    return { granted: false };
+    return { granted: false, denied: false, prompt: true };
   },
   getContacts: async () => {
     return new Promise((resolve) => {
