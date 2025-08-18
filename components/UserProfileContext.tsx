@@ -61,7 +61,7 @@ interface UserProfileContextType {
   userProfile: UserProfile;
   appSettings: AppSettings;
   refreshUserProfile: () => Promise<void>;
-  updateUserProfile: (profile: Partial<UserProfile>) => void;
+  updateUserProfile: (profile: Partial<UserProfile>) => Promise<void>;
   updateAppSettings: (settings: Partial<AppSettings>) => void;
   addBankAccount: (account: Omit<LinkedBankAccount, 'id' | 'addedDate'>) => void;
   removeBankAccount: (accountId: string) => void;
@@ -216,13 +216,21 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
       const token = storedAuth ? JSON.parse(storedAuth).token : null;
       const userId = userProfile.id;
       if (!token || !userId) return;
+
+      const { name, email, phone, avatar } = profileUpdate;
+      const payload: Record<string, unknown> = {};
+      if (name !== undefined) payload.name = name;
+      if (email !== undefined) payload.email = email;
+      if (phone !== undefined) payload.phone = phone;
+      if (avatar !== undefined) payload.avatar = avatar;
+
       await fetch(`/api/users/${userId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(profileUpdate),
+        body: JSON.stringify(payload),
       });
     } catch (error) {
       console.error('Error updating user profile:', error);
