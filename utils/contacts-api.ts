@@ -1,6 +1,8 @@
 // Contacts API utility for cross-platform contact access
 // This handles web limitations and provides fallbacks
 
+import type { MatchedContact } from '../components/contact-sync/types';
+
 export interface Contact {
   id: string;
   name: string;
@@ -469,33 +471,48 @@ class ContactsAPI {
     ];
   }
 
-  // Match contacts with existing users (would call your API)
-  async matchContacts(contacts: Contact[]): Promise<any[]> {
-    // This would make API calls to your backend to match phone numbers/emails
-    // with existing users in your database
-    
-    // Mock implementation
-    const mockExistingUsers = [
-      { phone: '+1234567890', userId: 'u1', username: '@john_s', name: 'John Smith' },
-      { phone: '+1234567891', userId: 'u2', username: '@lisa_c', name: 'Lisa Chen' }
-    ];
-    
-    return contacts.map(contact => {
-      const existingUser = mockExistingUsers.find(user => 
-        contact.phoneNumbers.includes(user.phone)
-      );
-      
-      return {
+  // Match contacts with existing users by calling the backend
+  async matchContacts(contacts: Contact[]): Promise<MatchedContact[]> {
+    try {
+      const res = await fetch('/api/contacts/match', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contacts })
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to match contacts');
+      }
+
+      const data = await res.json();
+      const results = Array.isArray(data.contacts)
+        ? data.contacts
+        : Array.isArray(data.matchedContacts)
+          ? data.matchedContacts
+          : [];
+
+      return results.map((c: any, index: number): MatchedContact => ({
+        id: c.id || c.contactId || contacts[index]?.id || `contact_${index}`,
+        name: c.name || c.displayName || contacts[index]?.name || 'Unknown',
+        phone: c.phone || c.phoneNumber || c.phoneNumbers?.[0] || contacts[index]?.phoneNumbers?.[0] || '',
+        email: c.email || c.emails?.[0] || contacts[index]?.emails?.[0],
+        status: c.status === 'existing_user' ? 'existing_user' : 'not_on_app',
+        userId: c.userId,
+        username: c.username,
+        mutualFriends: typeof c.mutualFriends === 'number' ? c.mutualFriends : undefined,
+        avatar: c.avatar
+      }));
+    } catch (error) {
+      console.error('Failed to match contacts:', error);
+      // Fallback: mark all contacts as not on the app so invites can still be sent
+      return contacts.map((contact): MatchedContact => ({
         id: contact.id,
         name: contact.name,
         phone: contact.phoneNumbers[0] || '',
-        email: contact.emails[0] || '',
-        status: existingUser ? 'existing_user' : 'not_on_app',
-        userId: existingUser?.userId,
-        username: existingUser?.username,
-        mutualFriends: existingUser ? Math.floor(Math.random() * 5) : undefined
-      };
-    });
+        email: contact.emails[0],
+        status: 'not_on_app'
+      }));
+    }
   }
 }
 
