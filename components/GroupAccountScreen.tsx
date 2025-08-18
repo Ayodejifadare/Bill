@@ -9,7 +9,6 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { ArrowLeft, Plus, Building2, Smartphone, Copy, Trash2, Check, Edit2, Crown } from 'lucide-react';
 import { toast } from 'sonner';
 import { useUserProfile } from './UserProfileContext';
-import { AccountCard } from './AccountCard';
 
 interface GroupAccount {
   id: string;
@@ -100,64 +99,6 @@ const mockGroups: Record<string, Group> = {
   '3': { id: '3', name: 'Travel Buddies', isAdmin: true }
 };
 
-// Mock group accounts for groups
-const mockGroupAccounts: Record<string, GroupAccount[]> = {
-  '1': [
-    {
-      id: '1',
-      name: 'Team Lunch Account',
-      type: 'bank',
-      bank: 'Chase Bank',
-      accountNumber: '1234567890',
-      accountName: 'Emily Davis',
-      routingNumber: '021000021',
-      accountType: 'checking',
-      isDefault: true,
-      createdBy: 'Emily Davis',
-      createdDate: '2025-01-10T10:00:00Z'
-    },
-    {
-      id: '2',
-      name: 'Office Supplies Fund',
-      type: 'mobile_money',
-      provider: 'Zelle',
-      phoneNumber: '+1 (555) 123-4567',
-      isDefault: false,
-      createdBy: 'John Doe',
-      createdDate: '2025-01-05T15:30:00Z'
-    }
-  ],
-  '2': [
-    {
-      id: '1',
-      name: 'Utilities & Rent',
-      type: 'bank',
-      bank: 'Bank of America',
-      accountNumber: '9876543210',
-      accountName: 'Alex Rodriguez',
-      routingNumber: '026009593',
-      accountType: 'checking',
-      isDefault: true,
-      createdBy: 'Alex Rodriguez',
-      createdDate: '2024-12-01T10:00:00Z'
-    }
-  ],
-  '3': [
-    {
-      id: '1',
-      name: 'Travel Expenses',
-      type: 'bank',
-      bank: 'Wells Fargo',
-      accountNumber: '5432109876',
-      accountName: 'Sarah Johnson',
-      routingNumber: '121000248',
-      accountType: 'savings',
-      isDefault: true,
-      createdBy: 'Sarah Johnson',
-      createdDate: '2024-03-15T14:20:00Z'
-    }
-  ]
-};
 
 export function GroupAccountScreen({ groupId, onNavigate }: GroupAccountScreenProps) {
   const { appSettings } = useUserProfile();
@@ -165,9 +106,7 @@ export function GroupAccountScreen({ groupId, onNavigate }: GroupAccountScreenPr
   const banks = isNigeria ? NIGERIAN_BANKS : US_BANKS;
 
   const group = groupId ? mockGroups[groupId] : null;
-  const [groupAccounts, setGroupAccounts] = useState<GroupAccount[]>(
-    groupId ? mockGroupAccounts[groupId] || [] : []
-  );
+  const [groupAccounts, setGroupAccounts] = useState<GroupAccount[]>([]);
 
   const [isAddingMethod, setIsAddingMethod] = useState(false);
   const [methodType, setMethodType] = useState<'bank' | 'mobile_money'>('bank');
@@ -180,6 +119,24 @@ export function GroupAccountScreen({ groupId, onNavigate }: GroupAccountScreenPr
     phoneNumber: ''
   });
   const [isLoading, setIsLoading] = useState(false);
+
+  const fetchAccounts = async () => {
+    if (!groupId) return;
+    try {
+      const res = await fetch(`/api/groups/${groupId}/accounts`);
+      if (!res.ok) {
+        throw new Error('Failed to load group accounts');
+      }
+      const data = await res.json();
+      setGroupAccounts(data.accounts || []);
+    } catch (error) {
+      toast.error('Failed to load group accounts');
+    }
+  };
+
+  React.useEffect(() => {
+    fetchAccounts();
+  }, [groupId]);
 
   if (!group) {
     return (
@@ -214,6 +171,11 @@ export function GroupAccountScreen({ groupId, onNavigate }: GroupAccountScreenPr
         toast.error('Please fill in all bank details');
         return;
       }
+      const selectedBank = banks.find(bank => bank.name === formData.bank);
+      if (!selectedBank) {
+        toast.error('Please select a valid bank');
+        return;
+      }
       if (isNigeria && formData.accountNumber.length !== 10) {
         toast.error('Account number must be 10 digits');
         return;
@@ -221,6 +183,11 @@ export function GroupAccountScreen({ groupId, onNavigate }: GroupAccountScreenPr
     } else {
       if (!formData.provider || !formData.phoneNumber) {
         toast.error('Please fill in all mobile money details');
+        return;
+      }
+      const provider = MOBILE_MONEY_PROVIDERS.find(p => p.name === formData.provider);
+      if (!provider) {
+        toast.error('Please select a valid provider');
         return;
       }
       if (isNigeria && !formData.phoneNumber.startsWith('+234')) {
@@ -232,67 +199,80 @@ export function GroupAccountScreen({ groupId, onNavigate }: GroupAccountScreenPr
     setIsLoading(true);
 
     try {
-      // Simulate API call for account verification
-      await new Promise(resolve => setTimeout(resolve, 1500));
-
       const selectedBank = banks.find(bank => bank.name === formData.bank);
-      
-      // Auto-generate display name
-      const displayName = methodType === 'bank' 
-        ? `${formData.accountName} - ${formData.bank}`
-        : `${formData.phoneNumber} - ${formData.provider}`;
-      
-      const newAccount: GroupAccount = {
-        id: Date.now().toString(),
-        name: displayName,
+      const payload: any = {
         type: methodType,
-        ...(methodType === 'bank' ? {
-          bank: formData.bank,
-          accountNumber: isNigeria ? formData.accountNumber : `****${formData.accountNumber.slice(-4)}`,
-          accountName: formData.accountName,
-          accountType: formData.accountType,
-          ...(isNigeria ? {
-            sortCode: selectedBank?.code
-          } : {
-            routingNumber: selectedBank?.code
-          })
-        } : {
-          provider: formData.provider,
-          phoneNumber: formData.phoneNumber
-        }),
-        isDefault: groupAccounts.length === 0,
-        createdBy: 'You', // In real app, this would be current user
-        createdDate: new Date().toISOString()
+        ...(methodType === 'bank'
+          ? {
+              bank: formData.bank,
+              accountNumber: formData.accountNumber,
+              accountName: formData.accountName,
+              accountType: formData.accountType,
+              ...(isNigeria
+                ? { sortCode: selectedBank?.code }
+                : { routingNumber: selectedBank?.code })
+            }
+          : {
+              provider: formData.provider,
+              phoneNumber: formData.phoneNumber
+            })
       };
 
-      setGroupAccounts([...groupAccounts, newAccount]);
+      const res = await fetch(`/api/groups/${groupId}/accounts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to add group account');
+      }
       toast.success('Group account added successfully!');
       setIsAddingMethod(false);
       resetForm();
-    } catch (error) {
-      toast.error('Failed to verify account. Please check details.');
+      await fetchAccounts();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to add group account');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleSetDefault = (accountId: string) => {
-    const updated = groupAccounts.map(account => ({
-      ...account,
-      isDefault: account.id === accountId
-    }));
-    setGroupAccounts(updated);
-    toast.success('Default group account updated');
+  const handleSetDefault = async (accountId: string) => {
+    if (!groupId) return;
+    try {
+      const res = await fetch(`/api/groups/${groupId}/accounts/${accountId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isDefault: true })
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to update default account');
+      }
+      toast.success('Default group account updated');
+      await fetchAccounts();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to update default account');
+    }
   };
 
-  const handleDeleteMethod = (accountId: string) => {
-    const updated = groupAccounts.filter(account => account.id !== accountId);
-    // If we deleted the default method, make the first remaining method default
-    if (updated.length > 0 && !updated.some(m => m.isDefault)) {
-      updated[0].isDefault = true;
+  const handleDeleteMethod = async (accountId: string) => {
+    if (!groupId) return;
+    try {
+      const res = await fetch(`/api/groups/${groupId}/accounts/${accountId}`, {
+        method: 'DELETE'
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to remove group account');
+      }
+      setGroupAccounts(prev => prev.filter(account => account.id !== accountId));
+      toast.success('Group account removed');
+      await fetchAccounts();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to remove group account');
     }
-    setGroupAccounts(updated);
-    toast.success('Group account removed');
   };
 
   const copyToClipboard = (text: string, label?: string) => {
@@ -692,6 +672,7 @@ export function GroupAccountScreen({ groupId, onNavigate }: GroupAccountScreenPr
                       <Button
                         variant="outline"
                         size="sm"
+                        aria-label="Delete account"
                         onClick={() => handleDeleteMethod(account.id)}
                         className="text-destructive hover:text-destructive h-8 sm:h-9 px-2 sm:px-3"
                       >
