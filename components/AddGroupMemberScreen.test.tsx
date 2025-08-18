@@ -22,7 +22,7 @@ afterEach(() => {
 
 describe('AddGroupMemberScreen', () => {
   it('handles permission denied', async () => {
-    (contactsAPI.requestPermission as any).mockResolvedValue({ granted: false, userDenied: true });
+    (contactsAPI.requestPermission as any).mockResolvedValue({ granted: false, denied: true, prompt: false });
     const fetchSpy = vi.spyOn(global, 'fetch');
     render(<AddGroupMemberScreen groupId="g1" onNavigate={vi.fn()} />);
     fireEvent.click(screen.getAllByText('Sync Contacts')[0]);
@@ -31,7 +31,7 @@ describe('AddGroupMemberScreen', () => {
   });
 
   it('syncs contacts successfully', async () => {
-    (contactsAPI.requestPermission as any).mockResolvedValue({ granted: true });
+    (contactsAPI.requestPermission as any).mockResolvedValue({ granted: true, denied: false, prompt: false });
     (contactsAPI.getContacts as any).mockResolvedValue([{ id: '1', name: 'Alice', phoneNumbers: ['123'], emails: [] }]);
     vi.spyOn(global, 'fetch').mockResolvedValueOnce({ ok: true, json: async () => ({ contacts: [{ id: '1', name: 'Alice', phoneNumber: '123', status: 'existing_user' }] }) } as unknown as Response);
     render(<AddGroupMemberScreen groupId="g1" onNavigate={vi.fn()} />);

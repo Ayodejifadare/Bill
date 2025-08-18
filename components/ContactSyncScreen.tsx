@@ -30,6 +30,10 @@ export function ContactSyncScreen({ onNavigate }: ContactSyncScreenProps) {
             setHasPermission(true);
             // Optionally auto-sync if permission was previously granted
             // await handleAutoSync();
+          } else if (status.denied) {
+            setHasPermission(false);
+          } else {
+            setHasPermission(null);
           }
         }
       } catch (error) {
@@ -130,13 +134,13 @@ export function ContactSyncScreen({ onNavigate }: ContactSyncScreenProps) {
       updateSyncProgress(5, 'Requesting contact access...');
       
       const permission = await contactsAPI.requestPermission();
-      
+
       if (!permission.granted) {
         setHasPermission(false);
         setSyncStep('permission');
-        
+
         // More specific permission denied messaging
-        if (permission.userDenied) {
+        if (permission.denied) {
           toast.error('Contact access denied. You can still add friends manually or try again.');
         } else {
           toast.error('Contact access not available. Please try importing a contact file.');

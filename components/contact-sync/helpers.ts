@@ -1,4 +1,4 @@
-import { whatsappAPI } from '../ui/contacts-api';
+import { whatsappAPI } from '../../utils/contacts-api';
 import { MatchedContact } from './types';
 import { WHATSAPP_INVITE_MESSAGE } from './constants';
 import { toast } from 'sonner';
