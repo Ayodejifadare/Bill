@@ -25,9 +25,11 @@
   "include": [
     "src",
     "components",
+    "hooks",
     "styles",
     "App.tsx",
-    "vite.config.js"
+    "vite.config.js",
+    "vitest.setup.ts"
   ],
   "exclude": [
     "node_modules",
