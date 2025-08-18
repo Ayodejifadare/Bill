@@ -10,7 +10,7 @@ import { Badge } from './ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Checkbox } from './ui/checkbox';
 import { Switch } from './ui/switch';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { useUserProfile } from './UserProfileContext';
 import { SocialSharingUtils, QuickShareButton, createDeepLink } from './SocialSharingUtils';
 

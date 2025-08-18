@@ -5,7 +5,7 @@ import { Card } from './ui/card';
 import { Alert, AlertDescription } from './ui/alert';
 import { Badge } from './ui/badge';
 import { useLoadingState } from './LoadingStateContext';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 // Network status types
 interface NetworkStatus {

@@ -8,7 +8,7 @@ import { Textarea } from './ui/textarea';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Checkbox } from './ui/checkbox';
 import { Badge } from './ui/badge';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface CreateGroupScreenProps {
   onNavigate: (tab: string, data?: any) => void;

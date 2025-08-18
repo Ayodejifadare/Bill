@@ -1,5 +1,5 @@
 import { ArrowLeft, Calendar, AlertCircle, Clock, CreditCard, DollarSign, Users, AlertTriangle } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Avatar, AvatarFallback } from './ui/avatar';

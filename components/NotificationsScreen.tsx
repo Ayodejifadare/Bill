@@ -8,7 +8,7 @@ import { Separator } from './ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { EmptyState } from './ui/empty-state';
 import { ArrowLeft, Bell, Check, X, Users, DollarSign, AlertTriangle, MessageCircle, Mail, Smartphone, Settings, Volume2 } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface Notification {
   id: string;

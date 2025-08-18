@@ -12,7 +12,7 @@ import { Separator } from './ui/separator';
 import { Alert, AlertDescription } from './ui/alert';
 import { Progress } from './ui/progress';
 import { BankSelectionSheet } from './BankSelectionSheet';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface SettlementScreenProps {
   onNavigate: (tab: string, data?: any) => void;

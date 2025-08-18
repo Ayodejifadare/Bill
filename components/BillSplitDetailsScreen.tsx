@@ -7,7 +7,7 @@ import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { useUserProfile } from './UserProfileContext';
 import { ShareSheet } from './ui/share-sheet';
 import { createDeepLink } from './ShareUtils';

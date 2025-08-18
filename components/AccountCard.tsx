@@ -3,7 +3,7 @@ import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Building2, Smartphone, Copy, Trash2, Check } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { useUserProfile } from './UserProfileContext';
 
 interface BaseAccount {

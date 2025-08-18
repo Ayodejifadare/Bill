@@ -10,7 +10,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from './ui/sheet';
 import { Separator } from './ui/separator';
 import { TransactionCard } from './TransactionCard';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface GroupDetailsScreenProps {
   groupId: string | null;

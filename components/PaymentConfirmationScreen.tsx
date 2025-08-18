@@ -5,7 +5,7 @@ import { Card } from './ui/card';
 import { Badge } from './ui/badge';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Separator } from './ui/separator';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { ShareSheet } from './ui/share-sheet';
 import { useUserProfile } from './UserProfileContext';
 
