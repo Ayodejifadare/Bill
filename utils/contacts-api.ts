@@ -118,19 +118,37 @@ class ContactsAPI {
   // Request permission to access contacts
   async requestPermission(): Promise<ContactPermissionStatus> {
     try {
-      // For actual mobile apps, this would use platform-specific APIs
-      if ('Capacitor' in window) {
-        // Capacitor/Ionic implementation
-        // const { Contacts } = Capacitor.Plugins;
-        // const permission = await Contacts.requestPermissions();
-        // return { granted: permission.contacts === 'granted', denied: false, prompt: false };
+      // For actual mobile apps, this uses platform-specific APIs
+      if (typeof window !== 'undefined' && window.Capacitor?.Plugins?.Contacts) {
+        try {
+          const permission = await window.Capacitor.Plugins.Contacts.requestPermissions();
+          const status = permission?.contacts || permission?.contactsPermission || permission;
+          return {
+            granted: status === 'granted',
+            denied: status === 'denied',
+            prompt: status === 'prompt' || status === 'prompt-with-rationale'
+          };
+        } catch (error) {
+          console.warn('Capacitor permission request failed:', error);
+        }
       }
-      
-      if ('cordova' in window && window.cordova?.plugins?.contacts) {
-        // Cordova implementation
-        return new Promise((resolve) => {
-          resolve({ granted: true, denied: false, prompt: false });
-        });
+
+      if (typeof window !== 'undefined' && window.cordova?.plugins?.contacts) {
+        // Cordova implementation with runtime permission request
+        const permissions = window.cordova.plugins.permissions;
+        if (permissions?.requestPermission) {
+          const permission = permissions.CONTACTS || permissions.READ_CONTACTS;
+          return new Promise(resolve => {
+            permissions.requestPermission(
+              permission,
+              () => resolve({ granted: true, denied: false, prompt: false }),
+              () => resolve({ granted: false, denied: true, prompt: false })
+            );
+          });
+        }
+
+        // If no separate permission API, assume granted (plugin will handle)
+        return { granted: true, denied: false, prompt: false };
       }
 
       // Web Contacts API (very limited browser support)
@@ -161,10 +179,14 @@ class ContactsAPI {
   async getContacts(): Promise<Contact[]> {
     try {
       // Capacitor/Ionic implementation
-      if ('Capacitor' in window) {
-        // const { Contacts } = Capacitor.Plugins;
-        // const result = await Contacts.getContacts();
-        // return this.normalizeContacts(result.contacts);
+      if (typeof window !== 'undefined' && window.Capacitor?.Plugins?.Contacts) {
+        try {
+          const result = await window.Capacitor.Plugins.Contacts.getContacts();
+          const contacts = Array.isArray(result) ? result : result.contacts;
+          return this.normalizeContacts(contacts);
+        } catch (error) {
+          console.warn('Capacitor getContacts failed:', error);
+        }
       }
 
       // Cordova implementation
@@ -612,6 +634,7 @@ declare global {
     cordova?: {
       plugins?: {
         contacts?: any;
+        permissions?: any;
       };
     };
     Capacitor?: any;
