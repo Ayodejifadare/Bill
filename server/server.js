@@ -11,7 +11,7 @@ import userRoutes from './routes/users.js'
 import transactionRoutes from './routes/transactions.js'
 import billSplitRoutes from './routes/billSplits.js'
 import friendRoutes from './routes/friends.js'
-import groupAccountRoutes from './routes/groupAccounts.js'
+import groupRoutes from './routes/groups.js'
 
 // Load environment variables
 dotenv.config()
@@ -52,7 +52,7 @@ app.use('/api/users', userRoutes)
 app.use('/api/transactions', transactionRoutes)
 app.use('/api/bill-splits', billSplitRoutes)
 app.use('/api/friends', friendRoutes)
-app.use('/api/groups', groupAccountRoutes)
+app.use('/api/groups', groupRoutes)
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
