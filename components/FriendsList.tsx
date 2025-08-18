@@ -1,6 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card } from './ui/card';
-import { Input } from './ui/input';
 import { Button } from './ui/button';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Badge } from './ui/badge';
@@ -21,51 +20,47 @@ interface Friend {
     amount: number;
     type: 'owes' | 'owed';
   };
+  requestId?: string;
 }
 
-const mockFriends: Friend[] = [
-  {
-    id: '1',
-    name: 'Sarah Johnson',
-    username: '@sarah_j',
-    status: 'active',
-    lastTransaction: { amount: 25.50, type: 'owed' }
-  },
-  {
-    id: '2',
-    name: 'Mike Chen',
-    username: '@mike_chen',
-    status: 'active',
-    lastTransaction: { amount: 15.00, type: 'owes' }
-  },
-  {
-    id: '3',
-    name: 'Emily Davis',
-    username: '@emily_d',
-    status: 'active',
-  },
-  {
-    id: '4',
-    name: 'Alex Rodriguez',
-    username: '@alex_r',
-    status: 'pending',
-  },
-  {
-    id: '5',
-    name: 'Jessica Wilson',
-    username: '@jess_w',
-    status: 'active',
-    lastTransaction: { amount: 8.75, type: 'owed' }
-  },
-];
-
 interface FriendsListProps {
-  onNavigate: (tab: string, data?: any) => void;
+  onNavigate: (tab: string, data?: unknown) => void;
 }
 
 export function FriendsList({ onNavigate }: FriendsListProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [friends] = useState(mockFriends);
+  const [friends, setFriends] = useState<Friend[]>([]);
+
+  useEffect(() => {
+    async function loadFriends() {
+      try {
+        const res = await fetch('/api/friends');
+        if (!res.ok) {
+          throw new Error('Failed to fetch friends');
+        }
+        const data = await res.json();
+        const friendsData: Friend[] = (data.friends || []).map((f: {
+          id: string;
+          name: string;
+          username?: string;
+          email?: string;
+          avatar?: string;
+          lastTransaction?: Friend['lastTransaction'];
+        }) => ({
+          id: f.id,
+          name: f.name,
+          username: f.username || f.email || '',
+          status: 'active',
+          avatar: f.avatar,
+          lastTransaction: f.lastTransaction,
+        }));
+        setFriends(friendsData);
+      } catch (error) {
+        console.error('Failed to load friends', error);
+      }
+    }
+    loadFriends();
+  }, []);
 
   const filteredFriends = friends.filter(friend =>
     friend.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -74,6 +69,38 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
 
   const activeFriends = filteredFriends.filter(f => f.status === 'active');
   const pendingFriends = filteredFriends.filter(f => f.status === 'pending');
+
+  async function handleAcceptRequest(requestId: string) {
+    try {
+      const res = await fetch(`/api/friends/requests/${requestId}/accept`, {
+        method: 'POST'
+      });
+      if (!res.ok) {
+        throw new Error('Failed to accept friend request');
+      }
+      setFriends(prev =>
+        prev.map(f =>
+          f.requestId === requestId ? { ...f, status: 'active', requestId: undefined } : f
+        )
+      );
+    } catch (error) {
+      console.error('Failed to accept friend request', error);
+    }
+  }
+
+  async function handleDeclineRequest(requestId: string) {
+    try {
+      const res = await fetch(`/api/friends/requests/${requestId}/decline`, {
+        method: 'POST'
+      });
+      if (!res.ok) {
+        throw new Error('Failed to decline friend request');
+      }
+      setFriends(prev => prev.filter(f => f.requestId !== requestId));
+    } catch (error) {
+      console.error('Failed to decline friend request', error);
+    }
+  }
 
   return (
     <div>
@@ -133,10 +160,17 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
                       </div>
                     </div>
                     <div className="flex space-x-2">
-                      <Button size="sm" variant="outline">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => friend.requestId && handleDeclineRequest(friend.requestId)}
+                      >
                         Decline
                       </Button>
-                      <Button size="sm">
+                      <Button
+                        size="sm"
+                        onClick={() => friend.requestId && handleAcceptRequest(friend.requestId)}
+                      >
                         Accept
                       </Button>
                     </div>

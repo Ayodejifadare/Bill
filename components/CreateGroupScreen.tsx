@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ArrowLeft, Users, Plus, X, Check } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 
 interface CreateGroupScreenProps {
   onNavigate: (tab: string, data?: any) => void;
+  initialSelectedFriendIds?: string[];
 }
 
 interface Friend {
@@ -20,19 +21,6 @@ interface Friend {
   avatar: string;
   email?: string;
 }
-
-const mockFriends: Friend[] = [
-  { id: '1', name: 'Emily Davis', avatar: 'ED', email: 'emily@example.com' },
-  { id: '2', name: 'Sarah Johnson', avatar: 'SJ', email: 'sarah@example.com' },
-  { id: '3', name: 'Mike Chen', avatar: 'MC', email: 'mike@example.com' },
-  { id: '4', name: 'Alex Rodriguez', avatar: 'AR', email: 'alex@example.com' },
-  { id: '5', name: 'Lisa Wang', avatar: 'LW', email: 'lisa@example.com' },
-  { id: '6', name: 'Tom Wilson', avatar: 'TW', email: 'tom@example.com' },
-  { id: '7', name: 'Amy Park', avatar: 'AP', email: 'amy@example.com' },
-  { id: '8', name: 'David Kim', avatar: 'DK', email: 'david@example.com' },
-  { id: '9', name: 'Emma Stone', avatar: 'ES', email: 'emma@example.com' },
-  { id: '10', name: 'Ryan Lee', avatar: 'RL', email: 'ryan@example.com' }
-];
 
 const groupTemplates = [
   {
@@ -57,25 +45,54 @@ const groupTemplates = [
   }
 ];
 
-export function CreateGroupScreen({ onNavigate }: CreateGroupScreenProps) {
+export function CreateGroupScreen({ onNavigate, initialSelectedFriendIds = [] }: CreateGroupScreenProps) {
   const [groupName, setGroupName] = useState('');
   const [groupDescription, setGroupDescription] = useState('');
   const [selectedColor, setSelectedColor] = useState('bg-blue-500');
-  const [selectedFriends, setSelectedFriends] = useState<Set<string>>(new Set());
+  const [selectedFriends, setSelectedFriends] = useState<Set<string>>(new Set(initialSelectedFriendIds));
   const [searchQuery, setSearchQuery] = useState('');
   const [step, setStep] = useState(1); // 1: Basic info, 2: Add members
+  const [friends, setFriends] = useState<Friend[]>([]);
+  const [friendMap, setFriendMap] = useState<Record<string, Friend>>({});
 
-  const filteredFriends = mockFriends.filter(friend =>
-    friend.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    friend.email?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  useEffect(() => {
+    let isCancelled = false;
+    const loadFriends = async () => {
+      try {
+        const endpoint = searchQuery.trim()
+          ? `/api/friends/search?q=${encodeURIComponent(searchQuery)}`
+          : '/api/friends';
+        const res = await fetch(endpoint);
+        if (!res.ok) throw new Error('Failed to fetch friends');
+        const data = await res.json();
+        const list: Friend[] = data.friends || data.users || [];
+        if (!isCancelled) {
+          setFriends(list);
+          setFriendMap(prev => {
+            const updated = { ...prev };
+            list.forEach(f => {
+              updated[f.id] = f;
+            });
+            return updated;
+          });
+        }
+      } catch (error) {
+        console.error('Failed to load friends', error);
+      }
+    };
+    loadFriends();
+    return () => {
+      isCancelled = true;
+    };
+  }, [searchQuery]);
 
-  const toggleFriend = (friendId: string) => {
+  const toggleFriend = (friend: Friend) => {
     const newSelected = new Set(selectedFriends);
-    if (newSelected.has(friendId)) {
-      newSelected.delete(friendId);
+    setFriendMap(prev => ({ ...prev, [friend.id]: friend }));
+    if (newSelected.has(friend.id)) {
+      newSelected.delete(friend.id);
     } else {
-      newSelected.add(friendId);
+      newSelected.add(friend.id);
     }
     setSelectedFriends(newSelected);
   };
@@ -90,15 +107,40 @@ export function CreateGroupScreen({ onNavigate }: CreateGroupScreenProps) {
     }
   };
 
-  const handleCreateGroup = () => {
+  const handleCreateGroup = async () => {
     if (selectedFriends.size === 0) {
       toast.error('Please select at least one friend');
       return;
     }
 
-    // Here you would normally create the group via API
-    toast.success(`Group "${groupName}" created successfully!`);
-    onNavigate('friends');
+    try {
+      const res = await fetch('/api/groups', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: groupName,
+          description: groupDescription,
+          color: selectedColor,
+          memberIds: Array.from(selectedFriends)
+        })
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        toast.error(err.error || 'Failed to create group');
+        return;
+      }
+      const data = await res.json();
+      toast.success(`Group "${groupName}" created successfully!`);
+      const newGroupId = data.group?.id || data.id;
+      if (newGroupId) {
+        onNavigate('group-details', { groupId: newGroupId });
+      } else {
+        onNavigate('friends');
+      }
+    } catch (error) {
+      console.error('Create group error:', error);
+      toast.error('Failed to create group');
+    }
   };
 
   const applyTemplate = (template: typeof groupTemplates[0]) => {
@@ -107,7 +149,9 @@ export function CreateGroupScreen({ onNavigate }: CreateGroupScreenProps) {
     setSelectedColor(template.color);
   };
 
-  const selectedFriendsData = mockFriends.filter(friend => selectedFriends.has(friend.id));
+  const selectedFriendsData = Array.from(selectedFriends)
+    .map(id => friendMap[id])
+    .filter(Boolean);
 
   const colors = [
     'bg-blue-500',
@@ -325,7 +369,7 @@ export function CreateGroupScreen({ onNavigate }: CreateGroupScreenProps) {
                 >
                   <span className="truncate max-w-[100px]">{friend.name}</span>
                   <button
-                    onClick={() => toggleFriend(friend.id)}
+                    onClick={() => toggleFriend(friend)}
                     className="ml-1 hover:bg-muted rounded-full p-0.5"
                   >
                     <X className="h-3 w-3" />
@@ -351,15 +395,15 @@ export function CreateGroupScreen({ onNavigate }: CreateGroupScreenProps) {
         <Card className="p-4">
           <h3 className="font-medium mb-4">Your Friends</h3>
           <div className="space-y-2 max-h-80 sm:max-h-96 overflow-y-auto">
-            {filteredFriends.map((friend) => (
+            {friends.map((friend) => (
               <div
                 key={friend.id}
                 className="flex items-center space-x-3 p-2 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
-                onClick={() => toggleFriend(friend.id)}
+                onClick={() => toggleFriend(friend)}
               >
                 <Checkbox
                   checked={selectedFriends.has(friend.id)}
-                  onChange={() => toggleFriend(friend.id)}
+                  onChange={() => toggleFriend(friend)}
                   className="flex-shrink-0"
                 />
                 <Avatar className="h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0">
@@ -373,7 +417,7 @@ export function CreateGroupScreen({ onNavigate }: CreateGroupScreenProps) {
             ))}
           </div>
 
-          {filteredFriends.length === 0 && (
+          {friends.length === 0 && (
             <div className="text-center py-8">
               <Users className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mx-auto mb-3" />
               <p className="text-sm text-muted-foreground">No friends found</p>

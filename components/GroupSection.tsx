@@ -1,96 +1,28 @@
 import { useState } from 'react';
-import { Plus, Users, MoreHorizontal, Crown, Calendar } from 'lucide-react';
+import { Plus, Users, MoreHorizontal, Crown } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Badge } from './ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { EmptyState } from './ui/empty-state';
+import { ListSkeleton, ErrorRetry } from './ui/loading';
+import { useGroups } from '../hooks/useGroups';
 
 interface GroupSectionProps {
   onNavigate: (tab: string, data?: any) => void;
 }
 
-interface Group {
-  id: string;
-  name: string;
-  description: string;
-  memberCount: number;
-  totalSpent: number;
-  recentActivity: string;
-  members: Array<{
-    name: string;
-    avatar: string;
-  }>;
-  isAdmin: boolean;
-  lastActive: string;
-  pendingBills: number;
-  color: string;
-}
-
-const mockGroups: Group[] = [
-  {
-    id: '1',
-    name: 'Work Squad',
-    description: 'Office lunches and team events',
-    memberCount: 8,
-    totalSpent: 1250.50,
-    recentActivity: 'Team lunch at Tony\'s Pizza',
-    members: [
-      { name: 'Emily Davis', avatar: 'ED' },
-      { name: 'John Doe', avatar: 'JD' },
-      { name: 'Sarah Johnson', avatar: 'SJ' },
-      { name: 'Mike Chen', avatar: 'MC' }
-    ],
-    isAdmin: true,
-    lastActive: '2 hours ago',
-    pendingBills: 2,
-    color: 'bg-blue-500'
-  },
-  {
-    id: '2',
-    name: 'Roommates',
-    description: 'Shared expenses and utilities',
-    memberCount: 4,
-    totalSpent: 2840.75,
-    recentActivity: 'Monthly utilities split',
-    members: [
-      { name: 'Alex Rodriguez', avatar: 'AR' },
-      { name: 'Lisa Wang', avatar: 'LW' },
-      { name: 'Tom Wilson', avatar: 'TW' }
-    ],
-    isAdmin: false,
-    lastActive: '1 day ago',
-    pendingBills: 1,
-    color: 'bg-green-500'
-  },
-  {
-    id: '3',
-    name: 'Travel Buddies',
-    description: 'Weekend trips and adventures',
-    memberCount: 6,
-    totalSpent: 895.25,
-    recentActivity: 'Cabin rental for ski trip',
-    members: [
-      { name: 'Sarah Johnson', avatar: 'SJ' },
-      { name: 'Mike Chen', avatar: 'MC' },
-      { name: 'Amy Park', avatar: 'AP' }
-    ],
-    isAdmin: true,
-    lastActive: '3 days ago',
-    pendingBills: 0,
-    color: 'bg-purple-500'
-  }
-];
-
 export function GroupSection({ onNavigate }: GroupSectionProps) {
   const [showAllGroups, setShowAllGroups] = useState(false);
+  const { groups, loading, error, refetch } = useGroups();
 
-  const displayedGroups = showAllGroups ? mockGroups : mockGroups.slice(0, 2);
-  const totalPendingBills = mockGroups.reduce((sum, group) => sum + group.pendingBills, 0);
+  const displayedGroups = showAllGroups ? groups : groups.slice(0, 2);
+  const totalPendingBills = groups.reduce((sum, group) => sum + group.pendingBills, 0);
 
   const handleGroupClick = (groupId: string) => {
-    onNavigate('group-details', { groupId });
+    const group = groups.find(g => g.id === groupId);
+    onNavigate('group-details', { groupId, group });
   };
 
   const handleCreateGroup = () => {
@@ -99,7 +31,8 @@ export function GroupSection({ onNavigate }: GroupSectionProps) {
 
   const handleSplitWithGroup = (groupId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    onNavigate('split', { groupId });
+    const group = groups.find(g => g.id === groupId);
+    onNavigate('split', { groupId, group });
   };
 
   return (
@@ -108,7 +41,7 @@ export function GroupSection({ onNavigate }: GroupSectionProps) {
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
           <Users className="h-5 w-5" />
-          <h3>Groups ({mockGroups.length})</h3>
+          <h3>Groups ({groups.length})</h3>
           {totalPendingBills > 0 && (
             <Badge variant="outline" className="text-warning">
               {totalPendingBills} pending
@@ -122,11 +55,15 @@ export function GroupSection({ onNavigate }: GroupSectionProps) {
       </div>
 
       {/* Groups List */}
-      {mockGroups.length > 0 ? (
+      {loading ? (
+        <ListSkeleton />
+      ) : error ? (
+        <ErrorRetry error={error} onRetry={refetch} />
+      ) : groups.length > 0 ? (
         <div className="space-y-3">
           {displayedGroups.map((group) => (
-            <Card 
-              key={group.id} 
+            <Card
+              key={group.id}
               className="p-4 hover:bg-muted/50 transition-colors cursor-pointer"
               onClick={() => handleGroupClick(group.id)}
             >
@@ -210,14 +147,14 @@ export function GroupSection({ onNavigate }: GroupSectionProps) {
           ))}
 
           {/* Show More/Less Button */}
-          {mockGroups.length > 2 && (
-            <Button 
-              variant="outline" 
-              size="sm" 
+          {groups.length > 2 && (
+            <Button
+              variant="outline"
+              size="sm"
               className="w-full"
               onClick={() => setShowAllGroups(!showAllGroups)}
             >
-              {showAllGroups ? 'Show Less' : `Show ${mockGroups.length - 2} More Groups`}
+              {showAllGroups ? 'Show Less' : `Show ${groups.length - 2} More Groups`}
             </Button>
           )}
         </div>

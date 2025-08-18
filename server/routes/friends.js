@@ -129,4 +129,150 @@ router.post('/request', [
   }
 })
 
+// Get pending friend requests
+router.get('/requests', authenticateToken, async (req, res) => {
+  try {
+    const incoming = await req.prisma.friendRequest.findMany({
+      where: { receiverId: req.userId, status: 'PENDING' },
+      include: {
+        sender: {
+          select: { id: true, name: true, email: true, avatar: true }
+        },
+        receiver: {
+          select: { id: true, name: true, email: true, avatar: true }
+        }
+      }
+    })
+
+    const outgoing = await req.prisma.friendRequest.findMany({
+      where: { senderId: req.userId, status: 'PENDING' },
+      include: {
+        sender: {
+          select: { id: true, name: true, email: true, avatar: true }
+        },
+        receiver: {
+          select: { id: true, name: true, email: true, avatar: true }
+        }
+      }
+    })
+
+    res.json({ incoming, outgoing })
+  } catch (error) {
+    console.error('Get friend requests error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+// Accept friend request
+router.post('/requests/:id/accept', authenticateToken, async (req, res) => {
+  try {
+    const request = await req.prisma.friendRequest.findUnique({
+      where: { id: req.params.id }
+    })
+
+    if (!request || request.receiverId !== req.userId) {
+      return res.status(404).json({ error: 'Friend request not found' })
+    }
+
+    if (request.status !== 'PENDING') {
+      return res.status(400).json({ error: 'Friend request is not pending' })
+    }
+
+    const [friendRequest, friendship] = await req.prisma.$transaction([
+      req.prisma.friendRequest.update({
+        where: { id: req.params.id },
+        data: { status: 'ACCEPTED' },
+        include: {
+          sender: {
+            select: { id: true, name: true, email: true, avatar: true }
+          },
+          receiver: {
+            select: { id: true, name: true, email: true, avatar: true }
+          }
+        }
+      }),
+      req.prisma.friendship.create({
+        data: {
+          user1Id: request.senderId,
+          user2Id: request.receiverId
+        }
+      })
+    ])
+
+    res.json({
+      message: 'Friend request accepted',
+      friendRequest,
+      friendship
+    })
+  } catch (error) {
+    console.error('Accept friend request error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+// Decline friend request
+router.post('/requests/:id/decline', authenticateToken, async (req, res) => {
+  try {
+    const request = await req.prisma.friendRequest.findUnique({
+      where: { id: req.params.id }
+    })
+
+    if (!request || request.receiverId !== req.userId) {
+      return res.status(404).json({ error: 'Friend request not found' })
+    }
+
+    if (request.status !== 'PENDING') {
+      return res.status(400).json({ error: 'Friend request is not pending' })
+    }
+
+    const friendRequest = await req.prisma.friendRequest.update({
+      where: { id: req.params.id },
+      data: { status: 'DECLINED' },
+      include: {
+        sender: {
+          select: { id: true, name: true, email: true, avatar: true }
+        },
+        receiver: {
+          select: { id: true, name: true, email: true, avatar: true }
+        }
+      }
+    })
+
+    res.json({
+      message: 'Friend request declined',
+      friendRequest
+    })
+  } catch (error) {
+    console.error('Decline friend request error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+// Remove a friend
+router.delete('/:friendId', authenticateToken, async (req, res) => {
+  try {
+    const { friendId } = req.params
+
+    const friendship = await req.prisma.friendship.findFirst({
+      where: {
+        OR: [
+          { user1Id: req.userId, user2Id: friendId },
+          { user1Id: friendId, user2Id: req.userId }
+        ]
+      }
+    })
+
+    if (!friendship) {
+      return res.status(404).json({ error: 'Friendship not found' })
+    }
+
+    await req.prisma.friendship.delete({ where: { id: friendship.id } })
+
+    res.json({ message: 'Friend removed' })
+  } catch (error) {
+    console.error('Delete friend error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
 export default router
