@@ -16,35 +16,7 @@ import { Alert, AlertDescription } from './ui/alert';
 import { Progress } from './ui/progress';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { toast } from 'sonner';
-
-// Simple contacts API for demo purposes
-const contactsAPI = {
-  isSupported: () => typeof navigator !== 'undefined' && 'contacts' in navigator,
-  requestPermission: async () => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({ granted: true, userDenied: false });
-      }, 1000);
-    });
-  },
-  checkPermissionStatus: async () => {
-    return { granted: false };
-  },
-  getContacts: async () => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve([]);
-      }, 500);
-    });
-  },
-  matchContacts: async (contacts: any[]) => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve([]);
-      }, 500);
-    });
-  }
-};
+import { contactsAPI } from '../utils/contacts-api';
 
 interface Contact {
   id: string;
@@ -64,109 +36,10 @@ interface Contact {
 interface AddGroupMemberScreenProps {
   groupId: string | null;
   onNavigate: (screen: string, data?: any) => void;
+  initialMode?: 'contacts' | 'invite';
 }
 
-// Mock contacts data for demonstration
-const mockGroupContacts: Contact[] = [
-  {
-    id: '1',
-    name: 'Alice Johnson',
-    username: '@alice_j',
-    phoneNumber: '+1 (555) 123-4567',
-    avatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b47c?w=150',
-    mutualFriends: 5,
-    isInGroup: false,
-    status: 'existing_user',
-    isOnApp: true,
-    userId: 'user_1',
-    isFriend: true
-  },
-  {
-    id: '2',
-    name: 'Bob Wilson',
-    username: '@bob_wilson',
-    phoneNumber: '+1 (555) 234-5678',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
-    mutualFriends: 3,
-    isInGroup: false,
-    status: 'existing_user',
-    isOnApp: true,
-    userId: 'user_2',
-    isFriend: true
-  },
-  {
-    id: '3',
-    name: 'Carol Davis',
-    phoneNumber: '+1 (555) 345-6789',
-    mutualFriends: 0,
-    isInGroup: false,
-    status: 'not_on_app',
-    isOnApp: false,
-    isFriend: false
-  },
-  {
-    id: '4',
-    name: 'David Brown',
-    phoneNumber: '+1 (555) 456-7890',
-    mutualFriends: 0,
-    isInGroup: false,
-    status: 'not_on_app',
-    isOnApp: false,
-    isFriend: false
-  },
-  {
-    id: '5',
-    name: 'Emma Garcia',
-    username: '@emma_g',
-    phoneNumber: '+1 (555) 567-8901',
-    avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150',
-    mutualFriends: 4,
-    isInGroup: false,
-    status: 'pending',
-    isOnApp: true,
-    userId: 'user_5',
-    isFriend: true
-  },
-  {
-    id: '6',
-    name: 'Frank Miller',
-    phoneNumber: '+1 (555) 678-9012',
-    mutualFriends: 0,
-    isInGroup: false,
-    status: 'not_on_app',
-    isOnApp: false,
-    isFriend: false
-  },
-  // Additional contacts on Biltip
-  {
-    id: '7',
-    name: 'Grace Liu',
-    username: '@grace_l',
-    phoneNumber: '+1 (555) 111-2222',
-    avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150',
-    mutualFriends: 1,
-    isInGroup: false,
-    status: 'existing_user',
-    isOnApp: true,
-    userId: 'user_7',
-    isFriend: false
-  },
-  {
-    id: '8',
-    name: 'Henry Chen',
-    username: '@henry_c',
-    phoneNumber: '+1 (555) 333-4444',
-    avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150',
-    mutualFriends: 2,
-    isInGroup: false,
-    status: 'existing_user',
-    isOnApp: true,
-    userId: 'user_8',
-    isFriend: false
-  }
-];
-
-export function AddGroupMemberScreen({ groupId, onNavigate }: AddGroupMemberScreenProps) {
+export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'contacts' }: AddGroupMemberScreenProps) {
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [inviteMethod, setInviteMethod] = useState<'whatsapp' | 'sms' | 'email'>('whatsapp');
@@ -176,7 +49,7 @@ export function AddGroupMemberScreen({ groupId, onNavigate }: AddGroupMemberScre
     email: '',
     message: ''
   });
-  const [activeMode, setActiveMode] = useState<'contacts' | 'invite'>('contacts');
+  const [activeMode, setActiveMode] = useState<'contacts' | 'invite'>(initialMode);
   const [isSearchMode, setIsSearchMode] = useState(false);
   
   // Contact sync state
@@ -186,22 +59,18 @@ export function AddGroupMemberScreen({ groupId, onNavigate }: AddGroupMemberScre
   const [syncProgress, setSyncProgress] = useState(0);
   const [showSyncPrompt, setShowSyncPrompt] = useState(true);
   const [contactSubTab, setContactSubTab] = useState<'on_app' | 'invite'>('on_app');
+  const [isInviting, setIsInviting] = useState(false);
   
   // Progressive disclosure states
   const [showInvitePreview, setShowInvitePreview] = useState(false);
 
   // Check for existing synced contacts on mount
   useEffect(() => {
-    const checkExistingSync = () => {
-      const hasExistingSync = localStorage.getItem('biltip_contacts_synced') === 'true';
-      if (hasExistingSync) {
-        setHasSyncedContacts(true);
-        setSyncedContacts(mockGroupContacts);
-        setShowSyncPrompt(false);
-      }
-    };
-    
-    checkExistingSync();
+    const hasExistingSync = localStorage.getItem('biltip_contacts_synced') === 'true';
+    if (hasExistingSync) {
+      setHasSyncedContacts(true);
+      setShowSyncPrompt(false);
+    }
   }, []);
 
   // Separate friends and non-friends on Biltip
@@ -304,31 +173,42 @@ export function AddGroupMemberScreen({ groupId, onNavigate }: AddGroupMemberScre
   const handleSyncContacts = async () => {
     setIsSyncing(true);
     setSyncProgress(0);
-    
+
     try {
+      const permission = await contactsAPI.requestPermission();
+      if (!permission.granted) {
+        toast.error('Contact access denied.');
+        return;
+      }
+
       setSyncProgress(20);
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
+      const deviceContacts = await contactsAPI.getContacts();
+
       setSyncProgress(50);
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      setSyncProgress(80);
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      setSyncProgress(100);
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      setSyncedContacts(mockGroupContacts);
+      const response = await fetch(`/api/groups/${groupId}/potential-members`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contacts: deviceContacts })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch potential members');
+      }
+
+      const data = await response.json();
+      setSyncProgress(90);
+
+      setSyncedContacts(data.contacts || []);
       setHasSyncedContacts(true);
       setShowSyncPrompt(false);
       localStorage.setItem('biltip_contacts_synced', 'true');
-      
-      toast.success(`Found ${allFriends.length + nonFriendsOnBiltip.length} people on Biltip and ${inviteableContacts.length} contacts to invite!`);
-      
+
+      toast.success(`Found ${data.contacts?.length || 0} potential members!`);
     } catch (error) {
       console.error('Contact sync failed:', error);
       toast.error('Contact sync failed. Please try again.');
     } finally {
+      setSyncProgress(100);
       setIsSyncing(false);
     }
   };
@@ -355,44 +235,79 @@ export function AddGroupMemberScreen({ groupId, onNavigate }: AddGroupMemberScre
     setSelectedMembers([]);
   };
 
-  const handleInviteMembers = () => {
-    const selectedContactsList = inviteableContacts.filter(contact => 
+  const handleInviteMembers = async () => {
+    const selectedContactsList = inviteableContacts.filter(contact =>
       selectedMembers.includes(contact.id)
     );
-    
-    if (selectedContactsList.length === 0) return;
-    
-    const groupName = 'Work Squad'; // Mock group name - in real app would come from props/context
-    
-    selectedContactsList.forEach(contact => {
-      const message = `Hi ${contact.name}! You've been invited to join "${groupName}" on Biltip - a bill splitting app. Join us to split expenses easily! Download it here: https://biltip.com/download`;
-      const whatsappUrl = `whatsapp://send?phone=${encodeURIComponent(contact.phoneNumber?.replace(/\D/g, '') || '')}&text=${encodeURIComponent(message)}`;
-      
-      try {
-        window.open(whatsappUrl, '_blank');
-      } catch (error) {
-        console.warn('Failed to open WhatsApp for:', contact.name);
-      }
-    });
-    
-    toast.success(`Sent ${selectedContactsList.length} group invitation${selectedContactsList.length !== 1 ? 's' : ''} via WhatsApp!`);
-    setSelectedMembers([]);
-  };
 
-  const handleSingleInvite = (contact: Contact) => {
-    const groupName = 'Work Squad'; // Mock group name
-    const message = `Hi ${contact.name}! You've been invited to join "${groupName}" on Biltip - a bill splitting app. Join us to split expenses easily! Download it here: https://biltip.com/download`;
-    const whatsappUrl = `whatsapp://send?phone=${encodeURIComponent(contact.phoneNumber?.replace(/\D/g, '') || '')}&text=${encodeURIComponent(message)}`;
-    
+    if (selectedContactsList.length === 0) return;
+
+    setIsInviting(true);
+
     try {
-      window.open(whatsappUrl, '_blank');
-      toast.success(`Group invitation sent to ${contact.name}!`);
+      const response = await fetch(`/api/groups/${groupId}/invite`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ method: 'whatsapp', contacts: selectedContactsList })
+      });
+
+      if (!response.ok) {
+        throw new Error('Invite failed');
+      }
+
+      const groupName = 'Work Squad';
+      selectedContactsList.forEach(contact => {
+        const message = `Hi ${contact.name}! You've been invited to join "${groupName}" on Biltip - a bill splitting app. Join us to split expenses easily! Download it here: https://biltip.com/download`;
+        const whatsappUrl = `whatsapp://send?phone=${encodeURIComponent(contact.phoneNumber?.replace(/\D/g, '') || '')}&text=${encodeURIComponent(message)}`;
+        try {
+          window.open(whatsappUrl, '_blank');
+        } catch (error) {
+          console.warn('Failed to open WhatsApp for:', contact.name);
+        }
+      });
+
+      toast.success(`Sent ${selectedContactsList.length} group invitation${selectedContactsList.length !== 1 ? 's' : ''}!`);
+      setSelectedMembers([]);
     } catch (error) {
-      toast.error('Failed to open WhatsApp. Please try again.');
+      console.error('Bulk invite failed:', error);
+      toast.error('Failed to send invites. Please try again.');
+    } finally {
+      setIsInviting(false);
     }
   };
 
-  const handleSendInvite = () => {
+  const handleSingleInvite = async (contact: Contact) => {
+    setIsInviting(true);
+    try {
+      const response = await fetch(`/api/groups/${groupId}/invite`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ method: 'whatsapp', contacts: [contact] })
+      });
+
+      if (!response.ok) {
+        throw new Error('Invite failed');
+      }
+
+      const groupName = 'Work Squad';
+      const message = `Hi ${contact.name}! You've been invited to join "${groupName}" on Biltip - a bill splitting app. Join us to split expenses easily! Download it here: https://biltip.com/download`;
+      const whatsappUrl = `whatsapp://send?phone=${encodeURIComponent(contact.phoneNumber?.replace(/\D/g, '') || '')}&text=${encodeURIComponent(message)}`;
+
+      try {
+        window.open(whatsappUrl, '_blank');
+        toast.success(`Group invitation sent to ${contact.name}!`);
+      } catch (error) {
+        toast.error('Failed to open WhatsApp. Please try again.');
+      }
+    } catch (error) {
+      console.error('Single invite failed:', error);
+      toast.error('Failed to send invite.');
+    } finally {
+      setIsInviting(false);
+    }
+  };
+
+  const handleSendInvite = async () => {
     if (!inviteData.name.trim()) {
       toast.error('Please enter the person\'s name');
       return;
@@ -408,28 +323,45 @@ export function AddGroupMemberScreen({ groupId, onNavigate }: AddGroupMemberScre
       return;
     }
 
+    setIsInviting(true);
     const methodName = inviteMethod === 'whatsapp' ? 'WhatsApp' : inviteMethod === 'sms' ? 'SMS' : 'Email';
-    
-    if (inviteMethod === 'whatsapp') {
-      const message = getInviteMessage();
-      const whatsappUrl = `whatsapp://send?phone=${encodeURIComponent(inviteData.phone.replace(/\D/g, ''))}&text=${encodeURIComponent(message)}`;
-      
-      try {
-        window.open(whatsappUrl, '_blank');
-        toast.success(`Opening WhatsApp to invite ${inviteData.name} to the group`);
-      } catch (error) {
+
+    try {
+      const response = await fetch(`/api/groups/${groupId}/invite`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ method: inviteMethod, contact: inviteData })
+      });
+
+      if (!response.ok) {
+        throw new Error('Invite failed');
+      }
+
+      if (inviteMethod === 'whatsapp') {
+        const message = getInviteMessage();
+        const whatsappUrl = `whatsapp://send?phone=${encodeURIComponent(inviteData.phone.replace(/\D/g, ''))}&text=${encodeURIComponent(message)}`;
+        try {
+          window.open(whatsappUrl, '_blank');
+          toast.success(`Opening WhatsApp to invite ${inviteData.name} to the group`);
+        } catch (error) {
+          toast.success(`Group invitation sent to ${inviteData.name} via ${methodName}`);
+        }
+      } else {
         toast.success(`Group invitation sent to ${inviteData.name} via ${methodName}`);
       }
-    } else {
-      toast.success(`Group invitation sent to ${inviteData.name} via ${methodName}`);
+
+      setInviteData({
+        name: '',
+        phone: '',
+        email: '',
+        message: ''
+      });
+    } catch (error) {
+      console.error('Invite submission failed:', error);
+      toast.error('Failed to send invite. Please try again.');
+    } finally {
+      setIsInviting(false);
     }
-    
-    setInviteData({
-      name: '',
-      phone: '',
-      email: '',
-      message: ''
-    });
   };
 
   const getInviteMessage = () => {
@@ -589,6 +521,7 @@ export function AddGroupMemberScreen({ groupId, onNavigate }: AddGroupMemberScre
                   onClick={contactSubTab === 'on_app' ? handleAddSelectedMembers : handleInviteMembers}
                   size="sm"
                   className={`min-h-[44px] ml-2 ${contactSubTab === 'invite' ? 'bg-green-600 hover:bg-green-700 text-white' : ''}`}
+                  disabled={isInviting}
                 >
                   {contactSubTab === 'on_app' ? (
                     <>Add ({selectedMembers.length})</>
@@ -661,6 +594,7 @@ export function AddGroupMemberScreen({ groupId, onNavigate }: AddGroupMemberScre
                     onClick={contactSubTab === 'on_app' ? handleAddSelectedMembers : handleInviteMembers}
                     size="sm"
                     className={`min-h-[44px] ${contactSubTab === 'invite' ? 'bg-green-600 hover:bg-green-700 text-white' : ''}`}
+                    disabled={isInviting}
                   >
                     {contactSubTab === 'on_app' ? (
                       <>Add ({selectedMembers.length})</>
@@ -1126,12 +1060,12 @@ export function AddGroupMemberScreen({ groupId, onNavigate }: AddGroupMemberScre
                   </CollapsibleContent>
                 </Collapsible>
 
-                <Button 
+                <Button
                   onClick={handleSendInvite}
                   className={`w-full min-h-[52px] text-base ${
                     inviteMethod === 'whatsapp' ? 'bg-green-600 hover:bg-green-700 text-white' : ''
                   }`}
-                  disabled={!inviteData.name.trim() || 
+                  disabled={isInviting || !inviteData.name.trim() ||
                     (inviteMethod === 'email' && !inviteData.email.trim()) ||
                     ((inviteMethod === 'whatsapp' || inviteMethod === 'sms') && !inviteData.phone.trim())
                   }
