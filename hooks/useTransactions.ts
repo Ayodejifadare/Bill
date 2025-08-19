@@ -34,12 +34,49 @@ export function useTransactions(): UseTransactionsResult {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/transactions');
+      const storedAuth = localStorage.getItem('biltip_auth');
+      const token = storedAuth ? JSON.parse(storedAuth).token : null;
+
+      if (!token) {
+        throw new Error('Unauthorized: Please log in.');
+      }
+
+      const res = await fetch('/api/transactions', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (res.status === 401) {
+        throw new Error('Unauthorized: Please log in.');
+      }
+
       if (!res.ok) {
         throw new Error('Failed to fetch transactions');
       }
+
       const data = await res.json();
-      setTransactions(Array.isArray(data.transactions) ? data.transactions : []);
+      const typeMap: Record<string, Transaction['type']> = {
+        SEND: 'sent',
+        RECEIVE: 'received',
+        SPLIT: 'split',
+        BILL_SPLIT: 'bill_split',
+        REQUEST: 'request',
+      };
+      const statusMap: Record<string, Transaction['status']> = {
+        COMPLETED: 'completed',
+        PENDING: 'pending',
+        FAILED: 'failed',
+      };
+      setTransactions(
+        Array.isArray(data.transactions)
+          ? data.transactions.map((t: any) => ({
+              ...t,
+              type: typeMap[t.type] ?? t.type?.toLowerCase(),
+              status: statusMap[t.status] ?? t.status?.toLowerCase(),
+            }))
+          : []
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch transactions');
       setTransactions([]);
