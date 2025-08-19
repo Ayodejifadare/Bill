@@ -19,6 +19,10 @@ vi.mock('./UpcomingPayments', () => ({
 describe('HomeScreen header', () => {
   beforeEach(() => {
     mockUseUserProfile.mockReset();
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ count: 0 }),
+    }) as any;
   });
 
   it('renders name and initials from profile', () => {
