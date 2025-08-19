@@ -23,6 +23,8 @@ describe('Group join/leave routes', () => {
 
   beforeEach(async () => {
     await prisma.transaction.deleteMany()
+    await prisma.groupInviteLink.deleteMany()
+    await prisma.groupInvite.deleteMany()
     await prisma.groupAccount.deleteMany()
     await prisma.groupMember.deleteMany()
     await prisma.group.deleteMany()
@@ -165,5 +167,103 @@ describe('Group join/leave routes', () => {
     expect(res.body.group.id).toBe(groupId)
     expect(res.body.group.members).toHaveLength(2)
     expect(res.body.group.recentTransactions).toHaveLength(1)
+  })
+
+  it('lists and removes group members', async () => {
+    const createRes = await request(app).post('/groups').send({ name: 'Test' })
+    const groupId = createRes.body.group.id
+    await prisma.user.createMany({
+      data: [
+        { id: 'u1', email: 'u1@example.com', name: 'U1' },
+        { id: 'u2', email: 'u2@example.com', name: 'U2' }
+      ]
+    })
+    await prisma.groupMember.createMany({
+      data: [
+        { groupId, userId: 'u1', role: 'ADMIN' },
+        { groupId, userId: 'u2' }
+      ]
+    })
+
+    const listRes = await request(app).get(`/groups/${groupId}/members`)
+    expect(listRes.status).toBe(200)
+    expect(listRes.body.members).toHaveLength(2)
+
+    const delRes = await request(app).delete(`/groups/${groupId}/members/u2`)
+    expect(delRes.status).toBe(200)
+
+    const listRes2 = await request(app).get(`/groups/${groupId}/members`)
+    expect(listRes2.body.members).toHaveLength(1)
+  })
+
+  it('handles invites and invite links', async () => {
+    const createRes = await request(app).post('/groups').send({ name: 'Test' })
+    const groupId = createRes.body.group.id
+    // create initial invite
+    const invite = await prisma.groupInvite.create({
+      data: {
+        groupId,
+        contact: 'alice@example.com',
+        method: 'email',
+        invitedBy: 'u1',
+        expiresAt: new Date(Date.now() + 86400000)
+      }
+    })
+
+    const invitesRes = await request(app).get(`/groups/${groupId}/invites`)
+    expect(invitesRes.status).toBe(200)
+    expect(invitesRes.body.invites).toHaveLength(1)
+
+    const resendRes = await request(app)
+      .post(`/groups/${groupId}/invites/${invite.id}/resend`)
+    expect(resendRes.status).toBe(200)
+    expect(resendRes.body.invite.attempts).toBe(2)
+
+    const deleteRes = await request(app)
+      .delete(`/groups/${groupId}/invites/${invite.id}`)
+    expect(deleteRes.status).toBe(200)
+
+    const linkRes = await request(app)
+      .post(`/groups/${groupId}/invite-links`)
+      .send({ maxUses: 5, expireDays: 1 })
+    expect(linkRes.status).toBe(201)
+
+    const getLinks = await request(app).get(`/groups/${groupId}/invite-links`)
+    expect(getLinks.status).toBe(200)
+    expect(getLinks.body.links).toHaveLength(1)
+  })
+
+  it('fetches group transactions and splits bill', async () => {
+    const createRes = await request(app).post('/groups').send({ name: 'Test' })
+    const groupId = createRes.body.group.id
+    await prisma.user.createMany({
+      data: [
+        { id: 'u1', email: 'u1@example.com', name: 'U1' },
+        { id: 'u2', email: 'u2@example.com', name: 'U2' }
+      ]
+    })
+    await prisma.groupMember.createMany({
+      data: [
+        { groupId, userId: 'u1' },
+        { groupId, userId: 'u2' }
+      ]
+    })
+    await prisma.transaction.create({
+      data: {
+        senderId: 'u1',
+        receiverId: 'u2',
+        amount: 10,
+        type: 'SEND',
+        status: 'COMPLETED'
+      }
+    })
+
+    const txRes = await request(app).get(`/groups/${groupId}/transactions`)
+    expect(txRes.status).toBe(200)
+    expect(txRes.body.transactions).toHaveLength(1)
+
+    const splitRes = await request(app).post(`/groups/${groupId}/split-bill`)
+    expect(splitRes.status).toBe(201)
+    expect(splitRes.body.transaction).toBeTruthy()
   })
 })
