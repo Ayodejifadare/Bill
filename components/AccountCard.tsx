@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-import { Building2, Smartphone, Copy, Trash2, Check } from 'lucide-react';
+import { Building2, Smartphone, Copy, Trash2, Check, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 import { useUserProfile } from './UserProfileContext';
 
@@ -36,14 +36,16 @@ export interface AccountCardProps {
   account: PersonalAccount | GroupAccount;
   onSetDefault?: (accountId: string) => void;
   onDelete?: (accountId: string) => void;
+  onEdit?: (account: PersonalAccount | GroupAccount) => void;
   showAdminActions?: boolean;
   variant?: 'personal' | 'group';
 }
 
 export function AccountCard({ 
   account, 
-  onSetDefault, 
-  onDelete, 
+  onSetDefault,
+  onDelete,
+  onEdit,
   showAdminActions = true,
   variant = 'personal'
 }: AccountCardProps) {
@@ -227,6 +229,16 @@ export function AccountCard({
             >
               <span className="hidden sm:inline">Set as Default</span>
               <span className="sm:hidden">Set Default</span>
+            </Button>
+          )}
+          {onEdit && showAdminActions && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onEdit(account)}
+              className="h-8 sm:h-9 px-2 sm:px-3"
+            >
+              <Pencil className="h-3 w-3 sm:h-4 sm:w-4" />
             </Button>
           )}
           {onDelete && showAdminActions && (
