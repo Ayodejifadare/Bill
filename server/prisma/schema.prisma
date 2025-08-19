@@ -24,6 +24,7 @@ model User {
   sentTransactions     Transaction[] @relation("SentTransactions")
   receivedTransactions Transaction[] @relation("ReceivedTransactions")
   billSplits          BillSplit[]
+  billSplitParticipants BillSplitParticipant[]
   friendRequestsSent  FriendRequest[] @relation("FriendRequestSender")
   friendRequestsReceived FriendRequest[] @relation("FriendRequestReceiver")
   friendships1        Friendship[] @relation("User1")
