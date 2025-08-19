@@ -1,32 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Badge } from './ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
-import { ArrowLeft, Plus, Building2, Smartphone, Copy, Trash2, Check, Settings } from 'lucide-react';
+import { ArrowLeft, Plus, Building2, Smartphone } from 'lucide-react';
 import { toast } from 'sonner';
 import { useUserProfile } from './UserProfileContext';
 import { BankAccountCard } from './BankAccountCard';
 import { MobileMoneyCard } from './MobileMoneyCard';
-
-interface PaymentMethod {
-  id: string;
-  type: 'bank' | 'mobile_money';
-  // Bank fields
-  bank?: string;
-  accountNumber?: string;
-  accountName?: string;
-  sortCode?: string;
-  routingNumber?: string;
-  accountType?: 'checking' | 'savings';
-  // Mobile money fields
-  provider?: string;
-  phoneNumber?: string;
-  isDefault: boolean;
-}
+import {
+  fetchPaymentMethods,
+  createPaymentMethod,
+  updatePaymentMethod,
+  deletePaymentMethod,
+  type PaymentMethod,
+  type CreatePaymentMethodPayload,
+} from '@/api/payment-methods';
 
 interface PaymentMethodsScreenProps {
   onNavigate: (screen: string) => void;
@@ -87,20 +78,8 @@ export function PaymentMethodsScreen({ onNavigate }: PaymentMethodsScreenProps) 
   const { appSettings, updateAppSettings } = useUserProfile();
   const isNigeria = appSettings.region === 'NG';
   const banks = isNigeria ? NIGERIAN_BANKS : US_BANKS;
-  
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([
-    {
-      id: '1',
-      type: 'bank',
-      bank: isNigeria ? 'Access Bank' : 'Chase Bank',
-      accountNumber: isNigeria ? '0123456789' : '****1234',
-      accountName: 'John Doe',
-      sortCode: isNigeria ? '044' : undefined,
-      routingNumber: isNigeria ? undefined : '021000021',
-      accountType: 'checking',
-      isDefault: true
-    }
-  ]);
+
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
 
   const [isAddingMethod, setIsAddingMethod] = useState(false);
   const [methodType, setMethodType] = useState<'bank' | 'mobile_money'>('bank');
@@ -113,6 +92,18 @@ export function PaymentMethodsScreen({ onNavigate }: PaymentMethodsScreenProps) 
     phoneNumber: ''
   });
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    const loadMethods = async () => {
+      try {
+        const methods = await fetchPaymentMethods();
+        setPaymentMethods(methods);
+      } catch {
+        toast.error('Failed to load payment methods');
+      }
+    };
+    loadMethods();
+  }, [appSettings.region]);
 
   const resetForm = () => {
     setFormData({
@@ -149,31 +140,29 @@ export function PaymentMethodsScreen({ onNavigate }: PaymentMethodsScreenProps) 
     setIsLoading(true);
 
     try {
-      // Simulate API call for account verification
-      await new Promise(resolve => setTimeout(resolve, 1500));
-
       const selectedBank = banks.find(bank => bank.name === formData.bank);
-      const newMethod: PaymentMethod = {
-        id: Date.now().toString(),
+      const payload: CreatePaymentMethodPayload = {
         type: methodType,
-        ...(methodType === 'bank' ? {
-          bank: formData.bank,
-          accountNumber: isNigeria ? formData.accountNumber : `****${formData.accountNumber.slice(-4)}`,
-          accountName: formData.accountName,
-          accountType: formData.accountType,
-          ...(isNigeria ? {
-            sortCode: selectedBank?.code
-          } : {
-            routingNumber: selectedBank?.code
-          })
-        } : {
-          provider: formData.provider,
-          phoneNumber: formData.phoneNumber
-        }),
+        ...(methodType === 'bank'
+          ? {
+              bank: formData.bank,
+              accountNumber: formData.accountNumber,
+              accountName: formData.accountName,
+              accountType: formData.accountType,
+              ...(isNigeria
+                ? { sortCode: selectedBank?.code }
+                : { routingNumber: selectedBank?.code })
+            }
+          : {
+              provider: formData.provider,
+              phoneNumber: formData.phoneNumber
+            }),
         isDefault: paymentMethods.length === 0
       };
 
-      setPaymentMethods([...paymentMethods, newMethod]);
+      await createPaymentMethod(payload);
+      const methods = await fetchPaymentMethods();
+      setPaymentMethods(methods);
       toast.success('Payment method added successfully!');
       setIsAddingMethod(false);
       resetForm();
@@ -184,23 +173,26 @@ export function PaymentMethodsScreen({ onNavigate }: PaymentMethodsScreenProps) 
     }
   };
 
-  const handleSetDefault = (methodId: string) => {
-    const updated = paymentMethods.map(method => ({
-      ...method,
-      isDefault: method.id === methodId
-    }));
-    setPaymentMethods(updated);
-    toast.success('Default payment method updated');
+  const handleSetDefault = async (methodId: string) => {
+    try {
+      await updatePaymentMethod(methodId, { isDefault: true });
+      const methods = await fetchPaymentMethods();
+      setPaymentMethods(methods);
+      toast.success('Default payment method updated');
+    } catch {
+      toast.error('Failed to update default payment method');
+    }
   };
 
-  const handleDeleteMethod = (methodId: string) => {
-    const updated = paymentMethods.filter(method => method.id !== methodId);
-    // If we deleted the default method, make the first remaining method default
-    if (updated.length > 0 && !updated.some(m => m.isDefault)) {
-      updated[0].isDefault = true;
+  const handleDeleteMethod = async (methodId: string) => {
+    try {
+      await deletePaymentMethod(methodId);
+      const methods = await fetchPaymentMethods();
+      setPaymentMethods(methods);
+      toast.success('Payment method removed');
+    } catch {
+      toast.error('Failed to remove payment method');
     }
-    setPaymentMethods(updated);
-    toast.success('Payment method removed');
   };
 
 
