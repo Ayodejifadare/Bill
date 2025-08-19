@@ -4,6 +4,7 @@ import {
   TRANSACTION_TYPE_MAP,
   TRANSACTION_STATUS_MAP
 } from '../../shared/transactions.js'
+import authenticate from '../middleware/auth.js'
 
 const router = express.Router()
 
@@ -88,7 +89,7 @@ router.post('/', async (req, res) => {
 })
 
 // POST /:groupId/join - add current user to group
-router.post('/:groupId/join', async (req, res) => {
+router.post('/:groupId/join', authenticate, async (req, res) => {
   try {
     const group = await req.prisma.group.findUnique({
       where: { id: req.params.groupId },
@@ -98,7 +99,7 @@ router.post('/:groupId/join', async (req, res) => {
       return res.status(404).json({ error: 'Group not found' })
     }
 
-    const userId = req.headers['x-user-id'] || 'current-user'
+    const userId = req.user.id
 
     await req.prisma.groupMember.upsert({
       where: {
@@ -127,7 +128,7 @@ router.post('/:groupId/join', async (req, res) => {
 })
 
 // POST /:groupId/leave - remove current user from group
-router.post('/:groupId/leave', async (req, res) => {
+router.post('/:groupId/leave', authenticate, async (req, res) => {
   try {
     const group = await req.prisma.group.findUnique({
       where: { id: req.params.groupId },
@@ -136,7 +137,7 @@ router.post('/:groupId/leave', async (req, res) => {
     if (!group) {
       return res.status(404).json({ error: 'Group not found' })
     }
-    const userId = req.headers['x-user-id'] || 'current-user'
+    const userId = req.user.id
 
     await req.prisma.groupMember.deleteMany({
       where: { groupId: group.id, userId }

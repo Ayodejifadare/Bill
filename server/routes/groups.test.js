@@ -46,12 +46,14 @@ describe('Group join/leave routes', () => {
     const createRes = await request(app).post('/groups').send({ name: 'Test' })
     const groupId = createRes.body.group.id
 
-      await prisma.user.create({ data: { id: 'user1', email: 'user1@example.com', name: 'User 1' } })
+    await prisma.user.create({
+      data: { id: 'user1', email: 'user1@example.com', name: 'User 1' }
+    })
 
-      const joinRes = await request(app)
-        .post(`/groups/${groupId}/join`)
-        .set('x-user-id', 'user1')
-        .send()
+    const joinRes = await request(app)
+      .post(`/groups/${groupId}/join`)
+      .set('x-user-id', 'user1')
+      .send()
     expect(joinRes.status).toBe(200)
     expect(joinRes.body.group.members).toContain('user1')
 
@@ -61,6 +63,21 @@ describe('Group join/leave routes', () => {
       .send()
     expect(leaveRes.status).toBe(200)
     expect(leaveRes.body.group.members).not.toContain('user1')
+  })
+
+  it('requires authentication to join and leave a group', async () => {
+    const createRes = await request(app).post('/groups').send({ name: 'Test' })
+    const groupId = createRes.body.group.id
+
+    const joinRes = await request(app)
+      .post(`/groups/${groupId}/join`)
+      .send()
+    expect(joinRes.status).toBe(401)
+
+    const leaveRes = await request(app)
+      .post(`/groups/${groupId}/leave`)
+      .send()
+    expect(leaveRes.status).toBe(401)
   })
 
   it('lists groups with member details and aggregates', async () => {
