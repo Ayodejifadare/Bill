@@ -5,9 +5,7 @@ import {
   Minus,
   Users,
   Building2,
-  Copy,
   Send,
-  Smartphone,
   UserPlus,
   Repeat,
   ChevronDown,
@@ -34,30 +32,13 @@ import {
   Group,
   ExternalAccount,
 } from '../utils/split-bill-api';
+import { PaymentMethodSelector, PaymentMethod } from './PaymentMethodSelector';
 interface SplitParticipant {
   friend: Friend;
   amount: number;
   percentage?: number;
 }
 
-interface PaymentMethod {
-  id: string;
-  type: 'bank' | 'mobile_money';
-  // Bank fields
-  bankName?: string;
-  accountNumber?: string;
-  accountHolderName?: string;
-  sortCode?: string;
-  routingNumber?: string;
-  accountType?: 'checking' | 'savings';
-  // Mobile money fields
-  provider?: string;
-  phoneNumber?: string;
-  isDefault: boolean;
-  // External account metadata
-  isExternal?: boolean;
-  externalName?: string;
-}
 
 interface SplitBillProps {
   onNavigate: (screen: string, data?: any) => void;
@@ -443,30 +424,6 @@ export function SplitBill({ onNavigate, groupId }: SplitBillProps) {
     return participants.reduce((sum, p) => sum + (isNaN(p.amount) ? 0 : p.amount), 0);
   };
 
-  const copyPaymentDetails = async () => {
-    if (!selectedPaymentMethod) return;
-
-    if (!navigator.clipboard || !navigator.clipboard.writeText) {
-      toast.error('Clipboard not supported. Please copy manually.');
-      return;
-    }
-
-    try {
-      if (selectedPaymentMethod.type === 'bank') {
-        const bankInfo = isNigeria
-          ? `${selectedPaymentMethod.bankName}\nAccount Name: ${selectedPaymentMethod.accountHolderName}\nAccount Number: ${selectedPaymentMethod.accountNumber}\nSort Code: ${selectedPaymentMethod.sortCode}`
-          : `${selectedPaymentMethod.bankName}\nAccount Holder: ${selectedPaymentMethod.accountHolderName}\nRouting Number: ${selectedPaymentMethod.routingNumber}\nAccount Number: ${selectedPaymentMethod.accountNumber}`;
-        await navigator.clipboard.writeText(bankInfo);
-        toast.success('Bank account details copied to clipboard');
-      } else {
-        const mobileInfo = `${selectedPaymentMethod.provider}\nPhone Number: ${selectedPaymentMethod.phoneNumber}`;
-        await navigator.clipboard.writeText(mobileInfo);
-        toast.success('Mobile money details copied to clipboard');
-      }
-    } catch (error) {
-      toast.error('Failed to copy details. Please copy manually.');
-    }
-  };
 
   const handleCreateSplit = () => {
     if (!billName.trim()) {
@@ -581,13 +538,6 @@ ${myShare > 0 ? `👥 Your Share: ${currencySymbol}${myShare.toFixed(2)}\n` : ''
     }
   };
 
-  const formatAccountNumber = (accountNumber: string) => {
-    if (isNigeria) {
-      return accountNumber.replace(/(\d{4})(\d{4})(\d{2})/, '$1 $2 $3');
-    } else {
-      return accountNumber.replace(/(\*{4})(\d{4})/, '$1 $2');
-    }
-  };
 
   const getNextPaymentDate = () => {
     const now = new Date();
@@ -762,126 +712,13 @@ ${myShare > 0 ? `👥 Your Share: ${currencySymbol}${myShare.toFixed(2)}\n` : ''
             {accountsError && (
               <p className="text-sm text-red-500">{accountsError}</p>
             )}
-            <Select
-              value={selectedPaymentMethod?.id || ''}
-              disabled={accountsLoading}
-              onValueChange={(value) => {
-                const method = paymentMethods.find((m) => m.id === value) || null;
-                setSelectedPaymentMethod(method);
-              }}
-            >
-              <SelectTrigger className="min-h-[48px]">
-                <SelectValue placeholder="Select payment method" />
-              </SelectTrigger>
-              <SelectContent>
-                {groupId && externalAccounts.length > 0 && (
-                  <>
-                    <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
-                      Group External Accounts
-                    </div>
-                    {paymentMethods
-                      .filter((m) => m.isExternal)
-                      .map((method) => (
-                        <SelectItem key={method.id} value={method.id}>
-                          <div className="flex items-center gap-2">
-                            {method.type === 'bank' ? (
-                              <Building2 className="h-4 w-4" />
-                            ) : (
-                              <Smartphone className="h-4 w-4" />
-                            )}
-                            <span>{method.name}</span>
-                            <span className="text-muted-foreground">•</span>
-                            <span className="text-muted-foreground">
-                              {method.type === 'bank'
-                                ? method.bankName
-                                : method.provider}
-                            </span>
-                            {method.isDefault && (
-                              <Badge variant="secondary" className="text-xs">
-                                Default
-                              </Badge>
-                            )}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
-                      Personal Accounts
-                    </div>
-                  </>
-                )}
-                {paymentMethods
-                  .filter((m) => !m.isExternal)
-                  .map((method) => (
-                    <SelectItem key={method.id} value={method.id}>
-                      <div className="flex items-center gap-2">
-                        {method.type === 'bank' ? (
-                          <Building2 className="h-4 w-4" />
-                        ) : (
-                          <Smartphone className="h-4 w-4" />
-                        )}
-                        <span>
-                          {method.type === 'bank'
-                            ? method.bankName
-                            : method.provider}
-                        </span>
-                        <span className="text-muted-foreground">•</span>
-                        <span className="text-muted-foreground text-sm">
-                          {method.type === 'bank'
-                            ? formatAccountNumber(method.accountNumber || '')
-                            : method.phoneNumber}
-                        </span>
-                        {method.isDefault && (
-                          <Badge variant="secondary" className="text-xs">
-                            Default
-                          </Badge>
-                        )}
-                      </div>
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
-
-          {selectedPaymentMethod && (
-            <Card className="bg-muted/50 p-4">
-              <div className="flex items-start justify-between">
-                <div className="space-y-1 flex-1">
-                  <p className="font-medium text-sm">
-                    {selectedPaymentMethod.isExternal 
-                      ? selectedPaymentMethod.externalName
-                      : selectedPaymentMethod.type === 'bank' 
-                        ? selectedPaymentMethod.bankName 
-                        : selectedPaymentMethod.provider
-                    }
-                  </p>
-                  {selectedPaymentMethod.type === 'bank' ? (
-                    <>
-                      <p className="text-sm text-muted-foreground">
-                        {selectedPaymentMethod.accountHolderName}
-                      </p>
-                      <p className="text-sm font-mono">
-                        {isNigeria 
-                          ? `${formatAccountNumber(selectedPaymentMethod.accountNumber || '')} • ${selectedPaymentMethod.sortCode}`
-                          : `${selectedPaymentMethod.routingNumber} • ${selectedPaymentMethod.accountNumber}`
-                        }
-                      </p>
-                    </>
-                  ) : (
-                    <p className="text-sm font-mono">
-                      {selectedPaymentMethod.phoneNumber}
-                    </p>
-                  )}
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={copyPaymentDetails}
-                  className="ml-2 min-h-[40px] min-w-[40px]"
-                >
-                  <Copy className="h-4 w-4" />
-                </Button>
-              </div>
-            </Card>
-          )}
+          <PaymentMethodSelector
+            methods={paymentMethods}
+            selectedId={selectedPaymentMethod?.id || null}
+            onSelect={setSelectedPaymentMethod}
+            isNigeria={isNigeria}
+            loading={accountsLoading}
+          />
         </CardContent>
       </Card>
 

@@ -11,21 +11,9 @@ import { Separator } from './ui/separator';
 import { toast } from 'sonner';
 import { useUserProfile } from './UserProfileContext';
 
-interface PaymentMethod {
-  id: string;
-  type: 'bank' | 'mobile_money';
-  // Bank fields
-  bankName?: string;
-  accountNumber?: string;
-  accountHolderName?: string;
-  sortCode?: string;
-  routingNumber?: string;
-  accountType?: 'checking' | 'savings';
-  // Mobile money fields
-  provider?: string;
-  phoneNumber?: string;
-  isDefault: boolean;
-}
+import { PaymentMethod } from './PaymentMethodSelector';
+import { BankAccountCard } from './BankAccountCard';
+import { MobileMoneyCard } from './MobileMoneyCard';
 
 interface Friend {
   id: string;
@@ -236,28 +224,6 @@ export function SendMoney({ onNavigate, prefillData }: SendMoneyProps) {
     friend.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const copyPaymentDetails = async (paymentMethod: PaymentMethod) => {
-    if (!navigator.clipboard || !navigator.clipboard.writeText) {
-      toast.error('Clipboard not supported. Please copy manually.');
-      return;
-    }
-
-    try {
-      if (paymentMethod.type === 'bank') {
-        const bankInfo = isNigeria
-          ? `${paymentMethod.bankName}\nAccount Name: ${paymentMethod.accountHolderName}\nAccount Number: ${paymentMethod.accountNumber}\nSort Code: ${paymentMethod.sortCode}`
-          : `${paymentMethod.bankName}\nAccount Holder: ${paymentMethod.accountHolderName}\nRouting Number: ${paymentMethod.routingNumber}\nAccount Number: ${paymentMethod.accountNumber}`;
-        await navigator.clipboard.writeText(bankInfo);
-        toast.success('Bank account details copied to clipboard');
-      } else {
-        const mobileInfo = `${paymentMethod.provider}\nPhone Number: ${paymentMethod.phoneNumber}`;
-        await navigator.clipboard.writeText(mobileInfo);
-        toast.success('Mobile money details copied to clipboard');
-      }
-    } catch (error) {
-      toast.error('Failed to copy details. Please copy manually.');
-    }
-  };
 
   const handleSendMoney = () => {
     if (!selectedFriend) {
@@ -322,13 +288,6 @@ ${paymentMethod.provider}
     toast.success('Payment details copied to clipboard');
   };
 
-  const formatAccountNumber = (accountNumber: string) => {
-    if (isNigeria) {
-      return accountNumber.replace(/(\d{4})(\d{4})(\d{2})/, '$1 $2 $3');
-    } else {
-      return accountNumber.replace(/(\*{4})(\d{4})/, '$1 $2');
-    }
-  };
 
   return (
     <div className="pb-20">
@@ -570,64 +529,11 @@ ${paymentMethod.provider}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Card className="bg-muted">
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-1">
-                      <p className="font-medium">
-                        {selectedFriend.defaultPaymentMethod.type === 'bank' 
-                          ? selectedFriend.defaultPaymentMethod.bankName 
-                          : selectedFriend.defaultPaymentMethod.provider
-                        }
-                      </p>
-                      
-                      {selectedFriend.defaultPaymentMethod.type === 'bank' ? (
-                        <>
-                          <p className="text-sm text-muted-foreground">
-                            Account Holder: {selectedFriend.defaultPaymentMethod.accountHolderName}
-                          </p>
-                          {!isNigeria && selectedFriend.defaultPaymentMethod.accountType && (
-                            <p className="text-sm text-muted-foreground">
-                              Account Type: {selectedFriend.defaultPaymentMethod.accountType.charAt(0).toUpperCase() + selectedFriend.defaultPaymentMethod.accountType.slice(1)}
-                            </p>
-                          )}
-                          {isNigeria ? (
-                            <>
-                              <p className="text-sm text-muted-foreground">
-                                Sort Code: {selectedFriend.defaultPaymentMethod.sortCode}
-                              </p>
-                              <p className="text-sm text-muted-foreground">
-                                Account Number: {formatAccountNumber(selectedFriend.defaultPaymentMethod.accountNumber!)}
-                              </p>
-                            </>
-                          ) : (
-                            <>
-                              <p className="text-sm text-muted-foreground">
-                                Routing Number: {selectedFriend.defaultPaymentMethod.routingNumber}
-                              </p>
-                              <p className="text-sm text-muted-foreground">
-                                Account Number: {formatAccountNumber(selectedFriend.defaultPaymentMethod.accountNumber!)}
-                              </p>
-                            </>
-                          )}
-                        </>
-                      ) : (
-                        <p className="text-sm text-muted-foreground">
-                          Phone Number: {selectedFriend.defaultPaymentMethod.phoneNumber}
-                        </p>
-                      )}
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => copyPaymentDetails(selectedFriend.defaultPaymentMethod!)}
-                      className="p-2"
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+              {selectedFriend.defaultPaymentMethod.type === 'bank' ? (
+                <BankAccountCard account={selectedFriend.defaultPaymentMethod} showAdminActions={false} />
+              ) : (
+                <MobileMoneyCard account={selectedFriend.defaultPaymentMethod} showAdminActions={false} />
+              )}
 
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
                 <div className="flex gap-2">
@@ -639,7 +545,7 @@ ${paymentMethod.provider}
                   <div>
                     <p className="text-sm text-amber-800 font-medium">Payment Instructions</p>
                     <p className="text-sm text-amber-700 mt-1">
-                      Use your {selectedFriend.defaultPaymentMethod.type === 'bank' ? 'bank' : 'mobile money'} app to send a transfer to the {selectedFriend.defaultPaymentMethod.type === 'bank' ? 'account' : 'number'} above. 
+                      Use your {selectedFriend.defaultPaymentMethod.type === 'bank' ? 'bank' : 'mobile money'} app to send a transfer to the {selectedFriend.defaultPaymentMethod.type === 'bank' ? 'account' : 'number'} above.
                       Include "{message || `Payment from SplitPay - ${currencySymbol}${amount}`}" in the transfer memo.
                     </p>
                   </div>

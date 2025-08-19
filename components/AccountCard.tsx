@@ -32,7 +32,7 @@ interface GroupAccount extends BaseAccount {
   createdDate: string;
 }
 
-interface AccountCardProps {
+export interface AccountCardProps {
   account: PersonalAccount | GroupAccount;
   onSetDefault?: (accountId: string) => void;
   onDelete?: (accountId: string) => void;

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ArrowLeft, Search, Building2, Copy, Send, Smartphone, Users, UserPlus, Repeat, Share2, Loader2 } from 'lucide-react';
+import { ArrowLeft, Search, Building2, Copy, Send, Users, UserPlus, Repeat, Share2, Loader2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 import { useUserProfile } from './UserProfileContext';
 import { SocialSharingUtils, QuickShareButton, createDeepLink } from './SocialSharingUtils';
 import { createRequest } from '../utils/request-api';
+import { PaymentMethodSelector, PaymentMethod } from './PaymentMethodSelector';
 
 interface Friend {
   id: string;
@@ -22,21 +23,6 @@ interface Friend {
   phoneNumber?: string;
 }
 
-interface PaymentMethod {
-  id: string;
-  type: 'bank' | 'mobile_money';
-  // Bank fields
-  bankName?: string;
-  accountNumber?: string;
-  accountHolderName?: string;
-  sortCode?: string;
-  routingNumber?: string;
-  accountType?: 'checking' | 'savings';
-  // Mobile money fields
-  provider?: string;
-  phoneNumber?: string;
-  isDefault: boolean;
-}
 
 interface Group {
   id: string;
@@ -190,30 +176,6 @@ export function RequestMoney({ onNavigate, prefillData }: RequestMoneyProps) {
     setShowGroupSelection(false);
   };
 
-  const copyPaymentDetails = async () => {
-    if (!selectedPaymentMethod) return;
-
-    if (!navigator.clipboard || !navigator.clipboard.writeText) {
-      toast.error('Clipboard not supported. Please copy manually.');
-      return;
-    }
-
-    try {
-      if (selectedPaymentMethod.type === 'bank') {
-        const bankInfo = isNigeria
-          ? `${selectedPaymentMethod.bankName}\nAccount Name: ${selectedPaymentMethod.accountHolderName}\nAccount Number: ${selectedPaymentMethod.accountNumber}\nSort Code: ${selectedPaymentMethod.sortCode}`
-          : `${selectedPaymentMethod.bankName}\nAccount Holder: ${selectedPaymentMethod.accountHolderName}\nRouting Number: ${selectedPaymentMethod.routingNumber}\nAccount Number: ${selectedPaymentMethod.accountNumber}`;
-        await navigator.clipboard.writeText(bankInfo);
-        toast.success('Bank account details copied to clipboard');
-      } else {
-        const mobileInfo = `${selectedPaymentMethod.provider}\nPhone Number: ${selectedPaymentMethod.phoneNumber}`;
-        await navigator.clipboard.writeText(mobileInfo);
-        toast.success('Mobile money details copied to clipboard');
-      }
-    } catch (error) {
-      toast.error('Failed to copy details. Please copy manually.');
-    }
-  };
 
   const handleSendRequest = async () => {
     if (selectedFriends.length === 0) {
@@ -304,13 +266,6 @@ Recipients: ${selectedFriends.map(f => f.name).join(', ')}`;
     }
   };
 
-  const formatAccountNumber = (accountNumber: string) => {
-    if (isNigeria) {
-      return accountNumber.replace(/(\d{4})(\d{4})(\d{2})/, '$1 $2 $3');
-    } else {
-      return accountNumber.replace(/(\*{4})(\d{4})/, '$1 $2');
-    }
-  };
 
   const getNextPaymentDate = () => {
     const now = new Date();
@@ -459,103 +414,13 @@ Recipients: ${selectedFriends.map(f => f.name).join(', ')}`;
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Select
-            value={selectedPaymentMethod?.id || ''}
-            onValueChange={(value) => {
-              const method = paymentMethods.find(acc => acc.id === value);
-              setSelectedPaymentMethod(method || null);
-            }}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select payment method" />
-            </SelectTrigger>
-            <SelectContent>
-              {paymentMethods.map((method) => (
-                <SelectItem key={method.id} value={method.id}>
-                  <div className="flex items-center gap-2">
-                    {method.type === 'bank' ? (
-                      <Building2 className="h-4 w-4" />
-                    ) : (
-                      <Smartphone className="h-4 w-4" />
-                    )}
-                    <span>
-                      {method.type === 'bank' ? method.bankName : method.provider}
-                    </span>
-                    <span className="text-muted-foreground">•</span>
-                    <span className="text-muted-foreground">
-                      {method.type === 'bank' ? method.accountNumber : method.phoneNumber}
-                    </span>
-                    {method.isDefault && <Badge variant="secondary" className="text-xs">Default</Badge>}
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          {selectedPaymentMethod && (
-            <Card className="bg-muted">
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between">
-                  <div className="space-y-1">
-                    <p className="font-medium">
-                      {selectedPaymentMethod.type === 'bank' 
-                        ? selectedPaymentMethod.bankName 
-                        : selectedPaymentMethod.provider
-                      }
-                    </p>
-                    
-                    {selectedPaymentMethod.type === 'bank' ? (
-                      <>
-                        <p className="text-sm text-muted-foreground">
-                          {selectedPaymentMethod.accountHolderName}
-                        </p>
-                        {isNigeria ? (
-                          <>
-                            <p className="text-sm text-muted-foreground">
-                              Sort Code: {selectedPaymentMethod.sortCode}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              Account: {formatAccountNumber(selectedPaymentMethod.accountNumber!)}
-                            </p>
-                          </>
-                        ) : (
-                          <>
-                            <p className="text-sm text-muted-foreground">
-                              Routing: {selectedPaymentMethod.routingNumber}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              Account: {formatAccountNumber(selectedPaymentMethod.accountNumber!)}
-                            </p>
-                          </>
-                        )}
-                      </>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">
-                        Phone: {selectedPaymentMethod.phoneNumber}
-                      </p>
-                    )}
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={copyPaymentDetails}
-                    className="p-2"
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onNavigate('payment-methods')}
-            className="w-full"
-          >
-            Manage Payment Methods
-          </Button>
+          <PaymentMethodSelector
+            methods={paymentMethods}
+            selectedId={selectedPaymentMethod?.id || null}
+            onSelect={setSelectedPaymentMethod}
+            isNigeria={isNigeria}
+            onManage={() => onNavigate('payment-methods')}
+          />
         </CardContent>
       </Card>
 
