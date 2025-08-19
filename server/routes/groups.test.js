@@ -22,6 +22,7 @@ describe('Group join/leave routes', () => {
   })
 
   beforeEach(async () => {
+    await prisma.transaction.deleteMany()
     await prisma.groupAccount.deleteMany()
     await prisma.groupMember.deleteMany()
     await prisma.group.deleteMany()
@@ -60,5 +61,41 @@ describe('Group join/leave routes', () => {
       .send()
     expect(leaveRes.status).toBe(200)
     expect(leaveRes.body.group.members).not.toContain('user1')
+  })
+
+  it('fetches group details with members and transactions', async () => {
+    const createRes = await request(app).post('/groups').send({ name: 'Test' })
+    const groupId = createRes.body.group.id
+
+    await prisma.user.createMany({
+      data: [
+        { id: 'user1', email: 'user1@example.com', name: 'User 1' },
+        { id: 'user2', email: 'user2@example.com', name: 'User 2' }
+      ]
+    })
+
+    await prisma.groupMember.createMany({
+      data: [
+        { groupId, userId: 'user1' },
+        { groupId, userId: 'user2' }
+      ]
+    })
+
+    await prisma.transaction.create({
+      data: {
+        senderId: 'user1',
+        receiverId: 'user2',
+        amount: 10,
+        type: 'SEND',
+        status: 'COMPLETED'
+      }
+    })
+
+    const res = await request(app).get(`/groups/${groupId}`)
+
+    expect(res.status).toBe(200)
+    expect(res.body.group.id).toBe(groupId)
+    expect(res.body.group.members).toHaveLength(2)
+    expect(res.body.group.recentTransactions).toHaveLength(1)
   })
 })
