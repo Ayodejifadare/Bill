@@ -129,19 +129,28 @@ export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps
     );
   }
 
-  const copyPaymentDetails = () => {
+  const copyPaymentDetails = async () => {
     const { paymentMethod } = bill;
-    
-    if (paymentMethod.type === 'bank') {
-      const bankInfo = isNigeria 
-        ? `${paymentMethod.bankName}\nAccount Name: ${paymentMethod.accountHolderName}\nAccount Number: ${paymentMethod.accountNumber}\nSort Code: ${paymentMethod.sortCode}`
-        : `${paymentMethod.bankName}\nAccount Holder: ${paymentMethod.accountHolderName}\nRouting Number: ${paymentMethod.routingNumber}\nAccount Number: ${paymentMethod.accountNumber}`;
-      navigator.clipboard.writeText(bankInfo);
-      toast.success('Bank account details copied to clipboard');
-    } else {
-      const mobileInfo = `${paymentMethod.provider}\nPhone Number: ${paymentMethod.phoneNumber}`;
-      navigator.clipboard.writeText(mobileInfo);
-      toast.success('Mobile money details copied to clipboard');
+
+    if (!navigator.clipboard || !navigator.clipboard.writeText) {
+      toast.error('Clipboard not supported. Please copy manually.');
+      return;
+    }
+
+    try {
+      if (paymentMethod.type === 'bank') {
+        const bankInfo = isNigeria
+          ? `${paymentMethod.bankName}\nAccount Name: ${paymentMethod.accountHolderName}\nAccount Number: ${paymentMethod.accountNumber}\nSort Code: ${paymentMethod.sortCode}`
+          : `${paymentMethod.bankName}\nAccount Holder: ${paymentMethod.accountHolderName}\nRouting Number: ${paymentMethod.routingNumber}\nAccount Number: ${paymentMethod.accountNumber}`;
+        await navigator.clipboard.writeText(bankInfo);
+        toast.success('Bank account details copied to clipboard');
+      } else {
+        const mobileInfo = `${paymentMethod.provider}\nPhone Number: ${paymentMethod.phoneNumber}`;
+        await navigator.clipboard.writeText(mobileInfo);
+        toast.success('Mobile money details copied to clipboard');
+      }
+    } catch (error) {
+      toast.error('Failed to copy details. Please copy manually.');
     }
   };
 

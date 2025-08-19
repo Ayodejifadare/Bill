@@ -100,19 +100,28 @@ export function PaymentFlowScreen({ paymentRequest, onNavigate }: PaymentFlowScr
   // Get recipient's payment method
   const recipientPaymentMethod = mockRecipientPaymentMethods[paymentRequest.recipient];
 
-  const copyPaymentDetails = () => {
+  const copyPaymentDetails = async () => {
     if (!recipientPaymentMethod) return;
-    
-    if (recipientPaymentMethod.type === 'bank') {
-      const bankInfo = isNigeria 
-        ? `${recipientPaymentMethod.bankName}\nAccount Name: ${recipientPaymentMethod.accountHolderName}\nAccount Number: ${recipientPaymentMethod.accountNumber}\nSort Code: ${recipientPaymentMethod.sortCode}`
-        : `${recipientPaymentMethod.bankName}\nAccount Holder: ${recipientPaymentMethod.accountHolderName}\nRouting Number: ${recipientPaymentMethod.routingNumber}\nAccount Number: ${recipientPaymentMethod.accountNumber}`;
-      navigator.clipboard.writeText(bankInfo);
-      toast.success('Bank account details copied to clipboard');
-    } else {
-      const mobileInfo = `${recipientPaymentMethod.provider}\nPhone Number: ${recipientPaymentMethod.phoneNumber}`;
-      navigator.clipboard.writeText(mobileInfo);
-      toast.success('Mobile money details copied to clipboard');
+
+    if (!navigator.clipboard || !navigator.clipboard.writeText) {
+      toast.error('Clipboard not supported. Please copy manually.');
+      return;
+    }
+
+    try {
+      if (recipientPaymentMethod.type === 'bank') {
+        const bankInfo = isNigeria
+          ? `${recipientPaymentMethod.bankName}\nAccount Name: ${recipientPaymentMethod.accountHolderName}\nAccount Number: ${recipientPaymentMethod.accountNumber}\nSort Code: ${recipientPaymentMethod.sortCode}`
+          : `${recipientPaymentMethod.bankName}\nAccount Holder: ${recipientPaymentMethod.accountHolderName}\nRouting Number: ${recipientPaymentMethod.routingNumber}\nAccount Number: ${recipientPaymentMethod.accountNumber}`;
+        await navigator.clipboard.writeText(bankInfo);
+        toast.success('Bank account details copied to clipboard');
+      } else {
+        const mobileInfo = `${recipientPaymentMethod.provider}\nPhone Number: ${recipientPaymentMethod.phoneNumber}`;
+        await navigator.clipboard.writeText(mobileInfo);
+        toast.success('Mobile money details copied to clipboard');
+      }
+    } catch (error) {
+      toast.error('Failed to copy details. Please copy manually.');
     }
   };
 
