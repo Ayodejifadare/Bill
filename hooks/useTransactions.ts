@@ -19,19 +19,28 @@ export interface Transaction {
   status: TransactionStatus;
 }
 
+interface UseTransactionsOptions {
+  page?: number;
+  limit?: number;
+}
+
 interface UseTransactionsResult {
   transactions: Transaction[];
   loading: boolean;
   error: string | null;
-  refetch: () => void;
+  hasMore: boolean;
+  refetch: (opts?: UseTransactionsOptions) => void;
 }
 
-export function useTransactions(): UseTransactionsResult {
+export function useTransactions({ page = 1, limit = 20 }: UseTransactionsOptions = {}): UseTransactionsResult {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(false);
 
-  const fetchTransactions = useCallback(async () => {
+  const fetchTransactions = useCallback(async (opts: UseTransactionsOptions = {}) => {
+    const currentPage = opts.page ?? page;
+    const currentLimit = opts.limit ?? limit;
     setLoading(true);
     setError(null);
     try {
@@ -42,7 +51,7 @@ export function useTransactions(): UseTransactionsResult {
         throw new Error('Unauthorized: Please log in.');
       }
 
-      const res = await fetch('/api/transactions', {
+      const res = await fetch(`/api/transactions?page=${currentPage}&limit=${currentLimit}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -57,19 +66,22 @@ export function useTransactions(): UseTransactionsResult {
       }
 
       const data = await res.json();
-      setTransactions(Array.isArray(data.transactions) ? data.transactions : []);
+      const fetched = Array.isArray(data.transactions) ? data.transactions : [];
+      setTransactions(fetched);
+      setHasMore(fetched.length === currentLimit);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch transactions');
       setTransactions([]);
+      setHasMore(false);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page, limit]);
 
   useEffect(() => {
-    fetchTransactions();
-  }, [fetchTransactions]);
+    fetchTransactions({ page, limit });
+  }, [fetchTransactions, page, limit]);
 
-  return { transactions, loading, error, refetch: fetchTransactions };
+  return { transactions, loading, error, hasMore, refetch: fetchTransactions };
 }
 

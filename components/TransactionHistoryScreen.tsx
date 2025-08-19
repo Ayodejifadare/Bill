@@ -1,121 +1,22 @@
-import { useState } from 'react';
-import { ArrowLeft, Search, Filter, TrendingUp, TrendingDown, ArrowUpDown, Calendar, DollarSign } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { ArrowLeft, Search, Filter, TrendingUp, TrendingDown, ArrowUpDown, DollarSign } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Avatar, AvatarFallback } from './ui/avatar';
 import { Separator } from './ui/separator';
 import { EmptyState } from './ui/empty-state';
 import { TransactionCard } from './TransactionCard';
 import { useUserProfile } from './UserProfileContext';
 import { formatDate } from '../utils/formatDate';
+import { useTransactions, Transaction } from '../hooks/useTransactions';
 
 interface TransactionHistoryScreenProps {
   onNavigate: (tab: string, data?: any) => void;
 }
 
-interface Transaction {
-  id: string;
-  type: 'sent' | 'received' | 'bill_split' | 'request';
-  amount: number;
-  description: string;
-  date: string;
-  status: 'completed' | 'pending' | 'failed';
-  recipient?: {
-    name: string;
-    avatar: string;
-  };
-  sender?: {
-    name: string;
-    avatar: string;
-  };
-  category?: string;
-}
-
-const mockTransactions: Transaction[] = [
-  {
-    id: '1',
-    type: 'sent',
-    amount: 45.00,
-    description: 'Coffee and lunch',
-    date: '2025-01-15T14:30:00Z',
-    status: 'completed',
-    recipient: { name: 'Sarah Johnson', avatar: 'SJ' },
-    category: 'Food & Dining'
-  },
-  {
-    id: '2',
-    type: 'received',
-    amount: 120.00,
-    description: 'Split dinner bill',
-    date: '2025-01-14T19:45:00Z',
-    status: 'completed',
-    sender: { name: 'Mike Chen', avatar: 'MC' },
-    category: 'Food & Dining'
-  },
-  {
-    id: '3',
-    type: 'bill_split',
-    amount: 28.50,
-    description: 'Team Dinner at Tony\'s Pizza',
-    date: '2025-01-13T20:15:00Z',
-    status: 'pending',
-    category: 'Food & Dining'
-  },
-  {
-    id: '4',
-    type: 'sent',
-    amount: 85.00,
-    description: 'Uber ride share',
-    date: '2025-01-12T16:20:00Z',
-    status: 'completed',
-    recipient: { name: 'Alex Rodriguez', avatar: 'AR' },
-    category: 'Transportation'
-  },
-  {
-    id: '5',
-    type: 'received',
-    amount: 200.00,
-    description: 'Rent contribution',
-    date: '2025-01-10T09:00:00Z',
-    status: 'completed',
-    sender: { name: 'Emily Davis', avatar: 'ED' },
-    category: 'Housing'
-  },
-  {
-    id: '6',
-    type: 'request',
-    amount: 30.00,
-    description: 'Movie tickets',
-    date: '2025-01-08T21:30:00Z',
-    status: 'pending',
-    recipient: { name: 'John Doe', avatar: 'JD' },
-    category: 'Entertainment'
-  },
-  {
-    id: '7',
-    type: 'sent',
-    amount: 15.50,
-    description: 'Coffee',
-    date: '2025-01-07T08:15:00Z',
-    status: 'completed',
-    recipient: { name: 'Sarah Johnson', avatar: 'SJ' },
-    category: 'Food & Dining'
-  },
-  {
-    id: '8',
-    type: 'bill_split',
-    amount: 67.25,
-    description: 'Grocery shopping',
-    date: '2025-01-05T15:45:00Z',
-    status: 'completed',
-    category: 'Shopping'
-  }
-];
-
-const categories = ['All Categories', 'Food & Dining', 'Transportation', 'Housing', 'Entertainment', 'Shopping', 'Other'];
+// Filter options
 const timeFilters = ['All Time', 'This Week', 'This Month', 'Last 3 Months', 'This Year'];
 const typeFilters = ['All Types', 'Sent', 'Received', 'Bill Splits', 'Requests'];
 
@@ -127,29 +28,70 @@ export function TransactionHistoryScreen({ onNavigate }: TransactionHistoryScree
   const [selectedTimeFilter, setSelectedTimeFilter] = useState('All Time');
   const [selectedTypeFilter, setSelectedTypeFilter] = useState('All Types');
   const [showFilters, setShowFilters] = useState(false);
+  const [page, setPage] = useState(1);
+  const pageSize = 20;
+  const { transactions: fetchedTransactions, loading, hasMore } = useTransactions({ page, limit: pageSize });
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
 
-  const filteredTransactions = mockTransactions.filter(transaction => {
+  useEffect(() => {
+    if (page === 1) {
+      setTransactions(fetchedTransactions);
+    } else {
+      setTransactions(prev => [...prev, ...fetchedTransactions]);
+    }
+  }, [fetchedTransactions, page]);
+
+  const categories = useMemo(() => [
+    'All Categories',
+    ...Array.from(new Set(transactions.map(t => t.category).filter(Boolean) as string[]))
+  ], [transactions]);
+
+  const filteredTransactions = transactions.filter(transaction => {
     const matchesSearch = transaction.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         transaction.recipient?.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         transaction.sender?.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         transaction.recipient?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         transaction.sender?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          formatDate(transaction.date).toLowerCase().includes(searchQuery.toLowerCase());
-    
+
     const matchesCategory = selectedCategory === 'All Categories' || transaction.category === selectedCategory;
-    
-    const matchesType = selectedTypeFilter === 'All Types' || 
+
+    const matchesType = selectedTypeFilter === 'All Types' ||
                        (selectedTypeFilter === 'Sent' && transaction.type === 'sent') ||
                        (selectedTypeFilter === 'Received' && transaction.type === 'received') ||
-                       (selectedTypeFilter === 'Bill Splits' && transaction.type === 'bill_split') ||
+                       (selectedTypeFilter === 'Bill Splits' && (transaction.type === 'bill_split' || transaction.type === 'split')) ||
                        (selectedTypeFilter === 'Requests' && transaction.type === 'request');
 
-    return matchesSearch && matchesCategory && matchesType;
+    const matchesTime = (() => {
+      if (selectedTimeFilter === 'All Time') return true;
+      const txDate = new Date(transaction.date);
+      const now = new Date();
+      switch (selectedTimeFilter) {
+        case 'This Week': {
+          const startOfWeek = new Date(now);
+          startOfWeek.setDate(now.getDate() - now.getDay());
+          return txDate >= startOfWeek;
+        }
+        case 'This Month':
+          return txDate.getMonth() === now.getMonth() && txDate.getFullYear() === now.getFullYear();
+        case 'Last 3 Months': {
+          const threeMonthsAgo = new Date(now);
+          threeMonthsAgo.setMonth(now.getMonth() - 3);
+          return txDate >= threeMonthsAgo;
+        }
+        case 'This Year':
+          return txDate.getFullYear() === now.getFullYear();
+        default:
+          return true;
+      }
+    })();
+
+    return matchesSearch && matchesCategory && matchesType && matchesTime;
   });
 
-  const totalSent = mockTransactions
+  const totalSent = transactions
     .filter(t => t.type === 'sent' && t.status === 'completed')
     .reduce((sum, t) => sum + t.amount, 0);
-  
-  const totalReceived = mockTransactions
+
+  const totalReceived = transactions
     .filter(t => t.type === 'received' && t.status === 'completed')
     .reduce((sum, t) => sum + t.amount, 0);
 
@@ -167,10 +109,16 @@ export function TransactionHistoryScreen({ onNavigate }: TransactionHistoryScree
     setSelectedTypeFilter('All Types');
   };
 
-  const hasActiveFilters = searchQuery || 
-                          selectedCategory !== 'All Categories' || 
-                          selectedTimeFilter !== 'All Time' || 
+  const hasActiveFilters = searchQuery ||
+                          selectedCategory !== 'All Categories' ||
+                          selectedTimeFilter !== 'All Time' ||
                           selectedTypeFilter !== 'All Types';
+
+  const handleLoadMore = () => {
+    if (hasMore && !loading) {
+      setPage(prev => prev + 1);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -391,10 +339,10 @@ export function TransactionHistoryScreen({ onNavigate }: TransactionHistoryScree
           )}
         </div>
 
-        {/* Load More Button (for pagination in real implementation) */}
-        {filteredTransactions.length > 0 && (
+        {/* Load More Button */}
+        {hasMore && (
           <div className="text-center pt-4">
-            <Button variant="ghost" className="h-10">
+            <Button variant="ghost" className="h-10" onClick={handleLoadMore} disabled={loading}>
               Load More Transactions
             </Button>
           </div>
