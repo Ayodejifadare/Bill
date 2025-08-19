@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { ArrowLeft, Search, Building2, Copy, Send, Smartphone, Users, UserPlus, Repeat, Share2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -54,7 +54,7 @@ interface RequestMoneyProps {
 }
 
 export function RequestMoney({ onNavigate, prefillData }: RequestMoneyProps) {
-  const { appSettings } = useUserProfile();
+  const { appSettings, userProfile } = useUserProfile();
   const isNigeria = appSettings.region === 'NG';
   const currencySymbol = isNigeria ? '₦' : '$';
   
@@ -69,138 +69,101 @@ export function RequestMoney({ onNavigate, prefillData }: RequestMoneyProps) {
   const [recurringDay, setRecurringDay] = useState('1');
   const [recurringDayOfWeek, setRecurringDayOfWeek] = useState('monday');
   const [showShareSheet, setShowShareSheet] = useState(false);
+  const [friends, setFriends] = useState<Friend[]>([]);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
 
-  // Mock data for friends
-  const allFriends: Friend[] = [
-    { 
-      id: '1', 
-      name: 'Alice Johnson', 
-      avatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b47c?w=150', 
-      phoneNumber: isNigeria ? '+234 801 123 4567' : '+1 (555) 123-4567' 
-    },
-    { 
-      id: '2', 
-      name: 'Bob Wilson', 
-      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150', 
-      phoneNumber: isNigeria ? '+234 802 234 5678' : '+1 (555) 234-5678' 
-    },
-    { 
-      id: '3', 
-      name: 'Carol Davis', 
-      avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150', 
-      phoneNumber: isNigeria ? '+234 803 345 6789' : '+1 (555) 345-6789' 
-    },
-    { 
-      id: '4', 
-      name: 'David Brown', 
-      avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150', 
-      phoneNumber: isNigeria ? '+234 804 456 7890' : '+1 (555) 456-7890' 
-    },
-    { 
-      id: '5', 
-      name: 'Emma Garcia', 
-      avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150', 
-      phoneNumber: isNigeria ? '+234 805 567 8901' : '+1 (555) 567-8901' 
-    },
-  ];
+  const loadFriendsAndGroups = useCallback(async () => {
+    try {
+      const [friendsRes, groupsRes] = await Promise.all([
+        fetch('/api/friends'),
+        fetch('/api/groups'),
+      ]);
 
-  // Mock groups
-  const groups: Group[] = [
-    {
-      id: '1',
-      name: 'Work Team',
-      members: allFriends.slice(0, 3),
-      color: 'bg-blue-500'
-    },
-    {
-      id: '2', 
-      name: 'College Friends',
-      members: allFriends.slice(1, 4),
-      color: 'bg-green-500'
-    },
-    {
-      id: '3',
-      name: 'Roommates',
-      members: allFriends.slice(2, 5),
-      color: 'bg-purple-500'
+      let friendsData: Friend[] = [];
+      if (friendsRes.ok) {
+        const data = await friendsRes.json();
+        friendsData = (data.friends || []).map((f: {
+          id: string;
+          name: string;
+          avatar?: string;
+          phoneNumber?: string;
+          phone?: string;
+        }) => ({
+          id: f.id,
+          name: f.name,
+          avatar: f.avatar,
+          phoneNumber: f.phoneNumber || f.phone || '',
+        }));
+        setFriends(friendsData);
+      }
+
+      if (groupsRes.ok) {
+        const data = await groupsRes.json();
+        const groupsData: Group[] = (data.groups || []).map((g: {
+          id: string;
+          name: string;
+          members?: string[];
+          color?: string;
+        }) => ({
+          id: g.id,
+          name: g.name,
+          members: (g.members || [])
+            .map((id: string) => friendsData.find(f => f.id === id))
+            .filter(Boolean) as Friend[],
+          color: g.color || 'bg-blue-500',
+        }));
+        setGroups(groupsData);
+      }
+    } catch (err) {
+      console.error('Failed to load friends or groups', err);
     }
-  ];
+  }, []);
 
-  // Mock payment methods based on region
-  const paymentMethods: PaymentMethod[] = isNigeria ? [
-    {
-      id: '1',
-      type: 'bank',
-      bankName: 'Access Bank',
-      accountNumber: '0123456789',
-      accountHolderName: 'John Doe',
-      sortCode: '044',
-      isDefault: true
-    },
-    {
-      id: '2',
-      type: 'mobile_money',
-      provider: 'Opay',
-      phoneNumber: '+234 801 234 5678',
-      isDefault: false
-    },
-    {
-      id: '3',
-      type: 'bank',
-      bankName: 'GTBank',
-      accountNumber: '0234567890',
-      accountHolderName: 'John Doe',
-      sortCode: '058',
-      isDefault: false
-    }
-  ] : [
-    {
-      id: '1',
-      type: 'bank',
-      bankName: 'Chase Bank',
-      accountType: 'checking',
-      accountNumber: '****1234',
-      routingNumber: '021000021',
-      accountHolderName: 'John Doe',
-      isDefault: true
-    },
-    {
-      id: '2',
-      type: 'bank',
-      bankName: 'Bank of America',
-      accountType: 'savings',
-      accountNumber: '****5678',
-      routingNumber: '026009593',
-      accountHolderName: 'John Doe',
-      isDefault: false
-    }
-  ];
-
-  // Set default payment method and handle prefill data on component mount
   useEffect(() => {
-    const defaultMethod = paymentMethods.find(method => method.isDefault);
-    if (defaultMethod) {
-      setSelectedPaymentMethod(defaultMethod);
-    }
+    loadFriendsAndGroups();
+    const refresh = () => loadFriendsAndGroups();
+    window.addEventListener('friendsUpdated', refresh);
+    window.addEventListener('groupsUpdated', refresh);
+    return () => {
+      window.removeEventListener('friendsUpdated', refresh);
+      window.removeEventListener('groupsUpdated', refresh);
+    };
+  }, [loadFriendsAndGroups]);
 
-    // Handle prefill data
-    if (prefillData) {
-      if (prefillData.amount) {
-        setAmount(prefillData.amount);
+  useEffect(() => {
+    const methods: PaymentMethod[] = (userProfile.linkedBankAccounts || []).map(acc => ({
+      id: acc.id,
+      type: 'bank',
+      bankName: acc.bankName,
+      accountNumber: acc.accountNumber,
+      accountHolderName: acc.accountName,
+      routingNumber: !isNigeria ? acc.routingNumber : undefined,
+      sortCode: isNigeria ? acc.routingNumber : undefined,
+      accountType: acc.accountType,
+      isDefault: acc.isDefault,
+    }));
+    setPaymentMethods(methods);
+    const defaultMethod = methods.find(m => m.isDefault) || null;
+    setSelectedPaymentMethod(prev => {
+      if (prev && methods.some(m => m.id === prev.id)) {
+        return prev;
       }
-      if (prefillData.message) {
-        setMessage(prefillData.message);
-      }
-      if (prefillData.friendId) {
-        const friend = allFriends.find(f => f.id === prefillData.friendId);
-        if (friend) {
-          setSelectedFriends([friend]);
-        }
-      }
-    }
-  }, [prefillData]);
+      return defaultMethod;
+    });
+  }, [userProfile.linkedBankAccounts, isNigeria]);
 
-  const filteredFriends = allFriends.filter(friend =>
+  useEffect(() => {
+    if (!prefillData) return;
+    if (prefillData.amount) setAmount(prefillData.amount);
+    if (prefillData.message) setMessage(prefillData.message);
+    if (prefillData.friendId && friends.length > 0) {
+      const friend = friends.find(f => f.id === prefillData.friendId);
+      if (friend) setSelectedFriends([friend]);
+    }
+  }, [prefillData, friends]);
+
+  const filteredFriends = friends.filter(friend =>
     friend.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
