@@ -5,66 +5,11 @@ import { TransactionCard } from './TransactionCard';
 import { UpcomingPayments } from './UpcomingPayments';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { EmptyState } from './ui/empty-state';
-import { Send, Users, Receipt, Plus, Bell, DollarSign, Clock, Calendar, Share2 } from 'lucide-react';
+import { Send, Users, Receipt, Plus, Bell, DollarSign } from 'lucide-react';
 import { Alert, AlertDescription } from './ui/alert';
 import { useUserProfile } from './UserProfileContext';
-
-const mockTransactions = [
-  {
-    id: '1',
-    type: 'received' as const,
-    amount: 25.50,
-    description: 'Coffee and lunch',
-    user: { name: 'Sarah Johnson' },
-    date: '2 hours ago',
-    status: 'completed' as const,
-  },
-  {
-    id: '2',
-    type: 'sent' as const,
-    amount: 45.00,
-    description: 'Uber ride home',
-    user: { name: 'Mike Chen' },
-    date: '1 day ago',
-    status: 'completed' as const,
-  },
-  {
-    id: '3',
-    type: 'split' as const,
-    amount: 18.75,
-    description: 'Dinner at Tony\'s Pizza',
-    user: { name: 'Emily Davis' },
-    date: '2 days ago',
-    status: 'pending' as const,
-  },
-  {
-    id: '4',
-    type: 'received' as const,
-    amount: 60.00,
-    description: 'Concert tickets',
-    user: { name: 'Alex Rodriguez' },
-    date: '3 days ago',
-    status: 'completed' as const,
-  },
-  {
-    id: '5',
-    type: 'sent' as const,
-    amount: 12.50,
-    description: 'Coffee',
-    user: { name: 'Jessica Lee' },
-    date: '4 days ago',
-    status: 'completed' as const,
-  },
-  {
-    id: '6',
-    type: 'received' as const,
-    amount: 35.00,
-    description: 'Movie tickets',
-    user: { name: 'David Kim' },
-    date: '1 week ago',
-    status: 'completed' as const,
-  },
-];
+import { TransactionSkeleton } from './ui/loading';
+import { useTransactions } from '../hooks/useTransactions';
 
 const quickActions = [
   { id: 'send', icon: Send, label: 'Send', color: 'bg-blue-500' },
@@ -75,25 +20,27 @@ const quickActions = [
 
 interface HomeScreenProps {
   onNavigate: (tab: string) => void;
-}
-
 export function HomeScreen({ onNavigate }: HomeScreenProps) {
   const { appSettings } = useUserProfile();
   const currencySymbol = appSettings.region === 'NG' ? '₦' : '$';
-  const [balance] = useState(234.56);
   const [activityFilter, setActivityFilter] = useState<'all' | 'sent' | 'received'>('all');
   const [unreadNotifications] = useState(3); // Mock unread count
+  const {
+    transactions,
+    loading: transactionsLoading,
+    error: transactionsError,
+  } = useTransactions();
 
   // Calculate total amounts owed and owing from transactions
-  const totalOwed = mockTransactions
+  const totalOwed = transactions
     .filter(t => t.type === 'received' && t.status === 'pending')
     .reduce((sum, t) => sum + t.amount, 0);
-    
-  const totalOwes = mockTransactions
+
+  const totalOwes = transactions
     .filter(t => (t.type === 'split' || t.type === 'sent') && t.status === 'pending')
     .reduce((sum, t) => sum + t.amount, 0);
 
-  const filteredTransactions = mockTransactions.filter(transaction => {
+  const filteredTransactions = transactions.filter(transaction => {
     if (activityFilter === 'all') return true;
     if (activityFilter === 'sent') return transaction.type === 'sent';
     if (activityFilter === 'received') return transaction.type === 'received' || transaction.type === 'split';
@@ -101,9 +48,9 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
   });
 
   const getTransactionCount = (filterType: 'all' | 'sent' | 'received') => {
-    if (filterType === 'all') return mockTransactions.length;
-    if (filterType === 'sent') return mockTransactions.filter(t => t.type === 'sent').length;
-    if (filterType === 'received') return mockTransactions.filter(t => t.type === 'received' || t.type === 'split').length;
+    if (filterType === 'all') return transactions.length;
+    if (filterType === 'sent') return transactions.filter(t => t.type === 'sent').length;
+    if (filterType === 'received') return transactions.filter(t => t.type === 'received' || t.type === 'split').length;
     return 0;
   };
 
@@ -233,12 +180,25 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
 
         {/* Transactions List */}
         <div className="space-y-3">
-          {filteredTransactions.slice(0, 4).map((transaction) => (
-            <TransactionCard key={transaction.id} transaction={transaction} onNavigate={onNavigate} />
-          ))}
+          {transactionsLoading && (
+            <>
+              <TransactionSkeleton />
+              <TransactionSkeleton />
+              <TransactionSkeleton />
+            </>
+          )}
+          {transactionsError && (
+            <Alert variant="destructive">
+              <AlertDescription>{transactionsError}</AlertDescription>
+            </Alert>
+          )}
+          {!transactionsLoading && !transactionsError &&
+            filteredTransactions.slice(0, 4).map((transaction) => (
+              <TransactionCard key={transaction.id} transaction={transaction} onNavigate={onNavigate} />
+            ))}
         </div>
 
-        {filteredTransactions.length === 0 && (
+        {!transactionsLoading && !transactionsError && filteredTransactions.length === 0 && (
           <EmptyState
             icon={DollarSign}
             title="No transactions found"
@@ -247,10 +207,10 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
           />
         )}
 
-        {filteredTransactions.length > 4 && (
+        {!transactionsLoading && !transactionsError && filteredTransactions.length > 4 && (
           <div className="text-center mt-4">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="sm"
               onClick={() => onNavigate('transaction-history')}
             >
