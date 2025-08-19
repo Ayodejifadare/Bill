@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ArrowLeft, User, Calendar, Building2, MapPin, Receipt, MoreHorizontal, Copy, Smartphone, Share2, Phone } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
@@ -29,85 +29,98 @@ interface TransactionDetailsScreenProps {
   onNavigate: (tab: string, data?: any) => void;
 }
 
-const mockTransactionDetails = {
-  '1': {
-    id: '1',
-    type: 'coordination_received' as const,
-    amount: 25.50,
-    description: 'Coffee and lunch',
-    user: { id: '1', name: 'Sarah Johnson', avatar: 'SJ', phone: '+234 801 123 4567' },
-    date: '2 hours ago',
-    status: 'payment_sent' as const,
-    fullDate: 'January 15, 2025 at 2:30 PM',
-    location: 'Starbucks Downtown',
-    paymentMethod: {
-      type: 'bank' as const,
-      bankName: 'Access Bank',
-      accountNumber: '0123456789',
-      accountHolderName: 'John Doe',
-      sortCode: '044'
-    },
-    transactionId: 'COORD-2025-001',
-    note: 'Thanks for covering lunch! Payment sent to your Access Bank account.',
-    category: 'Food & Dining',
-    coordinationType: 'money_request',
-    paymentInstructions: 'Shared bank details via Biltip - payment completed externally'
-  },
-  '2': {
-    id: '2',
-    type: 'coordination_sent' as const,
-    amount: 45.00,
-    description: 'Uber ride home',
-    user: { id: '2', name: 'Mike Chen', avatar: 'MC', phone: '+234 802 234 5678' },
-    date: '1 day ago',
-    status: 'payment_received' as const,
-    fullDate: 'January 14, 2025 at 11:45 PM',
-    location: 'Downtown to Home',
-    paymentMethod: {
-      type: 'mobile_money' as const,
-      provider: 'Opay',
-      phoneNumber: '+234 802 234 5678'
-    },
-    transactionId: 'COORD-2025-002',
-    note: 'Split ride after the concert - paid via Opay',
-    category: 'Transportation',
-    coordinationType: 'send_money',
-    paymentInstructions: 'Payment sent to Mike via Opay using shared details'
-  },
-  '3': {
-    id: '3',
-    type: 'split_coordination' as const,
-    amount: 18.75,
-    description: 'Dinner at Tony\'s Pizza',
-    user: { id: '3', name: 'Emily Davis', avatar: 'ED', phone: '+234 803 345 6789' },
-    date: '2 days ago',
-    status: 'pending_payment' as const,
-    fullDate: 'January 13, 2025 at 7:20 PM',
-    location: 'Tony\'s Pizza',
-    paymentMethod: {
-      type: 'bank' as const,
-      bankName: 'GTBank',
-      accountNumber: '0234567890',
-      accountHolderName: 'John Doe',
-      sortCode: '058'
-    },
-    transactionId: 'SPLIT-2025-003',
-    note: 'Split bill coordination - awaiting external payment',
-    category: 'Food & Dining',
-    coordinationType: 'bill_split',
-    paymentInstructions: 'Bank details shared with participants - awaiting direct transfers',
-    totalParticipants: 4,
-    paidParticipants: 2
-  }
-};
+interface TransactionDetails {
+  id: string;
+  type: string;
+  amount: number;
+  description: string;
+  user: {
+    id?: string;
+    name: string;
+    avatar?: string;
+    phone?: string;
+  };
+  date: string;
+  status: string;
+  fullDate: string;
+  location?: string;
+  paymentMethod?: PaymentMethod;
+  transactionId?: string;
+  note?: string;
+  category?: string;
+  coordinationType?: string;
+  paymentInstructions?: string;
+  totalParticipants?: number;
+  paidParticipants?: number;
+}
 
 export function TransactionDetailsScreen({ transactionId, onNavigate }: TransactionDetailsScreenProps) {
   const { appSettings } = useUserProfile();
   const [showShareSheet, setShowShareSheet] = useState(false);
+  const [transaction, setTransaction] = useState<TransactionDetails | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const isNigeria = appSettings.region === 'NG';
   const currencySymbol = isNigeria ? '₦' : '$';
-  
-  const transaction = transactionId ? mockTransactionDetails[transactionId as keyof typeof mockTransactionDetails] : null;
+
+  const mapTransaction = (data: any): TransactionDetails => {
+    const user = data.user || data.sender || data.receiver || {};
+    return {
+      id: data.id,
+      type: data.type,
+      amount: data.amount,
+      description: data.description || '',
+      user: {
+        id: user.id,
+        name: user.name || 'Unknown',
+        avatar: user.avatar || (user.name ? user.name.split(' ').map((n: string) => n[0]).join('') : ''),
+        phone: user.phone || user.phoneNumber,
+      },
+      date: data.date || data.createdAt || new Date().toISOString(),
+      status: data.status,
+      fullDate: data.fullDate || new Date(data.date || data.createdAt || Date.now()).toLocaleString(),
+      location: data.location,
+      paymentMethod: data.paymentMethod,
+      transactionId: data.transactionId || data.reference,
+      note: data.note,
+      category: data.category,
+      coordinationType: data.coordinationType,
+      paymentInstructions: data.paymentInstructions,
+      totalParticipants: data.totalParticipants,
+      paidParticipants: data.paidParticipants,
+    };
+  };
+
+  useEffect(() => {
+    if (!transactionId) return;
+    const fetchTransaction = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const storedAuth = localStorage.getItem('biltip_auth');
+        const token = storedAuth ? JSON.parse(storedAuth).token : null;
+
+        const res = await fetch(`/api/transactions/${transactionId}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        });
+
+        if (!res.ok) {
+          throw new Error('Failed to fetch transaction');
+        }
+
+        const data = await res.json();
+        const tx = mapTransaction(data.transaction || data);
+        setTransaction(tx);
+      } catch (err) {
+        console.error('Failed to load transaction', err);
+        setError('Failed to load transaction');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTransaction();
+  }, [transactionId]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -158,38 +171,48 @@ export function TransactionDetailsScreen({ transactionId, onNavigate }: Transact
     amount: transaction.amount,
     status: getStatusLabel(transaction.status),
     transactionId: transaction.transactionId,
-    paymentMethod: transaction.paymentMethod?.type === 'bank' 
-      ? transaction.paymentMethod.bankName 
+    paymentMethod: transaction.paymentMethod?.type === 'bank'
+      ? transaction.paymentMethod.bankName
       : transaction.paymentMethod?.provider,
     deepLink: createDeepLink('transaction', transaction.id)
   } : null;
 
-  if (!transaction) {
-    return (
-      <div className="pb-20">
-        {/* Static Header */}
-        <div className="sticky top-0 z-50 bg-background/80 backdrop-blur-sm border-b border-border">
-          <div className="flex items-center gap-4 p-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onNavigate('home')}
-              className="p-2"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <h1>Transaction Details</h1>
-          </div>
-        </div>
-
-        {/* Main Content */}
-        <div className="p-4 space-y-6">
-          <div className="text-center py-8">
-            <p className="text-muted-foreground">Transaction not found</p>
-          </div>
+  const renderPlaceholder = (message: string) => (
+    <div className="pb-20">
+      {/* Static Header */}
+      <div className="sticky top-0 z-50 bg-background/80 backdrop-blur-sm border-b border-border">
+        <div className="flex items-center gap-4 p-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onNavigate('home')}
+            className="p-2"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <h1>Transaction Details</h1>
         </div>
       </div>
-    );
+
+      {/* Main Content */}
+      <div className="p-4 space-y-6">
+        <div className="text-center py-8">
+          <p className="text-muted-foreground">{message}</p>
+        </div>
+      </div>
+    </div>
+  );
+
+  if (loading) {
+    return renderPlaceholder('Loading transaction...');
+  }
+
+  if (error) {
+    return renderPlaceholder(error);
+  }
+
+  if (!transaction) {
+    return renderPlaceholder('Transaction not found');
   }
 
   const copyPaymentDetails = async () => {
