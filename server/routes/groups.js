@@ -7,17 +7,60 @@ import {
 
 const router = express.Router()
 
-// GET / - list all groups
+// GET / - list all groups with member details and aggregates
 router.get('/', async (req, res) => {
   try {
     const groups = await req.prisma.group.findMany({
-      include: { members: true }
+      include: {
+        members: {
+          include: {
+            user: {
+              select: { id: true, name: true, avatar: true }
+            }
+          }
+        }
+      }
     })
-    const formatted = groups.map((g) => ({
-      id: g.id,
-      name: g.name,
-      members: g.members.map((m) => m.userId)
-    }))
+
+    const formatted = await Promise.all(
+      groups.map(async (g) => {
+        const memberIds = g.members.map((m) => m.userId)
+
+        const aggregates = await req.prisma.transaction.aggregate({
+          where: {
+            OR: [
+              { senderId: { in: memberIds } },
+              { receiverId: { in: memberIds } }
+            ]
+          },
+          _sum: { amount: true },
+          _max: { createdAt: true }
+        })
+
+        const totalSpent = aggregates._sum.amount || 0
+        const lastActive = aggregates._max.createdAt
+
+        return {
+          id: g.id,
+          name: g.name,
+          description: '',
+          memberCount: g.members.length,
+          totalSpent,
+          recentActivity: lastActive
+            ? `Last activity on ${lastActive.toISOString()}`
+            : '',
+          members: g.members.map((m) => ({
+            name: m.user.name,
+            avatar: m.user.avatar || ''
+          })),
+          isAdmin: false,
+          lastActive: lastActive ? lastActive.toISOString() : '',
+          pendingBills: 0,
+          color: ''
+        }
+      })
+    )
+
     res.json({ groups: formatted })
   } catch (error) {
     console.error('List groups error:', error)
