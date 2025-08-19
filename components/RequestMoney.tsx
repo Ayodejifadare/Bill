@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ArrowLeft, Search, Building2, Copy, Send, Users, UserPlus, Repeat, Share2, Loader2 } from 'lucide-react';
+import { ArrowLeft, Search, Building2, Copy, Send, Users, UserPlus, Repeat, Loader2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -12,7 +12,8 @@ import { Checkbox } from './ui/checkbox';
 import { Switch } from './ui/switch';
 import { toast } from 'sonner';
 import { useUserProfile } from './UserProfileContext';
-import { SocialSharingUtils, QuickShareButton, createDeepLink } from './SocialSharingUtils';
+// Removed unused Share2-related imports as sharing is handled via copy-to-clipboard
+// utilities rather than a dedicated share action.
 import { createRequest } from '../utils/request-api';
 import { PaymentMethodSelector, PaymentMethod } from './PaymentMethodSelector';
 
@@ -55,7 +56,6 @@ export function RequestMoney({ onNavigate, prefillData }: RequestMoneyProps) {
   const [recurringFrequency, setRecurringFrequency] = useState('monthly');
   const [recurringDay, setRecurringDay] = useState('1');
   const [recurringDayOfWeek, setRecurringDayOfWeek] = useState('monday');
-  const [showShareSheet, setShowShareSheet] = useState(false);
   const [friends, setFriends] = useState<Friend[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
