@@ -106,6 +106,7 @@ export function EditBillSplitScreen({ billSplitId, onNavigate }: EditBillSplitSc
   const [note, setNote] = useState('');
   const [items, setItems] = useState<BillItem[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
+  const [totalAmount, setTotalAmount] = useState(0);
   const [splitMethod, setSplitMethod] = useState<'equal' | 'percentage' | 'custom'>('equal');
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod | null>(null);
   const [loading, setLoading] = useState(false);
@@ -133,6 +134,7 @@ export function EditBillSplitScreen({ billSplitId, onNavigate }: EditBillSplitSc
       setNote(bs.note);
       setItems(bs.items);
       setParticipants(bs.participants);
+      setTotalAmount(bs.items.reduce((sum, item) => sum + (item.price * item.quantity), 0));
       setSplitMethod(bs.splitMethod);
       const defaultMethod = bs.paymentMethod || methods.find(m => m.isDefault) || null;
       setSelectedPaymentMethod(defaultMethod);
@@ -232,17 +234,12 @@ export function EditBillSplitScreen({ billSplitId, onNavigate }: EditBillSplitSc
     );
   }
 
-  const calculateTotal = () => {
-    return items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  };
-
-  const calculateEqualSplit = (participantsList: Participant[]) => {
-    const total = calculateTotal();
+  const calculateEqualSplit = (participantsList: Participant[], total: number = totalAmount) => {
     if (participantsList.length === 0) return;
-    
+
     const perPerson = total / participantsList.length;
     const perPersonPercentage = 100 / participantsList.length;
-    
+
     setParticipants(participantsList.map(p => ({
       ...p,
       amount: perPerson,
@@ -250,20 +247,34 @@ export function EditBillSplitScreen({ billSplitId, onNavigate }: EditBillSplitSc
     })));
   };
 
+  const recalculateTotal = (updatedItems: BillItem[]) => {
+    const newTotal = updatedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    setTotalAmount(newTotal);
+
+    if (splitMethod === 'equal' && participants.length > 0) {
+      calculateEqualSplit(participants, newTotal);
+    } else if (splitMethod === 'percentage') {
+      setParticipants(prev => prev.map(p => ({
+        ...p,
+        amount: ((p.percentage || 0) / 100) * newTotal
+      })));
+    }
+  };
+
   const updateParticipantAmount = (participantId: string, amount: number) => {
-    const total = calculateTotal() || 1;
-    setParticipants(prev => prev.map(p => 
-      p.id === participantId 
+    const total = totalAmount || 1;
+    setParticipants(prev => prev.map(p =>
+      p.id === participantId
         ? { ...p, amount: isNaN(amount) ? 0 : amount, percentage: (amount / total) * 100 }
         : p
     ));
   };
 
   const updateParticipantPercentage = (participantId: string, percentage: number) => {
-    const total = calculateTotal();
+    const total = totalAmount;
     const safePercentage = isNaN(percentage) ? 0 : Math.max(0, Math.min(100, percentage));
-    setParticipants(prev => prev.map(p => 
-      p.id === participantId 
+    setParticipants(prev => prev.map(p =>
+      p.id === participantId
         ? { ...p, percentage: safePercentage, amount: (safePercentage / 100) * total }
         : p
     ));
@@ -283,33 +294,26 @@ export function EditBillSplitScreen({ billSplitId, onNavigate }: EditBillSplitSc
       price: 0,
       quantity: 1
     };
-    setItems([...items, newItem]);
+    const newItems = [...items, newItem];
+    setItems(newItems);
+    recalculateTotal(newItems);
   };
 
   const updateItem = (id: string, field: keyof BillItem, value: string | number) => {
-    setItems(prev => prev.map(item => 
+    const updatedItems = items.map(item =>
       item.id === id ? { ...item, [field]: value } : item
-    ));
-    
-    // Recalculate splits when items change
-    if (splitMethod === 'equal') {
-      setTimeout(() => calculateEqualSplit(participants), 0);
-    } else if (splitMethod === 'percentage') {
-      const newTotal = calculateTotal();
-      setParticipants(prev => prev.map(p => ({
-        ...p,
-        amount: ((p.percentage || 0) / 100) * newTotal
-      })));
+    );
+    setItems(updatedItems);
+
+    if (field === 'price' || field === 'quantity') {
+      recalculateTotal(updatedItems);
     }
   };
 
   const removeItem = (id: string) => {
-    setItems(prev => prev.filter(item => item.id !== id));
-    
-    // Recalculate splits when items change
-    if (splitMethod === 'equal') {
-      setTimeout(() => calculateEqualSplit(participants), 0);
-    }
+    const updatedItems = items.filter(item => item.id !== id);
+    setItems(updatedItems);
+    recalculateTotal(updatedItems);
   };
 
   const removeParticipant = (id: string) => {
@@ -371,7 +375,7 @@ export function EditBillSplitScreen({ billSplitId, onNavigate }: EditBillSplitSc
       return;
     }
 
-    const total = calculateTotal();
+    const total = totalAmount;
     const splitTotal = getTotalSplit();
 
     if (Math.abs(splitTotal - total) > 0.01) {
@@ -785,7 +789,7 @@ export function EditBillSplitScreen({ billSplitId, onNavigate }: EditBillSplitSc
           <div className="space-y-3">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Total Amount:</span>
-              <span className="font-medium">{currencySymbol}{calculateTotal().toFixed(2)}</span>
+            <span className="font-medium">{currencySymbol}{totalAmount.toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Split Total:</span>
@@ -796,7 +800,7 @@ export function EditBillSplitScreen({ billSplitId, onNavigate }: EditBillSplitSc
               <span className="font-medium">{participants.length} people</span>
             </div>
             
-            {Math.abs(getTotalSplit() - calculateTotal()) > 0.01 && (
+            {Math.abs(getTotalSplit() - totalAmount) > 0.01 && (
               <div className="text-xs text-warning bg-warning/10 p-2 rounded">
                 ⚠️ Split amounts don't match total. Please adjust amounts.
               </div>
