@@ -4,54 +4,9 @@ import { Badge } from './ui/badge';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Clock, AlertTriangle, Calendar, Users, CreditCard } from 'lucide-react';
 import { useUserProfile } from './UserProfileContext';
-
-const mockUpcomingPayments = [
-  {
-    id: '1',
-    type: 'bill_split',
-    title: 'Dinner at Tony\'s Pizza',
-    amount: 18.75,
-    dueDate: 'Tomorrow',
-    organizer: { name: 'Sarah Johnson', avatar: 'SJ' },
-    status: 'due_soon',
-    participants: 4,
-    billSplitId: '1',
-    paymentMethod: {
-      type: 'bank',
-      bankName: 'Access Bank',
-      accountNumber: '0123456789',
-      accountHolderName: 'Sarah Johnson',
-      sortCode: '044'
-    }
-  },
-  {
-    id: '2',
-    type: 'request',
-    title: 'Concert tickets',
-    amount: 25.00,
-    dueDate: 'In 3 days',
-    organizer: { name: 'Alex Rodriguez', avatar: 'AR' },
-    status: 'pending',
-    participants: 2,
-    requestId: '2'
-  },
-  {
-    id: '3',
-    type: 'bill_split',
-    title: 'Monthly utilities',
-    amount: 45.30,
-    dueDate: 'Next week',
-    organizer: { name: 'Mike Chen', avatar: 'MC' },
-    status: 'upcoming',
-    participants: 3,
-    billSplitId: '3',
-    paymentMethod: {
-      type: 'mobile_money',
-      provider: 'Opay',
-      phoneNumber: '+234 801 234 5678'
-    }
-  },
-];
+import { ListSkeleton } from './ui/loading';
+import { Alert, AlertDescription } from './ui/alert';
+import { useUpcomingPayments } from '../hooks/useUpcomingPayments';
 
 interface UpcomingPaymentsProps {
   onNavigate: (tab: string, data?: any) => void;
@@ -60,6 +15,7 @@ interface UpcomingPaymentsProps {
 export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
   const { appSettings } = useUserProfile();
   const currencySymbol = appSettings.region === 'NG' ? '₦' : '$';
+  const { upcomingPayments, loading, error } = useUpcomingPayments();
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -98,7 +54,19 @@ export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
     }
   };
 
-  if (mockUpcomingPayments.length === 0) {
+  if (loading) {
+    return <ListSkeleton count={2} />;
+  }
+
+  if (error) {
+    return (
+      <Alert variant="destructive">
+        <AlertDescription>{error}</AlertDescription>
+      </Alert>
+    );
+  }
+
+  if (upcomingPayments.length === 0) {
     return null;
   }
 
@@ -110,9 +78,9 @@ export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
           See All
         </Button>
       </div>
-      
+
       <div className="space-y-3">
-        {mockUpcomingPayments.slice(0, 2).map((payment) => (
+        {upcomingPayments.slice(0, 2).map((payment) => (
           <Card key={payment.id} className="p-4 hover:bg-muted/50 transition-colors cursor-pointer" 
                 onClick={() => {
                   if (payment.type === 'bill_split' && payment.billSplitId) {
