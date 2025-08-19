@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, MouseEvent } from 'react';
 import { ArrowLeft, Users, Calendar, CreditCard, MapPin, Receipt, MoreHorizontal, Check, Clock, Edit, Trash2, Settings, Share2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
@@ -55,6 +55,15 @@ async function getBillSplit(id: string): Promise<BillSplit> {
   }
   const data = await res.json();
   return data.billSplit ?? data;
+}
+
+async function deleteBillSplit(id: string): Promise<void> {
+  const res = await fetch(`/api/bill-splits/${id}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) {
+    throw new Error('Failed to delete bill split');
+  }
 }
 
 export function BillSplitDetailsScreen({ billSplitId, onNavigate }: BillSplitDetailsScreenProps) {
@@ -153,13 +162,19 @@ export function BillSplitDetailsScreen({ billSplitId, onNavigate }: BillSplitDet
     onNavigate('edit-bill-split', { billSplitId });
   };
 
-  const handleDelete = () => {
-    if (billSplitId) {
+  const handleDelete = async (e: MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    if (!billSplitId) return;
+    try {
+      await deleteBillSplit(billSplitId);
       billSplitCache.delete(billSplitId);
+      toast.success('Bill split deleted successfully');
+      setShowDeleteDialog(false);
+      onNavigate('bills', { refresh: true });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete bill split');
+      // Dialog remains open on failure
     }
-    // Here you would normally call API to delete the bill split
-    toast.success('Bill split deleted successfully');
-    onNavigate('bills');
   };
 
   const handleSettle = () => {
