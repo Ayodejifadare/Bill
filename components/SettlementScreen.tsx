@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { ArrowLeft, DollarSign, Building2, User, CheckCircle, AlertCircle, Clock, CreditCard, Banknote, ChevronDown, Share } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { ArrowLeft, DollarSign, CheckCircle, AlertCircle, Clock, CreditCard, Banknote, ChevronDown, Share } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Input } from './ui/input';
@@ -12,10 +12,11 @@ import { Separator } from './ui/separator';
 import { Alert, AlertDescription } from './ui/alert';
 import { Progress } from './ui/progress';
 import { BankSelectionSheet } from './BankSelectionSheet';
+import { PageLoading, LoadingSpinner } from './ui/loading';
 import { toast } from 'sonner';
 
 interface SettlementScreenProps {
-  onNavigate: (tab: string, data?: any) => void;
+  onNavigate: (tab: string, data?: unknown) => void;
   billSplitId?: string;
 }
 
@@ -38,28 +39,62 @@ interface BillSplit {
   createdDate: string;
 }
 
-// Mock data for demonstration
-const mockBillSplit: BillSplit = {
-  id: 'bill_123',
-  title: 'Monthly Rent - Apartment 4B',
-  description: 'November 2024 rent payment to property management',
-  totalAmount: 2400.00,
-  collectedAmount: 2400.00,
-  participants: [
-    { id: '1', name: 'Sarah Johnson', avatar: 'SJ', amount: 800.00, hasPaid: true },
-    { id: '2', name: 'Mike Chen', avatar: 'MC', amount: 800.00, hasPaid: true },
-    { id: '3', name: 'You', avatar: 'YO', amount: 800.00, hasPaid: true }
-  ],
-  isHost: true,
-  status: 'ready',
-  dueDate: '2024-12-01',
-  createdDate: '2024-11-15'
-};
+async function getBillSplit(id: string): Promise<BillSplit> {
+  const res = await fetch(`/api/bill-splits/${id}`);
+  if (!res.ok) {
+    throw new Error('Failed to fetch bill split');
+  }
+  const data = await res.json();
+  return data.billSplit ?? data;
+}
+
+async function initiateTransfer(payload: {
+  billSplitId: string;
+  recipientName: string;
+  bankName: string;
+  accountNumber: string;
+  amount: number;
+  narration?: string;
+}): Promise<void> {
+  const res = await fetch('/api/initiate-transfer', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to initiate transfer');
+  }
+}
 
 export function SettlementScreen({ onNavigate, billSplitId }: SettlementScreenProps) {
   const [step, setStep] = useState<'overview' | 'transfer' | 'confirm' | 'complete'>('overview');
-  const [billSplit] = useState<BillSplit>(mockBillSplit);
+  const [billSplit, setBillSplit] = useState<BillSplit | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   
+  const fetchBillSplit = useCallback(async () => {
+    if (!billSplitId) {
+      setBillSplit(null);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await getBillSplit(billSplitId);
+      setBillSplit(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load bill split');
+      setBillSplit(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [billSplitId]);
+
+  useEffect(() => {
+    fetchBillSplit();
+  }, [fetchBillSplit]);
+
   // Transfer form state
   const [recipientName, setRecipientName] = useState('');
   const [bankName, setBankName] = useState('');
@@ -69,8 +104,11 @@ export function SettlementScreen({ onNavigate, billSplitId }: SettlementScreenPr
   const [narration, setNarration] = useState('');
   const [showBankSheet, setShowBankSheet] = useState(false);
   const [processingFee] = useState(2.5); // 2.5% processing fee
+  const [transferLoading, setTransferLoading] = useState(false);
+  const [transferError, setTransferError] = useState<string | null>(null);
 
   const getActualTransferAmount = () => {
+    if (!billSplit) return 0;
     if (transferFullAmount) {
       return billSplit.collectedAmount;
     }
@@ -85,13 +123,34 @@ export function SettlementScreen({ onNavigate, billSplitId }: SettlementScreenPr
     return amount - calculateProcessingFee(amount);
   };
 
-  const handleInitiateTransfer = () => {
-    // Mock transfer initiation
-    toast.success('Transfer initiated successfully!');
-    setStep('complete');
+  const handleInitiateTransfer = async () => {
+    if (!billSplitId || !billSplit) return;
+    setTransferLoading(true);
+    setTransferError(null);
+    try {
+      const amount = getActualTransferAmount();
+      await initiateTransfer({
+        billSplitId,
+        recipientName,
+        bankName,
+        accountNumber,
+        amount,
+        narration,
+      });
+      toast.success('Transfer initiated successfully!');
+      setBillSplit({ ...billSplit, status: 'settled' });
+      setStep('complete');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Transfer failed';
+      setTransferError(message);
+      toast.error(message);
+    } finally {
+      setTransferLoading(false);
+    }
   };
 
   const getProgressPercentage = () => {
+    if (!billSplit) return 0;
     return (billSplit.collectedAmount / billSplit.totalAmount) * 100;
   };
 
@@ -101,6 +160,23 @@ export function SettlementScreen({ onNavigate, billSplitId }: SettlementScreenPr
       setTransferAmount('');
     }
   };
+
+  if (loading) {
+    return <PageLoading message="Loading settlement..." />;
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-4 p-4 text-center">
+        <p className="text-muted-foreground">{error}</p>
+        <Button onClick={fetchBillSplit} variant="outline">Retry</Button>
+      </div>
+    );
+  }
+
+  if (!billSplit) {
+    return null;
+  }
 
   // Overview Step
   if (step === 'overview') {
@@ -438,10 +514,17 @@ export function SettlementScreen({ onNavigate, billSplitId }: SettlementScreenPr
         </Alert>
 
         <div className="space-y-3">
-          <Button className="w-full h-12" onClick={handleInitiateTransfer}>
-            <CreditCard className="h-4 w-4 mr-2" />
-            PROCEED
+          <Button className="w-full h-12" onClick={handleInitiateTransfer} disabled={transferLoading}>
+            {transferLoading ? (
+              <LoadingSpinner size="sm" className="mr-2" />
+            ) : (
+              <CreditCard className="h-4 w-4 mr-2" />
+            )}
+            {transferLoading ? 'PROCESSING...' : 'PROCEED'}
           </Button>
+          {transferError && (
+            <p className="text-sm text-destructive text-center">{transferError}</p>
+          )}
           <Button variant="outline" className="w-full" onClick={() => setStep('transfer')}>
             Edit Details
           </Button>
