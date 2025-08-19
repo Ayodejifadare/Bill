@@ -9,7 +9,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { ArrowLeft, Plus, Building2, Smartphone, Copy, Trash2, Check, Settings } from 'lucide-react';
 import { toast } from 'sonner';
 import { useUserProfile } from './UserProfileContext';
-import { AccountCard } from './AccountCard';
+import { BankAccountCard } from './BankAccountCard';
+import { MobileMoneyCard } from './MobileMoneyCard';
 
 interface PaymentMethod {
   id: string;
@@ -443,15 +444,25 @@ export function PaymentMethodsScreen({ onNavigate }: PaymentMethodsScreenProps) 
               </CardContent>
             </Card>
           ) : (
-            paymentMethods.map((method) => (
-              <AccountCard
-                key={method.id}
-                account={method}
-                onSetDefault={handleSetDefault}
-                onDelete={handleDeleteMethod}
-                variant="personal"
-              />
-            ))
+            paymentMethods.map((method) =>
+              method.type === 'bank' ? (
+                <BankAccountCard
+                  key={method.id}
+                  account={method}
+                  onSetDefault={handleSetDefault}
+                  onDelete={handleDeleteMethod}
+                  variant="personal"
+                />
+              ) : (
+                <MobileMoneyCard
+                  key={method.id}
+                  account={method}
+                  onSetDefault={handleSetDefault}
+                  onDelete={handleDeleteMethod}
+                  variant="personal"
+                />
+              )
+            )
           )}
         </div>
 
