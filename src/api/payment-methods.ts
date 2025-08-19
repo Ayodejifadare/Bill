@@ -35,6 +35,13 @@ export async function fetchPaymentMethods(): Promise<PaymentMethod[]> {
   return handleResponse<PaymentMethod[]>(res);
 }
 
+export async function fetchUserPaymentMethods(
+  userId: string
+): Promise<PaymentMethod[]> {
+  const res = await fetch(`/api/users/${userId}/payment-methods`);
+  return handleResponse<PaymentMethod[]>(res);
+}
+
 export type CreatePaymentMethodPayload = Omit<PaymentMethod, 'id'>;
 
 export async function createPaymentMethod(
