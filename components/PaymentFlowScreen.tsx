@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback } from './ui/avatar';
 import { Separator } from './ui/separator';
 import { toast } from 'sonner';
 import { useUserProfile } from './UserProfileContext';
+import { type PaymentMethod, fetchUserPaymentMethods } from '@/api/payment-methods';
 
 interface PaymentFlowScreenProps {
   paymentRequest: {
@@ -21,53 +22,7 @@ interface PaymentFlowScreenProps {
   onNavigate: (tab: string, data?: any) => void;
 }
 
-interface PaymentMethod {
-  id: string;
-  type: 'bank' | 'mobile_money';
-  bankName?: string;
-  accountNumber?: string;
-  accountHolderName?: string;
-  sortCode?: string;
-  routingNumber?: string;
-  accountType?: 'checking' | 'savings';
-  provider?: string;
-  phoneNumber?: string;
-}
-
-// Mock payment methods for recipients (this would come from the recipient's profile)
-const mockRecipientPaymentMethods: Record<string, PaymentMethod> = {
-  'Sarah Johnson': {
-    id: '1',
-    type: 'bank',
-    bankName: 'Access Bank',
-    accountNumber: '0123456789',
-    accountHolderName: 'Sarah Johnson',
-    sortCode: '044'
-  },
-  'Mike Chen': {
-    id: '2',
-    type: 'mobile_money',
-    provider: 'Opay',
-    phoneNumber: '+234 801 234 5678'
-  },
-  'Emily Davis': {
-    id: '3',
-    type: 'bank',
-    bankName: 'Chase Bank',
-    accountNumber: '****1234',
-    accountHolderName: 'Emily Davis',
-    routingNumber: '021000021',
-    accountType: 'checking'
-  },
-  'Alex Rodriguez': {
-    id: '4',
-    type: 'bank',
-    bankName: 'GTBank',
-    accountNumber: '0234567890',
-    accountHolderName: 'Alex Rodriguez',
-    sortCode: '058'
-  }
-};
+const recipientMethodCache = new Map<string, PaymentMethod | null>();
 
 export function PaymentFlowScreen({ paymentRequest, onNavigate }: PaymentFlowScreenProps) {
   const { appSettings } = useUserProfile();
@@ -75,6 +30,39 @@ export function PaymentFlowScreen({ paymentRequest, onNavigate }: PaymentFlowScr
   const currencySymbol = isNigeria ? '₦' : '$';
   
   const [paymentStatus, setPaymentStatus] = useState<'pending' | 'sent' | 'confirmed'>('pending');
+  const [recipientPaymentMethod, setRecipientPaymentMethod] = useState<PaymentMethod | null>(null);
+  const [isMethodLoading, setIsMethodLoading] = useState(false);
+  const [methodError, setMethodError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!paymentRequest) return;
+
+    const recipientId = paymentRequest.recipient;
+    const cached = recipientMethodCache.get(recipientId);
+    if (cached !== undefined) {
+      setRecipientPaymentMethod(cached);
+      return;
+    }
+
+    const loadMethod = async () => {
+      setIsMethodLoading(true);
+      setMethodError(null);
+      try {
+        const methods = await fetchUserPaymentMethods(recipientId);
+        const method = methods[0] || null;
+        recipientMethodCache.set(recipientId, method);
+        setRecipientPaymentMethod(method);
+      } catch (err: any) {
+        setMethodError(err.message || 'Failed to load payment method');
+        recipientMethodCache.set(recipientId, null);
+        setRecipientPaymentMethod(null);
+      } finally {
+        setIsMethodLoading(false);
+      }
+    };
+
+    loadMethod();
+  }, [paymentRequest]);
 
   if (!paymentRequest) {
     return (
@@ -97,9 +85,6 @@ export function PaymentFlowScreen({ paymentRequest, onNavigate }: PaymentFlowScr
     );
   }
 
-  // Get recipient's payment method
-  const recipientPaymentMethod = mockRecipientPaymentMethods[paymentRequest.recipient];
-
   const copyPaymentDetails = async () => {
     if (!recipientPaymentMethod) return;
 
@@ -111,8 +96,8 @@ export function PaymentFlowScreen({ paymentRequest, onNavigate }: PaymentFlowScr
     try {
       if (recipientPaymentMethod.type === 'bank') {
         const bankInfo = isNigeria
-          ? `${recipientPaymentMethod.bankName}\nAccount Name: ${recipientPaymentMethod.accountHolderName}\nAccount Number: ${recipientPaymentMethod.accountNumber}\nSort Code: ${recipientPaymentMethod.sortCode}`
-          : `${recipientPaymentMethod.bankName}\nAccount Holder: ${recipientPaymentMethod.accountHolderName}\nRouting Number: ${recipientPaymentMethod.routingNumber}\nAccount Number: ${recipientPaymentMethod.accountNumber}`;
+          ? `${recipientPaymentMethod.bank}\nAccount Name: ${recipientPaymentMethod.accountName}\nAccount Number: ${recipientPaymentMethod.accountNumber}\nSort Code: ${recipientPaymentMethod.sortCode}`
+          : `${recipientPaymentMethod.bank}\nAccount Name: ${recipientPaymentMethod.accountName}\nRouting Number: ${recipientPaymentMethod.routingNumber}\nAccount Number: ${recipientPaymentMethod.accountNumber}`;
         await navigator.clipboard.writeText(bankInfo);
         toast.success('Bank account details copied to clipboard');
       } else {
@@ -263,7 +248,19 @@ export function PaymentFlowScreen({ paymentRequest, onNavigate }: PaymentFlowScr
         </Card>
 
         {/* Payment Destination */}
-        {recipientPaymentMethod ? (
+        {isMethodLoading ? (
+          <Card>
+            <CardContent className="p-6 text-center">
+              <div className="text-muted-foreground text-sm">Loading payment method...</div>
+            </CardContent>
+          </Card>
+        ) : methodError ? (
+          <Card>
+            <CardContent className="p-6 text-center">
+              <div className="text-sm text-destructive">{methodError}</div>
+            </CardContent>
+          </Card>
+        ) : recipientPaymentMethod ? (
           <Card>
             <CardHeader className="pb-4">
               <CardTitle className="flex items-center gap-2 text-lg">
@@ -285,17 +282,16 @@ export function PaymentFlowScreen({ paymentRequest, onNavigate }: PaymentFlowScr
                     <div className="flex items-start justify-between">
                       <div className="min-w-0 flex-1">
                         <p className="font-medium text-base mb-2">
-                          {recipientPaymentMethod.type === 'bank' 
-                            ? recipientPaymentMethod.bankName 
-                            : recipientPaymentMethod.provider
-                          }
+                          {recipientPaymentMethod.type === 'bank'
+                            ? recipientPaymentMethod.bank
+                            : recipientPaymentMethod.provider}
                         </p>
-                        
+
                         {recipientPaymentMethod.type === 'bank' ? (
                           <div className="space-y-2 text-sm">
                             <div className="flex justify-between">
                               <span className="text-muted-foreground">Account Name:</span>
-                              <span className="font-medium">{recipientPaymentMethod.accountHolderName}</span>
+                              <span className="font-medium">{recipientPaymentMethod.accountName}</span>
                             </div>
                             {isNigeria ? (
                               <>
