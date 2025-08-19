@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import type { TransactionType, TransactionStatus } from '../shared/transactions';
 
 export interface TransactionUser {
   name: string;
@@ -7,7 +8,7 @@ export interface TransactionUser {
 
 export interface Transaction {
   id: string;
-  type: 'sent' | 'received' | 'split' | 'bill_split' | 'request';
+  type: TransactionType;
   amount: number;
   description: string;
   user?: TransactionUser;
@@ -15,7 +16,7 @@ export interface Transaction {
   sender?: TransactionUser;
   avatarFallback?: string;
   date: string;
-  status: 'completed' | 'pending' | 'failed';
+  status: TransactionStatus;
 }
 
 interface UseTransactionsResult {
@@ -56,27 +57,7 @@ export function useTransactions(): UseTransactionsResult {
       }
 
       const data = await res.json();
-      const typeMap: Record<string, Transaction['type']> = {
-        SEND: 'sent',
-        RECEIVE: 'received',
-        SPLIT: 'split',
-        BILL_SPLIT: 'bill_split',
-        REQUEST: 'request',
-      };
-      const statusMap: Record<string, Transaction['status']> = {
-        COMPLETED: 'completed',
-        PENDING: 'pending',
-        FAILED: 'failed',
-      };
-      setTransactions(
-        Array.isArray(data.transactions)
-          ? data.transactions.map((t: any) => ({
-              ...t,
-              type: typeMap[t.type] ?? t.type?.toLowerCase(),
-              status: statusMap[t.status] ?? t.status?.toLowerCase(),
-            }))
-          : []
-      );
+      setTransactions(Array.isArray(data.transactions) ? data.transactions : []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch transactions');
       setTransactions([]);

@@ -3,6 +3,7 @@ import { Card } from "./ui/card";
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import { Badge } from "./ui/badge";
 import { formatDate } from "../utils/formatDate";
+import type { TransactionType, TransactionStatus } from "../shared/transactions";
 
 interface TransactionUser {
   name: string;
@@ -11,7 +12,7 @@ interface TransactionUser {
 
 interface Transaction {
   id: string;
-  type: 'sent' | 'received' | 'split' | 'bill_split' | 'request';
+  type: TransactionType;
   amount: number;
   description: string;
   user?: TransactionUser; // Legacy format
@@ -19,7 +20,7 @@ interface Transaction {
   sender?: TransactionUser; // New format
   avatarFallback?: string; // Fallback avatar text
   date: string;
-  status: 'completed' | 'pending' | 'failed';
+  status: TransactionStatus;
 }
 
 interface TransactionCardProps {
