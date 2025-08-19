@@ -3,6 +3,14 @@ import { body, validationResult } from 'express-validator'
 import jwt from 'jsonwebtoken'
 import { TRANSACTION_TYPE_MAP, TRANSACTION_STATUS_MAP } from '../../shared/transactions.js'
 
+// Build reverse lookup maps for filters
+const REVERSE_TRANSACTION_TYPE_MAP = Object.fromEntries(
+  Object.entries(TRANSACTION_TYPE_MAP).map(([key, value]) => [value, key])
+)
+const REVERSE_TRANSACTION_STATUS_MAP = Object.fromEntries(
+  Object.entries(TRANSACTION_STATUS_MAP).map(([key, value]) => [value, key])
+)
+
 const router = express.Router()
 
 // Authentication middleware
@@ -25,13 +33,42 @@ const authenticateToken = (req, res, next) => {
 // Get user's transactions
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    const transactions = await req.prisma.transaction.findMany({
-      where: {
-        OR: [
-          { senderId: req.userId },
-          { receiverId: req.userId }
-        ]
-      },
+    const {
+      cursor,
+      limit,
+      page,
+      size,
+      startDate,
+      endDate,
+      type,
+      status
+    } = req.query
+
+    const where = {
+      OR: [
+        { senderId: req.userId },
+        { receiverId: req.userId }
+      ]
+    }
+
+    if (startDate || endDate) {
+      where.createdAt = {}
+      if (startDate) where.createdAt.gte = new Date(startDate)
+      if (endDate) where.createdAt.lte = new Date(endDate)
+    }
+
+    if (type) {
+      const mappedType = REVERSE_TRANSACTION_TYPE_MAP[type] || type
+      where.type = mappedType
+    }
+
+    if (status) {
+      const mappedStatus = REVERSE_TRANSACTION_STATUS_MAP[status] || status
+      where.status = mappedStatus
+    }
+
+    const baseQuery = {
+      where,
       include: {
         sender: {
           select: { id: true, name: true, email: true, avatar: true }
@@ -41,7 +78,43 @@ router.get('/', authenticateToken, async (req, res) => {
         }
       },
       orderBy: { createdAt: 'desc' }
-    })
+    }
+
+    let transactions
+    let nextCursor = null
+    let hasMore = false
+
+    const isPageBased = page !== undefined || size !== undefined
+    if (isPageBased) {
+      const pageNum = parseInt(page) || 1
+      const pageSize = parseInt(size) || parseInt(limit) || 20
+
+      const [total, result] = await req.prisma.$transaction([
+        req.prisma.transaction.count({ where }),
+        req.prisma.transaction.findMany({
+          ...baseQuery,
+          skip: (pageNum - 1) * pageSize,
+          take: pageSize
+        })
+      ])
+
+      transactions = result
+      hasMore = pageNum * pageSize < total
+    } else {
+      const pageSize = parseInt(limit) || parseInt(size) || 20
+
+      transactions = await req.prisma.transaction.findMany({
+        ...baseQuery,
+        take: pageSize + 1,
+        ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {})
+      })
+
+      if (transactions.length > pageSize) {
+        const nextItem = transactions.pop()
+        nextCursor = nextItem.id
+        hasMore = true
+      }
+    }
 
     const formatted = transactions.map(t => ({
       ...t,
@@ -49,7 +122,7 @@ router.get('/', authenticateToken, async (req, res) => {
       status: TRANSACTION_STATUS_MAP[t.status] || t.status
     }))
 
-    res.json({ transactions: formatted })
+    res.json({ transactions: formatted, nextCursor, hasMore })
   } catch (error) {
     console.error('Get transactions error:', error)
     res.status(500).json({ error: 'Internal server error' })
