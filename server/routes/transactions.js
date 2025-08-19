@@ -1,6 +1,7 @@
 import express from 'express'
 import { body, validationResult } from 'express-validator'
 import jwt from 'jsonwebtoken'
+import { TRANSACTION_TYPE_MAP, TRANSACTION_STATUS_MAP } from '../../shared/transactions.js'
 
 const router = express.Router()
 
@@ -42,7 +43,13 @@ router.get('/', authenticateToken, async (req, res) => {
       orderBy: { createdAt: 'desc' }
     })
 
-    res.json({ transactions })
+    const formatted = transactions.map(t => ({
+      ...t,
+      type: TRANSACTION_TYPE_MAP[t.type] || t.type,
+      status: TRANSACTION_STATUS_MAP[t.status] || t.status
+    }))
+
+    res.json({ transactions: formatted })
   } catch (error) {
     console.error('Get transactions error:', error)
     res.status(500).json({ error: 'Internal server error' })
@@ -119,9 +126,15 @@ router.post('/send', [
       return newTransaction
     })
 
+    const formatted = {
+      ...transaction,
+      type: TRANSACTION_TYPE_MAP[transaction.type] || transaction.type,
+      status: TRANSACTION_STATUS_MAP[transaction.status] || transaction.status
+    }
+
     res.status(201).json({
       message: 'Money sent successfully',
-      transaction
+      transaction: formatted
     })
   } catch (error) {
     console.error('Send money error:', error)
