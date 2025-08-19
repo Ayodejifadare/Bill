@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { ArrowLeft, Plus, Minus, X, Users, MapPin, Calendar, Receipt, Building2, Copy, Smartphone, Edit } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback } from './ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Badge } from './ui/badge';
 import { toast } from 'sonner';
+import { PageLoading, LoadingSpinner } from './ui/loading';
 import { useUserProfile } from './UserProfileContext';
 
 interface EditBillSplitScreenProps {
@@ -62,125 +63,124 @@ interface BillSplit {
   creatorId: string;
 }
 
-// Mock data for editing
-const mockBillSplitData: Record<string, BillSplit> = {
-  '1': {
-    id: '1',
-    title: 'Team Dinner at Tony\'s Pizza',
-    location: 'Tony\'s Pizza Downtown',
-    date: '2025-01-13',
-    note: 'Great team dinner! Thanks everyone for coming out.',
-    splitMethod: 'equal',
-    creatorId: 'user-123',
-    items: [
-      { id: '1', name: 'Margherita Pizza', price: 18.00, quantity: 2 },
-      { id: '2', name: 'Pepperoni Pizza', price: 20.00, quantity: 1 },
-      { id: '3', name: 'Caesar Salad', price: 12.00, quantity: 2 },
-      { id: '4', name: 'Garlic Bread', price: 8.00, quantity: 1 },
-      { id: '5', name: 'Drinks', price: 35.00, quantity: 1 },
-      { id: '6', name: 'Tax', price: 11.50, quantity: 1 },
-      { id: '7', name: 'Tip', price: 20.00, quantity: 1 }
-    ],
-    participants: [
-      { id: '1', name: 'Emily Davis', avatar: 'ED', amount: 28.50, percentage: 20 },
-      { id: '2', name: 'John Doe', avatar: 'JD', amount: 28.50, percentage: 20 },
-      { id: '3', name: 'Sarah Johnson', avatar: 'SJ', amount: 28.50, percentage: 20 },
-      { id: '4', name: 'Mike Chen', avatar: 'MC', amount: 28.50, percentage: 20 },
-      { id: '5', name: 'Alex Rodriguez', avatar: 'AR', amount: 28.50, percentage: 20 }
-    ],
-    totalAmount: 142.50,
-    paymentMethod: {
-      id: '1',
-      type: 'bank',
-      bankName: 'Access Bank',
-      accountNumber: '0123456789',
-      accountHolderName: 'John Doe',
-      sortCode: '044',
-      isDefault: true
-    }
+async function fetchBillSplit(id: string): Promise<BillSplit> {
+  const res = await fetch(`/api/bill-splits/${id}`);
+  if (!res.ok) {
+    throw new Error('Failed to fetch bill split');
   }
-};
+  const data = await res.json();
+  return data.billSplit ?? data;
+}
+
+async function fetchPaymentMethods(): Promise<PaymentMethod[]> {
+  const res = await fetch('/api/payment-methods');
+  if (!res.ok) {
+    throw new Error('Failed to fetch payment methods');
+  }
+  const data = await res.json();
+  return data.paymentMethods ?? data;
+}
+
+async function updateBillSplit(id: string, payload: any): Promise<void> {
+  const res = await fetch(`/api/bill-splits/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to save bill split');
+  }
+}
 
 export function EditBillSplitScreen({ billSplitId, onNavigate }: EditBillSplitScreenProps) {
   const { appSettings, userProfile } = useUserProfile();
   const isNigeria = appSettings.region === 'NG';
   const currencySymbol = isNigeria ? '₦' : '$';
-  
-  const originalBillSplit = billSplitId ? mockBillSplitData[billSplitId] : null;
-  
-  // Check if current user is the creator of this bill split
-  const isCreator = originalBillSplit && originalBillSplit.creatorId === userProfile.id;
-  
-  const [title, setTitle] = useState(originalBillSplit?.title || '');
-  const [location, setLocation] = useState(originalBillSplit?.location || '');
-  const [date, setDate] = useState(originalBillSplit?.date || '');
-  const [note, setNote] = useState(originalBillSplit?.note || '');
-  const [items, setItems] = useState<BillItem[]>(originalBillSplit?.items || []);
-  const [participants, setParticipants] = useState<Participant[]>(originalBillSplit?.participants || []);
-  const [splitMethod, setSplitMethod] = useState<'equal' | 'percentage' | 'custom'>(originalBillSplit?.splitMethod || 'equal');
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod | null>(originalBillSplit?.paymentMethod || null);
 
-  // Mock payment methods based on region
-  const paymentMethods: PaymentMethod[] = isNigeria ? [
-    {
-      id: '1',
-      type: 'bank',
-      bankName: 'Access Bank',
-      accountNumber: '0123456789',
-      accountHolderName: 'John Doe',
-      sortCode: '044',
-      isDefault: true
-    },
-    {
-      id: '2',
-      type: 'mobile_money',
-      provider: 'Opay',
-      phoneNumber: '+234 801 234 5678',
-      isDefault: false
-    },
-    {
-      id: '3',
-      type: 'bank',
-      bankName: 'GTBank',
-      accountNumber: '0234567890',
-      accountHolderName: 'John Doe',
-      sortCode: '058',
-      isDefault: false
+  const [billSplit, setBillSplit] = useState<BillSplit | null>(null);
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+  const [title, setTitle] = useState('');
+  const [location, setLocation] = useState('');
+  const [date, setDate] = useState('');
+  const [note, setNote] = useState('');
+  const [items, setItems] = useState<BillItem[]>([]);
+  const [participants, setParticipants] = useState<Participant[]>([]);
+  const [splitMethod, setSplitMethod] = useState<'equal' | 'percentage' | 'custom'>('equal');
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const fetchData = useCallback(async () => {
+    if (!billSplitId) {
+      setError('Bill split not found');
+      return;
     }
-  ] : [
-    {
-      id: '1',
-      type: 'bank',
-      bankName: 'Chase Bank',
-      accountType: 'checking',
-      accountNumber: '****1234',
-      routingNumber: '021000021',
-      accountHolderName: 'John Doe',
-      isDefault: true
-    },
-    {
-      id: '2',
-      type: 'bank',
-      bankName: 'Bank of America',
-      accountType: 'savings',
-      accountNumber: '****5678',
-      routingNumber: '026009593',
-      accountHolderName: 'John Doe',
-      isDefault: false
+    setLoading(true);
+    setError(null);
+    try {
+      const [bs, methods] = await Promise.all([
+        fetchBillSplit(billSplitId),
+        fetchPaymentMethods()
+      ]);
+      setBillSplit(bs);
+      setPaymentMethods(methods);
+      setTitle(bs.title);
+      setLocation(bs.location);
+      setDate(bs.date);
+      setNote(bs.note);
+      setItems(bs.items);
+      setParticipants(bs.participants);
+      setSplitMethod(bs.splitMethod);
+      const defaultMethod = bs.paymentMethod || methods.find(m => m.isDefault) || null;
+      setSelectedPaymentMethod(defaultMethod);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load bill split');
+      setBillSplit(null);
+    } finally {
+      setLoading(false);
     }
-  ];
+  }, [billSplitId]);
 
   useEffect(() => {
-    // Set default payment method if none selected
-    if (!selectedPaymentMethod) {
+    fetchData();
+  }, [fetchData]);
+
+  const isCreator = billSplit && billSplit.creatorId === userProfile.id;
+
+  useEffect(() => {
+    if (!selectedPaymentMethod && paymentMethods.length > 0) {
       const defaultMethod = paymentMethods.find(method => method.isDefault);
       if (defaultMethod) {
         setSelectedPaymentMethod(defaultMethod);
       }
     }
-  }, [selectedPaymentMethod]);
+  }, [selectedPaymentMethod, paymentMethods]);
 
-  if (!originalBillSplit) {
+  if (loading) {
+    return <PageLoading message="Loading bill split..." />;
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center space-x-4">
+          <Button variant="ghost" size="sm" onClick={() => onNavigate('bills')}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <h2>Edit Bill Split</h2>
+        </div>
+        <div className="text-center py-8 space-y-4">
+          <p className="text-muted-foreground">{error}</p>
+          <Button onClick={fetchData} variant="outline">Retry</Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!billSplit) {
     return (
       <div className="space-y-6">
         <div className="flex items-center space-x-4">
@@ -206,7 +206,7 @@ export function EditBillSplitScreen({ billSplitId, onNavigate }: EditBillSplitSc
           </Button>
           <h2>Edit Bill Split</h2>
         </div>
-        
+
         <Card className="p-6">
           <div className="text-center space-y-4">
             <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto">
@@ -350,7 +350,7 @@ export function EditBillSplitScreen({ billSplitId, onNavigate }: EditBillSplitSc
     return participants.reduce((sum, p) => sum + (isNaN(p.amount) ? 0 : p.amount), 0);
   };
 
-  const handleSave = () => {
+  const saveBillSplitHandler = async () => {
     if (!title.trim()) {
       toast.error('Please enter a bill title');
       return;
@@ -373,15 +373,36 @@ export function EditBillSplitScreen({ billSplitId, onNavigate }: EditBillSplitSc
 
     const total = calculateTotal();
     const splitTotal = getTotalSplit();
-    
+
     if (Math.abs(splitTotal - total) > 0.01) {
       toast.error(`Split amounts (${currencySymbol}${splitTotal.toFixed(2)}) don't match total (${currencySymbol}${total.toFixed(2)})`);
       return;
     }
-    
-    // Here you would normally save to backend
-    toast.success('Bill split updated successfully');
-    onNavigate('bill-split-details', { billSplitId });
+
+    if (!billSplitId) return;
+
+    setSaving(true);
+    setSaveError(null);
+    try {
+      await updateBillSplit(billSplitId, {
+        title,
+        location,
+        date,
+        note,
+        items,
+        participants,
+        splitMethod,
+        paymentMethodId: selectedPaymentMethod.id
+      });
+      toast.success('Bill split updated successfully');
+      onNavigate('bill-split-details', { billSplitId });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to save bill split';
+      setSaveError(message);
+      toast.error(message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -394,7 +415,8 @@ export function EditBillSplitScreen({ billSplitId, onNavigate }: EditBillSplitSc
           </Button>
           <h2>Edit Bill Split</h2>
         </div>
-        <Button onClick={handleSave}>
+        <Button onClick={saveBillSplitHandler} disabled={saving}>
+          {saving && <LoadingSpinner size="sm" className="mr-2" />}
           Save Changes
         </Button>
       </div>
@@ -785,12 +807,14 @@ export function EditBillSplitScreen({ billSplitId, onNavigate }: EditBillSplitSc
 
       {/* Save Button */}
       <div className="space-y-3">
-        <Button className="w-full" onClick={handleSave}>
+        <Button className="w-full" onClick={saveBillSplitHandler} disabled={saving}>
+          {saving && <LoadingSpinner size="sm" className="mr-2" />}
           Save Changes
         </Button>
         <Button variant="outline" className="w-full" onClick={() => onNavigate('bill-split-details', { billSplitId })}>
           Cancel
         </Button>
+        {saveError && <p className="text-sm text-destructive text-center">{saveError}</p>}
       </div>
     </div>
   );
