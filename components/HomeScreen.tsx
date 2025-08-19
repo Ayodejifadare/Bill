@@ -20,9 +20,21 @@ const quickActions = [
 
 interface HomeScreenProps {
   onNavigate: (tab: string) => void;
+}
+
 export function HomeScreen({ onNavigate }: HomeScreenProps) {
-  const { appSettings } = useUserProfile();
+  const { appSettings, userProfile } = useUserProfile();
   const currencySymbol = appSettings.region === 'NG' ? '₦' : '$';
+  const displayName = userProfile?.name?.trim() || 'there';
+  const initials = userProfile?.name
+    ? userProfile.name
+        .split(' ')
+        .filter(Boolean)
+        .map(n => n[0])
+        .join('')
+        .slice(0, 2)
+        .toUpperCase()
+    : '?';
   const [activityFilter, setActivityFilter] = useState<'all' | 'sent' | 'received'>('all');
   const [unreadNotifications] = useState(3); // Mock unread count
   const {
@@ -60,17 +72,17 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
       {/* Static Header */}
       <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border/40 px-4 py-3 mb-6">
         <div className="flex items-center justify-between max-w-md mx-auto">
-          <div className="flex items-center space-x-3">
-            <Avatar className="h-10 w-10">
-              <AvatarFallback className="bg-primary text-primary-foreground">
-                JD
-              </AvatarFallback>
-            </Avatar>
-            <div>
-              <p className="text-sm text-muted-foreground">Hi,</p>
-              <p className="font-medium">John Doe</p>
+            <div className="flex items-center space-x-3">
+              <Avatar className="h-10 w-10">
+                <AvatarFallback className="bg-primary text-primary-foreground">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <p className="text-sm text-muted-foreground">Hi,</p>
+                <p className="font-medium">{displayName}</p>
+              </div>
             </div>
-          </div>
           <Button 
             variant="ghost" 
             size="sm"
