@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ArrowLeft, Search, Building2, Copy, Send, Smartphone, Users, UserPlus, Repeat, Share2 } from 'lucide-react';
+import { ArrowLeft, Search, Building2, Copy, Send, Smartphone, Users, UserPlus, Repeat, Share2, Loader2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -13,6 +13,7 @@ import { Switch } from './ui/switch';
 import { toast } from 'sonner';
 import { useUserProfile } from './UserProfileContext';
 import { SocialSharingUtils, QuickShareButton, createDeepLink } from './SocialSharingUtils';
+import { createRequest } from '../utils/request-api';
 
 interface Friend {
   id: string;
@@ -72,6 +73,7 @@ export function RequestMoney({ onNavigate, prefillData }: RequestMoneyProps) {
   const [friends, setFriends] = useState<Friend[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const loadFriendsAndGroups = useCallback(async () => {
     try {
@@ -213,7 +215,7 @@ export function RequestMoney({ onNavigate, prefillData }: RequestMoneyProps) {
     }
   };
 
-  const handleSendRequest = () => {
+  const handleSendRequest = async () => {
     if (selectedFriends.length === 0) {
       toast.error('Please select at least one friend');
       return;
@@ -229,19 +231,32 @@ export function RequestMoney({ onNavigate, prefillData }: RequestMoneyProps) {
       return;
     }
 
-    // Create the money request
-    if (isRecurring) {
-      toast.success(`Recurring money request created! This will be sent to ${selectedFriends.length} friend${selectedFriends.length > 1 ? 's' : ''} ${recurringFrequency}. Payment details have been included.`);
-    } else {
-      toast.success(`Money request sent to ${selectedFriends.length} friend${selectedFriends.length > 1 ? 's' : ''}! Payment details have been included.`);
+    setIsSubmitting(true);
+    try {
+      await createRequest({
+        amount: parseFloat(amount),
+        recipients: selectedFriends.map(f => f.id),
+        paymentMethod: selectedPaymentMethod,
+      });
+
+      if (isRecurring) {
+        toast.success(`Recurring money request created! This will be sent to ${selectedFriends.length} friend${selectedFriends.length > 1 ? 's' : ''} ${recurringFrequency}. Payment details have been included.`);
+      } else {
+        toast.success(`Money request sent to ${selectedFriends.length} friend${selectedFriends.length > 1 ? 's' : ''}! Payment details have been included.`);
+      }
+
+      setSelectedFriends([]);
+      setAmount('');
+      setMessage('');
+
+      onNavigate('home');
+    } catch (error) {
+      console.error('Failed to send request', error);
+      const message = error instanceof Error ? error.message : 'Failed to send request. Please try again.';
+      toast.error(message);
+    } finally {
+      setIsSubmitting(false);
     }
-    
-    // Reset form
-    setSelectedFriends([]);
-    setAmount('');
-    setMessage('');
-    
-    onNavigate('home');
   };
 
   const shareRequestDetails = async () => {
@@ -847,11 +862,20 @@ Recipients: ${selectedFriends.map(f => f.name).join(', ')}`;
         </Button>
         <Button
           onClick={handleSendRequest}
-          disabled={selectedFriends.length === 0 || !amount || !selectedPaymentMethod}
+          disabled={selectedFriends.length === 0 || !amount || !selectedPaymentMethod || isSubmitting}
           className="flex-1"
         >
-          <Send className="h-4 w-4 mr-2" />
-          {isRecurring ? 'Create Recurring Request' : 'Send Request'}
+          {isSubmitting ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              Sending...
+            </>
+          ) : (
+            <>
+              <Send className="h-4 w-4 mr-2" />
+              {isRecurring ? 'Create Recurring Request' : 'Send Request'}
+            </>
+          )}
         </Button>
       </div>
       </div>
