@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { ArrowLeft, Calendar, Clock, CreditCard, Users, AlertCircle } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { ArrowLeft, Calendar, Clock, CreditCard, AlertCircle } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
@@ -7,13 +7,13 @@ import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import { Switch } from './ui/switch';
-import { Badge } from './ui/badge';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { toast } from 'sonner';
 import { useUserProfile } from './UserProfileContext';
+import { fetchPaymentMethods as apiFetchPaymentMethods, type PaymentMethod as ApiPaymentMethod } from '@/api/payment-methods';
 
 interface SetupRecurringPaymentScreenProps {
-  onNavigate: (tab: string, data?: any) => void;
+  onNavigate: (tab: string, data?: unknown) => void;
   paymentId?: string | null;
   editMode?: boolean;
 }
@@ -25,47 +25,64 @@ interface PaymentMethod {
   details: string;
 }
 
-const mockPaymentMethods: PaymentMethod[] = [
-  {
-    id: '1',
-    type: 'bank',
-    name: 'Access Bank',
-    details: '****6789'
-  },
-  {
-    id: '2',
-    type: 'mobile_money',
-    name: 'Opay',
-    details: '+234 801 ****678'
-  },
-  {
-    id: '3',
-    type: 'bank',
-    name: 'GTBank',
-    details: '****2345'
-  }
-];
-
-const mockFriends = [
-  { id: '1', name: 'Sarah Johnson', avatar: 'SJ' },
-  { id: '2', name: 'Mike Chen', avatar: 'MC' },
-  { id: '3', name: 'Emily Davis', avatar: 'ED' },
-  { id: '4', name: 'Alex Rodriguez', avatar: 'AR' },
-  { id: '5', name: 'Jessica Lee', avatar: 'JL' }
-];
+interface Friend {
+  id: string;
+  name: string;
+  avatar?: string;
+}
 
 const categories = [
   'Housing', 'Transportation', 'Food & Groceries', 'Entertainment',
   'Health & Fitness', 'Utilities', 'Shopping', 'Education', 'Other'
 ];
 
-export function SetupRecurringPaymentScreen({ 
-  onNavigate, 
-  paymentId = null, 
-  editMode = false 
+// Fetch friends and payment methods
+
+export function SetupRecurringPaymentScreen({
+  onNavigate,
+  paymentId = null,
+  editMode = false
 }: SetupRecurringPaymentScreenProps) {
   const { appSettings } = useUserProfile();
   const currencySymbol = appSettings.region === 'NG' ? '₦' : '$';
+
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+  const [friends, setFriends] = useState<Friend[]>([]);
+
+  const loadPaymentMethods = useCallback(async () => {
+    try {
+      const methods = await apiFetchPaymentMethods();
+      const formatted: PaymentMethod[] = methods.map((m: ApiPaymentMethod) => ({
+        id: m.id,
+        type: m.type,
+        name: m.type === 'bank' ? m.bank || m.bankName || '' : m.provider || '',
+        details:
+          m.type === 'bank'
+            ? `****${(m.accountNumber || '').slice(-4)}`
+            : m.phoneNumber || '',
+      }));
+      setPaymentMethods(formatted);
+    } catch (err) {
+      console.error('Failed to load payment methods', err);
+    }
+  }, []);
+
+  const loadFriends = useCallback(async () => {
+    try {
+      const res = await fetch('/api/friends');
+      if (res.ok) {
+        const data: { friends?: Friend[] } = await res.json();
+        const friendsData: Friend[] = (data.friends || []).map((f) => ({
+          id: f.id,
+          name: f.name,
+          avatar: f.avatar,
+        }));
+        setFriends(friendsData);
+      }
+    } catch (err) {
+      console.error('Failed to load friends', err);
+    }
+  }, []);
   
   const [formData, setFormData] = useState({
     title: '',
@@ -84,13 +101,29 @@ export function SetupRecurringPaymentScreen({
   
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  useEffect(() => {
+    const refreshAll = () => {
+      loadFriends();
+      loadPaymentMethods();
+    };
+    refreshAll();
+    window.addEventListener('friendsUpdated', loadFriends);
+    window.addEventListener('paymentMethodsUpdated', loadPaymentMethods);
+    window.addEventListener('focus', refreshAll);
+    return () => {
+      window.removeEventListener('friendsUpdated', loadFriends);
+      window.removeEventListener('paymentMethodsUpdated', loadPaymentMethods);
+      window.removeEventListener('focus', refreshAll);
+    };
+  }, [loadFriends, loadPaymentMethods]);
+
   // Load existing payment data if editing
   useEffect(() => {
     if (editMode && paymentId) {
       // In a real app, this would fetch the payment data
       const mockPayment = {
         title: 'Monthly Rent Split',
-        recipient: 'Alex Rodriguez',
+        recipient: '4',
         amount: '375.00',
         frequency: 'monthly',
         category: 'Housing',
@@ -109,13 +142,21 @@ export function SetupRecurringPaymentScreen({
     const newErrors: Record<string, string> = {};
     
     if (!formData.title) newErrors.title = 'Title is required';
-    if (!formData.recipient) newErrors.recipient = 'Recipient is required';
+    if (!formData.recipient) {
+      newErrors.recipient = 'Recipient is required';
+    } else if (!friends.some(f => f.id === formData.recipient)) {
+      newErrors.recipient = 'Invalid recipient';
+    }
     if (!formData.amount || parseFloat(formData.amount) <= 0) {
       newErrors.amount = 'Valid amount is required';
     }
     if (!formData.frequency) newErrors.frequency = 'Frequency is required';
     if (!formData.category) newErrors.category = 'Category is required';
-    if (!formData.paymentMethod) newErrors.paymentMethod = 'Payment method is required';
+    if (!formData.paymentMethod) {
+      newErrors.paymentMethod = 'Payment method is required';
+    } else if (!paymentMethods.some(pm => pm.id === formData.paymentMethod)) {
+      newErrors.paymentMethod = 'Invalid payment method';
+    }
     
     if (formData.hasEndDate) {
       if (!formData.endDate && !formData.totalPayments) {
@@ -168,8 +209,8 @@ export function SetupRecurringPaymentScreen({
     return `≈ ${currencySymbol}${monthlyAmount.toFixed(2)} per ${period}`;
   };
 
-  const selectedPaymentMethod = mockPaymentMethods.find(pm => pm.id === formData.paymentMethod);
-  const selectedFriend = mockFriends.find(f => f.name === formData.recipient);
+  const selectedPaymentMethod = paymentMethods.find(pm => pm.id === formData.paymentMethod);
+  const selectedFriend = friends.find(f => f.id === formData.recipient);
 
   return (
     <div className="space-y-6">
@@ -193,10 +234,15 @@ export function SetupRecurringPaymentScreen({
           <CardDescription>Choose the type of recurring payment</CardDescription>
         </CardHeader>
         <CardContent>
-          <RadioGroup 
-            value={formData.type} 
-            onValueChange={(value) => setFormData(prev => ({ ...prev, type: value as any }))}
-          >
+            <RadioGroup
+              value={formData.type}
+              onValueChange={(value) =>
+                setFormData(prev => ({
+                  ...prev,
+                  type: value as 'direct_payment' | 'bill_split' | 'subscription',
+                }))
+              }
+            >
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="direct_payment" id="direct_payment" />
               <Label htmlFor="direct_payment">Direct Payment</Label>
@@ -234,18 +280,20 @@ export function SetupRecurringPaymentScreen({
 
           <div>
             <Label htmlFor="recipient">Recipient</Label>
-            <Select value={formData.recipient} onValueChange={(value) => 
+            <Select value={formData.recipient} onValueChange={(value) =>
               setFormData(prev => ({ ...prev, recipient: value }))
             }>
               <SelectTrigger>
                 <SelectValue placeholder="Select recipient" />
               </SelectTrigger>
               <SelectContent>
-                {mockFriends.map((friend) => (
-                  <SelectItem key={friend.id} value={friend.name}>
+                {friends.map((friend) => (
+                  <SelectItem key={friend.id} value={friend.id}>
                     <div className="flex items-center space-x-2">
                       <Avatar className="h-6 w-6">
-                        <AvatarFallback className="text-xs">{friend.avatar}</AvatarFallback>
+                        <AvatarFallback className="text-xs">
+                          {friend.avatar || friend.name.split(' ').map(n => n[0]).join('').slice(0,2)}
+                        </AvatarFallback>
                       </Avatar>
                       <span>{friend.name}</span>
                     </div>
@@ -408,8 +456,8 @@ export function SetupRecurringPaymentScreen({
             onValueChange={(value) => setFormData(prev => ({ ...prev, paymentMethod: value }))}
           >
             <div className="space-y-2">
-              {mockPaymentMethods.map((method) => (
-                <div 
+              {paymentMethods.map((method) => (
+                <div
                   key={method.id}
                   className={`flex items-center space-x-3 p-3 rounded-lg border cursor-pointer ${
                     formData.paymentMethod === method.id ? 'border-primary bg-accent' : 'border-border'
@@ -458,7 +506,9 @@ export function SetupRecurringPaymentScreen({
                 <span className="text-sm text-muted-foreground">Recipient</span>
                 <div className="flex items-center space-x-2">
                   <Avatar className="h-6 w-6">
-                    <AvatarFallback className="text-xs">{selectedFriend.avatar}</AvatarFallback>
+                    <AvatarFallback className="text-xs">
+                      {selectedFriend.avatar || selectedFriend.name.split(' ').map(n => n[0]).join('').slice(0,2)}
+                    </AvatarFallback>
                   </Avatar>
                   <span className="font-medium">{selectedFriend.name}</span>
                 </div>
