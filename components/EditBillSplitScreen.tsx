@@ -326,19 +326,28 @@ export function EditBillSplitScreen({ billSplitId, onNavigate }: EditBillSplitSc
     }
   };
 
-  const copyPaymentDetails = () => {
+  const copyPaymentDetails = async () => {
     if (!selectedPaymentMethod) return;
-    
-    if (selectedPaymentMethod.type === 'bank') {
-      const bankInfo = isNigeria 
-        ? `${selectedPaymentMethod.bankName}\nAccount Name: ${selectedPaymentMethod.accountHolderName}\nAccount Number: ${selectedPaymentMethod.accountNumber}\nSort Code: ${selectedPaymentMethod.sortCode}`
-        : `${selectedPaymentMethod.bankName}\nAccount Holder: ${selectedPaymentMethod.accountHolderName}\nRouting Number: ${selectedPaymentMethod.routingNumber}\nAccount Number: ${selectedPaymentMethod.accountNumber}`;
-      navigator.clipboard.writeText(bankInfo);
-      toast.success('Bank account details copied to clipboard');
-    } else {
-      const mobileInfo = `${selectedPaymentMethod.provider}\nPhone Number: ${selectedPaymentMethod.phoneNumber}`;
-      navigator.clipboard.writeText(mobileInfo);
-      toast.success('Mobile money details copied to clipboard');
+
+    if (!navigator.clipboard || !navigator.clipboard.writeText) {
+      toast.error('Clipboard not supported. Please copy manually.');
+      return;
+    }
+
+    try {
+      if (selectedPaymentMethod.type === 'bank') {
+        const bankInfo = isNigeria
+          ? `${selectedPaymentMethod.bankName}\nAccount Name: ${selectedPaymentMethod.accountHolderName}\nAccount Number: ${selectedPaymentMethod.accountNumber}\nSort Code: ${selectedPaymentMethod.sortCode}`
+          : `${selectedPaymentMethod.bankName}\nAccount Holder: ${selectedPaymentMethod.accountHolderName}\nRouting Number: ${selectedPaymentMethod.routingNumber}\nAccount Number: ${selectedPaymentMethod.accountNumber}`;
+        await navigator.clipboard.writeText(bankInfo);
+        toast.success('Bank account details copied to clipboard');
+      } else {
+        const mobileInfo = `${selectedPaymentMethod.provider}\nPhone Number: ${selectedPaymentMethod.phoneNumber}`;
+        await navigator.clipboard.writeText(mobileInfo);
+        toast.success('Mobile money details copied to clipboard');
+      }
+    } catch (error) {
+      toast.error('Failed to copy details. Please copy manually.');
     }
   };
 
