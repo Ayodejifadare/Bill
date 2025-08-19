@@ -63,6 +63,57 @@ describe('Group join/leave routes', () => {
     expect(leaveRes.body.group.members).not.toContain('user1')
   })
 
+  it('lists groups with member details and aggregates', async () => {
+    const createRes = await request(app).post('/groups').send({ name: 'Test' })
+    const groupId = createRes.body.group.id
+
+    await prisma.user.createMany({
+      data: [
+        { id: 'user1', email: 'user1@example.com', name: 'User 1' },
+        { id: 'user2', email: 'user2@example.com', name: 'User 2' }
+      ]
+    })
+
+    await prisma.groupMember.createMany({
+      data: [
+        { groupId, userId: 'user1' },
+        { groupId, userId: 'user2' }
+      ]
+    })
+
+    await prisma.transaction.createMany({
+      data: [
+        { senderId: 'user1', receiverId: 'user2', amount: 10, type: 'SEND', status: 'COMPLETED' },
+        { senderId: 'user2', receiverId: 'user1', amount: 5, type: 'SEND', status: 'COMPLETED' }
+      ]
+    })
+
+    const res = await request(app).get('/groups')
+
+    expect(res.status).toBe(200)
+    expect(res.body.groups).toHaveLength(1)
+    const group = res.body.groups[0]
+    expect(group).toMatchObject({
+      id: groupId,
+      name: 'Test',
+      memberCount: 2,
+      totalSpent: 15
+    })
+    expect(group.members).toHaveLength(2)
+    expect(group.members).toEqual(
+      expect.arrayContaining([
+        { name: 'User 1', avatar: '' },
+        { name: 'User 2', avatar: '' }
+      ])
+    )
+    expect(group).toHaveProperty('description')
+    expect(group).toHaveProperty('recentActivity')
+    expect(group).toHaveProperty('isAdmin')
+    expect(group).toHaveProperty('lastActive')
+    expect(group).toHaveProperty('pendingBills')
+    expect(group).toHaveProperty('color')
+  })
+
   it('fetches group details with members and transactions', async () => {
     const createRes = await request(app).post('/groups').send({ name: 'Test' })
     const groupId = createRes.body.group.id
