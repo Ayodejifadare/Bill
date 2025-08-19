@@ -91,6 +91,7 @@ export function PaymentMethodsScreen({ onNavigate }: PaymentMethodsScreenProps) 
     provider: '',
     phoneNumber: ''
   });
+  const [editingMethod, setEditingMethod] = useState<PaymentMethod | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -114,9 +115,11 @@ export function PaymentMethodsScreen({ onNavigate }: PaymentMethodsScreenProps) 
       provider: '',
       phoneNumber: ''
     });
+    setMethodType('bank');
+    setEditingMethod(null);
   };
 
-  const handleAddMethod = async () => {
+  const handleSaveMethod = async () => {
     if (methodType === 'bank') {
       if (!formData.bank || !formData.accountNumber || !formData.accountName) {
         toast.error('Please fill in all bank details');
@@ -141,7 +144,7 @@ export function PaymentMethodsScreen({ onNavigate }: PaymentMethodsScreenProps) 
 
     try {
       const selectedBank = banks.find(bank => bank.name === formData.bank);
-      const payload: CreatePaymentMethodPayload = {
+      const basePayload: Partial<PaymentMethod> = {
         type: methodType,
         ...(methodType === 'bank'
           ? {
@@ -156,18 +159,26 @@ export function PaymentMethodsScreen({ onNavigate }: PaymentMethodsScreenProps) 
           : {
               provider: formData.provider,
               phoneNumber: formData.phoneNumber
-            }),
-        isDefault: paymentMethods.length === 0
+            })
       };
 
-      await createPaymentMethod(payload);
+      if (editingMethod) {
+        await updatePaymentMethod(editingMethod.id, basePayload);
+        toast.success('Payment method updated successfully!');
+      } else {
+        const createPayload: CreatePaymentMethodPayload = {
+          ...basePayload,
+          isDefault: paymentMethods.length === 0
+        };
+        await createPaymentMethod(createPayload);
+        toast.success('Payment method added successfully!');
+      }
       const methods = await fetchPaymentMethods();
       setPaymentMethods(methods);
-      toast.success('Payment method added successfully!');
       setIsAddingMethod(false);
       resetForm();
     } catch (error) {
-      toast.error('Failed to verify account. Please check details.');
+      toast.error(editingMethod ? 'Failed to update payment method' : 'Failed to verify account. Please check details.');
     } finally {
       setIsLoading(false);
     }
@@ -193,6 +204,31 @@ export function PaymentMethodsScreen({ onNavigate }: PaymentMethodsScreenProps) 
     } catch {
       toast.error('Failed to remove payment method');
     }
+  };
+
+  const handleEditMethod = (method: PaymentMethod) => {
+    setEditingMethod(method);
+    setMethodType(method.type);
+    if (method.type === 'bank') {
+      setFormData({
+        bank: method.bank || '',
+        accountNumber: method.accountNumber || '',
+        accountName: method.accountName || '',
+        accountType: method.accountType || 'checking',
+        provider: '',
+        phoneNumber: ''
+      });
+    } else {
+      setFormData({
+        bank: '',
+        accountNumber: '',
+        accountName: '',
+        accountType: 'checking',
+        provider: method.provider || '',
+        phoneNumber: method.phoneNumber || ''
+      });
+    }
+    setIsAddingMethod(true);
   };
 
 
@@ -245,10 +281,16 @@ export function PaymentMethodsScreen({ onNavigate }: PaymentMethodsScreenProps) 
               </SelectContent>
             </Select>
             
-            <Dialog open={isAddingMethod} onOpenChange={setIsAddingMethod}>
+            <Dialog
+              open={isAddingMethod}
+              onOpenChange={(open) => {
+                setIsAddingMethod(open);
+                if (!open) resetForm();
+              }}
+            >
               <DialogTrigger asChild>
-                <Button 
-                  size="sm" 
+                <Button
+                  size="sm"
                   className="rounded-full h-10 px-3 sm:px-4"
                   aria-label="Add payment method"
                 >
@@ -258,17 +300,18 @@ export function PaymentMethodsScreen({ onNavigate }: PaymentMethodsScreenProps) 
               </DialogTrigger>
               <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md max-h-[85vh] overflow-y-auto">
                 <DialogHeader>
-                  <DialogTitle>Add Payment Method</DialogTitle>
+                  <DialogTitle>{editingMethod ? 'Edit Payment Method' : 'Add Payment Method'}</DialogTitle>
                   <DialogDescription className="text-sm leading-relaxed">
-                    {isNigeria 
-                      ? "Add a bank account or mobile money provider to receive payments from friends."
-                      : "Add a bank account to receive payments from friends when splitting bills or money requests."
-                    }
+                    {editingMethod
+                      ? 'Update your payment method details.'
+                      : isNigeria
+                          ? 'Add a bank account or mobile money provider to receive payments from friends.'
+                          : 'Add a bank account to receive payments from friends when splitting bills or money requests.'}
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4">
                   {/* Method Type Selection - Only show for Nigeria */}
-                  {isNigeria && (
+                  {isNigeria && !editingMethod && (
                     <div className="grid grid-cols-2 gap-3">
                       <Button
                         variant={methodType === 'bank' ? 'default' : 'outline'}
@@ -379,16 +422,18 @@ export function PaymentMethodsScreen({ onNavigate }: PaymentMethodsScreenProps) 
                   )}
 
                   <div className="flex gap-3 pt-4">
-                    <Button 
-                      className="flex-1 h-12" 
-                      onClick={handleAddMethod}
+                    <Button
+                      className="flex-1 h-12"
+                      onClick={handleSaveMethod}
                       disabled={isLoading}
                     >
                       {isLoading ? (
                         <>
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                          Verifying...
+                          {editingMethod ? 'Saving...' : 'Verifying...'}
                         </>
+                      ) : editingMethod ? (
+                        'Save Changes'
                       ) : (
                         'Add Method'
                       )}
@@ -443,6 +488,7 @@ export function PaymentMethodsScreen({ onNavigate }: PaymentMethodsScreenProps) 
                   account={method}
                   onSetDefault={handleSetDefault}
                   onDelete={handleDeleteMethod}
+                  onEdit={(account) => handleEditMethod(account as PaymentMethod)}
                   variant="personal"
                 />
               ) : (
@@ -451,6 +497,7 @@ export function PaymentMethodsScreen({ onNavigate }: PaymentMethodsScreenProps) 
                   account={method}
                   onSetDefault={handleSetDefault}
                   onDelete={handleDeleteMethod}
+                  onEdit={(account) => handleEditMethod(account as PaymentMethod)}
                   variant="personal"
                 />
               )
