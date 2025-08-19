@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { ArrowLeft, Users, Calendar, CreditCard, MapPin, Receipt, MoreHorizontal, Check, Clock, Edit, Trash2, Settings, Share2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
@@ -6,65 +6,128 @@ import { Avatar, AvatarFallback } from './ui/avatar';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from './ui/alert-dialog';
 import { toast } from 'sonner';
 import { useUserProfile } from './UserProfileContext';
 import { ShareSheet } from './ui/share-sheet';
 import { createDeepLink } from './ShareUtils';
+import { PageLoading } from './ui/loading';
 
 interface BillSplitDetailsScreenProps {
   billSplitId: string | null;
-  onNavigate: (tab: string, data?: any) => void;
+  onNavigate: (tab: string, data?: Record<string, unknown>) => void;
 }
 
-const mockBillSplitDetails = {
-  '1': {
-    id: '1',
-    title: 'Team Dinner at Tony\'s Pizza',
-    totalAmount: 142.50,
-    yourShare: 28.50,
-    status: 'partial',
-    date: 'January 13, 2025 at 7:20 PM',
-    location: 'Tony\'s Pizza Downtown',
-    organizer: { name: 'Emily Davis', avatar: 'ED' },
-    creatorId: 'user-123', // ID of the user who created this bill split
-    participants: [
-      { name: 'Emily Davis', avatar: 'ED', amount: 28.50, status: 'paid' },
-      { name: 'John Doe', avatar: 'JD', amount: 28.50, status: 'pending' },
-      { name: 'Sarah Johnson', avatar: 'SJ', amount: 28.50, status: 'paid' },
-      { name: 'Mike Chen', avatar: 'MC', amount: 28.50, status: 'paid' },
-      { name: 'Alex Rodriguez', avatar: 'AR', amount: 28.50, status: 'pending' }
-    ],
-    items: [
-      { name: 'Margherita Pizza', price: 18.00, quantity: 2 },
-      { name: 'Pepperoni Pizza', price: 20.00, quantity: 1 },
-      { name: 'Caesar Salad', price: 12.00, quantity: 2 },
-      { name: 'Garlic Bread', price: 8.00, quantity: 1 },
-      { name: 'Drinks', price: 35.00, quantity: 1 },
-      { name: 'Tax', price: 11.50, quantity: 1 },
-      { name: 'Tip', price: 20.00, quantity: 1 }
-    ],
-    note: 'Great team dinner! Thanks everyone for coming out.'
+interface Participant {
+  name: string;
+  avatar: string;
+  amount: number;
+  status: 'paid' | 'pending';
+}
+
+interface BillItem {
+  name: string;
+  price: number;
+  quantity: number;
+}
+
+interface BillSplit {
+  id: string;
+  title: string;
+  totalAmount: number;
+  yourShare: number;
+  status: string;
+  date: string;
+  location: string;
+  organizer: { name: string; avatar: string };
+  creatorId: string;
+  participants: Participant[];
+  items: BillItem[];
+  note: string;
+}
+
+const billSplitCache = new Map<string, BillSplit>();
+
+async function getBillSplit(id: string): Promise<BillSplit> {
+  const res = await fetch(`/api/bill-splits/${id}`);
+  if (!res.ok) {
+    throw new Error('Failed to fetch bill split');
   }
-};
+  const data = await res.json();
+  return data.billSplit ?? data;
+}
 
 export function BillSplitDetailsScreen({ billSplitId, onNavigate }: BillSplitDetailsScreenProps) {
   const { userProfile, appSettings } = useUserProfile();
   const currencySymbol = appSettings.region === 'NG' ? '₦' : '$';
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showShareSheet, setShowShareSheet] = useState(false);
-  const billSplit = billSplitId ? mockBillSplitDetails[billSplitId as keyof typeof mockBillSplitDetails] : null;
-  
-  // Check if current user is the creator of this bill split
+  const [billSplit, setBillSplit] = useState<BillSplit | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchBillSplit = useCallback(async () => {
+    if (!billSplitId) {
+      setBillSplit(null);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      if (billSplitCache.has(billSplitId)) {
+        setBillSplit(billSplitCache.get(billSplitId)!);
+      } else {
+        const data = await getBillSplit(billSplitId);
+        billSplitCache.set(billSplitId, data);
+        setBillSplit(data);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load bill split');
+      setBillSplit(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [billSplitId]);
+
+  useEffect(() => {
+    fetchBillSplit();
+  }, [fetchBillSplit]);
+
   const isCreator = billSplit && billSplit.creatorId === userProfile.id;
+
+  if (loading) {
+    return <PageLoading message="Loading bill split..." />;
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen px-4 py-6">
+        <div className="flex items-center space-x-4 mb-6">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onNavigate('bills')}
+            className="min-h-[44px] min-w-[44px] -ml-2"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <h2 className="text-xl font-semibold">Bill Split Details</h2>
+        </div>
+        <div className="text-center py-12 space-y-4">
+          <p className="text-muted-foreground">{error}</p>
+          <Button onClick={fetchBillSplit} variant="outline">Retry</Button>
+        </div>
+      </div>
+    );
+  }
 
   if (!billSplit) {
     return (
       <div className="min-h-screen px-4 py-6">
         <div className="flex items-center space-x-4 mb-6">
-          <Button 
-            variant="ghost" 
-            size="sm" 
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => onNavigate('bills')}
             className="min-h-[44px] min-w-[44px] -ml-2"
           >
@@ -80,15 +143,20 @@ export function BillSplitDetailsScreen({ billSplitId, onNavigate }: BillSplitDet
   }
 
   const paidParticipants = billSplit.participants.filter(p => p.status === 'paid');
-  const pendingParticipants = billSplit.participants.filter(p => p.status === 'pending');
   const totalPaid = paidParticipants.reduce((sum, p) => sum + p.amount, 0);
   const progressPercentage = (totalPaid / billSplit.totalAmount) * 100;
 
   const handleEdit = () => {
+    if (billSplitId) {
+      billSplitCache.delete(billSplitId);
+    }
     onNavigate('edit-bill-split', { billSplitId });
   };
 
   const handleDelete = () => {
+    if (billSplitId) {
+      billSplitCache.delete(billSplitId);
+    }
     // Here you would normally call API to delete the bill split
     toast.success('Bill split deleted successfully');
     onNavigate('bills');
