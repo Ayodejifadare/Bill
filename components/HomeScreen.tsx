@@ -1,70 +1,13 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { TransactionCard } from './TransactionCard';
 import { UpcomingPayments } from './UpcomingPayments';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { EmptyState } from './ui/empty-state';
-import { Send, Users, Receipt, Plus, Bell, DollarSign, Clock, Calendar, Share2 } from 'lucide-react';
-import { Alert, AlertDescription } from './ui/alert';
+import { Send, Users, Receipt, Plus, Bell, DollarSign } from 'lucide-react';
+import { useTransactions } from '../hooks/useTransactions';
 import { useUserProfile } from './UserProfileContext';
-
-const mockTransactions = [
-  {
-    id: '1',
-    type: 'received' as const,
-    amount: 25.50,
-    description: 'Coffee and lunch',
-    user: { name: 'Sarah Johnson' },
-    date: '2 hours ago',
-    status: 'completed' as const,
-  },
-  {
-    id: '2',
-    type: 'sent' as const,
-    amount: 45.00,
-    description: 'Uber ride home',
-    user: { name: 'Mike Chen' },
-    date: '1 day ago',
-    status: 'completed' as const,
-  },
-  {
-    id: '3',
-    type: 'split' as const,
-    amount: 18.75,
-    description: 'Dinner at Tony\'s Pizza',
-    user: { name: 'Emily Davis' },
-    date: '2 days ago',
-    status: 'pending' as const,
-  },
-  {
-    id: '4',
-    type: 'received' as const,
-    amount: 60.00,
-    description: 'Concert tickets',
-    user: { name: 'Alex Rodriguez' },
-    date: '3 days ago',
-    status: 'completed' as const,
-  },
-  {
-    id: '5',
-    type: 'sent' as const,
-    amount: 12.50,
-    description: 'Coffee',
-    user: { name: 'Jessica Lee' },
-    date: '4 days ago',
-    status: 'completed' as const,
-  },
-  {
-    id: '6',
-    type: 'received' as const,
-    amount: 35.00,
-    description: 'Movie tickets',
-    user: { name: 'David Kim' },
-    date: '1 week ago',
-    status: 'completed' as const,
-  },
-];
 
 const quickActions = [
   { id: 'send', icon: Send, label: 'Send', color: 'bg-blue-500' },
@@ -83,17 +26,37 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
   const [balance] = useState(234.56);
   const [activityFilter, setActivityFilter] = useState<'all' | 'sent' | 'received'>('all');
   const [unreadNotifications] = useState(3); // Mock unread count
+  const { transactions, refetch } = useTransactions();
+  const touchStartY = useRef<number | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (window.scrollY === 0) {
+      touchStartY.current = e.touches[0].clientY;
+    } else {
+      touchStartY.current = null;
+    }
+  };
+
+  const handleTouchEnd = async (e: React.TouchEvent) => {
+    if (touchStartY.current !== null) {
+      const delta = e.changedTouches[0].clientY - touchStartY.current;
+      if (delta > 50) {
+        await refetch();
+      }
+    }
+    touchStartY.current = null;
+  };
 
   // Calculate total amounts owed and owing from transactions
-  const totalOwed = mockTransactions
+  const totalOwed = transactions
     .filter(t => t.type === 'received' && t.status === 'pending')
     .reduce((sum, t) => sum + t.amount, 0);
-    
-  const totalOwes = mockTransactions
+
+  const totalOwes = transactions
     .filter(t => (t.type === 'split' || t.type === 'sent') && t.status === 'pending')
     .reduce((sum, t) => sum + t.amount, 0);
 
-  const filteredTransactions = mockTransactions.filter(transaction => {
+  const filteredTransactions = transactions.filter(transaction => {
     if (activityFilter === 'all') return true;
     if (activityFilter === 'sent') return transaction.type === 'sent';
     if (activityFilter === 'received') return transaction.type === 'received' || transaction.type === 'split';
@@ -101,14 +64,14 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
   });
 
   const getTransactionCount = (filterType: 'all' | 'sent' | 'received') => {
-    if (filterType === 'all') return mockTransactions.length;
-    if (filterType === 'sent') return mockTransactions.filter(t => t.type === 'sent').length;
-    if (filterType === 'received') return mockTransactions.filter(t => t.type === 'received' || t.type === 'split').length;
+    if (filterType === 'all') return transactions.length;
+    if (filterType === 'sent') return transactions.filter(t => t.type === 'sent').length;
+    if (filterType === 'received') return transactions.filter(t => t.type === 'received' || t.type === 'split').length;
     return 0;
   };
 
   return (
-    <div>
+    <div onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
       {/* Header */}
       {/* Static Header */}
       <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border/40 px-4 py-3 mb-6">
