@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { BillSplitSkeleton } from './ui/loading';
 import { Alert, AlertDescription } from './ui/alert';
 import { useBillSplits } from '../hooks/useBillSplits';
+import { useUserProfile } from './UserProfileContext';
 
 interface BillsScreenProps {
   onNavigate: (tab: string, data?: any) => void;
@@ -20,6 +21,8 @@ interface BillsScreenProps {
 export function BillsScreen({ onNavigate, groupId }: BillsScreenProps) {
   const [activeFilter, setActiveFilter] = useState('all');
   const { billSplits, loading, error } = useBillSplits(groupId || undefined);
+  const { appSettings } = useUserProfile();
+  const currencySymbol = appSettings.region === 'NG' ? '₦' : '$';
 
   const filteredBills = billSplits.filter(bill => {
     // First filter by group if groupId is provided
@@ -136,11 +139,11 @@ export function BillsScreen({ onNavigate, groupId }: BillsScreenProps) {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground">Your share</p>
-                    <p className="font-medium">${bill.yourShare.toFixed(2)}</p>
+                    <p className="font-medium">{currencySymbol}{bill.yourShare.toFixed(2)}</p>
                   </div>
                   <div className="text-right">
                     <p className="text-sm text-muted-foreground">Total</p>
-                    <p className="font-medium">${bill.totalAmount.toFixed(2)}</p>
+                    <p className="font-medium">{currencySymbol}{bill.totalAmount.toFixed(2)}</p>
                   </div>
                 </div>
 
@@ -181,7 +184,7 @@ export function BillsScreen({ onNavigate, groupId }: BillsScreenProps) {
                         onNavigate('pay-bill', { billId: bill.id });
                       }}
                     >
-                      Pay ${bill.yourShare.toFixed(2)}
+                      Pay {currencySymbol}{bill.yourShare.toFixed(2)}
                     </Button>
                     <Button
                       size="sm"
