@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { TransactionCard } from './TransactionCard';
@@ -36,12 +36,38 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
         .toUpperCase()
     : '?';
   const [activityFilter, setActivityFilter] = useState<'all' | 'sent' | 'received'>('all');
-  const [unreadNotifications] = useState(3); // Mock unread count
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [notificationsLoading, setNotificationsLoading] = useState(true);
+  const [notificationsError, setNotificationsError] = useState<string | null>(null);
   const {
     transactions,
     loading: transactionsLoading,
     error: transactionsError,
   } = useTransactions();
+
+  const fetchUnreadNotifications = async () => {
+    try {
+      setNotificationsLoading(true);
+      const res = await fetch('/api/notifications/unread');
+      if (!res.ok) {
+        throw new Error('Failed to fetch unread notifications');
+      }
+      const data = await res.json();
+      setUnreadNotifications(data.count || 0);
+      setNotificationsError(null);
+    } catch (err) {
+      setUnreadNotifications(0);
+      setNotificationsError((err as Error).message);
+    } finally {
+      setNotificationsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUnreadNotifications();
+    const interval = setInterval(fetchUnreadNotifications, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Calculate total amounts owed and owing from transactions
   const totalOwed = transactions
@@ -83,14 +109,17 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
                 <p className="font-medium">{displayName}</p>
               </div>
             </div>
-          <Button 
-            variant="ghost" 
+          <Button
+            variant="ghost"
             size="sm"
-            onClick={() => onNavigate('notifications')}
+            onClick={() => {
+              fetchUnreadNotifications();
+              onNavigate('notifications');
+            }}
             className="relative"
           >
             <Bell className="h-5 w-5" />
-            {unreadNotifications > 0 && (
+            {!notificationsLoading && unreadNotifications > 0 && (
               <span className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-xs rounded-full h-5 w-5 flex items-center justify-center">
                 {unreadNotifications > 9 ? '9+' : unreadNotifications}
               </span>
@@ -101,6 +130,11 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
 
       {/* Content Container */}
       <div className="px-4 space-y-6">
+        {notificationsError && (
+          <Alert variant="destructive">
+            <AlertDescription>{notificationsError}</AlertDescription>
+          </Alert>
+        )}
         {/* Balance Card */}
         {(totalOwed > 0 || totalOwes > 0) && (
           <Card className="p-4">
