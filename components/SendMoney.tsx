@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Search, Building2, Copy, Send, CheckCircle, Smartphone, Users, UserPlus } from 'lucide-react';
+import { ArrowLeft, Search, Building2, Copy, Send, CheckCircle, Smartphone, Users } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -11,9 +11,7 @@ import { Separator } from './ui/separator';
 import { toast } from 'sonner';
 import { useUserProfile } from './UserProfileContext';
 
-import { PaymentMethod } from './PaymentMethodSelector';
-import { BankAccountCard } from './BankAccountCard';
-import { MobileMoneyCard } from './MobileMoneyCard';
+import { PaymentMethodSelector, PaymentMethod } from './PaymentMethodSelector';
 
 interface Friend {
   id: string;
@@ -21,6 +19,7 @@ interface Friend {
   avatar?: string;
   phoneNumber?: string;
   defaultPaymentMethod?: PaymentMethod;
+  paymentMethods?: PaymentMethod[];
 }
 
 interface Group {
@@ -46,149 +45,55 @@ export function SendMoney({ onNavigate, prefillData }: SendMoneyProps) {
   const currencySymbol = isNigeria ? '₦' : '$';
   
   const [selectedFriend, setSelectedFriend] = useState<Friend | null>(null);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod | null>(null);
   const [amount, setAmount] = useState('');
   const [message, setMessage] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [showGroupSelection, setShowGroupSelection] = useState(false);
+  const [friends, setFriends] = useState<Friend[]>([]);
 
-  // Mock data for friends with payment methods based on region
-  const allFriends: Friend[] = [
-    { 
-      id: '1', 
-      name: 'Alice Johnson', 
-      avatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b47c?w=150', 
-      phoneNumber: isNigeria ? '+234 801 123 4567' : '+1 (555) 123-4567',
-      defaultPaymentMethod: isNigeria ? {
-        id: 'alice_payment_1',
-        type: 'bank',
-        bankName: 'Access Bank',
-        accountNumber: '0123456789',
-        accountHolderName: 'Alice Johnson',
-        sortCode: '044',
-        isDefault: true
-      } : {
-        id: 'alice_bank_1',
-        type: 'bank',
-        bankName: 'Wells Fargo',
-        accountType: 'checking',
-        accountNumber: '****7890',
-        routingNumber: '121000248',
-        accountHolderName: 'Alice Johnson',
-        isDefault: true
+  const fetchFriends = async () => {
+    try {
+      const res = await fetch('/api/friends');
+      if (!res.ok) {
+        throw new Error('Failed to fetch friends');
       }
-    },
-    { 
-      id: '2', 
-      name: 'Bob Wilson', 
-      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150', 
-      phoneNumber: isNigeria ? '+234 802 234 5678' : '+1 (555) 234-5678',
-      defaultPaymentMethod: isNigeria ? {
-        id: 'bob_payment_1',
-        type: 'mobile_money',
-        provider: 'Opay',
-        phoneNumber: '+234 802 234 5678',
-        isDefault: true
-      } : {
-        id: 'bob_bank_1',
-        type: 'bank',
-        bankName: 'Chase Bank',
-        accountType: 'checking',
-        accountNumber: '****3456',
-        routingNumber: '021000021',
-        accountHolderName: 'Robert Wilson',
-        isDefault: true
-      }
-    },
-    { 
-      id: '3', 
-      name: 'Carol Davis', 
-      avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150', 
-      phoneNumber: isNigeria ? '+234 803 345 6789' : '+1 (555) 345-6789',
-      defaultPaymentMethod: isNigeria ? {
-        id: 'carol_payment_1',
-        type: 'bank',
-        bankName: 'GTBank',
-        accountNumber: '0234567890',
-        accountHolderName: 'Carol Davis',
-        sortCode: '058',
-        isDefault: true
-      } : {
-        id: 'carol_bank_1',
-        type: 'bank',
-        bankName: 'Bank of America',
-        accountType: 'savings',
-        accountNumber: '****9012',
-        routingNumber: '026009593',
-        accountHolderName: 'Carol Davis',
-        isDefault: true
-      }
-    },
-    { 
-      id: '4', 
-      name: 'David Brown', 
-      avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150', 
-      phoneNumber: isNigeria ? '+234 804 456 7890' : '+1 (555) 456-7890',
-      defaultPaymentMethod: isNigeria ? {
-        id: 'david_payment_1',
-        type: 'mobile_money',
-        provider: 'PalmPay',
-        phoneNumber: '+234 804 456 7890',
-        isDefault: true
-      } : {
-        id: 'david_bank_1',
-        type: 'bank',
-        bankName: 'Capital One',
-        accountType: 'checking',
-        accountNumber: '****5678',
-        routingNumber: '031176110',
-        accountHolderName: 'David Brown',
-        isDefault: true
-      }
-    },
-    { 
-      id: '5', 
-      name: 'Emma Garcia', 
-      avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150', 
-      phoneNumber: isNigeria ? '+234 805 567 8901' : '+1 (555) 567-8901',
-      defaultPaymentMethod: isNigeria ? {
-        id: 'emma_payment_1',
-        type: 'bank',
-        bankName: 'First Bank',
-        accountNumber: '3456789012',
-        accountHolderName: 'Emma Garcia',
-        sortCode: '011',
-        isDefault: true
-      } : {
-        id: 'emma_bank_1',
-        type: 'bank',
-        bankName: 'Citibank',
-        accountType: 'checking',
-        accountNumber: '****2345',
-        routingNumber: '021000089',
-        accountHolderName: 'Emma Garcia',
-        isDefault: true
-      }
-    },
-  ];
+      const data = await res.json();
+      setFriends(data.friends || []);
+    } catch (error) {
+      console.error('Failed to load friends', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchFriends();
+    const handleRefresh = () => fetchFriends();
+    window.addEventListener('focus', handleRefresh);
+    window.addEventListener('friendsUpdated', handleRefresh as EventListener);
+    return () => {
+      window.removeEventListener('focus', handleRefresh);
+      window.removeEventListener('friendsUpdated', handleRefresh as EventListener);
+    };
+  }, []);
 
   // Mock groups
   const groups: Group[] = [
     {
       id: '1',
       name: 'Work Team',
-      members: allFriends.slice(0, 3),
+      members: friends.slice(0, 3),
       color: 'bg-blue-500'
     },
     {
-      id: '2', 
+      id: '2',
       name: 'College Friends',
-      members: allFriends.slice(1, 4),
+      members: friends.slice(1, 4),
       color: 'bg-green-500'
     },
     {
       id: '3',
       name: 'Roommates',
-      members: allFriends.slice(2, 5),
+      members: friends.slice(2, 5),
       color: 'bg-purple-500'
     }
   ];
@@ -204,9 +109,11 @@ export function SendMoney({ onNavigate, prefillData }: SendMoneyProps) {
       }
       if (prefillData.recipientId && prefillData.recipientName) {
         // Find and set the friend based on the prefill data
-        const matchingFriend = allFriends.find(friend => friend.id === prefillData.recipientId);
+        const matchingFriend = friends.find(friend => friend.id === prefillData.recipientId);
         if (matchingFriend) {
           setSelectedFriend(matchingFriend);
+          const defaultMethod = matchingFriend.paymentMethods?.find(m => m.isDefault) || null;
+          setSelectedPaymentMethod(defaultMethod);
         } else {
           // Create a temporary friend object if not found in the list
           const tempFriend: Friend = {
@@ -215,12 +122,13 @@ export function SendMoney({ onNavigate, prefillData }: SendMoneyProps) {
             phoneNumber: 'Not available'
           };
           setSelectedFriend(tempFriend);
+          setSelectedPaymentMethod(null);
         }
       }
     }
-  }, [prefillData]);
+  }, [prefillData, friends]);
 
-  const filteredFriends = allFriends.filter(friend =>
+  const filteredFriends = friends.filter(friend =>
     friend.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -236,7 +144,7 @@ export function SendMoney({ onNavigate, prefillData }: SendMoneyProps) {
       return;
     }
 
-    if (!selectedFriend.defaultPaymentMethod) {
+    if (!selectedPaymentMethod) {
       toast.error('Selected friend has no payment method on file');
       return;
     }
@@ -246,6 +154,7 @@ export function SendMoney({ onNavigate, prefillData }: SendMoneyProps) {
     
     // Reset form
     setSelectedFriend(null);
+    setSelectedPaymentMethod(null);
     setAmount('');
     setMessage('');
     setSearchTerm('');
@@ -254,32 +163,24 @@ export function SendMoney({ onNavigate, prefillData }: SendMoneyProps) {
   };
 
   const sharePaymentDetails = () => {
-    if (!selectedFriend || !selectedFriend.defaultPaymentMethod || !amount) {
+    if (!selectedFriend || !selectedPaymentMethod || !amount) {
       toast.error('Please complete all required fields');
       return;
     }
-
-    const paymentMethod = selectedFriend.defaultPaymentMethod;
-    let paymentDetails = `💸 Send Payment: ${currencySymbol}${amount}
-👤 To: ${selectedFriend.name}
-${message ? `📝 Message: ${message}\n` : ''}`;
+    const paymentMethod = selectedPaymentMethod;
+    let paymentDetails = `💸 Send Payment: ${currencySymbol}${amount}\n👤 To: ${selectedFriend.name}\n${message ? `📝 Message: ${message}\n` : ''}`;
 
     if (paymentMethod.type === 'bank') {
-      paymentDetails += isNigeria 
-        ? `🏦 Bank Details:
-${paymentMethod.bankName}
-👤 ${paymentMethod.accountHolderName}
-🔢 Account: ${paymentMethod.accountNumber}
-🏷️ Sort Code: ${paymentMethod.sortCode}`
-        : `🏦 Bank Details:
-${paymentMethod.bankName}
-👤 ${paymentMethod.accountHolderName}
-🔢 Routing: ${paymentMethod.routingNumber}
-💳 Account: ${paymentMethod.accountNumber}`;
+      paymentDetails += `🏦 Bank Details:\n${paymentMethod.bankName}\n👤 ${paymentMethod.accountHolderName}\n`;
+      if (paymentMethod.routingNumber) {
+        paymentDetails += `🔢 Routing: ${paymentMethod.routingNumber}\n`;
+      }
+      if (paymentMethod.sortCode) {
+        paymentDetails += `🏷️ Sort Code: ${paymentMethod.sortCode}\n`;
+      }
+      paymentDetails += `💳 Account: ${paymentMethod.accountNumber}`;
     } else {
-      paymentDetails += `📱 Mobile Money:
-${paymentMethod.provider}
-📞 ${paymentMethod.phoneNumber}`;
+      paymentDetails += `📱 Mobile Money:\n${paymentMethod.provider}\n📞 ${paymentMethod.phoneNumber}`;
     }
 
     paymentDetails += `\n📱 ${selectedFriend.phoneNumber || 'Phone not available'}`;
@@ -398,6 +299,8 @@ ${paymentMethod.provider}
                               variant="ghost"
                               onClick={() => {
                                 setSelectedFriend(friend);
+                                const defaultMethod = friend.paymentMethods?.find(m => m.isDefault) || null;
+                                setSelectedPaymentMethod(defaultMethod);
                                 setShowGroupSelection(false);
                               }}
                               className="h-auto p-2 justify-start"
@@ -451,7 +354,10 @@ ${paymentMethod.provider}
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => setSelectedFriend(null)}
+                        onClick={() => {
+                          setSelectedFriend(null);
+                          setSelectedPaymentMethod(null);
+                        }}
                         className="text-xs h-6 px-2"
                       >
                         Change
@@ -469,7 +375,11 @@ ${paymentMethod.provider}
                   <div
                     key={friend.id}
                     className="flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors hover:bg-muted"
-                    onClick={() => setSelectedFriend(friend)}
+                    onClick={() => {
+                      setSelectedFriend(friend);
+                      const defaultMethod = friend.paymentMethods?.find(m => m.isDefault) || null;
+                      setSelectedPaymentMethod(defaultMethod);
+                    }}
                   >
                     <div className="flex items-center gap-3">
                       <Avatar className="h-10 w-10">
@@ -513,11 +423,11 @@ ${paymentMethod.provider}
         </Card>
 
         {/* Payment Destination */}
-        {selectedFriend && selectedFriend.defaultPaymentMethod && (
+        {selectedFriend && selectedFriend.paymentMethods && selectedFriend.paymentMethods.length > 0 && selectedPaymentMethod && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                {selectedFriend.defaultPaymentMethod.type === 'bank' ? (
+                {selectedPaymentMethod.type === 'bank' ? (
                   <Building2 className="h-5 w-5" />
                 ) : (
                   <Smartphone className="h-5 w-5" />
@@ -525,15 +435,16 @@ ${paymentMethod.provider}
                 Payment Destination
               </CardTitle>
               <CardDescription>
-                Send your payment to {selectedFriend.name}'s {selectedFriend.defaultPaymentMethod.type === 'bank' ? 'bank account' : 'mobile money'}
+                Send your payment to {selectedFriend.name}'s {selectedPaymentMethod.type === 'bank' ? 'bank account' : 'mobile money'}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {selectedFriend.defaultPaymentMethod.type === 'bank' ? (
-                <BankAccountCard account={selectedFriend.defaultPaymentMethod} showAdminActions={false} />
-              ) : (
-                <MobileMoneyCard account={selectedFriend.defaultPaymentMethod} showAdminActions={false} />
-              )}
+              <PaymentMethodSelector
+                methods={selectedFriend.paymentMethods}
+                selectedId={selectedPaymentMethod.id}
+                onSelect={(m) => setSelectedPaymentMethod(m)}
+                isNigeria={isNigeria}
+              />
 
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
                 <div className="flex gap-2">
@@ -545,7 +456,7 @@ ${paymentMethod.provider}
                   <div>
                     <p className="text-sm text-amber-800 font-medium">Payment Instructions</p>
                     <p className="text-sm text-amber-700 mt-1">
-                      Use your {selectedFriend.defaultPaymentMethod.type === 'bank' ? 'bank' : 'mobile money'} app to send a transfer to the {selectedFriend.defaultPaymentMethod.type === 'bank' ? 'account' : 'number'} above.
+                      Use your {selectedPaymentMethod.type === 'bank' ? 'bank' : 'mobile money'} app to send a transfer to the {selectedPaymentMethod.type === 'bank' ? 'account' : 'number'} above.
                       Include "{message || `Payment from SplitPay - ${currencySymbol}${amount}`}" in the transfer memo.
                     </p>
                   </div>
@@ -556,7 +467,7 @@ ${paymentMethod.provider}
         )}
 
         {/* No Payment Method Warning */}
-        {selectedFriend && !selectedFriend.defaultPaymentMethod && (
+        {selectedFriend && (!selectedFriend.paymentMethods || selectedFriend.paymentMethods.length === 0) && (
           <Card className="border-warning">
             <CardContent className="p-4">
               <div className="flex gap-2">
@@ -568,8 +479,8 @@ ${paymentMethod.provider}
                 <div>
                   <p className="text-sm text-warning font-medium">No Payment Method</p>
                   <p className="text-sm text-muted-foreground mt-1">
-                    {selectedFriend.name} hasn't added their payment information yet. 
-                    You'll need to ask them for their {isNigeria ? 'bank or mobile money' : 'banking'} details to send this payment.
+                    {selectedFriend.name} hasn't added their payment information yet.
+                    You'll need to ask them for their payment details to send this payment.
                   </p>
                 </div>
               </div>
@@ -578,7 +489,7 @@ ${paymentMethod.provider}
         )}
 
         {/* Payment Summary */}
-        {selectedFriend && amount && selectedFriend.defaultPaymentMethod && (
+        {selectedFriend && amount && selectedPaymentMethod && (
           <Card className="border-primary">
             <CardHeader>
               <CardTitle className="text-base">Payment Summary</CardTitle>
@@ -594,12 +505,12 @@ ${paymentMethod.provider}
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">
-                  {selectedFriend.defaultPaymentMethod.type === 'bank' ? 'Bank:' : 'Provider:'}
+                  {selectedPaymentMethod.type === 'bank' ? 'Bank:' : 'Provider:'}
                 </span>
                 <span className="font-medium">
-                  {selectedFriend.defaultPaymentMethod.type === 'bank' 
-                    ? selectedFriend.defaultPaymentMethod.bankName 
-                    : selectedFriend.defaultPaymentMethod.provider
+                  {selectedPaymentMethod.type === 'bank'
+                    ? selectedPaymentMethod.bankName
+                    : selectedPaymentMethod.provider
                   }
                 </span>
               </div>
@@ -614,7 +525,7 @@ ${paymentMethod.provider}
               
               <div className="bg-muted p-3 rounded-lg">
                 <p className="text-sm text-muted-foreground">
-                  <strong>Next steps:</strong> Use your {selectedFriend.defaultPaymentMethod.type === 'bank' ? 'bank' : 'mobile money'} app to transfer {currencySymbol}{parseFloat(amount).toFixed(2)} to {selectedFriend.name}'s account using the details above.
+                  <strong>Next steps:</strong> Use your {selectedPaymentMethod.type === 'bank' ? 'bank' : 'mobile money'} app to transfer {currencySymbol}{parseFloat(amount).toFixed(2)} to {selectedFriend.name}'s account using the details above.
                 </p>
               </div>
             </CardContent>
@@ -627,7 +538,7 @@ ${paymentMethod.provider}
             variant="outline"
             onClick={sharePaymentDetails}
             className="flex-1"
-            disabled={!selectedFriend || !amount || !selectedFriend.defaultPaymentMethod}
+            disabled={!selectedFriend || !amount || !selectedPaymentMethod}
           >
             <Copy className="h-4 w-4 mr-2" />
             Copy Details
@@ -635,7 +546,7 @@ ${paymentMethod.provider}
           <Button
             onClick={handleSendMoney}
             className="flex-1"
-            disabled={!selectedFriend || !amount || !selectedFriend.defaultPaymentMethod}
+            disabled={!selectedFriend || !amount || !selectedPaymentMethod}
           >
             <Send className="h-4 w-4 mr-2" />
             Send Instructions
