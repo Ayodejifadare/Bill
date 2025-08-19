@@ -1,5 +1,9 @@
 import express from 'express'
 import groupAccountRouter from './groupAccounts.js'
+import groupMemberRouter from './groupMembers.js'
+import groupInviteRouter from './groupInvites.js'
+import groupInviteLinkRouter from './groupInviteLinks.js'
+import groupTransactionRouter from './groupTransactions.js'
 import {
   TRANSACTION_TYPE_MAP,
   TRANSACTION_STATUS_MAP
@@ -241,8 +245,55 @@ router.get('/:groupId', async (req, res) => {
   }
 })
 
-// Mount account routes for a given group
+// Potential members from contact sync
+router.post('/:groupId/potential-members', async (req, res) => {
+  try {
+    const contacts = (req.body.contacts || []).map((c) => ({
+      id: c.id,
+      name: c.name,
+      phoneNumber: c.phoneNumbers?.[0] || c.phone || '',
+      status: 'existing_user'
+    }))
+    res.json({ contacts })
+  } catch (error) {
+    console.error('Potential members error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+// Invite contacts to group
+router.post('/:groupId/invite', async (req, res) => {
+  try {
+    const { method, contacts = [], contact } = req.body || {}
+    const items = contacts.length ? contacts : contact ? [contact] : []
+    const now = Date.now()
+    await Promise.all(
+      items.map((c) =>
+        req.prisma.groupInvite.create({
+          data: {
+            groupId: req.params.groupId,
+            name: c.name,
+            contact: c.phone || c.email || c.phoneNumber || '',
+            method,
+            invitedBy: req.headers['x-user-id'] || 'system',
+            expiresAt: new Date(now + 7 * 24 * 60 * 60 * 1000)
+          }
+        })
+      )
+    )
+    res.json({ message: 'Invites sent' })
+  } catch (error) {
+    console.error('Invite members error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+// Mount sub-routers for group operations
+router.use('/:groupId/members', groupMemberRouter)
+router.use('/:groupId/invites', groupInviteRouter)
+router.use('/:groupId/invite-links', groupInviteLinkRouter)
 router.use('/:groupId/accounts', groupAccountRouter)
+router.use('/:groupId', groupTransactionRouter)
 
 export default router
 

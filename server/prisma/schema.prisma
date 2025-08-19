@@ -136,6 +136,8 @@ model Group {
 
   members  GroupMember[]
   accounts GroupAccount[]
+  invites  GroupInvite[]
+  inviteLinks GroupInviteLink[]
 
   @@map("groups")
 }
@@ -144,12 +146,47 @@ model GroupMember {
   groupId  String
   userId   String
   joinedAt DateTime @default(now())
+  role     String   @default("MEMBER")
 
   group Group @relation(fields: [groupId], references: [id])
   user  User  @relation(fields: [userId], references: [id])
 
   @@id([groupId, userId])
   @@map("group_members")
+}
+
+model GroupInvite {
+  id         String   @id @default(cuid())
+  groupId    String
+  name       String?
+  contact    String
+  method     String
+  invitedBy  String
+  invitedAt  DateTime @default(now())
+  status     String   @default("sent")
+  expiresAt  DateTime
+  attempts   Int      @default(1)
+  lastAttempt DateTime?
+
+  group Group @relation(fields: [groupId], references: [id])
+
+  @@map("group_invites")
+}
+
+model GroupInviteLink {
+  id          String   @id @default(cuid())
+  groupId     String
+  link        String
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime
+  maxUses     Int
+  currentUses Int      @default(0)
+  createdBy   String
+  isActive    Boolean  @default(true)
+
+  group Group @relation(fields: [groupId], references: [id])
+
+  @@map("group_invite_links")
 }
 
 model GroupAccount {
