@@ -10,6 +10,7 @@ import { Separator } from './ui/separator';
 import { EmptyState } from './ui/empty-state';
 import { TransactionCard } from './TransactionCard';
 import { useUserProfile } from './UserProfileContext';
+import { formatDate } from '../utils/formatDate';
 
 interface TransactionHistoryScreenProps {
   onNavigate: (tab: string, data?: any) => void;
@@ -130,7 +131,8 @@ export function TransactionHistoryScreen({ onNavigate }: TransactionHistoryScree
   const filteredTransactions = mockTransactions.filter(transaction => {
     const matchesSearch = transaction.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          transaction.recipient?.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         transaction.sender?.name.toLowerCase().includes(searchQuery.toLowerCase());
+                         transaction.sender?.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         formatDate(transaction.date).toLowerCase().includes(searchQuery.toLowerCase());
     
     const matchesCategory = selectedCategory === 'All Categories' || transaction.category === selectedCategory;
     
@@ -153,22 +155,6 @@ export function TransactionHistoryScreen({ onNavigate }: TransactionHistoryScree
 
   const netFlow = totalReceived - totalSent;
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffTime = Math.abs(now.getTime() - date.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    if (diffDays === 1) return 'Today';
-    if (diffDays === 2) return 'Yesterday';
-    if (diffDays <= 7) return `${diffDays - 1} days ago`;
-    
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric',
-      year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
-    });
-  };
 
   const handleTransactionClick = (transactionId: string) => {
     onNavigate('transaction-details', { transactionId });

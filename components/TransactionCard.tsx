@@ -2,6 +2,7 @@ import { ArrowUpRight, ArrowDownLeft, Users, Clock } from "lucide-react";
 import { Card } from "./ui/card";
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import { Badge } from "./ui/badge";
+import { formatDate } from "../utils/formatDate";
 
 interface TransactionUser {
   name: string;
@@ -129,21 +130,6 @@ export function TransactionCard({ transaction, onNavigate, onClick, currencySymb
                         userInfo.avatar || 
                         userInfo.name.split(' ').map(n => n[0]).join('').toUpperCase();
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffTime = Math.abs(now.getTime() - date.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    if (diffDays === 1) return 'Today';
-    if (diffDays === 2) return 'Yesterday';
-    if (diffDays <= 7) return `${diffDays - 1} days ago`;
-    
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric'
-    });
-  };
 
   const handleClick = () => {
     if (onClick) {
