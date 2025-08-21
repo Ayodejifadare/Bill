@@ -31,6 +31,9 @@ model User {
   friendships2        Friendship[] @relation("User2")
   groups              GroupMember[]
   groupAccounts       GroupAccount[]
+  notifications       Notification[] @relation("NotificationRecipient")
+  notificationSettings NotificationSetting?
+  notificationsActing Notification[] @relation("NotificationActor")
 
   @@map("users")
 }
@@ -209,4 +212,36 @@ model GroupAccount {
   createdBy User  @relation(fields: [createdById], references: [id])
 
   @@map("group_accounts")
+}
+
+model Notification {
+  id          String   @id @default(cuid())
+  recipientId String
+  actorId     String?
+  type        String
+  title       String
+  message     String
+  read        Boolean  @default(false)
+  actionable  Boolean  @default(false)
+  amount      Float?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  recipient User   @relation("NotificationRecipient", fields: [recipientId], references: [id])
+  actor     User?  @relation("NotificationActor", fields: [actorId], references: [id])
+
+  @@map("notifications")
+}
+
+model NotificationSetting {
+  id                  String   @id @default(cuid())
+  userId              String   @unique
+  emailNotifications  Boolean  @default(true)
+  pushNotifications   Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("notification_settings")
 }
