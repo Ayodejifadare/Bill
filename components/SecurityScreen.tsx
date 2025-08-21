@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useUserProfile } from './UserProfileContext';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -27,48 +28,30 @@ interface SecurityActivity {
   location: string;
   timestamp: string;
   suspicious: boolean;
-}
+  }
 
-const mockSecurityActivities: SecurityActivity[] = [
-  {
-    id: '1',
-    action: 'Login',
-    device: 'iPhone 14 Pro',
-    location: 'San Francisco, CA',
-    timestamp: '2 hours ago',
-    suspicious: false,
-  },
-  {
-    id: '2',
-    action: 'Password Changed',
-    device: 'MacBook Pro',
-    location: 'San Francisco, CA',
-    timestamp: '3 days ago',
-    suspicious: false,
-  },
-  {
-    id: '3',
-    action: 'Login Attempt (Failed)',
-    device: 'Unknown Device',
-    location: 'New York, NY',
-    timestamp: '1 week ago',
-    suspicious: true,
-  },
-];
+
 
 interface SecurityScreenProps {
   onNavigate: (tab: string) => void;
 }
 
 export function SecurityScreen({ onNavigate }: SecurityScreenProps) {
+  const { userProfile } = useUserProfile();
+  const storedAuth = typeof window !== 'undefined' ? localStorage.getItem('biltip_auth') : null;
+  const token = storedAuth ? JSON.parse(storedAuth).token : null;
+  const userId = userProfile.id;
+
   const [securitySettings, setSecuritySettings] = useState({
-    twoFactorAuth: true,
-    biometricAuth: true,
+    twoFactorAuth: false,
+    biometricAuth: false,
     emailAlerts: true,
     smsAlerts: false,
     loginNotifications: true,
     sessionTimeout: '30',
   });
+
+  const [activities, setActivities] = useState<SecurityActivity[]>([]);
 
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [passwordForm, setPasswordForm] = useState({
@@ -82,15 +65,132 @@ export function SecurityScreen({ onNavigate }: SecurityScreenProps) {
     confirm: false,
   });
 
-  const updateSetting = (key: string, value: boolean | string) => {
-    setSecuritySettings(prev => ({ ...prev, [key]: value }));
+  const fetchLogs = async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`/api/users/${userId}/security-logs`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setActivities(
+          data.logs.map((l: any) => ({
+            id: l.id,
+            action: l.action,
+            device: l.device || '',
+            location: l.location || '',
+            timestamp: new Date(l.createdAt).toLocaleString(),
+            suspicious: l.suspicious,
+          }))
+        );
+      }
+    } catch (e) {
+      console.error('Fetch logs error', e);
+    }
   };
 
-  const handleChangePassword = () => {
-    // Mock password change
-    alert('Password changed successfully!');
-    setShowChangePassword(false);
-    setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  useEffect(() => {
+    const fetchSettings = async () => {
+      if (!token) return;
+      try {
+        const res = await fetch(`/api/users/${userId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setSecuritySettings(prev => ({
+            ...prev,
+            twoFactorAuth: data.user.twoFactorEnabled,
+            biometricAuth: data.user.biometricEnabled,
+          }));
+        }
+        await fetchLogs();
+      } catch (e) {
+        console.error('Fetch security settings error', e);
+      }
+    };
+    fetchSettings();
+  }, [token, userId]);
+
+  const updateSetting = async (key: string, value: boolean | string) => {
+    setSecuritySettings(prev => ({ ...prev, [key]: value }));
+    if (!token) return;
+    try {
+      if (key === 'twoFactorAuth') {
+        await fetch(`/api/users/${userId}/two-factor`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ enabled: value }),
+        });
+      } else if (key === 'biometricAuth') {
+        await fetch(`/api/users/${userId}/biometric`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ enabled: value }),
+        });
+      }
+      await fetchLogs();
+    } catch (e) {
+      console.error('Update setting error', e);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (!token) return;
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      alert('Passwords do not match');
+      return;
+    }
+    try {
+      const res = await fetch(`/api/users/${userId}/change-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          currentPassword: passwordForm.currentPassword,
+          newPassword: passwordForm.newPassword,
+        }),
+      });
+      if (res.ok) {
+        alert('Password changed successfully!');
+        setShowChangePassword(false);
+        setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+        await fetchLogs();
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to change password');
+      }
+    } catch (e) {
+      console.error('Change password error', e);
+    }
+  };
+
+  const handleLogoutOthers = async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`/api/users/${userId}/logout-others`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const stored = storedAuth ? JSON.parse(storedAuth) : {};
+        stored.token = data.token;
+        localStorage.setItem('biltip_auth', JSON.stringify(stored));
+        alert('Logged out from other sessions');
+        await fetchLogs();
+      }
+    } catch (e) {
+      console.error('Logout others error', e);
+    }
   };
 
   const securityScore = 85; // Mock security score
@@ -348,7 +448,7 @@ export function SecurityScreen({ onNavigate }: SecurityScreenProps) {
         </div>
         
         <div className="space-y-3">
-          {mockSecurityActivities.map((activity) => (
+          {activities.map((activity) => (
             <div key={activity.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
               <div className="flex items-center gap-3">
                 <div className={`p-2 rounded-full ${activity.suspicious ? 'bg-red-100' : 'bg-green-100'}`}>
@@ -406,7 +506,7 @@ export function SecurityScreen({ onNavigate }: SecurityScreenProps) {
 
           <Separator />
 
-          <Button variant="outline" className="w-full">
+          <Button variant="outline" className="w-full" onClick={handleLogoutOthers}>
             Log Out All Other Sessions
           </Button>
         </div>

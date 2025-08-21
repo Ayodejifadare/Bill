@@ -1,7 +1,11 @@
 import express from 'express'
 import { body, validationResult } from 'express-validator'
 import jwt from 'jsonwebtoken'
+
 import { TRANSACTION_TYPE_MAP, TRANSACTION_STATUS_MAP } from '../../shared/transactions.js'
+
+import { createNotification } from '../utils/notifications.js'
+
 
 const router = express.Router()
 
@@ -45,7 +49,7 @@ const mockRecipientPaymentMethods = {
 }
 
 // Authentication middleware
-const authenticateToken = (req, res, next) => {
+const authenticateToken = async (req, res, next) => {
   const token = req.headers.authorization?.replace('Bearer ', '')
 
   if (!token) {
@@ -54,6 +58,13 @@ const authenticateToken = (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key')
+    const user = await req.prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { tokenVersion: true }
+    })
+    if (!user || user.tokenVersion !== decoded.tokenVersion) {
+      return res.status(401).json({ error: 'Invalid token' })
+    }
     req.userId = decoded.userId
     next()
   } catch (error) {
@@ -201,6 +212,14 @@ router.post('/request', [
       }
     })
 
+    await createNotification(req.prisma, {
+      recipientId: receiverId,
+      actorId: req.userId,
+      type: 'friend_request',
+      title: 'Friend request',
+      message: `${friendRequest.sender.name} sent you a friend request`
+    })
+
     res.status(201).json({
       message: 'Friend request sent',
       friendRequest
@@ -281,6 +300,14 @@ router.post('/requests/:id/accept', authenticateToken, async (req, res) => {
       })
     ])
 
+    await createNotification(req.prisma, {
+      recipientId: friendRequest.senderId,
+      actorId: req.userId,
+      type: 'friend_request_accepted',
+      title: 'Friend request accepted',
+      message: `${friendRequest.receiver.name} accepted your friend request`
+    })
+
     res.json({
       message: 'Friend request accepted',
       friendRequest,
@@ -318,6 +345,14 @@ router.post('/requests/:id/decline', authenticateToken, async (req, res) => {
           select: { id: true, name: true, email: true, avatar: true }
         }
       }
+    })
+
+    await createNotification(req.prisma, {
+      recipientId: friendRequest.senderId,
+      actorId: req.userId,
+      type: 'friend_request_declined',
+      title: 'Friend request declined',
+      message: `${friendRequest.receiver.name} declined your friend request`
     })
 
     res.json({

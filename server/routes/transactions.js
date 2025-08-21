@@ -2,6 +2,7 @@ import express from 'express'
 import { body, validationResult } from 'express-validator'
 import jwt from 'jsonwebtoken'
 import { TRANSACTION_TYPE_MAP, TRANSACTION_STATUS_MAP } from '../../shared/transactions.js'
+import { createNotification } from '../utils/notifications.js'
 
 // Build reverse lookup maps for filters
 const REVERSE_TRANSACTION_TYPE_MAP = Object.fromEntries(
@@ -14,15 +15,22 @@ const REVERSE_TRANSACTION_STATUS_MAP = Object.fromEntries(
 const router = express.Router()
 
 // Authentication middleware
-const authenticateToken = (req, res, next) => {
+const authenticateToken = async (req, res, next) => {
   const token = req.headers.authorization?.replace('Bearer ', '')
-  
+
   if (!token) {
     return res.status(401).json({ error: 'No token provided' })
   }
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key')
+    const user = await req.prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { tokenVersion: true }
+    })
+    if (!user || user.tokenVersion !== decoded.tokenVersion) {
+      return res.status(401).json({ error: 'Invalid token' })
+    }
     req.userId = decoded.userId
     next()
   } catch (error) {
@@ -204,6 +212,15 @@ router.post('/send', [
       type: TRANSACTION_TYPE_MAP[transaction.type] || transaction.type,
       status: TRANSACTION_STATUS_MAP[transaction.status] || transaction.status
     }
+
+    await createNotification(req.prisma, {
+      recipientId: receiverId,
+      actorId: req.userId,
+      type: 'payment_received',
+      title: 'Payment received',
+      message: `${transaction.sender.name} sent you ${amount}`,
+      amount
+    })
 
     res.status(201).json({
       message: 'Money sent successfully',
