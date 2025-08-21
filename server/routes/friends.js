@@ -326,6 +326,60 @@ router.post('/requests/:id/decline', authenticateToken, async (req, res) => {
   }
 })
 
+// Cancel friend request
+router.delete('/requests/:id', authenticateToken, async (req, res) => {
+  try {
+    const request = await req.prisma.friendRequest.findUnique({
+      where: { id: req.params.id },
+      include: {
+        sender: {
+          select: { id: true, name: true, email: true, avatar: true }
+        },
+        receiver: {
+          select: { id: true, name: true, email: true, avatar: true }
+        }
+      }
+    })
+
+    if (!request || request.senderId !== req.userId) {
+      return res.status(404).json({ error: 'Friend request not found' })
+    }
+
+    if (request.status !== 'PENDING') {
+      return res.status(400).json({ error: 'Friend request is not pending' })
+    }
+
+    const friendRequest = await req.prisma.friendRequest.update({
+      where: { id: req.params.id },
+      data: { status: 'CANCELLED' },
+      include: {
+        sender: {
+          select: { id: true, name: true, email: true, avatar: true }
+        },
+        receiver: {
+          select: { id: true, name: true, email: true, avatar: true }
+        }
+      }
+    })
+
+    await createNotification(req.prisma, {
+      recipientId: friendRequest.receiverId,
+      actorId: req.userId,
+      type: 'friend_request_cancelled',
+      title: 'Friend request cancelled',
+      message: `${friendRequest.sender.name} cancelled the friend request`
+    })
+
+    res.json({
+      message: 'Friend request cancelled',
+      friendRequest
+    })
+  } catch (error) {
+    console.error('Cancel friend request error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
 // Get friend details
 router.get('/:friendId', authenticateToken, async (req, res) => {
   try {
