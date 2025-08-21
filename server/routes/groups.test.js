@@ -57,7 +57,19 @@ describe('Group join/leave routes', () => {
       .set('x-user-id', 'user1')
       .send()
     expect(joinRes.status).toBe(200)
-    expect(joinRes.body.group.members).toContain('user1')
+    expect(joinRes.body.group).toMatchObject({
+      id: groupId,
+      name: 'Test',
+      description: '',
+      memberCount: 1,
+      totalSpent: 0,
+      recentActivity: '',
+      isAdmin: false,
+      lastActive: '',
+      pendingBills: 0,
+      color: ''
+    })
+    expect(joinRes.body.group.members).toEqual([{ name: 'User 1', avatar: '' }])
 
     const leaveRes = await request(app)
       .post(`/groups/${groupId}/leave`)

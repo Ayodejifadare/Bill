@@ -12,6 +12,49 @@ import authenticate from '../middleware/auth.js'
 
 const router = express.Router()
 
+// Helper to format group information with aggregates
+async function formatGroup(prisma, group, userId) {
+  const memberIds = group.members.map((m) => m.userId)
+
+  let totalSpent = 0
+  let lastActive = null
+
+  if (memberIds.length > 0) {
+    const aggregates = await prisma.transaction.aggregate({
+      where: {
+        OR: [
+          { senderId: { in: memberIds } },
+          { receiverId: { in: memberIds } }
+        ]
+      },
+      _sum: { amount: true },
+      _max: { createdAt: true }
+    })
+
+    totalSpent = aggregates._sum.amount || 0
+    lastActive = aggregates._max.createdAt
+  }
+
+  return {
+    id: group.id,
+    name: group.name,
+    description: '',
+    memberCount: group.members.length,
+    totalSpent,
+    recentActivity: lastActive ? `Last activity on ${lastActive.toISOString()}` : '',
+    members: group.members.map((m) => ({
+      name: m.user.name,
+      avatar: m.user.avatar || ''
+    })),
+    isAdmin: userId
+      ? group.members.some((m) => m.userId === userId && m.role === 'ADMIN')
+      : false,
+    lastActive: lastActive ? lastActive.toISOString() : '',
+    pendingBills: 0,
+    color: ''
+  }
+}
+
 // GET / - list all groups with member details and aggregates
 router.get('/', async (req, res) => {
   try {
@@ -28,42 +71,7 @@ router.get('/', async (req, res) => {
     })
 
     const formatted = await Promise.all(
-      groups.map(async (g) => {
-        const memberIds = g.members.map((m) => m.userId)
-
-        const aggregates = await req.prisma.transaction.aggregate({
-          where: {
-            OR: [
-              { senderId: { in: memberIds } },
-              { receiverId: { in: memberIds } }
-            ]
-          },
-          _sum: { amount: true },
-          _max: { createdAt: true }
-        })
-
-        const totalSpent = aggregates._sum.amount || 0
-        const lastActive = aggregates._max.createdAt
-
-        return {
-          id: g.id,
-          name: g.name,
-          description: '',
-          memberCount: g.members.length,
-          totalSpent,
-          recentActivity: lastActive
-            ? `Last activity on ${lastActive.toISOString()}`
-            : '',
-          members: g.members.map((m) => ({
-            name: m.user.name,
-            avatar: m.user.avatar || ''
-          })),
-          isAdmin: false,
-          lastActive: lastActive ? lastActive.toISOString() : '',
-          pendingBills: 0,
-          color: ''
-        }
-      })
+      groups.map((g) => formatGroup(req.prisma, g))
     )
 
     res.json({ groups: formatted })
@@ -97,7 +105,13 @@ router.post('/:groupId/join', authenticate, async (req, res) => {
   try {
     const group = await req.prisma.group.findUnique({
       where: { id: req.params.groupId },
-      include: { members: true }
+      include: {
+        members: {
+          include: {
+            user: { select: { id: true, name: true, avatar: true } }
+          }
+        }
+      }
     })
     if (!group) {
       return res.status(404).json({ error: 'Group not found' })
@@ -115,16 +129,18 @@ router.post('/:groupId/join', authenticate, async (req, res) => {
 
     const updated = await req.prisma.group.findUnique({
       where: { id: group.id },
-      include: { members: true }
-    })
-
-    res.json({
-      group: {
-        id: updated.id,
-        name: updated.name,
-        members: updated.members.map((m) => m.userId)
+      include: {
+        members: {
+          include: {
+            user: { select: { id: true, name: true, avatar: true } }
+          }
+        }
       }
     })
+
+    const formatted = await formatGroup(req.prisma, updated, userId)
+
+    res.json({ group: formatted })
   } catch (error) {
     console.error('Join group error:', error)
     res.status(500).json({ error: 'Internal server error' })
