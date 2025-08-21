@@ -1,8 +1,25 @@
 import express from 'express'
 import jwt from 'jsonwebtoken'
 import { body, validationResult } from 'express-validator'
+import multer from 'multer'
+import path from 'path'
+import fs from 'fs'
 
 const router = express.Router()
+
+const uploadDir = process.env.AVATAR_UPLOAD_DIR || 'uploads'
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dest = path.join(process.cwd(), uploadDir)
+    fs.mkdirSync(dest, { recursive: true })
+    cb(null, dest)
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname)
+    cb(null, `${req.userId}-${Date.now()}${ext}`)
+  }
+})
+const upload = multer({ storage })
 
 // Temporary mock payment methods for recipients
 const mockRecipientPaymentMethods = {
@@ -135,6 +152,31 @@ router.get('/:id', authenticateToken, async (req, res) => {
     res.json({ user })
   } catch (error) {
     console.error('Get user error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+// Upload user avatar
+router.post('/:id/avatar', authenticateToken, upload.single('avatar'), async (req, res) => {
+  try {
+    if (req.userId !== req.params.id) {
+      return res.status(403).json({ error: 'Unauthorized' })
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' })
+    }
+
+    const url = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`
+
+    await req.prisma.user.update({
+      where: { id: req.params.id },
+      data: { avatar: url }
+    })
+
+    res.json({ url })
+  } catch (error) {
+    console.error('Upload avatar error:', error)
     res.status(500).json({ error: 'Internal server error' })
   }
 })

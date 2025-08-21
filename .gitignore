@@ -103,6 +103,7 @@ dist
 # Server specific
 server/.env
 server/node_modules
+server/uploads
 
 # Prisma SQLite databases
 server/dev.db
