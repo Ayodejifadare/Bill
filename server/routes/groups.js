@@ -84,17 +84,35 @@ router.get('/', async (req, res) => {
 // POST / - create a new group
 router.post('/', async (req, res) => {
   try {
-    const { name, description, color, memberIds = [] } = req.body || {}
+    const { name, description, color, memberIds } = req.body || {}
 
     if (!name) {
       return res.status(400).json({ error: 'Group name is required' })
+    }
+
+    if (memberIds !== undefined) {
+      if (!Array.isArray(memberIds) || memberIds.length === 0) {
+        return res
+          .status(400)
+          .json({ error: 'memberIds must be a non-empty array' })
+      }
+
+      const validCount = await req.prisma.user.count({
+        where: { id: { in: memberIds } }
+      })
+
+      if (validCount !== memberIds.length) {
+        return res
+          .status(400)
+          .json({ error: 'All memberIds must correspond to existing users' })
+      }
     }
 
     const group = await req.prisma.group.create({
       data: { name, description, color }
     })
 
-    if (Array.isArray(memberIds) && memberIds.length > 0) {
+    if (Array.isArray(memberIds)) {
       await req.prisma.groupMember.createMany({
         data: memberIds.map((userId) => ({ groupId: group.id, userId }))
       })
