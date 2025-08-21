@@ -5,6 +5,8 @@ import rateLimit from 'express-rate-limit'
 import dotenv from 'dotenv'
 import path from 'path'
 import { PrismaClient } from '@prisma/client'
+import jwt from 'jsonwebtoken'
+import { addClient, removeClient } from './utils/notificationStream.js'
 
 // Import routes
 import authRoutes from './routes/auth.js'
@@ -58,6 +60,35 @@ app.use('/api/bill-splits', billSplitRoutes)
 app.use('/api/friends', friendRoutes)
 app.use('/api/groups', groupRoutes)
 app.use('/api', notificationRoutes)
+
+app.get('/api/notifications/stream', (req, res) => {
+  const token =
+    req.query.token || req.headers.authorization?.replace('Bearer ', '')
+  if (!token) {
+    return res.status(401).end()
+  }
+  try {
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET || 'your-secret-key'
+    )
+
+    res.set({
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive'
+    })
+    res.flushHeaders()
+
+    addClient(decoded.userId, res)
+
+    req.on('close', () => {
+      removeClient(decoded.userId)
+    })
+  } catch (error) {
+    res.status(401).end()
+  }
+})
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

@@ -15,7 +15,11 @@ export function NotificationBell({ onClick }: NotificationBellProps) {
   const fetchUnread = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/notifications/unread');
+      const storedAuth = localStorage.getItem('auth');
+      const token = storedAuth ? JSON.parse(storedAuth).token : null;
+      const res = await fetch('/api/notifications/unread', {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
       if (!res.ok) {
         throw new Error('Failed to fetch unread notifications');
       }
@@ -32,8 +36,27 @@ export function NotificationBell({ onClick }: NotificationBellProps) {
 
   useEffect(() => {
     fetchUnread();
+    const storedAuth = localStorage.getItem('auth');
+    const token = storedAuth ? JSON.parse(storedAuth).token : null;
+    let es: EventSource | null = null;
+    if (token && typeof window !== 'undefined' && 'EventSource' in window) {
+      es = new EventSource(`/api/notifications/stream?token=${token}`);
+      es.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (typeof data.unread === 'number') {
+            setUnread(data.unread);
+          }
+        } catch {
+          // ignore parse errors
+        }
+      };
+    }
     const interval = setInterval(fetchUnread, 60000);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      es?.close();
+    };
   }, []);
 
   return (
