@@ -186,4 +186,73 @@ router.put(
   }
 )
 
+// Get user settings
+router.get('/:id/settings', authenticateToken, async (req, res) => {
+  try {
+    if (req.userId !== req.params.id) {
+      return res.status(403).json({ error: 'Unauthorized' })
+    }
+
+    const user = await req.prisma.user.findUnique({
+      where: { id: req.params.id },
+      select: {
+        notificationSettings: true,
+        privacySettings: true,
+        preferenceSettings: true
+      }
+    })
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' })
+    }
+
+    res.json({
+      settings: {
+        notifications: user.notificationSettings || {},
+        privacy: user.privacySettings || {},
+        preferences: user.preferenceSettings || {}
+      }
+    })
+  } catch (error) {
+    console.error('Get user settings error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+// Update user settings
+router.put('/:id/settings', authenticateToken, async (req, res) => {
+  try {
+    if (req.userId !== req.params.id) {
+      return res.status(403).json({ error: 'Unauthorized' })
+    }
+
+    const { notifications, privacy, preferences } = req.body
+    const data = {}
+    if (notifications !== undefined) data.notificationSettings = notifications
+    if (privacy !== undefined) data.privacySettings = privacy
+    if (preferences !== undefined) data.preferenceSettings = preferences
+
+    const user = await req.prisma.user.update({
+      where: { id: req.params.id },
+      data,
+      select: {
+        notificationSettings: true,
+        privacySettings: true,
+        preferenceSettings: true
+      }
+    })
+
+    res.json({
+      settings: {
+        notifications: user.notificationSettings || {},
+        privacy: user.privacySettings || {},
+        preferences: user.preferenceSettings || {}
+      }
+    })
+  } catch (error) {
+    console.error('Update user settings error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
 export default router
