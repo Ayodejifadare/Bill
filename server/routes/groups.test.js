@@ -94,6 +94,38 @@ describe('Group join/leave routes', () => {
     expect(leaveRes.status).toBe(401)
   })
 
+  it('creates a group with attributes and members', async () => {
+    await prisma.user.createMany({
+      data: [
+        { id: 'u1', email: 'u1@example.com', name: 'U1' },
+        { id: 'u2', email: 'u2@example.com', name: 'U2' }
+      ]
+    })
+
+    const res = await request(app)
+      .post('/groups')
+      .send({
+        name: 'My Group',
+        description: 'Group description',
+        color: '#123456',
+        memberIds: ['u1', 'u2']
+      })
+
+    expect(res.status).toBe(201)
+    expect(res.body.group).toMatchObject({
+      name: 'My Group',
+      description: 'Group description',
+      color: '#123456',
+      memberCount: 2
+    })
+    expect(res.body.group.members).toEqual(
+      expect.arrayContaining([
+        { name: 'U1', avatar: '' },
+        { name: 'U2', avatar: '' }
+      ])
+    )
+  })
+
   it('lists groups with member details and aggregates', async () => {
     const createRes = await request(app).post('/groups').send({ name: 'Test' })
     const groupId = createRes.body.group.id
