@@ -1,5 +1,5 @@
 import express from 'express'
-import { body, validationResult } from 'express-validator'
+import { body, validationResult, param } from 'express-validator'
 import jwt from 'jsonwebtoken'
 
 const router = express.Router()
@@ -63,6 +63,53 @@ router.get('/', authenticateToken, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' })
   }
 })
+
+// Get bill split by ID
+router.get(
+  '/:id',
+  [authenticateToken, param('id').trim().notEmpty()],
+  async (req, res) => {
+    const errors = validationResult(req)
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() })
+    }
+
+    try {
+      const { id } = req.params
+
+      const billSplit = await req.prisma.billSplit.findUnique({
+        where: { id },
+        include: {
+          creator: {
+            select: { id: true, name: true, email: true, avatar: true }
+          },
+          participants: {
+            include: {
+              user: {
+                select: { id: true, name: true, email: true, avatar: true }
+              }
+            }
+          },
+          lineItems: true,
+          paymentMethod: true
+        }
+      })
+
+      if (
+        !billSplit ||
+        (billSplit.createdBy !== req.userId &&
+          !billSplit.participants.some(p => p.userId === req.userId))
+      ) {
+        return res.status(404).json({ error: 'Bill split not found' })
+      }
+
+      res.json({ billSplit })
+    } catch (error) {
+      console.error('Get bill split error:', error)
+      res.status(500).json({ error: 'Internal server error' })
+    }
+  }
+)
 
 // Create bill split
 router.post('/', [
