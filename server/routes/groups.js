@@ -38,7 +38,7 @@ async function formatGroup(prisma, group, userId) {
   return {
     id: group.id,
     name: group.name,
-    description: '',
+    description: group.description || '',
     memberCount: group.members.length,
     totalSpent,
     recentActivity: lastActive ? `Last activity on ${lastActive.toISOString()}` : '',
@@ -51,7 +51,7 @@ async function formatGroup(prisma, group, userId) {
       : false,
     lastActive: lastActive ? lastActive.toISOString() : '',
     pendingBills: 0,
-    color: ''
+    color: group.color || ''
   }
 }
 
@@ -84,16 +84,36 @@ router.get('/', async (req, res) => {
 // POST / - create a new group
 router.post('/', async (req, res) => {
   try {
-    const { name } = req.body
+    const { name, description, color, memberIds = [] } = req.body || {}
+
     if (!name) {
       return res.status(400).json({ error: 'Group name is required' })
     }
 
     const group = await req.prisma.group.create({
-      data: { name }
+      data: { name, description, color }
     })
 
-    res.status(201).json({ group: { ...group, members: [] } })
+    if (Array.isArray(memberIds) && memberIds.length > 0) {
+      await req.prisma.groupMember.createMany({
+        data: memberIds.map((userId) => ({ groupId: group.id, userId }))
+      })
+    }
+
+    const fullGroup = await req.prisma.group.findUnique({
+      where: { id: group.id },
+      include: {
+        members: {
+          include: {
+            user: { select: { id: true, name: true, avatar: true } }
+          }
+        }
+      }
+    })
+
+    const formattedGroup = await formatGroup(req.prisma, fullGroup)
+
+    res.status(201).json({ group: formattedGroup })
   } catch (error) {
     console.error('Create group error:', error)
     res.status(500).json({ error: 'Internal server error' })
@@ -222,19 +242,19 @@ router.get('/:groupId', async (req, res) => {
       hasMoreTransactions = true
     }
 
-    const formattedGroup = {
-      id: group.id,
-      name: group.name,
-      description: group.description || '',
-      totalSpent: 0,
-      totalMembers: group.members.length,
-      isAdmin: false,
-      createdDate: group.createdAt.toISOString(),
-      color: '',
-      members: group.members.map((m) => ({
-        id: m.user.id,
-        name: m.user.name,
-        avatar: m.user.avatar || '',
+      const formattedGroup = {
+        id: group.id,
+        name: group.name,
+        description: group.description || '',
+        totalSpent: 0,
+        totalMembers: group.members.length,
+        isAdmin: false,
+        createdDate: group.createdAt.toISOString(),
+        color: group.color || '',
+        members: group.members.map((m) => ({
+          id: m.user.id,
+          name: m.user.name,
+          avatar: m.user.avatar || '',
         email: m.user.email,
         isAdmin: false,
         balance: 0,
