@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback } from './ui/avatar';
 import { Separator } from './ui/separator';
 import { toast } from 'sonner';
 import { useUserProfile } from './UserProfileContext';
+import { apiClient } from '../utils/apiClient';
 
 interface BillPaymentScreenProps {
   billId: string | null;
@@ -44,56 +45,6 @@ interface BillSplit {
   note?: string;
 }
 
-// Mock bill data with payment methods
-const mockBillData: Record<string, BillSplit> = {
-  '1': {
-    id: '1',
-    title: 'Dinner at Tony\'s Pizza',
-    totalAmount: 75.00,
-    yourShare: 18.75,
-    status: 'pending',
-    participants: [
-      { name: 'Sarah Johnson', amount: 18.75, paid: true },
-      { name: 'Mike Chen', amount: 18.75, paid: false },
-      { name: 'Emily Davis', amount: 18.75, paid: true },
-      { name: 'You', amount: 18.75, paid: false },
-    ],
-    createdBy: 'Sarah Johnson',
-    date: '2 days ago',
-    location: 'Tony\'s Pizza Downtown',
-    note: 'Great team dinner! Thanks everyone for coming out.',
-    paymentMethod: {
-      id: '1',
-      type: 'bank',
-      bankName: 'Access Bank',
-      accountNumber: '0123456789',
-      accountHolderName: 'Sarah Johnson',
-      sortCode: '044'
-    }
-  },
-  '3': {
-    id: '3',
-    title: 'Grocery Shopping',
-    totalAmount: 120.50,
-    yourShare: 40.17,
-    status: 'pending',
-    participants: [
-      { name: 'Mike Chen', amount: 40.17, paid: true },
-      { name: 'Emily Davis', amount: 40.17, paid: false },
-      { name: 'You', amount: 40.16, paid: true },
-    ],
-    createdBy: 'Mike Chen',
-    date: '5 days ago',
-    location: 'Whole Foods Market',
-    paymentMethod: {
-      id: '2',
-      type: 'mobile_money',
-      provider: 'Opay',
-      phoneNumber: '+234 801 234 5678'
-    }
-  }
-};
-
 export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps) {
   const { appSettings } = useUserProfile();
   const isNigeria = appSettings.region === 'NG';
@@ -103,9 +54,18 @@ export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps
   const [bill, setBill] = useState<BillSplit | null>(null);
 
   useEffect(() => {
-    if (billId && mockBillData[billId]) {
-      setBill(mockBillData[billId]);
-    }
+    if (!billId) return;
+    const loadBill = async () => {
+      try {
+        const data = await apiClient(`/api/bill-splits/${billId}`);
+        if (data?.billSplit) {
+          setBill(data.billSplit);
+        }
+      } catch (error) {
+        console.error('Failed to load bill split', error);
+      }
+    };
+    loadBill();
   }, [billId]);
 
   if (!bill) {
@@ -165,14 +125,25 @@ export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps
     toast.success('Payment reference copied to clipboard');
   };
 
-  const markAsSent = () => {
-    setPaymentStatus('sent');
-    toast.success('Payment marked as sent! The bill creator will be notified.');
-    
-    // Navigate back to bills screen after a short delay
-    setTimeout(() => {
-      onNavigate('bills');
-    }, 2000);
+  const markAsSent = async () => {
+    if (!bill) return;
+    try {
+      await apiClient(`/api/bill-splits/${bill.id}/payments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'SENT' })
+      });
+      setPaymentStatus('sent');
+      toast.success('Payment marked as sent! The bill creator will be notified.');
+
+      // Navigate back to bills screen after a short delay
+      setTimeout(() => {
+        onNavigate('bills');
+      }, 2000);
+    } catch (error) {
+      console.error('Failed to mark payment as sent', error);
+      toast.error('Failed to mark payment as sent');
+    }
   };
 
   const formatAccountNumber = (accountNumber: string) => {

@@ -128,7 +128,49 @@ router.get(
         return res.status(404).json({ error: 'Bill split not found' })
       }
 
-      res.json({ billSplit })
+      let paymentMethod = null
+      if (billSplit.paymentMethodId) {
+        const pm = await req.prisma.paymentMethod.findUnique({
+          where: { id: billSplit.paymentMethodId }
+        })
+        if (pm) {
+          paymentMethod = {
+            id: pm.id,
+            type: pm.type,
+            bankName: pm.bank,
+            accountNumber: pm.accountNumber,
+            accountHolderName: pm.accountName,
+            sortCode: pm.sortCode,
+            routingNumber: pm.routingNumber,
+            accountType: pm.accountType,
+            provider: pm.provider,
+            phoneNumber: pm.phoneNumber
+          }
+        }
+      }
+
+      const paidCount = billSplit.participants.filter(p => p.isPaid).length
+      const yourParticipant = billSplit.participants.find(p => p.userId === req.userId)
+
+      const formatted = {
+        id: billSplit.id,
+        title: billSplit.title,
+        totalAmount: billSplit.totalAmount,
+        yourShare: yourParticipant ? yourParticipant.amount : 0,
+        status: paidCount === billSplit.participants.length ? 'completed' : 'pending',
+        participants: billSplit.participants.map(p => ({
+          name: p.userId === req.userId ? 'You' : p.user.name,
+          amount: p.amount,
+          paid: p.isPaid
+        })),
+        createdBy: billSplit.creator.id === req.userId ? 'You' : billSplit.creator.name,
+        date: billSplit.createdAt.toISOString(),
+        ...(billSplit.location ? { location: billSplit.location } : {}),
+        ...(billSplit.note ? { note: billSplit.note } : {}),
+        paymentMethod
+      }
+
+      res.json({ billSplit: formatted })
     } catch (error) {
       console.error('Get bill split error:', error)
       res.status(500).json({ error: 'Internal server error' })
@@ -326,6 +368,50 @@ router.put(
     }
   }
   )
+
+// Mark payment status for current user
+router.post(
+  '/:id/payments',
+  [
+    authenticateToken,
+    param('id').trim().notEmpty(),
+    body('status').optional().isString()
+  ],
+  async (req, res) => {
+    const errors = validationResult(req)
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() })
+    }
+
+    try {
+      const { id } = req.params
+      const { status = 'SENT' } = req.body
+
+      const participant = await req.prisma.billSplitParticipant.findUnique({
+        where: { billSplitId_userId: { billSplitId: id, userId: req.userId } }
+      })
+
+      if (!participant) {
+        return res.status(404).json({ error: 'Participant not found' })
+      }
+
+      const updateData = { status }
+      if (status.toUpperCase() === 'CONFIRMED') {
+        updateData.isPaid = true
+      }
+
+      await req.prisma.billSplitParticipant.update({
+        where: { billSplitId_userId: { billSplitId: id, userId: req.userId } },
+        data: updateData
+      })
+
+      res.json({ message: 'Payment status updated' })
+    } catch (error) {
+      console.error('Update payment status error:', error)
+      res.status(500).json({ error: 'Internal server error' })
+    }
+  }
+)
 
 // Delete bill split
 router.delete(
