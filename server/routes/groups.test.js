@@ -69,7 +69,9 @@ describe('Group join/leave routes', () => {
       pendingBills: 0,
       color: ''
     })
-    expect(joinRes.body.group.members).toEqual([{ name: 'User 1', avatar: '' }])
+    expect(joinRes.body.group.members).toEqual([
+      { userId: 'user1', name: 'User 1', avatar: '' }
+    ])
 
     const leaveRes = await request(app)
       .post(`/groups/${groupId}/leave`)
@@ -120,8 +122,8 @@ describe('Group join/leave routes', () => {
     })
     expect(res.body.group.members).toEqual(
       expect.arrayContaining([
-        { name: 'U1', avatar: '' },
-        { name: 'U2', avatar: '' }
+        { userId: 'u1', name: 'U1', avatar: '' },
+        { userId: 'u2', name: 'U2', avatar: '' }
       ])
     )
   })
@@ -175,7 +177,7 @@ describe('Group join/leave routes', () => {
       ]
     })
 
-    const res = await request(app).get('/groups')
+    const res = await request(app).get('/groups').set('x-user-id', 'user1')
 
     expect(res.status).toBe(200)
     expect(res.body.groups).toHaveLength(1)
@@ -189,8 +191,8 @@ describe('Group join/leave routes', () => {
     expect(group.members).toHaveLength(2)
     expect(group.members).toEqual(
       expect.arrayContaining([
-        { name: 'User 1', avatar: '' },
-        { name: 'User 2', avatar: '' }
+        { userId: 'user1', name: 'User 1', avatar: '' },
+        { userId: 'user2', name: 'User 2', avatar: '' }
       ])
     )
     expect(group).toHaveProperty('description')
