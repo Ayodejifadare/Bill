@@ -3,6 +3,32 @@ import jwt from 'jsonwebtoken'
 
 const router = express.Router()
 
+const defaultSettings = {
+  whatsapp: { enabled: true },
+  push: {
+    enabled: true,
+    billSplits: true,
+    paymentRequests: true,
+    paymentReceived: true,
+    paymentReminders: true,
+    friendRequests: true,
+    groupActivity: true
+  },
+  email: {
+    enabled: false,
+    weeklyDigest: false,
+    monthlyStatement: true,
+    securityAlerts: true,
+    productUpdates: false
+  },
+  sms: {
+    enabled: false,
+    paymentConfirmations: false,
+    securityAlerts: true,
+    urgentReminders: false
+  }
+}
+
 // Authentication middleware
 const authenticateToken = (req, res, next) => {
   const token = req.headers.authorization?.replace('Bearer ', '')
@@ -20,8 +46,45 @@ const authenticateToken = (req, res, next) => {
   }
 }
 
+// Get notification settings
+router.get('/notification-settings', authenticateToken, async (req, res) => {
+  try {
+    let preference = await req.prisma.notificationPreference.findUnique({
+      where: { userId: req.userId }
+    })
+
+    if (!preference) {
+      preference = await req.prisma.notificationPreference.create({
+        data: { userId: req.userId, preferences: defaultSettings }
+      })
+    }
+
+    res.json({ settings: preference.preferences })
+  } catch (error) {
+    console.error('Get notification settings error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+// Update notification settings
+router.patch('/notification-settings', authenticateToken, async (req, res) => {
+  try {
+    const settings = req.body
+    const preference = await req.prisma.notificationPreference.upsert({
+      where: { userId: req.userId },
+      update: { preferences: settings },
+      create: { userId: req.userId, preferences: settings }
+    })
+
+    res.json({ settings: preference.preferences })
+  } catch (error) {
+    console.error('Update notification settings error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
 // Get notifications for a user
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/notifications', authenticateToken, async (req, res) => {
   try {
     const { filter } = req.query
     const where = { recipientId: req.userId }
@@ -59,7 +122,7 @@ router.get('/', authenticateToken, async (req, res) => {
 })
 
 // Get count of unread notifications
-router.get('/unread', authenticateToken, async (req, res) => {
+router.get('/notifications/unread', authenticateToken, async (req, res) => {
   try {
     const count = await req.prisma.notification.count({
       where: { recipientId: req.userId, read: false }
@@ -73,7 +136,7 @@ router.get('/unread', authenticateToken, async (req, res) => {
 })
 
 // Mark a notification as read
-router.patch('/:id/read', authenticateToken, async (req, res) => {
+router.patch('/notifications/:id/read', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params
 
@@ -123,7 +186,7 @@ router.patch('/:id/read', authenticateToken, async (req, res) => {
 })
 
 // Mark all notifications as read
-router.patch('/mark-all-read', authenticateToken, async (req, res) => {
+router.patch('/notifications/mark-all-read', authenticateToken, async (req, res) => {
   try {
     const result = await req.prisma.notification.updateMany({
       where: { recipientId: req.userId, read: false },

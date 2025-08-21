@@ -22,7 +22,6 @@ model User {
   phone     String?
   avatar    String?
   balance   Float    @default(0)
-  notificationSettings Json?
   privacySettings      Json?
   preferenceSettings   Json?
   createdAt DateTime @default(now())
@@ -40,7 +39,7 @@ model User {
   groups              GroupMember[]
   groupAccounts       GroupAccount[]
   notifications       Notification[] @relation("NotificationRecipient")
-  notificationSettings NotificationSetting?
+  notificationPreference NotificationPreference?
   notificationsActing Notification[] @relation("NotificationActor")
 
   @@map("users")
@@ -241,15 +240,14 @@ model Notification {
   @@map("notifications")
 }
 
-model NotificationSetting {
-  id                  String   @id @default(cuid())
-  userId              String   @unique
-  emailNotifications  Boolean  @default(true)
-  pushNotifications   Boolean  @default(true)
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+model NotificationPreference {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  preferences Json     @default("{}")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id])
 
-  @@map("notification_settings")
+  @@map("notification_preferences")
 }
