@@ -1,5 +1,6 @@
 import express from 'express'
 import jwt from 'jsonwebtoken'
+import { broadcastUnreadCount } from '../utils/notifications.js'
 
 const router = express.Router()
 
@@ -184,6 +185,7 @@ router.patch('/notifications/:id/read', authenticateToken, async (req, res) => {
         : null,
       amount: notification.amount
     }
+    await broadcastUnreadCount(req.prisma, req.userId)
 
     res.json({ notification: formatted })
   } catch (error) {
@@ -199,6 +201,7 @@ router.patch('/notifications/mark-all-read', authenticateToken, async (req, res)
       where: { recipientId: req.userId, read: false },
       data: { read: true }
     })
+    await broadcastUnreadCount(req.prisma, req.userId)
 
     res.json({ count: result.count })
   } catch (error) {
