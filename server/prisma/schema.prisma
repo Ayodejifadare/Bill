@@ -236,7 +236,7 @@ model Notification {
   read        Boolean  @default(false)
   actionable  Boolean  @default(false)
   amount      Float?
-  createdAt   DateTime @default(now())
+  createdAt   String   @default("")
   updatedAt   DateTime @updatedAt
 
   recipient User   @relation("NotificationRecipient", fields: [recipientId], references: [id])
