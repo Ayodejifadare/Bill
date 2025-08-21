@@ -54,7 +54,7 @@ app.use('/api/transactions', transactionRoutes)
 app.use('/api/bill-splits', billSplitRoutes)
 app.use('/api/friends', friendRoutes)
 app.use('/api/groups', groupRoutes)
-app.use('/api/notifications', notificationRoutes)
+app.use('/api', notificationRoutes)
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

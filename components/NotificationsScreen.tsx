@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -110,39 +110,81 @@ interface NotificationSettings {
   };
 }
 
+const defaultNotificationSettings: NotificationSettings = {
+  whatsapp: {
+    enabled: true,
+  },
+  push: {
+    enabled: true,
+    billSplits: true,
+    paymentRequests: true,
+    paymentReceived: true,
+    paymentReminders: true,
+    friendRequests: true,
+    groupActivity: true,
+  },
+  email: {
+    enabled: false,
+    weeklyDigest: false,
+    monthlyStatement: true,
+    securityAlerts: true,
+    productUpdates: false,
+  },
+  sms: {
+    enabled: false,
+    paymentConfirmations: false,
+    securityAlerts: true,
+    urgentReminders: false,
+  }
+};
+
 export function NotificationsScreen({ onNavigate }: NotificationsScreenProps) {
   const [notifications, setNotifications] = useState(mockNotifications);
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
   const [activeTab, setActiveTab] = useState<'notifications' | 'settings'>('notifications');
-  
-  // Mock initial notification settings
-  const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>({
-    whatsapp: {
-      enabled: true,
-    },
-    push: {
-      enabled: true,
-      billSplits: true,
-      paymentRequests: true,
-      paymentReceived: true,
-      paymentReminders: true,
-      friendRequests: true,
-      groupActivity: true,
-    },
-    email: {
-      enabled: false,
-      weeklyDigest: false,
-      monthlyStatement: true,
-      securityAlerts: true,
-      productUpdates: false,
-    },
-    sms: {
-      enabled: false,
-      paymentConfirmations: false,
-      securityAlerts: true,
-      urgentReminders: false,
+  const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>(defaultNotificationSettings);
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const storedAuth = localStorage.getItem('biltip_auth');
+        const token = storedAuth ? JSON.parse(storedAuth).token : null;
+        if (!token) return;
+        const res = await fetch('/api/notification-settings', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.settings) {
+            setNotificationSettings(data.settings);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching notification settings:', error);
+      }
+    };
+    fetchSettings();
+  }, []);
+
+  const saveSettings = async (settings: NotificationSettings) => {
+    try {
+      const storedAuth = localStorage.getItem('biltip_auth');
+      const token = storedAuth ? JSON.parse(storedAuth).token : null;
+      if (!token) return;
+      await fetch('/api/notification-settings', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(settings),
+      });
+    } catch (error) {
+      console.error('Error updating notification settings:', error);
     }
-  });
+  };
 
   const filteredNotifications = notifications.filter(notification => {
     if (filter === 'unread') return !notification.read;
@@ -152,45 +194,50 @@ export function NotificationsScreen({ onNavigate }: NotificationsScreenProps) {
   const unreadCount = notifications.filter(n => !n.read).length;
 
   // Settings update functions
-  const updateWhatsAppSetting = (value: boolean) => {
-    setNotificationSettings(prev => ({
-      ...prev,
-      whatsapp: {
-        enabled: value
-      }
-    }));
-    
+  const updateWhatsAppSetting = async (value: boolean) => {
+    const updated = {
+      ...notificationSettings,
+      whatsapp: { enabled: value }
+    };
+    setNotificationSettings(updated);
+    await saveSettings(updated);
     toast.success(value ? 'WhatsApp notifications enabled' : 'WhatsApp notifications disabled');
   };
 
-  const updatePushSetting = (key: keyof NotificationSettings['push'], value: boolean) => {
-    setNotificationSettings(prev => ({
-      ...prev,
+  const updatePushSetting = async (key: keyof NotificationSettings['push'], value: boolean) => {
+    const updated = {
+      ...notificationSettings,
       push: {
-        ...prev.push,
+        ...notificationSettings.push,
         [key]: value
       }
-    }));
+    };
+    setNotificationSettings(updated);
+    await saveSettings(updated);
   };
 
-  const updateEmailSetting = (key: keyof NotificationSettings['email'], value: boolean) => {
-    setNotificationSettings(prev => ({
-      ...prev,
+  const updateEmailSetting = async (key: keyof NotificationSettings['email'], value: boolean) => {
+    const updated = {
+      ...notificationSettings,
       email: {
-        ...prev.email,
+        ...notificationSettings.email,
         [key]: value
       }
-    }));
+    };
+    setNotificationSettings(updated);
+    await saveSettings(updated);
   };
 
-  const updateSmsSetting = (key: keyof NotificationSettings['sms'], value: boolean) => {
-    setNotificationSettings(prev => ({
-      ...prev,
+  const updateSmsSetting = async (key: keyof NotificationSettings['sms'], value: boolean) => {
+    const updated = {
+      ...notificationSettings,
       sms: {
-        ...prev.sms,
+        ...notificationSettings.sms,
         [key]: value
       }
-    }));
+    };
+    setNotificationSettings(updated);
+    await saveSettings(updated);
   };
 
   const markAsRead = (id: string) => {
