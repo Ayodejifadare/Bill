@@ -21,107 +21,74 @@ const authenticateToken = (req, res, next) => {
   }
 }
 
-// Temporary mock friends with payment methods
-const mockFriends = [
-  {
-    id: '1',
-    name: 'Alice Johnson',
-    avatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b47c?w=150',
-    phoneNumber: '+234 801 123 4567',
-    paymentMethods: [
-      {
-        id: 'alice_bank_1',
-        type: 'bank',
-        bankName: 'Access Bank',
-        accountNumber: '0123456789',
-        accountHolderName: 'Alice Johnson',
-        sortCode: '044',
-        isDefault: true
-      }
-    ]
-  },
-  {
-    id: '2',
-    name: 'Bob Wilson',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
-    phoneNumber: '+234 802 234 5678',
-    paymentMethods: [
-      {
-        id: 'bob_mm_1',
-        type: 'mobile_money',
-        provider: 'Opay',
-        phoneNumber: '+234 802 234 5678',
-        isDefault: true
-      },
-      {
-        id: 'bob_bank_1',
-        type: 'bank',
-        bankName: 'Chase Bank',
-        accountNumber: '****3456',
-        routingNumber: '021000021',
-        accountHolderName: 'Robert Wilson'
-      }
-    ]
-  },
-  {
-    id: '3',
-    name: 'Carol Davis',
-    avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150',
-    phoneNumber: '+234 803 345 6789',
-    paymentMethods: [
-      {
-        id: 'carol_bank_1',
-        type: 'bank',
-        bankName: 'GTBank',
-        accountNumber: '0234567890',
-        accountHolderName: 'Carol Davis',
-        sortCode: '058',
-        isDefault: true
-      }
-    ]
-  },
-  {
-    id: '4',
-    name: 'David Brown',
-    avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150',
-    phoneNumber: '+234 804 456 7890',
-    paymentMethods: [
-      {
-        id: 'david_mm_1',
-        type: 'mobile_money',
-        provider: 'PalmPay',
-        phoneNumber: '+234 804 456 7890',
-        isDefault: true
-      }
-    ]
-  },
-  {
-    id: '5',
-    name: 'Emma Garcia',
-    avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150',
-    phoneNumber: '+234 805 567 8901',
-    paymentMethods: [
-      {
-        id: 'emma_bank_1',
-        type: 'bank',
-        bankName: 'First Bank',
-        accountNumber: '3456789012',
-        accountHolderName: 'Emma Garcia',
-        sortCode: '011',
-        isDefault: true
-      }
-    ]
-  }
-]
-
 // Get user's friends
-router.get('/', async (req, res) => {
+router.get('/', authenticateToken, async (req, res) => {
   try {
-    const friends = mockFriends.map(f => ({
-      ...f,
-      defaultPaymentMethod: f.paymentMethods.find(m => m.isDefault)
+    const friendships = await req.prisma.friendship.findMany({
+      where: {
+        OR: [
+          { user1Id: req.userId },
+          { user2Id: req.userId }
+        ]
+      },
+      include: {
+        user1: { select: { id: true, name: true, email: true, avatar: true } },
+        user2: { select: { id: true, name: true, email: true, avatar: true } }
+      }
+    })
+
+    const friends = await Promise.all(friendships.map(async (friendship) => {
+      const friendUser = friendship.user1Id === req.userId ? friendship.user2 : friendship.user1
+
+      const lastTransaction = await req.prisma.transaction.findFirst({
+        where: {
+          OR: [
+            { senderId: req.userId, receiverId: friendUser.id },
+            { senderId: friendUser.id, receiverId: req.userId }
+          ]
+        },
+        orderBy: { createdAt: 'desc' },
+        select: { amount: true, senderId: true, receiverId: true }
+      })
+
+      let lastTransactionData
+      if (lastTransaction) {
+        lastTransactionData = {
+          amount: lastTransaction.amount,
+          type: lastTransaction.receiverId === req.userId ? 'owed' : 'owes'
+        }
+      }
+
+      return {
+        id: friendUser.id,
+        name: friendUser.name,
+        username: friendUser.email,
+        avatar: friendUser.avatar,
+        status: 'active',
+        lastTransaction: lastTransactionData
+      }
     }))
-    res.json({ friends })
+
+    const pendingRequestsData = await req.prisma.friendRequest.findMany({
+      where: {
+        receiverId: req.userId,
+        status: 'PENDING'
+      },
+      include: {
+        sender: { select: { id: true, name: true, email: true, avatar: true } }
+      }
+    })
+
+    const pendingRequests = pendingRequestsData.map(r => ({
+      id: r.sender.id,
+      name: r.sender.name,
+      username: r.sender.email,
+      avatar: r.sender.avatar,
+      status: 'pending',
+      requestId: r.id
+    }))
+
+    res.json({ friends: [...friends, ...pendingRequests] })
   } catch (error) {
     console.error('Get friends error:', error)
     res.status(500).json({ error: 'Internal server error' })

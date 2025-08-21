@@ -46,13 +46,16 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
           email?: string;
           avatar?: string;
           lastTransaction?: Friend['lastTransaction'];
+          status?: Friend['status'];
+          requestId?: string;
         }) => ({
           id: f.id,
           name: f.name,
           username: f.username || f.email || '',
-          status: 'active',
+          status: f.status || 'active',
           avatar: f.avatar,
           lastTransaction: f.lastTransaction,
+          requestId: f.requestId,
         }));
         setFriends(friendsData);
       } catch (error) {
