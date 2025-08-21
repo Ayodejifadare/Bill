@@ -31,25 +31,30 @@ const authenticateToken = async (req, res, next) => {
 // Get user's bill splits
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    const billSplits = await req.prisma.billSplit.findMany({
-      where: {
-        OR: [
-          { createdBy: req.userId },
-          { 
-            participants: {
-              some: { userId: req.userId }
-            }
+    const { groupId } = req.query
+
+    const whereClause = {
+      OR: [
+        { createdBy: req.userId },
+        {
+          participants: {
+            some: { userId: req.userId }
           }
-        ]
-      },
+        }
+      ],
+      ...(groupId ? { groupId } : {})
+    }
+
+    const billSplits = await req.prisma.billSplit.findMany({
+      where: whereClause,
       include: {
         creator: {
-          select: { id: true, name: true, email: true, avatar: true }
+          select: { id: true, name: true }
         },
         participants: {
           include: {
             user: {
-              select: { id: true, name: true, email: true, avatar: true }
+              select: { id: true, name: true }
             }
           }
         }
@@ -57,7 +62,28 @@ router.get('/', authenticateToken, async (req, res) => {
       orderBy: { createdAt: 'desc' }
     })
 
-    res.json({ billSplits })
+    const formattedSplits = billSplits.map(split => {
+      const paidCount = split.participants.filter(p => p.isPaid).length
+      const yourParticipant = split.participants.find(p => p.userId === req.userId)
+
+      return {
+        id: split.id,
+        title: split.title,
+        totalAmount: split.totalAmount,
+        yourShare: yourParticipant ? yourParticipant.amount : 0,
+        status: paidCount === split.participants.length ? 'completed' : 'pending',
+        participants: split.participants.map(p => ({
+          name: p.userId === req.userId ? 'You' : p.user.name,
+          amount: p.amount,
+          paid: p.isPaid
+        })),
+        createdBy: split.creator.id === req.userId ? 'You' : split.creator.name,
+        date: split.createdAt.toISOString(),
+        ...(split.groupId ? { groupId: split.groupId } : {})
+      }
+    })
+
+    res.json({ billSplits: formattedSplits })
   } catch (error) {
     console.error('Get bill splits error:', error)
     res.status(500).json({ error: 'Internal server error' })
