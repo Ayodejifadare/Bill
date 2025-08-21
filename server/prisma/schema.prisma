@@ -42,6 +42,7 @@ model User {
   friendships2        Friendship[] @relation("User2")
   groups              GroupMember[]
   groupAccounts       GroupAccount[]
+  paymentMethods      PaymentMethod[]
   notifications       Notification[] @relation("NotificationRecipient")
   notificationPreference NotificationPreference?
   notificationsActing Notification[] @relation("NotificationActor")
@@ -288,4 +289,23 @@ model SecurityLog {
   user User @relation(fields: [userId], references: [id])
 
   @@map("security_logs")
+}
+
+model PaymentMethod {
+  id            String   @id @default(cuid())
+  type          String
+  bank          String?
+  accountNumber String?
+  accountName   String?
+  sortCode      String?
+  routingNumber String?
+  accountType   String?
+  provider      String?
+  phoneNumber   String?
+  isDefault     Boolean @default(false)
+  userId        String
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("payment_methods")
 }

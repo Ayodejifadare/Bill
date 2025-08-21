@@ -22,45 +22,6 @@ const storage = multer.diskStorage({
 })
 const upload = multer({ storage })
 
-// Temporary mock payment methods for recipients
-const mockRecipientPaymentMethods = {
-  'Sarah Johnson': {
-    id: '1',
-    type: 'bank',
-    bank: 'Access Bank',
-    accountNumber: '0123456789',
-    accountName: 'Sarah Johnson',
-    sortCode: '044',
-    isDefault: true
-  },
-  'Mike Chen': {
-    id: '2',
-    type: 'mobile_money',
-    provider: 'Opay',
-    phoneNumber: '+234 801 234 5678',
-    isDefault: true
-  },
-  'Emily Davis': {
-    id: '3',
-    type: 'bank',
-    bank: 'Chase Bank',
-    accountNumber: '****1234',
-    accountName: 'Emily Davis',
-    routingNumber: '021000021',
-    accountType: 'checking',
-    isDefault: true
-  },
-  'Alex Rodriguez': {
-    id: '4',
-    type: 'bank',
-    bank: 'GTBank',
-    accountNumber: '0234567890',
-    accountName: 'Alex Rodriguez',
-    sortCode: '058',
-    isDefault: true
-  }
-}
-
 // Authentication middleware
 const authenticateToken = async (req, res, next) => {
   const token = req.headers.authorization?.replace('Bearer ', '')
@@ -141,8 +102,10 @@ router.get('/search', authenticateToken, async (req, res) => {
 // Get payment methods for a specific user
 router.get('/:id/payment-methods', authenticateToken, async (req, res) => {
   try {
-    const method = mockRecipientPaymentMethods[req.params.id]
-    res.json({ paymentMethods: method ? [method] : [] })
+    const methods = await req.prisma.paymentMethod.findMany({
+      where: { userId: req.params.id }
+    })
+    res.json(methods)
   } catch (error) {
     console.error('Get user payment methods error:', error)
     res.status(500).json({ error: 'Internal server error' })

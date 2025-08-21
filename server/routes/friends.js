@@ -9,45 +9,6 @@ import { createNotification } from '../utils/notifications.js'
 
 const router = express.Router()
 
-// Temporary mock payment methods
-const mockRecipientPaymentMethods = {
-  'Sarah Johnson': {
-    id: '1',
-    type: 'bank',
-    bank: 'Access Bank',
-    accountNumber: '0123456789',
-    accountName: 'Sarah Johnson',
-    sortCode: '044',
-    isDefault: true
-  },
-  'Mike Chen': {
-    id: '2',
-    type: 'mobile_money',
-    provider: 'Opay',
-    phoneNumber: '+234 801 234 5678',
-    isDefault: true
-  },
-  'Emily Davis': {
-    id: '3',
-    type: 'bank',
-    bank: 'Chase Bank',
-    accountNumber: '****1234',
-    accountName: 'Emily Davis',
-    routingNumber: '021000021',
-    accountType: 'checking',
-    isDefault: true
-  },
-  'Alex Rodriguez': {
-    id: '4',
-    type: 'bank',
-    bank: 'GTBank',
-    accountNumber: '0234567890',
-    accountName: 'Alex Rodriguez',
-    sortCode: '058',
-    isDefault: true
-  }
-}
-
 // Authentication middleware
 const authenticateToken = async (req, res, next) => {
   const token = req.headers.authorization?.replace('Bearer ', '')
@@ -454,7 +415,9 @@ router.get('/:friendId', authenticateToken, async (req, res) => {
       color: g.color || 'bg-blue-500'
     }))
 
-    const method = mockRecipientPaymentMethods[friendUser.name]
+    const method = await req.prisma.paymentMethod.findFirst({
+      where: { userId: friendUser.id, isDefault: true }
+    })
 
     res.json({
       friend: {
