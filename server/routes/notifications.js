@@ -58,6 +58,20 @@ router.get('/', authenticateToken, async (req, res) => {
   }
 })
 
+// Get count of unread notifications
+router.get('/unread', authenticateToken, async (req, res) => {
+  try {
+    const count = await req.prisma.notification.count({
+      where: { recipientId: req.userId, read: false }
+    })
+
+    res.json({ count })
+  } catch (error) {
+    console.error('Get unread notifications count error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
 // Mark a notification as read
 router.patch('/:id/read', authenticateToken, async (req, res) => {
   try {
