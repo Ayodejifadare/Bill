@@ -3,12 +3,7 @@
 // functions currently return mocked data but simulate asynchronous API calls
 // and expose strong typing for consumers.
 
-export interface Friend {
-  id: string;
-  name: string;
-  avatar?: string;
-  phoneNumber?: string;
-}
+import { fetchFriends as fetchFriendsApi, Friend } from '../hooks/useFriends';
 
 export interface Group {
   id: string;
@@ -38,54 +33,14 @@ export interface ExternalAccount {
 }
 
 // Simple caches to prevent duplicate network calls
-let friendsCache: Friend[] | null = null;
 let groupsCache: Group[] | null = null;
 const externalAccountsCache = new Map<string, ExternalAccount[]>();
 
 // Simulated latency helper
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-export async function fetchFriends(isNigeria: boolean): Promise<Friend[]> {
-  if (friendsCache) return friendsCache;
-  await delay(100); // simulate network latency
-  friendsCache = [
-    {
-      id: '1',
-      name: 'Alice Johnson',
-      avatar:
-        'https://images.unsplash.com/photo-1494790108755-2616b612b47c?w=150',
-      phoneNumber: isNigeria ? '+234 801 123 4567' : '+1 (555) 123-4567',
-    },
-    {
-      id: '2',
-      name: 'Bob Wilson',
-      avatar:
-        'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
-      phoneNumber: isNigeria ? '+234 802 234 5678' : '+1 (555) 234-5678',
-    },
-    {
-      id: '3',
-      name: 'Carol Davis',
-      avatar:
-        'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150',
-      phoneNumber: isNigeria ? '+234 803 345 6789' : '+1 (555) 345-6789',
-    },
-    {
-      id: '4',
-      name: 'David Brown',
-      avatar:
-        'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150',
-      phoneNumber: isNigeria ? '+234 804 456 7890' : '+1 (555) 456-7890',
-    },
-    {
-      id: '5',
-      name: 'Emma Garcia',
-      avatar:
-        'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150',
-      phoneNumber: isNigeria ? '+234 805 567 8901' : '+1 (555) 567-8901',
-    },
-  ];
-  return friendsCache;
+export async function fetchFriends(_isNigeria: boolean): Promise<Friend[]> {
+  return fetchFriendsApi();
 }
 
 export async function fetchGroups(isNigeria: boolean): Promise<Group[]> {
