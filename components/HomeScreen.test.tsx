@@ -1,14 +1,22 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { HomeScreen } from './HomeScreen';
-import * as UserProfileContext from './UserProfileContext';
-import * as TransactionsHook from '../hooks/useTransactions';
+
+vi.mock('./UserProfileContext', () => ({
+  useUserProfile: vi.fn(() => ({
+    appSettings: { region: 'US' },
+    userProfile: { name: 'Test User' },
+  })),
+}));
 
 vi.mock('./UpcomingPayments', () => ({
   UpcomingPayments: () => <div />,
 }));
 
-const useUserProfileSpy = vi.spyOn(UserProfileContext, 'useUserProfile');
+import { useUserProfile } from './UserProfileContext';
+import { HomeScreen } from './HomeScreen';
+import * as TransactionsHook from '../hooks/useTransactions';
+
+const useUserProfileSpy = useUserProfile as unknown as vi.Mock;
 const useTransactionsSpy = vi.spyOn(TransactionsHook, 'useTransactions');
 
 describe('HomeScreen header', () => {
@@ -127,5 +135,55 @@ describe('HomeScreen transaction filtering', () => {
     expect(screen.getByText('Paid Bob')).toBeInTheDocument();
     expect(screen.getByText('Received from Carol')).toBeInTheDocument();
     expect(screen.getByText('Dinner with Dan')).toBeInTheDocument();
+  });
+});
+
+describe('HomeScreen currency symbol', () => {
+  beforeEach(() => {
+    useUserProfileSpy.mockReturnValue({
+      appSettings: { region: 'US' },
+      userProfile: { name: 'Test User' },
+    });
+    useTransactionsSpy.mockReturnValue({
+      transactions: [
+        {
+          id: '1',
+          type: 'sent',
+          amount: 10,
+          description: 'Test payment',
+          recipient: { name: 'Bob' },
+          date: '2023-01-01',
+          status: 'completed',
+        },
+      ],
+      loading: false,
+      error: null,
+    });
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ count: 0 }),
+    }) as any;
+  });
+
+  it('uses $ for US region', () => {
+    useUserProfileSpy.mockReturnValue({
+      appSettings: { region: 'US' },
+      userProfile: { name: 'Test User' },
+    });
+
+    render(<HomeScreen onNavigate={() => {}} />);
+
+    expect(screen.getAllByText(/\$10\.00/)[0]).toBeInTheDocument();
+  });
+
+  it('uses ₦ for NG region', () => {
+    useUserProfileSpy.mockReturnValue({
+      appSettings: { region: 'NG' },
+      userProfile: { name: 'Test User' },
+    });
+
+    render(<HomeScreen onNavigate={() => {}} />);
+
+    expect(screen.getAllByText(/₦10\.00/)[0]).toBeInTheDocument();
   });
 });

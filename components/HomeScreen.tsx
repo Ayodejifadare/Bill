@@ -240,7 +240,12 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
           )}
           {!transactionsLoading && !transactionsError &&
             filteredTransactions.slice(0, 4).map((transaction) => (
-              <TransactionCard key={transaction.id} transaction={transaction} onNavigate={onNavigate} />
+              <TransactionCard
+                key={transaction.id}
+                transaction={transaction}
+                onNavigate={onNavigate}
+                currencySymbol={currencySymbol}
+              />
             ))}
         </div>
 
