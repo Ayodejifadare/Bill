@@ -32,14 +32,20 @@ async function handleResponse<T>(response: Response): Promise<T> {
 
 export async function fetchPaymentMethods(): Promise<PaymentMethod[]> {
   const res = await fetch(API_BASE);
-  return handleResponse<PaymentMethod[]>(res);
+  const data = await handleResponse<
+    PaymentMethod[] | { paymentMethods: PaymentMethod[] }
+  >(res);
+  return Array.isArray(data) ? data : data.paymentMethods;
 }
 
 export async function fetchUserPaymentMethods(
   userId: string
 ): Promise<PaymentMethod[]> {
   const res = await fetch(`/api/users/${userId}/payment-methods`);
-  return handleResponse<PaymentMethod[]>(res);
+  const data = await handleResponse<
+    PaymentMethod[] | { paymentMethods: PaymentMethod[] }
+  >(res);
+  return Array.isArray(data) ? data : data.paymentMethods;
 }
 
 export type CreatePaymentMethodPayload = Omit<PaymentMethod, 'id'>;
