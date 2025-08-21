@@ -14,6 +14,7 @@ model User {
   id        String   @id @default(cuid())
   email     String   @unique
   name      String
+  password  String   @default("")
   firstName String?
   lastName  String?
   dateOfBirth DateTime?
@@ -22,6 +23,9 @@ model User {
   phone     String?
   avatar    String?
   balance   Float    @default(0)
+  twoFactorEnabled Boolean  @default(false)
+  biometricEnabled Boolean  @default(false)
+  tokenVersion    Int      @default(0)
   privacySettings      Json?
   preferenceSettings   Json?
   createdAt DateTime @default(now())
@@ -41,6 +45,7 @@ model User {
   notifications       Notification[] @relation("NotificationRecipient")
   notificationPreference NotificationPreference?
   notificationsActing Notification[] @relation("NotificationActor")
+  securityLogs        SecurityLog[]
 
   @@map("users")
 }
@@ -250,4 +255,18 @@ model NotificationPreference {
   user User @relation(fields: [userId], references: [id])
 
   @@map("notification_preferences")
+}
+
+model SecurityLog {
+  id         String   @id @default(cuid())
+  userId     String
+  action     String
+  device     String?
+  location   String?
+  suspicious Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("security_logs")
 }
