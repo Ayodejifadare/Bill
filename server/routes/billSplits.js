@@ -179,4 +179,128 @@ router.post('/', [
   }
 })
 
+// Update bill split
+router.put(
+  '/:id',
+  [
+    authenticateToken,
+    param('id').trim().notEmpty(),
+    body('title').trim().notEmpty(),
+    body('items').isArray({ min: 1 }),
+    body('items.*.name').trim().notEmpty(),
+    body('items.*.price').isFloat({ gt: 0 }),
+    body('items.*.quantity').isInt({ min: 1 }),
+    body('participants').isArray({ min: 1 }),
+    body('participants.*.id').trim().notEmpty(),
+    body('participants.*.amount').isFloat({ gt: 0 }),
+    body('splitMethod').isIn(['equal', 'percentage', 'custom']),
+    body('paymentMethodId').trim().notEmpty(),
+    body('location').optional().trim(),
+    body('date').optional().isISO8601(),
+    body('note').optional().trim()
+  ],
+  async (req, res) => {
+    const errors = validationResult(req)
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() })
+    }
+
+    try {
+      const { id } = req.params
+      const {
+        title,
+        items,
+        participants,
+        splitMethod,
+        paymentMethodId,
+        location,
+        date,
+        note
+      } = req.body
+
+      // Ensure bill split exists and user is creator
+      const existing = await req.prisma.billSplit.findUnique({
+        where: { id },
+        select: { createdBy: true }
+      })
+
+      if (!existing) {
+        return res.status(404).json({ error: 'Bill split not found' })
+      }
+
+      if (existing.createdBy !== req.userId) {
+        return res.status(403).json({ error: 'Unauthorized' })
+      }
+
+      const totalAmount = items.reduce(
+        (sum, item) => sum + item.price * item.quantity,
+        0
+      )
+
+      const billSplit = await req.prisma.$transaction(async prisma => {
+        // Update bill split record
+        await prisma.billSplit.update({
+          where: { id },
+          data: {
+            title,
+            location,
+            date: date ? new Date(date) : undefined,
+            description: note,
+            splitMethod,
+            paymentMethodId,
+            totalAmount
+          }
+        })
+
+        // Replace line items
+        await prisma.billSplitLineItem.deleteMany({ where: { billSplitId: id } })
+        await prisma.billSplitLineItem.createMany({
+          data: items.map(item => ({
+            billSplitId: id,
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity
+          }))
+        })
+
+        // Replace participants allocations
+        await prisma.billSplitParticipant.deleteMany({
+          where: { billSplitId: id }
+        })
+        await prisma.billSplitParticipant.createMany({
+          data: participants.map(p => ({
+            billSplitId: id,
+            userId: p.id,
+            amount: p.amount
+          }))
+        })
+
+        // Return updated bill split with relations
+        return prisma.billSplit.findUnique({
+          where: { id },
+          include: {
+            creator: {
+              select: { id: true, name: true, email: true, avatar: true }
+            },
+            participants: {
+              include: {
+                user: {
+                  select: { id: true, name: true, email: true, avatar: true }
+                }
+              }
+            },
+            lineItems: true,
+            paymentMethod: true
+          }
+        })
+      })
+
+      res.json({ billSplit })
+    } catch (error) {
+      console.error('Update bill split error:', error)
+      res.status(500).json({ error: 'Internal server error' })
+    }
+  }
+)
+
 export default router
