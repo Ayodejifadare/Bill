@@ -6,6 +6,7 @@ import { Separator } from './ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { ArrowLeft, Bell, Shield, Smartphone, Moon, Sun, Monitor, Globe, CreditCard, Eye, MessageCircle } from 'lucide-react';
 import { useTheme } from './ThemeContext';
+import { useUserProfile } from './UserProfileContext';
 
 interface SettingsScreenProps {
   onNavigate: (tab: string) => void;
@@ -13,6 +14,7 @@ interface SettingsScreenProps {
 
 export function SettingsScreen({ onNavigate }: SettingsScreenProps) {
   const { theme, setTheme, actualTheme } = useTheme();
+  const { saveSettings } = useUserProfile();
   
   const [settings, setSettings] = useState({
     notifications: {
@@ -45,6 +47,13 @@ export function SettingsScreen({ onNavigate }: SettingsScreenProps) {
         [key]: value,
       },
     }));
+  };
+
+  const handleSave = async () => {
+    const updated = await saveSettings(settings);
+    if (updated) {
+      setSettings(updated);
+    }
   };
 
   return (
@@ -342,7 +351,7 @@ export function SettingsScreen({ onNavigate }: SettingsScreenProps) {
         </Card>
 
         {/* Save Changes */}
-        <Button className="w-full h-12">
+        <Button className="w-full h-12" onClick={handleSave}>
           Save Changes
         </Button>
       </div>

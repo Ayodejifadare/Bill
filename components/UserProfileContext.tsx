@@ -32,6 +32,12 @@ interface UserPreferences {
   biometrics: boolean;
 }
 
+interface UserSettings {
+  notifications: Record<string, boolean>;
+  privacy: Record<string, boolean>;
+  preferences: Record<string, string | boolean>;
+}
+
 interface UserProfile {
   id: string;
   /** Display name - typically first and last name combined */
@@ -66,6 +72,7 @@ interface UserProfileContextType {
   addBankAccount: (account: Omit<LinkedBankAccount, 'id' | 'addedDate'>) => void;
   removeBankAccount: (accountId: string) => void;
   setDefaultBankAccount: (accountId: string) => void;
+  saveSettings: (settings: UserSettings) => Promise<UserSettings | undefined>;
 }
 
 const UserProfileContext = createContext<UserProfileContextType | undefined>(undefined);
@@ -253,6 +260,33 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const saveSettings = async (settings: UserSettings) => {
+    try {
+      const storedAuth = localStorage.getItem('biltip_auth');
+      const token = storedAuth ? JSON.parse(storedAuth).token : null;
+      const userId = userProfile.id;
+      if (!token || !userId) return;
+
+      const response = await fetch(`/api/users/${userId}/settings`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(settings),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save settings');
+      }
+
+      const data = await response.json();
+      return data.settings as UserSettings;
+    } catch (error) {
+      console.error('Error saving settings:', error);
+    }
+  };
+
   const addBankAccount = (account: Omit<LinkedBankAccount, 'id' | 'addedDate'>) => {
     const newAccount: LinkedBankAccount = {
       ...account,
@@ -293,7 +327,8 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
         updateAppSettings,
         addBankAccount,
         removeBankAccount,
-        setDefaultBankAccount
+        setDefaultBankAccount,
+        saveSettings
       }}
     >
       {children}
