@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Switch } from './ui/switch';
@@ -14,20 +14,47 @@ interface SettingsScreenProps {
 
 export function SettingsScreen({ onNavigate }: SettingsScreenProps) {
   const { theme, setTheme, actualTheme } = useTheme();
-  const { saveSettings } = useUserProfile();
+  const { saveSettings, userProfile, updateUserProfile } = useUserProfile();
+
+  const [preferences, setPreferences] = useState(userProfile.preferences);
+  useEffect(() => {
+    setPreferences(userProfile.preferences);
+    setSettings(prev => ({
+      ...prev,
+      notifications: {
+        ...prev.notifications,
+        pushNotifications: userProfile.preferences.notifications,
+        emailNotifications: userProfile.preferences.emailAlerts,
+        whatsappNotifications: userProfile.preferences.whatsappAlerts,
+      },
+      privacy: {
+        ...prev.privacy,
+        biometricAuth: userProfile.preferences.biometrics,
+      },
+    }));
+  }, [userProfile.preferences]);
+
+  const updatePreference = (key: keyof typeof preferences, value: boolean) => {
+    const newPrefs = {
+      ...preferences,
+      [key]: value,
+    };
+    setPreferences(newPrefs);
+    updateUserProfile({ preferences: newPrefs });
+  };
   
   const [settings, setSettings] = useState({
     notifications: {
-      pushNotifications: true,
-      emailNotifications: false,
-      whatsappNotifications: true,
+      pushNotifications: userProfile.preferences.notifications,
+      emailNotifications: userProfile.preferences.emailAlerts,
+      whatsappNotifications: userProfile.preferences.whatsappAlerts,
       smsNotifications: true,
       transactionAlerts: true,
       friendRequests: true,
       billReminders: true,
     },
     privacy: {
-      biometricAuth: true,
+      biometricAuth: userProfile.preferences.biometrics,
       twoFactorAuth: false,
       publicProfile: false,
       shareActivity: true,
@@ -94,8 +121,11 @@ export function SettingsScreen({ onNavigate }: SettingsScreenProps) {
               </p>
             </div>
             <Switch
-              checked={settings.notifications.pushNotifications}
-              onCheckedChange={(checked) => updateSetting('notifications', 'pushNotifications', checked)}
+              checked={preferences.notifications}
+              onCheckedChange={(checked) => {
+                updatePreference('notifications', checked);
+                updateSetting('notifications', 'pushNotifications', checked);
+              }}
             />
           </div>
           
@@ -109,8 +139,11 @@ export function SettingsScreen({ onNavigate }: SettingsScreenProps) {
               </p>
             </div>
             <Switch
-              checked={settings.notifications.emailNotifications}
-              onCheckedChange={(checked) => updateSetting('notifications', 'emailNotifications', checked)}
+              checked={preferences.emailAlerts}
+              onCheckedChange={(checked) => {
+                updatePreference('emailAlerts', checked);
+                updateSetting('notifications', 'emailNotifications', checked);
+              }}
             />
           </div>
           
@@ -127,8 +160,11 @@ export function SettingsScreen({ onNavigate }: SettingsScreenProps) {
               </div>
             </div>
             <Switch
-              checked={settings.notifications.whatsappNotifications}
-              onCheckedChange={(checked) => updateSetting('notifications', 'whatsappNotifications', checked)}
+              checked={preferences.whatsappAlerts}
+              onCheckedChange={(checked) => {
+                updatePreference('whatsappAlerts', checked);
+                updateSetting('notifications', 'whatsappNotifications', checked);
+              }}
             />
           </div>
           
@@ -180,8 +216,11 @@ export function SettingsScreen({ onNavigate }: SettingsScreenProps) {
               </p>
             </div>
             <Switch
-              checked={settings.privacy.biometricAuth}
-              onCheckedChange={(checked) => updateSetting('privacy', 'biometricAuth', checked)}
+              checked={preferences.biometrics}
+              onCheckedChange={(checked) => {
+                updatePreference('biometrics', checked);
+                updateSetting('privacy', 'biometricAuth', checked);
+              }}
             />
           </div>
           
@@ -241,7 +280,10 @@ export function SettingsScreen({ onNavigate }: SettingsScreenProps) {
                     ? 'bg-primary text-primary-foreground border-primary' 
                     : 'hover:bg-accent border-border'
                 }`}
-                onClick={() => setTheme('light')}
+                onClick={() => {
+                  setTheme('light');
+                  updatePreference('darkMode', false);
+                }}
               >
                 <div className="flex items-center gap-3">
                   <Sun className="w-5 h-5" />
@@ -262,7 +304,10 @@ export function SettingsScreen({ onNavigate }: SettingsScreenProps) {
                     ? 'bg-primary text-primary-foreground border-primary' 
                     : 'hover:bg-accent border-border'
                 }`}
-                onClick={() => setTheme('dark')}
+                onClick={() => {
+                  setTheme('dark');
+                  updatePreference('darkMode', true);
+                }}
               >
                 <div className="flex items-center gap-3">
                   <Moon className="w-5 h-5" />
@@ -283,7 +328,10 @@ export function SettingsScreen({ onNavigate }: SettingsScreenProps) {
                     ? 'bg-primary text-primary-foreground border-primary' 
                     : 'hover:bg-accent border-border'
                 }`}
-                onClick={() => setTheme('system')}
+                onClick={() => {
+                  setTheme('system');
+                  updatePreference('darkMode', actualTheme === 'dark');
+                }}
               >
                 <div className="flex items-center gap-3">
                   <Monitor className="w-5 h-5" />

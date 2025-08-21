@@ -167,7 +167,8 @@ router.get('/:id', authenticateToken, async (req, res) => {
         bio: true,
         createdAt: true,
         twoFactorEnabled: true,
-        biometricEnabled: true
+        biometricEnabled: true,
+        preferenceSettings: true
       }
     })
 
@@ -175,7 +176,8 @@ router.get('/:id', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'User not found' })
     }
 
-    res.json({ user })
+    const { preferenceSettings, ...rest } = user
+    res.json({ user: { ...rest, preferences: preferenceSettings || {} } })
   } catch (error) {
     console.error('Get user error:', error)
     res.status(500).json({ error: 'Internal server error' })
@@ -220,7 +222,13 @@ router.put(
     body('lastName').optional().isString().trim().notEmpty(),
     body('dateOfBirth').optional().isISO8601(),
     body('address').optional().isString().trim().notEmpty(),
-    body('bio').optional().isString().trim().notEmpty()
+    body('bio').optional().isString().trim().notEmpty(),
+    body('preferences').optional().isObject(),
+    body('preferences.notifications').optional().isBoolean(),
+    body('preferences.emailAlerts').optional().isBoolean(),
+    body('preferences.whatsappAlerts').optional().isBoolean(),
+    body('preferences.darkMode').optional().isBoolean(),
+    body('preferences.biometrics').optional().isBoolean()
   ],
   async (req, res) => {
     try {
@@ -233,7 +241,7 @@ router.put(
         return res.status(403).json({ error: 'Unauthorized' })
       }
 
-      const { name, email, phone, avatar, firstName, lastName, dateOfBirth, address, bio } = req.body
+      const { name, email, phone, avatar, firstName, lastName, dateOfBirth, address, bio, preferences } = req.body
       const data = {}
       if (name !== undefined) data.name = name
       if (email !== undefined) data.email = email
@@ -244,6 +252,7 @@ router.put(
       if (dateOfBirth !== undefined) data.dateOfBirth = new Date(dateOfBirth)
       if (address !== undefined) data.address = address
       if (bio !== undefined) data.bio = bio
+      if (preferences !== undefined) data.preferenceSettings = preferences
 
       if (Object.keys(data).length === 0) {
         return res.status(400).json({ error: 'No valid fields provided' })
@@ -263,11 +272,12 @@ router.put(
           dateOfBirth: true,
           address: true,
           bio: true,
-          createdAt: true
+          createdAt: true,
+          preferenceSettings: true
         }
       })
-
-      res.json({ user })
+      const { preferenceSettings, ...rest } = user
+      res.json({ user: { ...rest, preferences: preferenceSettings || {} } })
     } catch (error) {
       console.error('Update user error:', error)
       res.status(500).json({ error: 'Internal server error' })

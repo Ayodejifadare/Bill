@@ -234,6 +234,7 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
         dateOfBirth,
         address,
         bio,
+        preferences,
       } = profileUpdate;
       const payload: Record<string, unknown> = {};
       if (name !== undefined) payload.name = name;
@@ -245,6 +246,7 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
       if (dateOfBirth !== undefined) payload.dateOfBirth = dateOfBirth;
       if (address !== undefined) payload.address = address;
       if (bio !== undefined) payload.bio = bio;
+      if (preferences !== undefined) payload.preferences = preferences;
 
       await fetch(`/api/users/${userId}`, {
         method: 'PUT',
