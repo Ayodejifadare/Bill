@@ -224,12 +224,27 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
       const userId = userProfile.id;
       if (!token || !userId) return;
 
-      const { name, email, phone, avatar } = profileUpdate;
+      const {
+        name,
+        email,
+        phone,
+        avatar,
+        firstName,
+        lastName,
+        dateOfBirth,
+        address,
+        bio,
+      } = profileUpdate;
       const payload: Record<string, unknown> = {};
       if (name !== undefined) payload.name = name;
       if (email !== undefined) payload.email = email;
       if (phone !== undefined) payload.phone = phone;
       if (avatar !== undefined) payload.avatar = avatar;
+      if (firstName !== undefined) payload.firstName = firstName;
+      if (lastName !== undefined) payload.lastName = lastName;
+      if (dateOfBirth !== undefined) payload.dateOfBirth = dateOfBirth;
+      if (address !== undefined) payload.address = address;
+      if (bio !== undefined) payload.bio = bio;
 
       await fetch(`/api/users/${userId}`, {
         method: 'PUT',

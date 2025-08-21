@@ -13,7 +13,7 @@ interface AccountSettingsScreenProps {
 }
 
 export function AccountSettingsScreen({ onNavigate }: AccountSettingsScreenProps) {
-  const { userProfile, updateUserProfile } = useUserProfile();
+  const { userProfile, updateUserProfile, refreshUserProfile } = useUserProfile();
   const [isEditing, setIsEditing] = useState(false);
 
   const profileToState = () => ({
@@ -49,7 +49,7 @@ export function AccountSettingsScreen({ onNavigate }: AccountSettingsScreenProps
       bio: userData.bio,
       avatar: userData.avatar,
     });
-    setOriginalData(userData);
+    await refreshUserProfile();
     setIsEditing(false);
   };
 
