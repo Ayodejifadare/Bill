@@ -116,8 +116,7 @@ router.get(
               }
             }
           },
-          lineItems: true,
-          paymentMethod: true
+          items: true
         }
       })
 
@@ -271,7 +270,7 @@ router.put(
             title,
             location,
             date: date ? new Date(date) : undefined,
-            description: note,
+            note,
             splitMethod,
             paymentMethodId,
             totalAmount
@@ -279,8 +278,8 @@ router.put(
         })
 
         // Replace line items
-        await prisma.billSplitLineItem.deleteMany({ where: { billSplitId: id } })
-        await prisma.billSplitLineItem.createMany({
+        await prisma.billItem.deleteMany({ where: { billSplitId: id } })
+        await prisma.billItem.createMany({
           data: items.map(item => ({
             billSplitId: id,
             name: item.name,
@@ -315,8 +314,7 @@ router.put(
                 }
               }
             },
-            lineItems: true,
-            paymentMethod: true
+            items: true
           }
         })
       })
@@ -356,7 +354,7 @@ router.delete(
       }
 
       await req.prisma.$transaction(async prisma => {
-        await prisma.billSplitLineItem.deleteMany({ where: { billSplitId: id } })
+        await prisma.billItem.deleteMany({ where: { billSplitId: id } })
         await prisma.billSplitParticipant.deleteMany({ where: { billSplitId: id } })
         await prisma.billSplit.delete({ where: { id } })
       })
