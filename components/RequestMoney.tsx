@@ -16,13 +16,7 @@ import { useUserProfile } from './UserProfileContext';
 // utilities rather than a dedicated share action.
 import { createRequest } from '../utils/request-api';
 import { PaymentMethodSelector, PaymentMethod } from './PaymentMethodSelector';
-
-interface Friend {
-  id: string;
-  name: string;
-  avatar?: string;
-  phoneNumber?: string;
-}
+import { useFriends, Friend } from '../hooks/useFriends';
 
 
 interface Group {
@@ -56,36 +50,14 @@ export function RequestMoney({ onNavigate, prefillData }: RequestMoneyProps) {
   const [recurringFrequency, setRecurringFrequency] = useState('monthly');
   const [recurringDay, setRecurringDay] = useState('1');
   const [recurringDayOfWeek, setRecurringDayOfWeek] = useState('monday');
-  const [friends, setFriends] = useState<Friend[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { friends } = useFriends();
 
-  const loadFriendsAndGroups = useCallback(async () => {
+  const loadGroups = useCallback(async () => {
     try {
-      const [friendsRes, groupsRes] = await Promise.all([
-        fetch('/api/friends'),
-        fetch('/api/groups'),
-      ]);
-
-      let friendsData: Friend[] = [];
-      if (friendsRes.ok) {
-        const data = await friendsRes.json();
-        friendsData = (data.friends || []).map((f: {
-          id: string;
-          name: string;
-          avatar?: string;
-          phoneNumber?: string;
-          phone?: string;
-        }) => ({
-          id: f.id,
-          name: f.name,
-          avatar: f.avatar,
-          phoneNumber: f.phoneNumber || f.phone || '',
-        }));
-        setFriends(friendsData);
-      }
-
+      const groupsRes = await fetch('/api/groups');
       if (groupsRes.ok) {
         const data = await groupsRes.json();
         const groupsData: Group[] = (data.groups || []).map((g: {
@@ -97,27 +69,25 @@ export function RequestMoney({ onNavigate, prefillData }: RequestMoneyProps) {
           id: g.id,
           name: g.name,
           members: (g.members || [])
-            .map((id: string) => friendsData.find(f => f.id === id))
+            .map((id: string) => friends.find(f => f.id === id))
             .filter(Boolean) as Friend[],
           color: g.color || 'bg-blue-500',
         }));
         setGroups(groupsData);
       }
     } catch (err) {
-      console.error('Failed to load friends or groups', err);
+      console.error('Failed to load groups', err);
     }
-  }, []);
+  }, [friends]);
 
   useEffect(() => {
-    loadFriendsAndGroups();
-    const refresh = () => loadFriendsAndGroups();
-    window.addEventListener('friendsUpdated', refresh);
+    loadGroups();
+    const refresh = () => loadGroups();
     window.addEventListener('groupsUpdated', refresh);
     return () => {
-      window.removeEventListener('friendsUpdated', refresh);
       window.removeEventListener('groupsUpdated', refresh);
     };
-  }, [loadFriendsAndGroups]);
+  }, [loadGroups]);
 
   useEffect(() => {
     const methods: PaymentMethod[] = (userProfile.linkedBankAccounts || []).map(acc => ({

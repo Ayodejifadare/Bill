@@ -12,12 +12,9 @@ import { toast } from 'sonner';
 import { useUserProfile } from './UserProfileContext';
 
 import { PaymentMethodSelector, PaymentMethod } from './PaymentMethodSelector';
+import { useFriends, Friend as BaseFriend } from '../hooks/useFriends';
 
-interface Friend {
-  id: string;
-  name: string;
-  avatar?: string;
-  phoneNumber?: string;
+interface Friend extends BaseFriend {
   defaultPaymentMethod?: PaymentMethod;
   paymentMethods?: PaymentMethod[];
 }
@@ -50,31 +47,15 @@ export function SendMoney({ onNavigate, prefillData }: SendMoneyProps) {
   const [message, setMessage] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [showGroupSelection, setShowGroupSelection] = useState(false);
-  const [friends, setFriends] = useState<Friend[]>([]);
-
-  const fetchFriends = async () => {
-    try {
-      const res = await fetch('/api/friends');
-      if (!res.ok) {
-        throw new Error('Failed to fetch friends');
-      }
-      const data = await res.json();
-      setFriends(data.friends || []);
-    } catch (error) {
-      console.error('Failed to load friends', error);
-    }
-  };
+  const { friends, refetch: refetchFriends } = useFriends();
 
   useEffect(() => {
-    fetchFriends();
-    const handleRefresh = () => fetchFriends();
+    const handleRefresh = () => refetchFriends();
     window.addEventListener('focus', handleRefresh);
-    window.addEventListener('friendsUpdated', handleRefresh as EventListener);
     return () => {
       window.removeEventListener('focus', handleRefresh);
-      window.removeEventListener('friendsUpdated', handleRefresh as EventListener);
     };
-  }, []);
+  }, [refetchFriends]);
 
   // Mock groups
   const groups: Group[] = [
