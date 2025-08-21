@@ -126,6 +126,30 @@ describe('Group join/leave routes', () => {
     )
   })
 
+  it('rejects empty memberIds array', async () => {
+    const res = await request(app)
+      .post('/groups')
+      .send({ name: 'Test', memberIds: [] })
+
+    expect(res.status).toBe(400)
+    expect(res.body.error).toBe('memberIds must be a non-empty array')
+  })
+
+  it('rejects memberIds that do not exist', async () => {
+    await prisma.user.create({
+      data: { id: 'u1', email: 'u1@example.com', name: 'U1' }
+    })
+
+    const res = await request(app)
+      .post('/groups')
+      .send({ name: 'Test', memberIds: ['u1', 'u2'] })
+
+    expect(res.status).toBe(400)
+    expect(res.body.error).toBe(
+      'All memberIds must correspond to existing users'
+    )
+  })
+
   it('lists groups with member details and aggregates', async () => {
     const createRes = await request(app).post('/groups').send({ name: 'Test' })
     const groupId = createRes.body.group.id
