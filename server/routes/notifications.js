@@ -1,8 +1,9 @@
 import express from 'express'
-import jwt from 'jsonwebtoken'
+import authenticate from '../middleware/auth.js'
 import { broadcastUnreadCount } from '../utils/notifications.js'
 
 const router = express.Router()
+router.use(authenticate)
 
 const defaultSettings = {
   whatsapp: { enabled: true },
@@ -30,40 +31,16 @@ const defaultSettings = {
   }
 }
 
-// Authentication middleware
-const authenticateToken = async (req, res, next) => {
-  const token = req.headers.authorization?.replace('Bearer ', '')
-
-  if (!token) {
-    return res.status(401).json({ error: 'No token provided' })
-  }
-
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key')
-    const user = await req.prisma.user.findUnique({
-      where: { id: decoded.userId },
-      select: { tokenVersion: true }
-    })
-    if (!user || user.tokenVersion !== decoded.tokenVersion) {
-      return res.status(401).json({ error: 'Invalid token' })
-    }
-    req.userId = decoded.userId
-    next()
-  } catch (error) {
-    return res.status(401).json({ error: 'Invalid token' })
-  }
-}
-
 // Get notification settings
-router.get('/notification-settings', authenticateToken, async (req, res) => {
+router.get('/notification-settings', async (req, res) => {
   try {
     let preference = await req.prisma.notificationPreference.findUnique({
-      where: { userId: req.userId }
+      where: { userId: req.user.id }
     })
 
     if (!preference) {
       preference = await req.prisma.notificationPreference.create({
-        data: { userId: req.userId, preferences: defaultSettings }
+        data: { userId: req.user.id, preferences: defaultSettings }
       })
     }
 
@@ -75,13 +52,13 @@ router.get('/notification-settings', authenticateToken, async (req, res) => {
 })
 
 // Update notification settings
-router.patch('/notification-settings', authenticateToken, async (req, res) => {
+router.patch('/notification-settings', async (req, res) => {
   try {
     const settings = req.body
     const preference = await req.prisma.notificationPreference.upsert({
-      where: { userId: req.userId },
+      where: { userId: req.user.id },
       update: { preferences: settings },
-      create: { userId: req.userId, preferences: settings }
+      create: { userId: req.user.id, preferences: settings }
     })
 
     res.json({ settings: preference.preferences })
@@ -92,10 +69,10 @@ router.patch('/notification-settings', authenticateToken, async (req, res) => {
 })
 
 // Get notifications for a user
-router.get('/notifications', authenticateToken, async (req, res) => {
+router.get('/notifications', async (req, res) => {
   try {
     const { filter } = req.query
-    const where = { recipientId: req.userId }
+    const where = { recipientId: req.user.id }
     if (filter === 'unread') {
       where.read = false
     }
@@ -130,10 +107,10 @@ router.get('/notifications', authenticateToken, async (req, res) => {
 })
 
 // Get count of unread notifications
-router.get('/notifications/unread', authenticateToken, async (req, res) => {
+router.get('/notifications/unread', async (req, res) => {
   try {
     const count = await req.prisma.notification.count({
-      where: { recipientId: req.userId, read: false }
+      where: { recipientId: req.user.id, read: false }
     })
 
     res.json({ count })
@@ -144,7 +121,7 @@ router.get('/notifications/unread', authenticateToken, async (req, res) => {
 })
 
 // Mark a notification as read
-router.patch('/notifications/:id/read', authenticateToken, async (req, res) => {
+router.patch('/notifications/:id/read', async (req, res) => {
   try {
     const { id } = req.params
 
@@ -155,7 +132,7 @@ router.patch('/notifications/:id/read', authenticateToken, async (req, res) => {
       }
     })
 
-    if (!notification || notification.recipientId !== req.userId) {
+    if (!notification || notification.recipientId !== req.user.id) {
       return res.status(404).json({ error: 'Notification not found' })
     }
 
@@ -185,7 +162,7 @@ router.patch('/notifications/:id/read', authenticateToken, async (req, res) => {
         : null,
       amount: notification.amount
     }
-    await broadcastUnreadCount(req.prisma, req.userId)
+    await broadcastUnreadCount(req.prisma, req.user.id)
 
     res.json({ notification: formatted })
   } catch (error) {
@@ -195,13 +172,13 @@ router.patch('/notifications/:id/read', authenticateToken, async (req, res) => {
 })
 
 // Mark all notifications as read
-router.patch('/notifications/mark-all-read', authenticateToken, async (req, res) => {
+router.patch('/notifications/mark-all-read', async (req, res) => {
   try {
     const result = await req.prisma.notification.updateMany({
-      where: { recipientId: req.userId, read: false },
+      where: { recipientId: req.user.id, read: false },
       data: { read: true }
     })
-    await broadcastUnreadCount(req.prisma, req.userId)
+    await broadcastUnreadCount(req.prisma, req.user.id)
 
     res.json({ count: result.count })
   } catch (error) {
