@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('./UserProfileContext', () => ({
@@ -58,6 +58,77 @@ describe('HomeScreen header', () => {
 
     expect(screen.getByText('there')).toBeInTheDocument();
     expect(screen.getByText('?')).toBeInTheDocument();
+  });
+});
+
+describe('HomeScreen quick actions', () => {
+  beforeEach(() => {
+    useUserProfileSpy.mockReturnValue({
+      appSettings: { region: 'US' },
+      userProfile: { name: 'Test User' },
+    });
+    useTransactionsSpy.mockReturnValue({
+      transactions: [],
+      loading: false,
+      error: null,
+    });
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ count: 0 }),
+    }) as any;
+  });
+
+  it('triggers navigation for each quick action', () => {
+    const onNavigate = vi.fn();
+    render(<HomeScreen onNavigate={onNavigate} />);
+
+    const actions = [
+      { label: /^Send$/, tab: 'send' },
+      { label: /^Request$/, tab: 'request' },
+      { label: /^Split$/, tab: 'split' },
+      { label: /^Bills$/, tab: 'bills' },
+    ];
+
+    actions.forEach(({ label, tab }) => {
+      const button = screen.getAllByRole('button', { name: label }).pop()!;
+      fireEvent.click(button);
+      expect(onNavigate).toHaveBeenLastCalledWith(tab);
+    });
+  });
+});
+
+describe('HomeScreen notification badge', () => {
+  beforeEach(() => {
+    useUserProfileSpy.mockReturnValue({
+      appSettings: { region: 'US' },
+      userProfile: { name: 'Test User' },
+    });
+    useTransactionsSpy.mockReturnValue({
+      transactions: [],
+      loading: false,
+      error: null,
+    });
+  });
+
+  it('reflects unread count and hides during loading', async () => {
+    let resolveFetch: (value: any) => void;
+    global.fetch = vi.fn(
+      () =>
+        new Promise(res => {
+          resolveFetch = res;
+        })
+    ) as any;
+
+    render(<HomeScreen onNavigate={() => {}} />);
+
+    // badge hidden while loading
+    expect(screen.queryByText('5')).not.toBeInTheDocument();
+
+    await act(async () => {
+      resolveFetch({ ok: true, json: async () => ({ count: 5 }) });
+    });
+
+    expect(await screen.findByText('5')).toBeInTheDocument();
   });
 });
 
