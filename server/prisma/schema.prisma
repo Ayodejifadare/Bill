@@ -24,10 +24,14 @@ model User {
   sentTransactions     Transaction[] @relation("SentTransactions")
   receivedTransactions Transaction[] @relation("ReceivedTransactions")
   billSplits          BillSplit[]
+  billSplitParticipants BillSplitParticipant[]
   friendRequestsSent  FriendRequest[] @relation("FriendRequestSender")
   friendRequestsReceived FriendRequest[] @relation("FriendRequestReceiver")
   friendships1        Friendship[] @relation("User1")
   friendships2        Friendship[] @relation("User2")
+  groupsCreated       Group[]      @relation("GroupCreator")
+  groupMemberships    GroupMember[]
+  groupInvitesSent    GroupInvite[] @relation("GroupInviteInviter")
 
   @@map("users")
 }
@@ -45,11 +49,13 @@ model Transaction {
   senderId   String
   receiverId String
   billSplitId String?
+  groupId    String?
 
   // Relationships
   sender    User       @relation("SentTransactions", fields: [senderId], references: [id])
   receiver  User       @relation("ReceivedTransactions", fields: [receiverId], references: [id])
   billSplit BillSplit? @relation(fields: [billSplitId], references: [id])
+  group     Group?     @relation(fields: [groupId], references: [id])
 
   @@map("transactions")
 }
@@ -65,9 +71,11 @@ model BillSplit {
 
   // Foreign keys
   createdBy String
+  groupId   String?
 
   // Relationships
   creator      User          @relation(fields: [createdBy], references: [id])
+  group        Group?        @relation(fields: [groupId], references: [id])
   transactions Transaction[]
   participants BillSplitParticipant[]
 
@@ -125,6 +133,73 @@ model FriendRequest {
   @@map("friend_requests")
 }
 
+model Group {
+  id          String       @id @default(cuid())
+  name        String
+  description String?
+  color       String?
+  createdAt   DateTime     @default(now())
+  createdBy   String
+
+  creator      User          @relation("GroupCreator", fields: [createdBy], references: [id])
+  members      GroupMember[]
+  invites      GroupInvite[]
+  accounts     GroupAccount[]
+  billSplits   BillSplit[]
+  transactions Transaction[]
+
+  @@map("groups")
+}
+
+model GroupMember {
+  id          String   @id @default(cuid())
+  role        GroupRole
+  balance     Float    @default(0)
+  joinedAt    DateTime @default(now())
+  permissions String?
+
+  groupId String
+  userId  String
+
+  group Group @relation(fields: [groupId], references: [id])
+  user  User  @relation(fields: [userId], references: [id])
+
+  @@unique([groupId, userId])
+  @@map("group_members")
+}
+
+model GroupInvite {
+  id           String            @id @default(cuid())
+  inviteeEmail String?
+  inviteePhone String?
+  status       GroupInviteStatus @default(PENDING)
+  method       InviteMethod
+  createdAt    DateTime          @default(now())
+
+  groupId   String
+  inviterId String
+
+  group   Group @relation(fields: [groupId], references: [id])
+  inviter User  @relation("GroupInviteInviter", fields: [inviterId], references: [id])
+
+  @@map("group_invites")
+}
+
+model GroupAccount {
+  id            String           @id @default(cuid())
+  accountNumber String
+  bankName      String
+  type          GroupAccountType
+  isDefault     Boolean          @default(false)
+  createdAt     DateTime         @default(now())
+
+  groupId String
+
+  group Group @relation(fields: [groupId], references: [id])
+
+  @@map("group_accounts")
+}
+
 enum TransactionStatus {
   PENDING
   COMPLETED
@@ -148,4 +223,27 @@ enum FriendRequestStatus {
   PENDING
   ACCEPTED
   DECLINED
+}
+
+enum GroupRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum GroupInviteStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+enum InviteMethod {
+  EMAIL
+  PHONE
+  LINK
+}
+
+enum GroupAccountType {
+  BANK
+  MOBILE
 }
