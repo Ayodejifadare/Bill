@@ -43,6 +43,7 @@ async function formatGroup(prisma, group, userId) {
     totalSpent,
     recentActivity: lastActive ? `Last activity on ${lastActive.toISOString()}` : '',
     members: group.members.map((m) => ({
+      userId: m.userId,
       name: m.user.name,
       avatar: m.user.avatar || ''
     })),
@@ -56,9 +57,12 @@ async function formatGroup(prisma, group, userId) {
 }
 
 // GET / - list all groups with member details and aggregates
-router.get('/', async (req, res) => {
+router.get('/', authenticate, async (req, res) => {
   try {
     const groups = await req.prisma.group.findMany({
+      where: {
+        members: { some: { userId: req.user.id } }
+      },
       include: {
         members: {
           include: {
@@ -71,7 +75,7 @@ router.get('/', async (req, res) => {
     })
 
     const formatted = await Promise.all(
-      groups.map((g) => formatGroup(req.prisma, g))
+      groups.map((g) => formatGroup(req.prisma, g, req.user.id))
     )
 
     res.json({ groups: formatted })
