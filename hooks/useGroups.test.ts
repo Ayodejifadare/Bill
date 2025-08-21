@@ -90,10 +90,10 @@ describe('useGroups', () => {
     await waitFor(() => expect(result.current.groups).toEqual([newGroup]));
   });
 
-  it('creates a group', async () => {
-    const newGroup: Group = {
-      id: '3',
-      name: 'Created Group',
+    it('creates a group', async () => {
+      const newGroup: Group = {
+        id: '3',
+        name: 'Created Group',
       description: '',
       memberCount: 1,
       totalSpent: 0,
@@ -121,8 +121,55 @@ describe('useGroups', () => {
     });
 
     expect(created).toEqual(newGroup);
-    await waitFor(() => expect(result.current.groups).toEqual([newGroup]));
-  });
+      await waitFor(() => expect(result.current.groups).toEqual([newGroup]));
+    });
+
+    it('updates groups after creating a new group', async () => {
+      const existing: Group = {
+        id: '1',
+        name: 'Existing',
+        description: '',
+        memberCount: 1,
+        totalSpent: 0,
+        recentActivity: '',
+        members: [],
+        isAdmin: false,
+        lastActive: '',
+        pendingBills: 0,
+        color: ''
+      };
+
+      const newGroup: Group = {
+        id: '2',
+        name: 'New',
+        description: '',
+        memberCount: 1,
+        totalSpent: 0,
+        recentActivity: '',
+        members: [],
+        isAdmin: false,
+        lastActive: '',
+        pendingBills: 0,
+        color: ''
+      };
+
+      vi.spyOn(global, 'fetch')
+        .mockResolvedValueOnce({ ok: true, json: async () => ({ groups: [existing] }) } as unknown as Response)
+        .mockResolvedValueOnce({ ok: true, json: async () => ({ group: newGroup }) } as unknown as Response);
+
+      const { result } = renderHook(() => useGroups());
+
+      await waitFor(() => expect(result.current.loading).toBe(false));
+
+      await result.current.createGroup({
+        name: newGroup.name,
+        description: newGroup.description,
+        color: newGroup.color,
+        memberIds: []
+      });
+
+      await waitFor(() => expect(result.current.groups).toEqual([existing, newGroup]));
+    });
 
   it('leaves a group', async () => {
     const group1: Group = {
