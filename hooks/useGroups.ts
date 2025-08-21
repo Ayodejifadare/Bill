@@ -17,6 +17,13 @@ export interface Group {
   color: string;
 }
 
+interface CreateGroupPayload {
+  name: string;
+  description: string;
+  color: string;
+  memberIds: string[];
+}
+
 interface UseGroupsResult {
   groups: Group[];
   loading: boolean;
@@ -24,6 +31,7 @@ interface UseGroupsResult {
   refetch: () => void;
   joinGroup: (groupId: string) => Promise<void>;
   leaveGroup: (groupId: string) => Promise<void>;
+  createGroup: (payload: CreateGroupPayload) => Promise<Group | undefined>;
 }
 
 export function useGroups(): UseGroupsResult {
@@ -82,5 +90,28 @@ export function useGroups(): UseGroupsResult {
     }
   }, []);
 
-  return { groups, loading, error, refetch: fetchGroups, joinGroup, leaveGroup };
+  const createGroup = useCallback(async (payload: CreateGroupPayload) => {
+    setError(null);
+    try {
+      const res = await fetch('/api/groups', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) {
+        throw new Error('Failed to create group');
+      }
+      const data = await res.json();
+      const newGroup: Group | undefined = data.group || data;
+      if (newGroup) {
+        setGroups(prev => [...prev, newGroup]);
+      }
+      return newGroup;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create group');
+      throw err;
+    }
+  }, []);
+
+  return { groups, loading, error, refetch: fetchGroups, joinGroup, leaveGroup, createGroup };
 }

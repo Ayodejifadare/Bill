@@ -12,7 +12,9 @@ afterEach(() => {
 
 describe('CreateGroupScreen', () => {
   it('validates required fields', async () => {
-    vi.spyOn(global, 'fetch').mockResolvedValue({ ok: true, json: async () => ({ friends: [] }) } as unknown as Response);
+    vi.spyOn(global, 'fetch')
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ groups: [] }) } as unknown as Response)
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ friends: [] }) } as unknown as Response);
     render(<CreateGroupScreen onNavigate={vi.fn()} />);
 
     fireEvent.click(screen.getByText('Next'));
@@ -27,6 +29,7 @@ describe('CreateGroupScreen', () => {
 
   it('creates group successfully', async () => {
     vi.spyOn(global, 'fetch')
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ groups: [] }) } as unknown as Response)
       .mockResolvedValueOnce({ ok: true, json: async () => ({ friends: [{ id: '1', name: 'Alice', avatar: 'A', email: 'a@a.com' }] }) } as unknown as Response)
       .mockResolvedValueOnce({ ok: true, json: async () => ({ group: { id: 'g1' } }) } as unknown as Response);
     const onNavigate = vi.fn();
@@ -42,8 +45,8 @@ describe('CreateGroupScreen', () => {
     fireEvent.click(createBtn);
 
     await waitFor(() => expect(onNavigate).toHaveBeenCalledWith('group-details', { groupId: 'g1' }));
-    expect((global.fetch as any).mock.calls[1][0]).toBe('/api/groups');
-    const body = JSON.parse((global.fetch as any).mock.calls[1][1].body);
+    expect((global.fetch as any).mock.calls[2][0]).toBe('/api/groups');
+    const body = JSON.parse((global.fetch as any).mock.calls[2][1].body);
     expect(body).toEqual({ name: 'Trip', description: 'Desc', color: 'bg-blue-500', memberIds: ['1'] });
     expect(toast.success).toHaveBeenCalled();
   });
