@@ -2,6 +2,7 @@ import express from 'express'
 import { body, validationResult } from 'express-validator'
 import jwt from 'jsonwebtoken'
 import { TRANSACTION_TYPE_MAP, TRANSACTION_STATUS_MAP } from '../../shared/transactions.js'
+import { createNotification } from '../utils/notifications.js'
 
 // Build reverse lookup maps for filters
 const REVERSE_TRANSACTION_TYPE_MAP = Object.fromEntries(
@@ -204,6 +205,15 @@ router.post('/send', [
       type: TRANSACTION_TYPE_MAP[transaction.type] || transaction.type,
       status: TRANSACTION_STATUS_MAP[transaction.status] || transaction.status
     }
+
+    await createNotification(req.prisma, {
+      recipientId: receiverId,
+      actorId: req.userId,
+      type: 'payment_received',
+      title: 'Payment received',
+      message: `${transaction.sender.name} sent you ${amount}`,
+      amount
+    })
 
     res.status(201).json({
       message: 'Money sent successfully',

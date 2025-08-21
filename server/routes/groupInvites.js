@@ -1,4 +1,5 @@
 import express from 'express'
+import { createNotification } from '../utils/notifications.js'
 
 const router = express.Router({ mergeParams: true })
 
@@ -38,8 +39,26 @@ router.post('/:inviteId/resend', async (req, res) => {
         attempts: { increment: 1 },
         status: 'delivered',
         lastAttempt: new Date()
+      },
+      include: { group: true }
+    })
+
+    const user = await req.prisma.user.findFirst({
+      where: {
+        OR: [{ email: invite.contact }, { phone: invite.contact }]
       }
     })
+
+    if (user) {
+      await createNotification(req.prisma, {
+        recipientId: user.id,
+        actorId: invite.invitedBy,
+        type: 'group_invite_resend',
+        title: 'Group invite',
+        message: `You have been invited to join ${invite.group.name}`,
+        actionable: true
+      })
+    }
     const formatted = {
       id: invite.id,
       name: invite.name || '',
