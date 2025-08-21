@@ -301,6 +301,46 @@ router.put(
       res.status(500).json({ error: 'Internal server error' })
     }
   }
+  )
+
+// Delete bill split
+router.delete(
+  '/:id',
+  [authenticateToken, param('id').trim().notEmpty()],
+  async (req, res) => {
+    const errors = validationResult(req)
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() })
+    }
+
+    try {
+      const { id } = req.params
+
+      const existing = await req.prisma.billSplit.findUnique({
+        where: { id },
+        select: { createdBy: true }
+      })
+
+      if (!existing) {
+        return res.status(404).json({ error: 'Bill split not found' })
+      }
+
+      if (existing.createdBy !== req.userId) {
+        return res.status(403).json({ error: 'Unauthorized' })
+      }
+
+      await req.prisma.$transaction(async prisma => {
+        await prisma.billSplitLineItem.deleteMany({ where: { billSplitId: id } })
+        await prisma.billSplitParticipant.deleteMany({ where: { billSplitId: id } })
+        await prisma.billSplit.delete({ where: { id } })
+      })
+
+      res.json({ message: 'Bill split deleted successfully' })
+    } catch (error) {
+      console.error('Delete bill split error:', error)
+      res.status(500).json({ error: 'Internal server error' })
+    }
+  }
 )
 
 export default router
