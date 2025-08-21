@@ -113,7 +113,7 @@ router.get('/notifications', authenticateToken, async (req, res) => {
       type: n.type,
       title: n.title,
       message: n.message,
-      time: n.createdAt,
+      time: new Date(n.createdAt).toISOString(),
       read: n.read,
       actionable: n.actionable,
       user: n.actor
@@ -172,7 +172,7 @@ router.patch('/notifications/:id/read', authenticateToken, async (req, res) => {
       type: notification.type,
       title: notification.title,
       message: notification.message,
-      time: notification.createdAt,
+      time: new Date(notification.createdAt).toISOString(),
       read: notification.read,
       actionable: notification.actionable,
       user: notification.actor

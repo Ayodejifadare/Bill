@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { formatDistanceToNow } from 'date-fns';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -182,7 +183,11 @@ export function NotificationsScreen({ onNavigate }: NotificationsScreenProps) {
       });
       const data = await res.json();
       if (Array.isArray(data.notifications)) {
-        setNotifications(data.notifications);
+        const formatted = data.notifications.map((n: Notification) => ({
+          ...n,
+          time: formatDistanceToNow(new Date(n.time), { addSuffix: true })
+        }));
+        setNotifications(formatted);
       }
       setNotificationsError(null);
     } catch (error) {
