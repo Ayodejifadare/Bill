@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Avatar, AvatarFallback } from './ui/avatar';
@@ -40,15 +40,20 @@ export function ProfileScreen({ onNavigate, onLogout }: ProfileScreenProps) {
     setPreferences(userProfile.preferences);
   }, [userProfile.preferences]);
 
+  const hasLoaded = useRef(false);
+
   useEffect(() => {
+    if (hasLoaded.current) return;
+    hasLoaded.current = true;
+
     const loadProfile = async () => {
       setIsLoading(true);
       await refreshUserProfile();
       setIsLoading(false);
     };
+
     loadProfile();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [refreshUserProfile]);
 
   const updatePreference = (key: keyof typeof preferences, value: boolean) => {
     const newPrefs = {
