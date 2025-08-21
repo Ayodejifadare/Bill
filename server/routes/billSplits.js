@@ -413,6 +413,93 @@ router.post(
   }
 )
 
+// Settle bill split
+router.post(
+  '/:id/settle',
+  [authenticateToken, param('id').trim().notEmpty()],
+  async (req, res) => {
+    const errors = validationResult(req)
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() })
+    }
+
+    try {
+      const { id } = req.params
+
+      const billSplit = await req.prisma.billSplit.findUnique({
+        where: { id },
+        include: { participants: true }
+      })
+
+      if (!billSplit) {
+        return res.status(404).json({ error: 'Bill split not found' })
+      }
+
+      if (billSplit.createdBy !== req.userId) {
+        return res.status(403).json({ error: 'Unauthorized' })
+      }
+
+      const allPaid = billSplit.participants.every(p => p.isPaid)
+      if (!allPaid) {
+        return res.status(400).json({ error: 'All participants must confirm payment before settling' })
+      }
+
+      const updated = await req.prisma.$transaction(async prisma => {
+        // Record settlement transactions for participants if needed
+        for (const participant of billSplit.participants) {
+          if (participant.userId === billSplit.createdBy) continue
+
+          const existing = await prisma.transaction.findFirst({
+            where: {
+              billSplitId: id,
+              senderId: participant.userId,
+              receiverId: billSplit.createdBy
+            }
+          })
+
+          if (!existing) {
+            await prisma.transaction.create({
+              data: {
+                senderId: participant.userId,
+                receiverId: billSplit.createdBy,
+                amount: participant.amount,
+                description: `Settlement for ${billSplit.title}`,
+                type: 'BILL_SPLIT',
+                status: 'COMPLETED',
+                billSplitId: id
+              }
+            })
+          }
+        }
+
+        // Update bill split status
+        return prisma.billSplit.update({
+          where: { id },
+          data: { status: 'SETTLED' },
+          include: {
+            creator: {
+              select: { id: true, name: true, email: true, avatar: true }
+            },
+            participants: {
+              include: {
+                user: {
+                  select: { id: true, name: true, email: true, avatar: true }
+                }
+              }
+            },
+            items: true
+          }
+        })
+      })
+
+      res.json({ billSplit: updated })
+    } catch (error) {
+      console.error('Settle bill split error:', error)
+      res.status(500).json({ error: 'Internal server error' })
+    }
+  }
+)
+
 // Delete bill split
 router.delete(
   '/:id',
