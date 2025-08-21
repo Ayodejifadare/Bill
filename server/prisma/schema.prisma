@@ -26,8 +26,8 @@ model User {
   twoFactorEnabled Boolean  @default(false)
   biometricEnabled Boolean  @default(false)
   tokenVersion    Int      @default(0)
-  privacySettings      Json?
-  preferenceSettings   Json?
+  privacySettings      String?
+  preferenceSettings   String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -80,6 +80,11 @@ model BillSplit {
     status      String @default("PENDING")
     createdAt   DateTime         @default(now())
     updatedAt   DateTime         @updatedAt
+    location    String?
+    date        DateTime?
+    note        String?
+    splitMethod String?
+    paymentMethodId String?
 
   // Foreign keys
   createdBy String
@@ -88,13 +93,27 @@ model BillSplit {
   creator      User          @relation(fields: [createdBy], references: [id])
   transactions Transaction[]
   participants BillSplitParticipant[]
+  items        BillItem[]
 
   @@map("bill_splits")
+}
+
+model BillItem {
+  id          String @id @default(cuid())
+  name        String
+  price       Float
+  quantity    Int
+  billSplitId String
+
+  billSplit BillSplit @relation(fields: [billSplitId], references: [id])
+
+  @@map("bill_items")
 }
 
 model BillSplitParticipant {
   id       String @id @default(cuid())
   amount   Float
+  status   String @default("PENDING")
   isPaid   Boolean @default(false)
 
   // Foreign keys
@@ -248,7 +267,7 @@ model Notification {
 model NotificationPreference {
   id          String   @id @default(cuid())
   userId      String   @unique
-  preferences Json     @default("{}")
+  preferences String   @default("{}")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
