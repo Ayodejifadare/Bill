@@ -47,9 +47,9 @@ router.post('/register', [
       }
     })
 
-    // Generate JWT token
+    // Generate JWT token including token version
     const token = jwt.sign(
-      { userId: user.id },
+      { userId: user.id, tokenVersion: 0 },
       process.env.JWT_SECRET || 'your-secret-key',
       { expiresIn: '7d' }
     )
@@ -93,9 +93,9 @@ router.post('/login', [
       return res.status(400).json({ error: 'Invalid credentials' })
     }
 
-    // Generate JWT token
+    // Generate JWT token including token version
     const token = jwt.sign(
-      { userId: user.id },
+      { userId: user.id, tokenVersion: user.tokenVersion },
       process.env.JWT_SECRET || 'your-secret-key',
       { expiresIn: '7d' }
     )
@@ -132,11 +132,12 @@ router.get('/me', async (req, res) => {
         name: true,
         balance: true,
         avatar: true,
-        createdAt: true
+        createdAt: true,
+        tokenVersion: true
       }
     })
 
-    if (!user) {
+    if (!user || user.tokenVersion !== decoded.tokenVersion) {
       return res.status(401).json({ error: 'User not found' })
     }
 

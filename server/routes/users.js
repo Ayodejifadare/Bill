@@ -1,5 +1,6 @@
 import express from 'express'
 import jwt from 'jsonwebtoken'
+import bcrypt from 'bcryptjs'
 import { body, validationResult } from 'express-validator'
 import multer from 'multer'
 import path from 'path'
@@ -61,19 +62,42 @@ const mockRecipientPaymentMethods = {
 }
 
 // Authentication middleware
-const authenticateToken = (req, res, next) => {
+const authenticateToken = async (req, res, next) => {
   const token = req.headers.authorization?.replace('Bearer ', '')
-  
+
   if (!token) {
     return res.status(401).json({ error: 'No token provided' })
   }
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key')
+    const user = await req.prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { tokenVersion: true }
+    })
+    if (!user || user.tokenVersion !== decoded.tokenVersion) {
+      return res.status(401).json({ error: 'Invalid token' })
+    }
     req.userId = decoded.userId
     next()
   } catch (error) {
     return res.status(401).json({ error: 'Invalid token' })
+  }
+}
+
+async function logSecurityEvent(prisma, userId, action, req) {
+  try {
+    await prisma.securityLog.create({
+      data: {
+        userId,
+        action,
+        device: req.headers['user-agent'] || '',
+        location: req.ip || '',
+        suspicious: false
+      }
+    })
+  } catch (e) {
+    console.error('Log security event error:', e)
   }
 }
 
@@ -141,7 +165,9 @@ router.get('/:id', authenticateToken, async (req, res) => {
         dateOfBirth: true,
         address: true,
         bio: true,
-        createdAt: true
+        createdAt: true,
+        twoFactorEnabled: true,
+        biometricEnabled: true
       }
     })
 
@@ -318,4 +344,125 @@ router.put('/:id/settings', authenticateToken, async (req, res) => {
   }
 })
 
+// Change password
+router.post(
+  '/:id/change-password',
+  [authenticateToken, body('currentPassword').isString(), body('newPassword').isLength({ min: 6 })],
+  async (req, res) => {
+    try {
+      if (req.userId !== req.params.id) {
+        return res.status(403).json({ error: 'Unauthorized' })
+      }
+
+      const errors = validationResult(req)
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() })
+      }
+
+      const user = await req.prisma.user.findUnique({ where: { id: req.params.id } })
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' })
+      }
+
+      const valid = await bcrypt.compare(req.body.currentPassword, user.password || '')
+      if (!valid) {
+        return res.status(400).json({ error: 'Invalid current password' })
+      }
+
+      const hashed = await bcrypt.hash(req.body.newPassword, 12)
+      await req.prisma.user.update({ where: { id: req.params.id }, data: { password: hashed } })
+      await logSecurityEvent(req.prisma, req.params.id, 'Password Changed', req)
+      res.json({ message: 'Password updated successfully' })
+    } catch (error) {
+      console.error('Change password error:', error)
+      res.status(500).json({ error: 'Internal server error' })
+    }
+  }
+)
+
+// Toggle two-factor authentication
+router.post('/:id/two-factor', authenticateToken, async (req, res) => {
+  try {
+    if (req.userId !== req.params.id) {
+      return res.status(403).json({ error: 'Unauthorized' })
+    }
+    const enabled = !!req.body.enabled
+    await req.prisma.user.update({ where: { id: req.params.id }, data: { twoFactorEnabled: enabled } })
+    await logSecurityEvent(
+      req.prisma,
+      req.params.id,
+      enabled ? 'Two-Factor Enabled' : 'Two-Factor Disabled',
+      req
+    )
+    res.json({ twoFactorAuth: enabled })
+  } catch (error) {
+    console.error('Two-factor update error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+// Toggle biometric authentication
+router.post('/:id/biometric', authenticateToken, async (req, res) => {
+  try {
+    if (req.userId !== req.params.id) {
+      return res.status(403).json({ error: 'Unauthorized' })
+    }
+    const enabled = !!req.body.enabled
+    await req.prisma.user.update({ where: { id: req.params.id }, data: { biometricEnabled: enabled } })
+    await logSecurityEvent(
+      req.prisma,
+      req.params.id,
+      enabled ? 'Biometric Enabled' : 'Biometric Disabled',
+      req
+    )
+    res.json({ biometricAuth: enabled })
+  } catch (error) {
+    console.error('Biometric update error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+// Get security logs
+router.get('/:id/security-logs', authenticateToken, async (req, res) => {
+  try {
+    if (req.userId !== req.params.id) {
+      return res.status(403).json({ error: 'Unauthorized' })
+    }
+    const logs = await req.prisma.securityLog.findMany({
+      where: { userId: req.params.id },
+      orderBy: { createdAt: 'desc' },
+      take: 20
+    })
+    res.json({ logs })
+  } catch (error) {
+    console.error('Get security logs error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+// Log out other sessions
+router.post('/:id/logout-others', authenticateToken, async (req, res) => {
+  try {
+    if (req.userId !== req.params.id) {
+      return res.status(403).json({ error: 'Unauthorized' })
+    }
+    const user = await req.prisma.user.update({
+      where: { id: req.params.id },
+      data: { tokenVersion: { increment: 1 } },
+      select: { id: true, tokenVersion: true }
+    })
+    const token = jwt.sign(
+      { userId: user.id, tokenVersion: user.tokenVersion },
+      process.env.JWT_SECRET || 'your-secret-key',
+      { expiresIn: '7d' }
+    )
+    await logSecurityEvent(req.prisma, req.params.id, 'Logged out other sessions', req)
+    res.json({ token })
+  } catch (error) {
+    console.error('Logout others error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
 export default router
+
