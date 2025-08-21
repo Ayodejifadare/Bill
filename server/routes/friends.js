@@ -1,8 +1,48 @@
 import express from 'express'
 import { body, validationResult } from 'express-validator'
 import jwt from 'jsonwebtoken'
+import { TRANSACTION_TYPE_MAP, TRANSACTION_STATUS_MAP } from '../../shared/transactions.js'
 
 const router = express.Router()
+
+// Temporary mock payment methods
+const mockRecipientPaymentMethods = {
+  'Sarah Johnson': {
+    id: '1',
+    type: 'bank',
+    bank: 'Access Bank',
+    accountNumber: '0123456789',
+    accountName: 'Sarah Johnson',
+    sortCode: '044',
+    isDefault: true
+  },
+  'Mike Chen': {
+    id: '2',
+    type: 'mobile_money',
+    provider: 'Opay',
+    phoneNumber: '+234 801 234 5678',
+    isDefault: true
+  },
+  'Emily Davis': {
+    id: '3',
+    type: 'bank',
+    bank: 'Chase Bank',
+    accountNumber: '****1234',
+    accountName: 'Emily Davis',
+    routingNumber: '021000021',
+    accountType: 'checking',
+    isDefault: true
+  },
+  'Alex Rodriguez': {
+    id: '4',
+    type: 'bank',
+    bank: 'GTBank',
+    accountNumber: '0234567890',
+    accountName: 'Alex Rodriguez',
+    sortCode: '058',
+    isDefault: true
+  }
+}
 
 // Authentication middleware
 const authenticateToken = (req, res, next) => {
@@ -286,6 +326,118 @@ router.post('/requests/:id/decline', authenticateToken, async (req, res) => {
     })
   } catch (error) {
     console.error('Decline friend request error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+// Get friend details
+router.get('/:friendId', authenticateToken, async (req, res) => {
+  try {
+    const { friendId } = req.params
+
+    const friendship = await req.prisma.friendship.findFirst({
+      where: {
+        OR: [
+          { user1Id: req.userId, user2Id: friendId },
+          { user1Id: friendId, user2Id: req.userId }
+        ]
+      },
+      include: {
+        user1: { select: { id: true, name: true, email: true, avatar: true } },
+        user2: { select: { id: true, name: true, email: true, avatar: true } }
+      }
+    })
+
+    if (!friendship) {
+      return res.status(404).json({ error: 'Friendship not found' })
+    }
+
+    const friendUser = friendship.user1Id === req.userId ? friendship.user2 : friendship.user1
+
+    const transactionsData = await req.prisma.transaction.findMany({
+      where: {
+        OR: [
+          { senderId: req.userId, receiverId: friendId },
+          { senderId: friendId, receiverId: req.userId }
+        ]
+      },
+      include: {
+        sender: { select: { id: true, name: true, email: true, avatar: true } },
+        receiver: { select: { id: true, name: true, email: true, avatar: true } }
+      },
+      orderBy: { createdAt: 'desc' }
+    })
+
+    const transactions = transactionsData.map(t => {
+      let type = TRANSACTION_TYPE_MAP[t.type] || t.type
+      if (type === 'sent' || type === 'received') {
+        type = t.senderId === req.userId ? 'sent' : 'received'
+      }
+      return {
+        id: t.id,
+        amount: t.amount,
+        description: t.description,
+        date: t.createdAt,
+        type,
+        status: TRANSACTION_STATUS_MAP[t.status] || t.status,
+        sender: t.sender,
+        recipient: t.receiver
+      }
+    })
+
+    let balance = 0
+    transactionsData.forEach(t => {
+      if (t.receiverId === req.userId) balance += t.amount
+      if (t.senderId === req.userId) balance -= t.amount
+    })
+
+    let currentBalance = null
+    if (balance > 0) currentBalance = { amount: balance, type: 'owed' }
+    else if (balance < 0) currentBalance = { amount: Math.abs(balance), type: 'owes' }
+
+    const groups = await req.prisma.group.findMany({
+      where: {
+        members: {
+          some: { userId: req.userId }
+        },
+        AND: {
+          members: {
+            some: { userId: friendId }
+          }
+        }
+      },
+      include: {
+        _count: { select: { members: true } }
+      }
+    })
+
+    const sharedGroups = groups.map(g => ({
+      id: g.id,
+      name: g.name,
+      memberCount: g._count.members,
+      totalSpent: 0,
+      color: g.color || 'bg-blue-500'
+    }))
+
+    const method = mockRecipientPaymentMethods[friendUser.name]
+
+    res.json({
+      friend: {
+        id: friendUser.id,
+        name: friendUser.name,
+        username: friendUser.email,
+        status: 'active',
+        avatar: friendUser.avatar,
+        joinedDate: friendship.createdAt,
+        totalTransactions: transactions.length,
+        currentBalance
+      },
+      paymentMethods: method ? [method] : [],
+      transactions,
+      sharedGroups
+    })
+  } catch (error) {
+    console.error('Get friend error:', error)
     res.status(500).json({ error: 'Internal server error' })
   }
 })

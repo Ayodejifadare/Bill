@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Avatar, AvatarFallback } from './ui/avatar';
@@ -36,11 +36,13 @@ interface FriendProfileScreenProps {
 
 interface Transaction {
   id: string;
-  type: 'sent' | 'received' | 'request' | 'split';
+  type: 'sent' | 'received' | 'request' | 'split' | 'bill_split';
   amount: number;
   description: string;
   date: string;
-  status: 'completed' | 'pending' | 'cancelled';
+  status: 'completed' | 'pending' | 'failed';
+  sender?: { name: string; avatar?: string };
+  recipient?: { name: string; avatar?: string };
 }
 
 interface Friend {
@@ -65,135 +67,35 @@ interface SharedGroup {
   color: string;
 }
 
-const mockFriends: Record<string, Friend> = {
-  '1': {
-    id: '1',
-    name: 'Sarah Johnson',
-    username: '@sarah_j',
-    status: 'active',
-    joinedDate: '2023-06-15',
-    totalTransactions: 12,
-    currentBalance: { amount: 25.50, type: 'owed' }
-  },
-  '2': {
-    id: '2',
-    name: 'Mike Chen',
-    username: '@mike_chen',
-    status: 'active',
-    joinedDate: '2023-08-22',
-    totalTransactions: 8,
-    currentBalance: { amount: 15.00, type: 'owes' }
-  },
-  '3': {
-    id: '3',
-    name: 'Emily Davis',
-    username: '@emily_d',
-    status: 'active',
-    joinedDate: '2023-09-10',
-    totalTransactions: 5,
-    currentBalance: null
-  }
-};
-
-const mockTransactions: Record<string, Transaction[]> = {
-  '1': [
-    {
-      id: 't1',
-      type: 'split',
-      amount: 42.50,
-      description: 'Dinner at Luigi\'s',
-      date: '2024-01-15T19:30:00Z',
-      status: 'completed'
-    },
-    {
-      id: 't2',
-      type: 'sent',
-      amount: 25.00,
-      description: 'Coffee and lunch',
-      date: '2024-01-10T14:20:00Z',
-      status: 'completed'
-    },
-    {
-      id: 't3',
-      type: 'request',
-      amount: 15.75,
-      description: 'Movie tickets',
-      date: '2024-01-08T16:45:00Z',
-      status: 'pending'
-    }
-  ],
-  '2': [
-    {
-      id: 't4',
-      type: 'split',
-      amount: 30.00,
-      description: 'Uber ride',
-      date: '2024-01-12T22:15:00Z',
-      status: 'pending'
-    },
-    {
-      id: 't5',
-      type: 'received',
-      amount: 20.00,
-      description: 'Lunch split',
-      date: '2024-01-05T12:30:00Z',
-      status: 'completed'
-    }
-  ],
-  '3': [
-    {
-      id: 't6',
-      type: 'split',
-      amount: 18.50,
-      description: 'Coffee shop',
-      date: '2024-01-14T09:20:00Z',
-      status: 'completed'
-    }
-  ]
-};
-
-const mockSharedGroups: Record<string, SharedGroup[]> = {
-  '1': [
-    {
-      id: 'g1',
-      name: 'Weekend Squad',
-      memberCount: 5,
-      totalSpent: 248.50,
-      color: 'bg-blue-500'
-    },
-    {
-      id: 'g2',
-      name: 'Work Lunch Group',
-      memberCount: 4,
-      totalSpent: 156.75,
-      color: 'bg-green-500'
-    }
-  ],
-  '2': [
-    {
-      id: 'g3',
-      name: 'Gym Buddies',
-      memberCount: 3,
-      totalSpent: 89.25,
-      color: 'bg-purple-500'
-    }
-  ],
-  '3': [
-    {
-      id: 'g1',
-      name: 'Weekend Squad',
-      memberCount: 5,
-      totalSpent: 248.50,
-      color: 'bg-blue-500'
-    }
-  ]
-};
-
 export function FriendProfileScreen({ friendId, onNavigate }: FriendProfileScreenProps) {
   const [activeTab, setActiveTab] = useState('activity');
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);
-  
-  if (!friendId || !mockFriends[friendId]) {
+  const [friend, setFriend] = useState<Friend | null>(null);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [sharedGroups, setSharedGroups] = useState<SharedGroup[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!friendId) return;
+    const load = async () => {
+      try {
+        const res = await fetch(`/api/friends/${friendId}`);
+        if (!res.ok) throw new Error('Failed to load friend');
+        const data = await res.json();
+        setFriend(data.friend);
+        setTransactions(data.transactions || []);
+        setSharedGroups(data.sharedGroups || []);
+      } catch (err) {
+        console.error('Failed to load friend', err);
+        setFriend(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, [friendId]);
+
+  if (!friendId || (!friend && !loading)) {
     return (
       <div className="min-h-screen">
         {/* Static Header */}
@@ -216,24 +118,30 @@ export function FriendProfileScreen({ friendId, onNavigate }: FriendProfileScree
         {/* Content */}
         <div className="max-w-md mx-auto px-4 py-6">
           <div className="text-center py-8">
-            <p className="text-muted-foreground">Friend not found</p>
-            <Button onClick={() => onNavigate('friends')} className="mt-4">
-              Back to Friends
-            </Button>
+            {loading ? (
+              <p className="text-muted-foreground">Loading...</p>
+            ) : (
+              <>
+                <p className="text-muted-foreground">Friend not found</p>
+                <Button onClick={() => onNavigate('friends')} className="mt-4">
+                  Back to Friends
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </div>
     );
   }
 
-  const friend = mockFriends[friendId];
-  const transactions = mockTransactions[friendId] || [];
-  const sharedGroups = mockSharedGroups[friendId] || [];
+  if (!friend) {
+    return null;
+  }
 
   const handleSendMoney = () => {
-    onNavigate('send', { 
+    onNavigate('send', {
       recipientId: friend.id,
-      recipientName: friend.name 
+      recipientName: friend.name
     });
   };
 
@@ -292,27 +200,6 @@ export function FriendProfileScreen({ friendId, onNavigate }: FriendProfileScree
 
   const handleGroupClick = (groupId: string) => {
     onNavigate('group-details', { groupId });
-  };
-
-  // Transform transaction data for TransactionCard component
-  const transformTransaction = (transaction: Transaction) => {
-    const statusMap = {
-      'completed': 'completed' as const,
-      'pending': 'pending' as const,
-      'cancelled': 'failed' as const
-    };
-
-    return {
-      id: transaction.id,
-      type: transaction.type,
-      amount: transaction.amount,
-      description: transaction.description,
-      date: transaction.date,
-      status: statusMap[transaction.status],
-      sender: { name: friend.name, avatar: friend.name.split(' ').map(n => n[0]).join('') },
-      recipient: { name: friend.name, avatar: friend.name.split(' ').map(n => n[0]).join('') },
-      avatarFallback: friend.name.split(' ').map(n => n[0]).join('')
-    };
   };
 
   return (
@@ -521,7 +408,7 @@ export function FriendProfileScreen({ friendId, onNavigate }: FriendProfileScree
                 {transactions.map((transaction) => (
                   <TransactionCard
                     key={transaction.id}
-                    transaction={transformTransaction(transaction)}
+                    transaction={transaction}
                     onNavigate={onNavigate}
                   />
                 ))}
@@ -536,14 +423,14 @@ export function FriendProfileScreen({ friendId, onNavigate }: FriendProfileScree
           </TabsContent>
 
           <TabsContent value="shared" className="space-y-4 mt-4">
-            {transactions.filter(t => t.type === 'split').length > 0 ? (
+            {transactions.filter(t => t.type === 'split' || t.type === 'bill_split').length > 0 ? (
               <div className="space-y-3">
                 {transactions
-                  .filter(transaction => transaction.type === 'split')
+                  .filter(transaction => transaction.type === 'split' || transaction.type === 'bill_split')
                   .map((transaction) => (
                     <TransactionCard
                       key={transaction.id}
-                      transaction={transformTransaction(transaction)}
+                      transaction={transaction}
                       onNavigate={onNavigate}
                     />
                   ))}
