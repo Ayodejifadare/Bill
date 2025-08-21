@@ -21,6 +21,7 @@ const SettingsScreen = lazy(() => import('./components/SettingsScreen').then(m =
 const NotificationsScreen = lazy(() => import('./components/NotificationsScreen').then(m => ({ default: m.NotificationsScreen })));
 const LoginScreen = lazy(() => import('./components/LoginScreen').then(m => ({ default: m.LoginScreen })));
 const RegisterScreen = lazy(() => import('./components/RegisterScreen').then(m => ({ default: m.RegisterScreen })));
+const KycVerificationScreen = lazy(() => import('./components/KycVerificationScreen').then(m => ({ default: m.KycVerificationScreen })));
 
 // Lazy load secondary screens
 const AccountSettingsScreen = lazy(() => import('./components/AccountSettingsScreen').then(m => ({ default: m.AccountSettingsScreen })));
@@ -560,6 +561,8 @@ function AppContent() {
           return <PaymentMethodsScreen onNavigate={handleNavigate} />;
         case 'security':
           return <SecurityScreen onNavigate={handleNavigate} />;
+        case 'kyc-verification':
+          return <KycVerificationScreen onNavigate={handleNavigate} />;
         case 'transaction-details':
           return <TransactionDetailsScreen transactionId={navState.selectedTransactionId} onNavigate={handleNavigate} />;
         case 'bill-split-details':
