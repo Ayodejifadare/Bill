@@ -133,7 +133,11 @@ export function ProfileScreen({ onNavigate, onLogout }: ProfileScreenProps) {
                 <p className="text-sm text-muted-foreground">{userProfile.email}</p>
                 <p className="text-sm text-muted-foreground">Member since {userProfile.joinDate}</p>
               </div>
-              <Button size="sm" variant="outline">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => onNavigate('account-settings')}
+              >
                 <Edit3 className="h-4 w-4" />
               </Button>
             </div>
