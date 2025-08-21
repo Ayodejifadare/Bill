@@ -28,6 +28,7 @@ import {
   AlertDialogTitle
 } from './ui/alert-dialog';
 import { toast } from 'sonner';
+import { apiClient } from '../utils/apiClient';
 
 interface FriendProfileScreenProps {
   friendId: string | null;
@@ -182,12 +183,9 @@ export function FriendProfileScreen({ friendId, onNavigate }: FriendProfileScree
 
   const handleRemoveFriend = async () => {
     try {
-      const res = await fetch(`/api/friends/${friend.id}`, {
+      await apiClient(`/api/friends/${friend.id}`, {
         method: 'DELETE'
       });
-      if (!res.ok) {
-        throw new Error('Failed to remove friend');
-      }
       toast.success('Friend removed');
       onNavigate('friends');
     } catch (error) {

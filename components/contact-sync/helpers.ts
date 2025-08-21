@@ -2,6 +2,7 @@ import { whatsappAPI, showContactError } from '../../utils/contacts-api';
 import { MatchedContact } from './types';
 import { WHATSAPP_INVITE_MESSAGE } from './constants';
 import { toast } from 'sonner';
+import { apiClient } from '../../utils/apiClient';
 
 export const handleBulkInviteContacts = async (
   selectedContactsList: MatchedContact[],
@@ -84,38 +85,22 @@ export const handleSingleInvite = async (contact: MatchedContact) => {
 export const handleSendFriendRequest = async (
   contact: MatchedContact
 ): Promise<{ success: boolean; data?: any; error?: string }> => {
-  const storedAuth = localStorage.getItem('biltip_auth');
-  const token = storedAuth ? JSON.parse(storedAuth).token : null;
-
-  if (!token) {
-    showContactError('Unauthorized: Please log in.');
-    return { success: false, error: 'unauthorized' };
-  }
-
   try {
-    const res = await fetch('/api/friends/request', {
+    const data = await apiClient('/api/friends/request', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({ receiverId: contact.userId }),
     });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      const message = data?.message || 'Failed to send friend request';
-      showContactError(message);
-      return { success: false, error: message };
-    }
 
     toast.success(`Friend request sent to ${contact.name}!`);
     return { success: true, data };
   } catch (error) {
     console.error('Send friend request failed:', error);
-    showContactError(`Failed to send friend request to ${contact.name}`);
-    return { success: false, error: (error as Error).message };
+    const message = (error as Error).message || `Failed to send friend request to ${contact.name}`;
+    showContactError(message);
+    return { success: false, error: message };
   }
 };
 
