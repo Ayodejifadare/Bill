@@ -1,6 +1,7 @@
 import express from 'express'
 import { body, validationResult } from 'express-validator'
 import jwt from 'jsonwebtoken'
+import { createNotification } from '../utils/notifications.js'
 
 const router = express.Router()
 
@@ -161,6 +162,14 @@ router.post('/request', [
       }
     })
 
+    await createNotification(req.prisma, {
+      recipientId: receiverId,
+      actorId: req.userId,
+      type: 'friend_request',
+      title: 'Friend request',
+      message: `${friendRequest.sender.name} sent you a friend request`
+    })
+
     res.status(201).json({
       message: 'Friend request sent',
       friendRequest
@@ -241,6 +250,14 @@ router.post('/requests/:id/accept', authenticateToken, async (req, res) => {
       })
     ])
 
+    await createNotification(req.prisma, {
+      recipientId: friendRequest.senderId,
+      actorId: req.userId,
+      type: 'friend_request_accepted',
+      title: 'Friend request accepted',
+      message: `${friendRequest.receiver.name} accepted your friend request`
+    })
+
     res.json({
       message: 'Friend request accepted',
       friendRequest,
@@ -278,6 +295,14 @@ router.post('/requests/:id/decline', authenticateToken, async (req, res) => {
           select: { id: true, name: true, email: true, avatar: true }
         }
       }
+    })
+
+    await createNotification(req.prisma, {
+      recipientId: friendRequest.senderId,
+      actorId: req.userId,
+      type: 'friend_request_declined',
+      title: 'Friend request declined',
+      message: `${friendRequest.receiver.name} declined your friend request`
     })
 
     res.json({
