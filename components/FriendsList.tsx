@@ -32,34 +32,38 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [friends, setFriends] = useState<Friend[]>([]);
 
-  useEffect(() => {
-    async function loadFriends() {
-      try {
-        const data = await apiClient('/api/friends');
-        const friendsData: Friend[] = (data.friends || []).map((f: {
-          id: string;
-          name: string;
-          username?: string;
-          email?: string;
-          avatar?: string;
-          lastTransaction?: Friend['lastTransaction'];
-          status?: Friend['status'];
-          requestId?: string;
-        }) => ({
-          id: f.id,
-          name: f.name,
-          username: f.username || f.email || '',
-          status: f.status || 'active',
-          avatar: f.avatar,
-          lastTransaction: f.lastTransaction,
-          requestId: f.requestId,
-        }));
-        setFriends(friendsData);
-      } catch (error) {
-        console.error('Failed to load friends', error);
-      }
+  async function loadFriends() {
+    try {
+      const data = await apiClient('/api/friends');
+      const friendsData: Friend[] = (data.friends || []).map((f: {
+        id: string;
+        name: string;
+        username?: string;
+        email?: string;
+        avatar?: string;
+        lastTransaction?: Friend['lastTransaction'];
+        status?: Friend['status'];
+        requestId?: string;
+      }) => ({
+        id: f.id,
+        name: f.name,
+        username: f.username || f.email || '',
+        status: f.status || 'active',
+        avatar: f.avatar,
+        lastTransaction: f.lastTransaction,
+        requestId: f.requestId,
+      }));
+      setFriends(friendsData);
+    } catch (error) {
+      console.error('Failed to load friends', error);
     }
+  }
+
+  useEffect(() => {
     loadFriends();
+    const handler = () => loadFriends();
+    window.addEventListener('friendsUpdated', handler);
+    return () => window.removeEventListener('friendsUpdated', handler);
   }, []);
 
   const filteredFriends = friends.filter(friend =>
@@ -75,11 +79,7 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
       await apiClient(`/api/friends/requests/${requestId}/accept`, {
         method: 'POST'
       });
-      setFriends(prev =>
-        prev.map(f =>
-          f.requestId === requestId ? { ...f, status: 'active', requestId: undefined } : f
-        )
-      );
+      window.dispatchEvent(new Event('friendsUpdated'));
     } catch (error) {
       console.error('Failed to accept friend request', error);
     }
@@ -90,7 +90,7 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
       await apiClient(`/api/friends/requests/${requestId}/decline`, {
         method: 'POST'
       });
-      setFriends(prev => prev.filter(f => f.requestId !== requestId));
+      window.dispatchEvent(new Event('friendsUpdated'));
     } catch (error) {
       console.error('Failed to decline friend request', error);
     }

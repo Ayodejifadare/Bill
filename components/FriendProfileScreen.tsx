@@ -187,6 +187,7 @@ export function FriendProfileScreen({ friendId, onNavigate }: FriendProfileScree
         method: 'DELETE'
       });
       toast.success('Friend removed');
+      window.dispatchEvent(new Event('friendsUpdated'));
       onNavigate('friends');
     } catch (error) {
       console.error('Failed to remove friend', error);
