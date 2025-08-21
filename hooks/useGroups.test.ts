@@ -90,6 +90,40 @@ describe('useGroups', () => {
     await waitFor(() => expect(result.current.groups).toEqual([newGroup]));
   });
 
+  it('creates a group', async () => {
+    const newGroup: Group = {
+      id: '3',
+      name: 'Created Group',
+      description: '',
+      memberCount: 1,
+      totalSpent: 0,
+      recentActivity: '',
+      members: [],
+      isAdmin: false,
+      lastActive: '',
+      pendingBills: 0,
+      color: ''
+    };
+
+    vi.spyOn(global, 'fetch')
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ groups: [] }) } as unknown as Response)
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ group: newGroup }) } as unknown as Response);
+
+    const { result } = renderHook(() => useGroups());
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    const created = await result.current.createGroup({
+      name: newGroup.name,
+      description: newGroup.description,
+      color: newGroup.color,
+      memberIds: []
+    });
+
+    expect(created).toEqual(newGroup);
+    await waitFor(() => expect(result.current.groups).toEqual([newGroup]));
+  });
+
   it('leaves a group', async () => {
     const group1: Group = {
       id: '1',

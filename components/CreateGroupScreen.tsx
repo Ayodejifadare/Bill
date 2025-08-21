@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback } from './ui/avatar';
 import { Checkbox } from './ui/checkbox';
 import { Badge } from './ui/badge';
 import { toast } from 'sonner';
+import { useGroups } from '../hooks/useGroups';
 
 interface CreateGroupScreenProps {
   onNavigate: (tab: string, data?: any) => void;
@@ -54,6 +55,7 @@ export function CreateGroupScreen({ onNavigate, initialSelectedFriendIds = [] }:
   const [step, setStep] = useState(1); // 1: Basic info, 2: Add members
   const [friends, setFriends] = useState<Friend[]>([]);
   const [friendMap, setFriendMap] = useState<Record<string, Friend>>({});
+  const { createGroup } = useGroups();
 
   useEffect(() => {
     let isCancelled = false;
@@ -114,24 +116,14 @@ export function CreateGroupScreen({ onNavigate, initialSelectedFriendIds = [] }:
     }
 
     try {
-      const res = await fetch('/api/groups', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: groupName,
-          description: groupDescription,
-          color: selectedColor,
-          memberIds: Array.from(selectedFriends)
-        })
+      const newGroup = await createGroup({
+        name: groupName,
+        description: groupDescription,
+        color: selectedColor,
+        memberIds: Array.from(selectedFriends)
       });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        toast.error(err.error || 'Failed to create group');
-        return;
-      }
-      const data = await res.json();
       toast.success(`Group "${groupName}" created successfully!`);
-      const newGroupId = data.group?.id || data.id;
+      const newGroupId = newGroup?.id;
       if (newGroupId) {
         onNavigate('group-details', { groupId: newGroupId });
       } else {
