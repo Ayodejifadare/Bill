@@ -17,6 +17,7 @@ import { Progress } from './ui/progress';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { toast } from 'sonner';
 import { contactsAPI, showContactError } from '../utils/contacts-api';
+import { handleSendFriendRequest } from './contact-sync/helpers';
 
 interface Contact {
   id: string;
@@ -248,23 +249,30 @@ export function AddFriendScreen({ onNavigate }: AddFriendScreenProps) {
     let allSucceeded = true;
 
     for (const friend of selectedFriends) {
-      try {
-        const res = await fetch('/api/friends/request', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ userId: friend.userId })
-        });
+      const contactForRequest = {
+        id: friend.id,
+        name: friend.name,
+        phone: friend.phoneNumber || '',
+        email: friend.email,
+        status: 'existing_user' as const,
+        userId: friend.userId,
+        username: friend.username,
+        mutualFriends: friend.mutualFriends,
+        avatar: friend.avatar,
+      };
 
-        if (!res.ok) {
-          throw new Error('Request failed');
-        }
+      const { success } = await handleSendFriendRequest(contactForRequest);
 
-        toast.success(`Sent friend request to: ${friend.name}`);
-      } catch (error) {
+      if (success) {
+        setSyncedContacts(prev =>
+          prev.map(c =>
+            c.id === friend.id
+              ? { ...c, isFriend: false, status: 'pending' }
+              : c
+          )
+        );
+      } else {
         allSucceeded = false;
-        showContactError(`Failed to send friend request to: ${friend.name}`);
       }
     }
 
