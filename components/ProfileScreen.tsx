@@ -124,9 +124,14 @@ export function ProfileScreen({ onNavigate, onLogout }: ProfileScreenProps) {
                       Verified
                     </Badge>
                   ) : (
-                    <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
+                    <Badge
+                      variant="secondary"
+                      className="bg-yellow-100 text-yellow-800 cursor-pointer hover:bg-yellow-200"
+                      onClick={() => onNavigate('kyc-verification')}
+                      title="Complete verification"
+                    >
                       <Clock className="h-3 w-3 mr-1" />
-                      Pending
+                      Verify Account
                     </Badge>
                   )}
                 </div>
