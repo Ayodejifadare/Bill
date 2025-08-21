@@ -22,6 +22,7 @@ interface Friend {
     type: 'owes' | 'owed';
   };
   requestId?: string;
+  direction?: 'incoming' | 'outgoing';
 }
 
 interface FriendsListProps {
@@ -34,8 +35,12 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
 
   async function loadFriends() {
     try {
-      const data = await apiClient('/api/friends');
-      const friendsData: Friend[] = (data.friends || []).map((f: {
+      const [friendRes, requestsRes] = await Promise.all([
+        apiClient('/api/friends'),
+        apiClient('/api/friends/requests')
+      ]);
+
+      const friendsData: Friend[] = (friendRes.friends || []).map((f: {
         id: string;
         name: string;
         username?: string;
@@ -52,8 +57,20 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
         avatar: f.avatar,
         lastTransaction: f.lastTransaction,
         requestId: f.requestId,
+        direction: f.status === 'pending' ? 'incoming' : undefined,
       }));
-      setFriends(friendsData);
+
+      const outgoingRequests: Friend[] = (requestsRes.outgoing || []).map((r: any) => ({
+        id: r.receiver.id,
+        name: r.receiver.name,
+        username: r.receiver.email || '',
+        status: 'pending',
+        avatar: r.receiver.avatar,
+        requestId: r.id,
+        direction: 'outgoing',
+      }));
+
+      setFriends([...friendsData, ...outgoingRequests]);
     } catch (error) {
       console.error('Failed to load friends', error);
     }
@@ -93,6 +110,17 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
       window.dispatchEvent(new Event('friendsUpdated'));
     } catch (error) {
       console.error('Failed to decline friend request', error);
+    }
+  }
+
+  async function handleCancelRequest(requestId: string) {
+    try {
+      await apiClient(`/api/friends/requests/${requestId}`, {
+        method: 'DELETE'
+      });
+      window.dispatchEvent(new Event('friendsUpdated'));
+    } catch (error) {
+      console.error('Failed to cancel friend request', error);
     }
   }
 
@@ -154,19 +182,31 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
                       </div>
                     </div>
                     <div className="flex space-x-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => friend.requestId && handleDeclineRequest(friend.requestId)}
-                      >
-                        Decline
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={() => friend.requestId && handleAcceptRequest(friend.requestId)}
-                      >
-                        Accept
-                      </Button>
+                      {friend.direction === 'outgoing' ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => friend.requestId && handleCancelRequest(friend.requestId)}
+                        >
+                          Cancel
+                        </Button>
+                      ) : (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => friend.requestId && handleDeclineRequest(friend.requestId)}
+                          >
+                            Decline
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => friend.requestId && handleAcceptRequest(friend.requestId)}
+                          >
+                            Accept
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </Card>
