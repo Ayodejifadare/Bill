@@ -1,6 +1,7 @@
-import { render, screen, act } from '@testing-library/react';
+import { render, screen, act, waitFor, cleanup } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { NotificationBell } from './notification-bell';
+import userEvent from '@testing-library/user-event';
 
 describe('NotificationBell', () => {
   beforeEach(() => {
@@ -9,6 +10,7 @@ describe('NotificationBell', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    cleanup();
   });
 
   it('polls for unread notifications', async () => {
@@ -37,6 +39,34 @@ describe('NotificationBell', () => {
     expect(
       await screen.findByText('Failed to fetch unread notifications')
     ).toBeInTheDocument();
+  });
+
+  it('updates unread count after marking notifications as read', async () => {
+    vi.useRealTimers();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ count: 2 }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({}) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ count: 0 }) });
+    global.fetch = fetchMock as any;
+
+    render(<NotificationBell onClick={() => {}} />);
+
+    expect(await screen.findByText('2')).toBeInTheDocument();
+
+    await act(async () => {
+      await fetch('/api/notifications/mark-all-read', { method: 'PATCH' });
+    });
+
+    await act(async () => {
+      await userEvent.click(screen.getByRole('button'));
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+
+    await waitFor(() => {
+      expect(screen.queryByText('2')).not.toBeInTheDocument();
+    });
   });
 });
 
