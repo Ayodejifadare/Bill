@@ -116,8 +116,14 @@ router.get('/:id', authenticateToken, async (req, res) => {
       select: {
         id: true,
         name: true,
+        firstName: true,
+        lastName: true,
         email: true,
+        phone: true,
         avatar: true,
+        dateOfBirth: true,
+        address: true,
+        bio: true,
         createdAt: true
       }
     })
@@ -141,7 +147,12 @@ router.put(
     body('name').optional().isString().trim().notEmpty(),
     body('email').optional().isEmail(),
     body('phone').optional().isString().trim().notEmpty(),
-    body('avatar').optional().isURL()
+    body('avatar').optional().isURL(),
+    body('firstName').optional().isString().trim().notEmpty(),
+    body('lastName').optional().isString().trim().notEmpty(),
+    body('dateOfBirth').optional().isISO8601(),
+    body('address').optional().isString().trim().notEmpty(),
+    body('bio').optional().isString().trim().notEmpty()
   ],
   async (req, res) => {
     try {
@@ -154,12 +165,17 @@ router.put(
         return res.status(403).json({ error: 'Unauthorized' })
       }
 
-      const { name, email, phone, avatar } = req.body
+      const { name, email, phone, avatar, firstName, lastName, dateOfBirth, address, bio } = req.body
       const data = {}
       if (name !== undefined) data.name = name
       if (email !== undefined) data.email = email
       if (phone !== undefined) data.phone = phone
       if (avatar !== undefined) data.avatar = avatar
+      if (firstName !== undefined) data.firstName = firstName
+      if (lastName !== undefined) data.lastName = lastName
+      if (dateOfBirth !== undefined) data.dateOfBirth = new Date(dateOfBirth)
+      if (address !== undefined) data.address = address
+      if (bio !== undefined) data.bio = bio
 
       if (Object.keys(data).length === 0) {
         return res.status(400).json({ error: 'No valid fields provided' })
@@ -171,9 +187,14 @@ router.put(
         select: {
           id: true,
           name: true,
+          firstName: true,
+          lastName: true,
           email: true,
           phone: true,
           avatar: true,
+          dateOfBirth: true,
+          address: true,
+          bio: true,
           createdAt: true
         }
       })
