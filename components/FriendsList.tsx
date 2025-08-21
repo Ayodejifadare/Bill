@@ -9,6 +9,7 @@ import { ScreenHeader } from './ui/screen-header';
 import { SearchInput } from './ui/search-input';
 import { UserPlus, Send, Users } from 'lucide-react';
 import { GroupSection } from './GroupSection';
+import { apiClient } from '../utils/apiClient';
 
 interface Friend {
   id: string;
@@ -34,11 +35,7 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
   useEffect(() => {
     async function loadFriends() {
       try {
-        const res = await fetch('/api/friends');
-        if (!res.ok) {
-          throw new Error('Failed to fetch friends');
-        }
-        const data = await res.json();
+        const data = await apiClient('/api/friends');
         const friendsData: Friend[] = (data.friends || []).map((f: {
           id: string;
           name: string;
@@ -75,12 +72,9 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
 
   async function handleAcceptRequest(requestId: string) {
     try {
-      const res = await fetch(`/api/friends/requests/${requestId}/accept`, {
+      await apiClient(`/api/friends/requests/${requestId}/accept`, {
         method: 'POST'
       });
-      if (!res.ok) {
-        throw new Error('Failed to accept friend request');
-      }
       setFriends(prev =>
         prev.map(f =>
           f.requestId === requestId ? { ...f, status: 'active', requestId: undefined } : f
@@ -93,12 +87,9 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
 
   async function handleDeclineRequest(requestId: string) {
     try {
-      const res = await fetch(`/api/friends/requests/${requestId}/decline`, {
+      await apiClient(`/api/friends/requests/${requestId}/decline`, {
         method: 'POST'
       });
-      if (!res.ok) {
-        throw new Error('Failed to decline friend request');
-      }
       setFriends(prev => prev.filter(f => f.requestId !== requestId));
     } catch (error) {
       console.error('Failed to decline friend request', error);
