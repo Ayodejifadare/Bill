@@ -32,12 +32,16 @@ describe('NotificationBell', () => {
 
   it('displays error when fetch fails', async () => {
     vi.useRealTimers();
-    global.fetch = vi.fn().mockResolvedValue({ ok: false }) as any;
+    const fetchMock = vi.fn().mockResolvedValue({ ok: false });
+    global.fetch = fetchMock as any;
 
     render(<NotificationBell onClick={() => {}} />);
 
     expect(
-      await screen.findByText('Failed to fetch unread notifications')
+      await screen.findByText('Failed to fetch unread notifications', {}, { timeout: 10000 })
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByRole('button', { name: /retry/i }, { timeout: 10000 })
     ).toBeInTheDocument();
   });
 

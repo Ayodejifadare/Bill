@@ -7,7 +7,8 @@ import { Switch } from './ui/switch';
 import { Separator } from './ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { EmptyState } from './ui/empty-state';
-import { ArrowLeft, Bell, Check, X, Users, DollarSign, AlertTriangle, MessageCircle, Mail, Smartphone, Settings, Volume2 } from 'lucide-react';
+import { Alert, AlertDescription } from './ui/alert';
+import { ArrowLeft, Bell, Check, X, Users, DollarSign, AlertTriangle, MessageCircle, Mail, Smartphone, Settings } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Notification {
@@ -143,6 +144,53 @@ export function NotificationsScreen({ onNavigate }: NotificationsScreenProps) {
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
   const [activeTab, setActiveTab] = useState<'notifications' | 'settings'>('notifications');
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>(defaultNotificationSettings);
+  const [loadingNotifications, setLoadingNotifications] = useState(false);
+  const [notificationsError, setNotificationsError] = useState<string | null>(null);
+
+  const fetchWithRetry = async (
+    url: string,
+    options?: RequestInit,
+    retries = 3,
+    delay = 1000,
+  ): Promise<Response> => {
+    try {
+      const res = await fetch(url, options);
+      if (!res.ok) {
+        throw new Error('Request failed');
+      }
+      return res;
+    } catch (err) {
+      if (retries <= 1) {
+        throw err;
+      }
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      return fetchWithRetry(url, options, retries - 1, delay * 2);
+    }
+  };
+
+  const fetchNotifications = async () => {
+    setLoadingNotifications(true);
+    try {
+      const storedAuth = localStorage.getItem('biltip_auth');
+      const token = storedAuth ? JSON.parse(storedAuth).token : null;
+      if (!token) {
+        setLoadingNotifications(false);
+        return;
+      }
+      const res = await fetchWithRetry('/api/notifications', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (Array.isArray(data.notifications)) {
+        setNotifications(data.notifications);
+      }
+      setNotificationsError(null);
+    } catch (error) {
+      setNotificationsError('Failed to load notifications');
+    } finally {
+      setLoadingNotifications(false);
+    }
+  };
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -150,21 +198,20 @@ export function NotificationsScreen({ onNavigate }: NotificationsScreenProps) {
         const storedAuth = localStorage.getItem('biltip_auth');
         const token = storedAuth ? JSON.parse(storedAuth).token : null;
         if (!token) return;
-        const res = await fetch('/api/notification-settings', {
+        const res = await fetchWithRetry('/api/notification-settings', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.settings) {
-            setNotificationSettings(data.settings);
-          }
+        const data = await res.json();
+        if (data.settings) {
+          setNotificationSettings(data.settings);
         }
       } catch (error) {
         console.error('Error fetching notification settings:', error);
       }
     };
+    fetchNotifications();
     fetchSettings();
   }, []);
 
@@ -173,7 +220,7 @@ export function NotificationsScreen({ onNavigate }: NotificationsScreenProps) {
       const storedAuth = localStorage.getItem('biltip_auth');
       const token = storedAuth ? JSON.parse(storedAuth).token : null;
       if (!token) return;
-      await fetch('/api/notification-settings', {
+      await fetchWithRetry('/api/notification-settings', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -245,13 +292,10 @@ export function NotificationsScreen({ onNavigate }: NotificationsScreenProps) {
       const storedAuth = localStorage.getItem('biltip_auth');
       const token = storedAuth ? JSON.parse(storedAuth).token : null;
       if (!token) return;
-      const res = await fetch(`/api/notifications/${id}/read`, {
+      await fetchWithRetry(`/api/notifications/${id}/read`, {
         method: 'PATCH',
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) {
-        throw new Error('Failed to mark notification as read');
-      }
       setNotifications(prev =>
         prev.map(notification =>
           notification.id === id
@@ -269,13 +313,10 @@ export function NotificationsScreen({ onNavigate }: NotificationsScreenProps) {
       const storedAuth = localStorage.getItem('biltip_auth');
       const token = storedAuth ? JSON.parse(storedAuth).token : null;
       if (!token) return;
-      const res = await fetch('/api/notifications/mark-all-read', {
+      await fetchWithRetry('/api/notifications/mark-all-read', {
         method: 'PATCH',
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) {
-        throw new Error('Failed to mark all notifications as read');
-      }
       setNotifications(prev =>
         prev.map(notification => ({ ...notification, read: true }))
       );
@@ -343,6 +384,17 @@ export function NotificationsScreen({ onNavigate }: NotificationsScreenProps) {
 
       {/* Main Content */}
       <div className="p-4 space-y-6">
+        {notificationsError && (
+          <Alert variant="destructive">
+            <AlertDescription className="space-y-2">
+              <span>{notificationsError}</span>
+              <Button size="sm" variant="outline" onClick={fetchNotifications}>
+                Retry
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+        {loadingNotifications && !notificationsError && <p>Loading...</p>}
 
       {/* Main Tabs */}
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'notifications' | 'settings')}>
