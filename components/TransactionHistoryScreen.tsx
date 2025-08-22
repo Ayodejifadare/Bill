@@ -9,7 +9,6 @@ import { Separator } from './ui/separator';
 import { EmptyState } from './ui/empty-state';
 import { TransactionCard } from './TransactionCard';
 import { useUserProfile } from './UserProfileContext';
-import { formatDate } from '../utils/formatDate';
 import { useTransactions, Transaction } from '../hooks/useTransactions';
 
 interface TransactionHistoryScreenProps {
@@ -30,8 +29,69 @@ export function TransactionHistoryScreen({ onNavigate }: TransactionHistoryScree
   const [showFilters, setShowFilters] = useState(false);
   const [page, setPage] = useState(1);
   const pageSize = 20;
-  const { transactions: fetchedTransactions, loading, hasMore, summary } = useTransactions({ page, size: pageSize });
+  const { transactions: fetchedTransactions, loading, hasMore, summary, refetch } = useTransactions();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+
+  const { startDate, endDate } = useMemo(() => {
+    const now = new Date();
+    let start: Date | undefined;
+    switch (selectedTimeFilter) {
+      case 'This Week':
+        start = new Date(now);
+        start.setDate(now.getDate() - now.getDay());
+        break;
+      case 'This Month':
+        start = new Date(now.getFullYear(), now.getMonth(), 1);
+        break;
+      case 'Last 3 Months':
+        start = new Date(now);
+        start.setMonth(now.getMonth() - 3);
+        break;
+      case 'This Year':
+        start = new Date(now.getFullYear(), 0, 1);
+        break;
+      default:
+        start = undefined;
+    }
+    return {
+      startDate: start ? start.toISOString() : undefined,
+      endDate: start ? now.toISOString() : undefined,
+    };
+  }, [selectedTimeFilter]);
+
+  const type = useMemo(() => {
+    switch (selectedTypeFilter) {
+      case 'Sent':
+        return 'sent';
+      case 'Received':
+        return 'received';
+      case 'Bill Splits':
+        return 'bill_split';
+      case 'Requests':
+        return 'request';
+      default:
+        return undefined;
+    }
+  }, [selectedTypeFilter]);
+
+  const category = selectedCategory !== 'All Categories' ? selectedCategory : undefined;
+  const keyword = searchQuery || undefined;
+
+  const filterParams = useMemo(
+    () => ({ startDate, endDate, type, category, keyword }),
+    [startDate, endDate, type, category, keyword]
+  );
+
+  useEffect(() => {
+    setPage(1);
+    refetch({ page: 1, size: pageSize, ...filterParams });
+  }, [filterParams, refetch]);
+
+  useEffect(() => {
+    if (page > 1) {
+      refetch({ page, size: pageSize, ...filterParams });
+    }
+  }, [page, filterParams, refetch]);
 
   useEffect(() => {
     if (page === 1) {
@@ -45,47 +105,6 @@ export function TransactionHistoryScreen({ onNavigate }: TransactionHistoryScree
     'All Categories',
     ...Array.from(new Set(transactions.map(t => t.category).filter(Boolean) as string[]))
   ], [transactions]);
-
-  const filteredTransactions = transactions.filter(transaction => {
-    const matchesSearch = transaction.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         transaction.recipient?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         transaction.sender?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         formatDate(transaction.date).toLowerCase().includes(searchQuery.toLowerCase());
-
-    const matchesCategory = selectedCategory === 'All Categories' || transaction.category === selectedCategory;
-
-    const matchesType = selectedTypeFilter === 'All Types' ||
-                       (selectedTypeFilter === 'Sent' && transaction.type === 'sent') ||
-                       (selectedTypeFilter === 'Received' && transaction.type === 'received') ||
-                       (selectedTypeFilter === 'Bill Splits' && (transaction.type === 'bill_split' || transaction.type === 'split')) ||
-                       (selectedTypeFilter === 'Requests' && transaction.type === 'request');
-
-    const matchesTime = (() => {
-      if (selectedTimeFilter === 'All Time') return true;
-      const txDate = new Date(transaction.date);
-      const now = new Date();
-      switch (selectedTimeFilter) {
-        case 'This Week': {
-          const startOfWeek = new Date(now);
-          startOfWeek.setDate(now.getDate() - now.getDay());
-          return txDate >= startOfWeek;
-        }
-        case 'This Month':
-          return txDate.getMonth() === now.getMonth() && txDate.getFullYear() === now.getFullYear();
-        case 'Last 3 Months': {
-          const threeMonthsAgo = new Date(now);
-          threeMonthsAgo.setMonth(now.getMonth() - 3);
-          return txDate >= threeMonthsAgo;
-        }
-        case 'This Year':
-          return txDate.getFullYear() === now.getFullYear();
-        default:
-          return true;
-      }
-    })();
-
-    return matchesSearch && matchesCategory && matchesType && matchesTime;
-  });
 
   const { totalSent, totalReceived, netFlow } = summary;
 
@@ -177,7 +196,7 @@ export function TransactionHistoryScreen({ onNavigate }: TransactionHistoryScree
         {/* Filter Toggle Button (Mobile) */}
         <div className="flex items-center justify-between">
           <h3 className="font-medium text-lg">
-            Transactions ({filteredTransactions.length})
+            Transactions ({transactions.length})
           </h3>
           <div className="flex items-center gap-2">
             {hasActiveFilters && (
@@ -301,16 +320,16 @@ export function TransactionHistoryScreen({ onNavigate }: TransactionHistoryScree
 
         {/* Transactions List */}
         <div className="space-y-4">
-          {filteredTransactions.length > 0 ? (
+          {transactions.length > 0 ? (
             <div className="space-y-3">
-              {filteredTransactions.map((transaction, index) => (
+              {transactions.map((transaction, index) => (
                 <div key={transaction.id}>
                   <TransactionCard
                     transaction={transaction}
                     onClick={() => handleTransactionClick(transaction.id)}
                     currencySymbol={currencySymbol}
                   />
-                  {index < filteredTransactions.length - 1 && (
+                  {index < transactions.length - 1 && (
                     <Separator className="my-3" />
                   )}
                 </div>
@@ -321,7 +340,7 @@ export function TransactionHistoryScreen({ onNavigate }: TransactionHistoryScree
               icon={DollarSign}
               title="No transactions found"
               description={
-                hasActiveFilters ? 
+                hasActiveFilters ?
                   "Try adjusting your search or filter criteria" :
                   "Your transaction history will appear here"
               }
