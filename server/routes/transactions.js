@@ -108,7 +108,18 @@ router.get('/', authenticateToken, async (req, res) => {
 
     const baseQuery = {
       where,
-      include: {
+      select: {
+        id: true,
+        amount: true,
+        description: true,
+        status: true,
+        type: true,
+        category: true,
+        createdAt: true,
+        updatedAt: true,
+        senderId: true,
+        receiverId: true,
+        billSplitId: true,
         sender: {
           select: { id: true, name: true, email: true, avatar: true }
         },
@@ -164,8 +175,10 @@ router.get('/', authenticateToken, async (req, res) => {
       pageCount = Math.ceil(total / pageSize)
     }
 
-    const formatted = transactions.map(t => ({
+    const formatted = transactions.map(({ createdAt, receiver, ...t }) => ({
       ...t,
+      date: createdAt.toISOString(),
+      recipient: receiver,
       type: TRANSACTION_TYPE_MAP[t.type] || t.type,
       status: TRANSACTION_STATUS_MAP[t.status] || t.status,
       ...(t.category
@@ -243,32 +256,32 @@ router.get('/:id', authenticateToken, async (req, res) => {
         ? transaction.receiver
         : transaction.sender
 
-    const formatted = {
-      id: transaction.id,
-      amount: transaction.amount,
-      description: transaction.description || '',
-      date: transaction.createdAt.toISOString(),
-      type,
-      status: TRANSACTION_STATUS_MAP[transaction.status] || transaction.status,
-      sender: transaction.sender,
-      receiver: transaction.receiver,
-      user: otherUser,
-      ...(transaction.category
-        ? { category: TRANSACTION_CATEGORY_MAP[transaction.category] || transaction.category }
-        : {}),
-      ...(transaction.billSplit?.location
-        ? { location: transaction.billSplit.location }
-        : {}),
-      ...(transaction.billSplit?.note ? { note: transaction.billSplit.note } : {}),
-      ...(transaction.billSplit
-        ? {
-            totalParticipants: transaction.billSplit.participants.length,
-            paidParticipants: transaction.billSplit.participants.filter((p) => p.isPaid).length
-          }
-        : {}),
-      ...(paymentMethod ? { paymentMethod } : {}),
-      transactionId: transaction.id
-    }
+      const formatted = {
+        id: transaction.id,
+        amount: transaction.amount,
+        description: transaction.description || '',
+        date: transaction.createdAt.toISOString(),
+        type,
+        status: TRANSACTION_STATUS_MAP[transaction.status] || transaction.status,
+        sender: transaction.sender,
+        recipient: transaction.receiver,
+        user: otherUser,
+        ...(transaction.category
+          ? { category: TRANSACTION_CATEGORY_MAP[transaction.category] || transaction.category }
+          : {}),
+        ...(transaction.billSplit?.location
+          ? { location: transaction.billSplit.location }
+          : {}),
+        ...(transaction.billSplit?.note ? { note: transaction.billSplit.note } : {}),
+        ...(transaction.billSplit
+          ? {
+              totalParticipants: transaction.billSplit.participants.length,
+              paidParticipants: transaction.billSplit.participants.filter((p) => p.isPaid).length
+            }
+          : {}),
+        ...(paymentMethod ? { paymentMethod } : {}),
+        transactionId: transaction.id
+      }
 
     res.json({ transaction: formatted })
   } catch (error) {

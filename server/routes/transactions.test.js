@@ -109,11 +109,40 @@ describe('Transaction routes', () => {
     expect(res.status).toBe(200)
     expect(res.body.transaction.id).toBe(tx.id)
     expect(res.body.transaction.sender.id).toBe('u1')
-    expect(res.body.transaction.receiver.id).toBe('u2')
+    expect(res.body.transaction.recipient.id).toBe('u2')
     expect(res.body.transaction.paymentMethod).toMatchObject({ type: 'bank', bankName: 'Bank' })
     expect(res.body.transaction.totalParticipants).toBe(2)
     expect(res.body.transaction.paidParticipants).toBe(1)
     expect(res.body.transaction.category).toBe('food')
+  })
+
+  it('lists transactions with recipient and date fields', async () => {
+    await prisma.user.create({ data: { id: 'u1', email: 'u1@example.com', name: 'User 1' } })
+    await prisma.user.create({ data: { id: 'u2', email: 'u2@example.com', name: 'User 2' } })
+
+    const tx = await prisma.transaction.create({
+      data: {
+        id: 't-list',
+        amount: 20,
+        senderId: 'u1',
+        receiverId: 'u2',
+        type: 'SEND',
+        status: 'COMPLETED'
+      }
+    })
+
+    const res = await request(app)
+      .get('/transactions')
+      .set('Authorization', `Bearer ${sign('u1')}`)
+      .send()
+
+    expect(res.status).toBe(200)
+    expect(res.body.transactions).toHaveLength(1)
+    const item = res.body.transactions[0]
+    expect(item.recipient.id).toBe('u2')
+    expect(item).not.toHaveProperty('receiver')
+    expect(item.date).toBe(tx.createdAt.toISOString())
+    expect(item).not.toHaveProperty('createdAt')
   })
 
   it('returns 404 for missing or unauthorized transaction', async () => {
