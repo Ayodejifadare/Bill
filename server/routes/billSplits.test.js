@@ -142,5 +142,47 @@ describe('Bill split routes', () => {
       .send()
     expect(missing.status).toBe(404)
   })
+
+  it('updates payment status for participant', async () => {
+    await prisma.user.create({ data: { id: 'u1', email: 'u1@example.com', name: 'User 1' } })
+    await prisma.user.create({ data: { id: 'u2', email: 'u2@example.com', name: 'User 2' } })
+
+    const bs = await prisma.billSplit.create({
+      data: {
+        id: 'bs-pay',
+        title: 'Brunch',
+        totalAmount: 40,
+        createdBy: 'u1',
+        participants: {
+          create: [
+            { userId: 'u1', amount: 20, isPaid: false },
+            { userId: 'u2', amount: 20, isPaid: false }
+          ]
+        }
+      }
+    })
+
+    const sentRes = await request(app)
+      .post(`/bill-splits/${bs.id}/payments`)
+      .set('Authorization', `Bearer ${sign('u2')}`)
+      .send({})
+    expect(sentRes.status).toBe(200)
+    let participant = await prisma.billSplitParticipant.findUnique({
+      where: { billSplitId_userId: { billSplitId: bs.id, userId: 'u2' } }
+    })
+    expect(participant.status).toBe('SENT')
+    expect(participant.isPaid).toBe(false)
+
+    const confirmRes = await request(app)
+      .post(`/bill-splits/${bs.id}/payments`)
+      .set('Authorization', `Bearer ${sign('u2')}`)
+      .send({ status: 'CONFIRMED' })
+    expect(confirmRes.status).toBe(200)
+    participant = await prisma.billSplitParticipant.findUnique({
+      where: { billSplitId_userId: { billSplitId: bs.id, userId: 'u2' } }
+    })
+    expect(participant.status).toBe('CONFIRMED')
+    expect(participant.isPaid).toBe(true)
+  })
 })
 
