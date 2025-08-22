@@ -7,7 +7,7 @@ import { Separator } from './ui/separator';
 import { EmptyState } from './ui/empty-state';
 import { ScreenHeader } from './ui/screen-header';
 import { SearchInput } from './ui/search-input';
-import { UserPlus, Send, Users } from 'lucide-react';
+import { UserPlus, Send, Users, AlertCircle } from 'lucide-react';
 import { GroupSection } from './GroupSection';
 import { apiClient } from '../utils/apiClient';
 
@@ -32,9 +32,11 @@ interface FriendsListProps {
 export function FriendsList({ onNavigate }: FriendsListProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [friends, setFriends] = useState<Friend[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   async function loadFriends() {
     try {
+      setError(null);
       const [friendRes, requestsRes] = await Promise.all([
         apiClient('/api/friends'),
         apiClient('/api/friends/requests')
@@ -73,6 +75,8 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
       setFriends([...friendsData, ...outgoingRequests]);
     } catch (error) {
       console.error('Failed to load friends', error);
+      setFriends([]);
+      setError('Failed to load friends. Please try again.');
     }
   }
 
@@ -162,6 +166,16 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
           </Card>
         </div>
 
+        {error ? (
+          <EmptyState
+            icon={AlertCircle}
+            title="Failed to load friends"
+            description={error}
+            actionLabel="Retry"
+            onAction={loadFriends}
+          />
+        ) : (
+          <>
         {/* Pending Requests */}
         {pendingFriends.length > 0 && (
           <div>
@@ -236,7 +250,7 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
             activeFriends.map((friend) => (
               <Card key={friend.id} className="p-4">
                 <div className="flex items-center justify-between">
-                  <div 
+                  <div
                     className="flex items-center space-x-3 flex-1 cursor-pointer hover:bg-muted/50 rounded-lg p-2 -m-2 transition-colors"
                     onClick={() => onNavigate('friend-profile', { friendId: friend.id })}
                   >
@@ -249,12 +263,12 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
                       <p>{friend.name}</p>
                       <p className="text-sm text-muted-foreground">{friend.username}</p>
                       {friend.lastTransaction && (
-                        <Badge 
+                        <Badge
                           variant={friend.lastTransaction.type === 'owed' ? 'default' : 'destructive'}
                           className="text-xs mt-1"
                         >
-                          {friend.lastTransaction.type === 'owed' 
-                            ? `Owes you ${friend.lastTransaction.amount.toFixed(2)}` 
+                          {friend.lastTransaction.type === 'owed'
+                            ? `Owes you ${friend.lastTransaction.amount.toFixed(2)}`
                             : `You owe ${friend.lastTransaction.amount.toFixed(2)}`
                           }
                         </Badge>
@@ -262,15 +276,15 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
                     </div>
                   </div>
                   <div className="flex space-x-2">
-                    <Button 
-                      size="sm" 
-                      variant="outline" 
+                    <Button
+                      size="sm"
+                      variant="outline"
                       onClick={(e) => {
                         e.stopPropagation();
-                        onNavigate('request', { 
-                          requestData: { 
+                        onNavigate('request', {
+                          requestData: {
                             recipientId: friend.id,
-                            recipientName: friend.name 
+                            recipientName: friend.name
                           }
                         });
                       }}
@@ -278,9 +292,9 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
                     >
                       <Send className="h-4 w-4" />
                     </Button>
-                    <Button 
-                      size="sm" 
-                      variant="outline" 
+                    <Button
+                      size="sm"
+                      variant="outline"
                       onClick={(e) => {
                         e.stopPropagation();
                         onNavigate('split');
@@ -304,6 +318,8 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
           )}
         </div>
       </div>
+        </>
+        )}
       </div>
     </div>
   );
