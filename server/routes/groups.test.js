@@ -275,12 +275,58 @@ describe('Group join/leave routes', () => {
       }
     })
 
-    const res = await request(app).get(`/groups/${groupId}`)
+    const res = await request(app)
+      .get(`/groups/${groupId}`)
+      .set('x-user-id', 'creator')
 
     expect(res.status).toBe(200)
-    expect(res.body.group.id).toBe(groupId)
-    expect(res.body.group.members).toHaveLength(3)
-    expect(res.body.group.recentTransactions).toHaveLength(1)
+    const group = res.body.group
+    expect(group).toMatchObject({
+      id: groupId,
+      totalMembers: 3,
+      totalSpent: 10,
+      hasMoreTransactions: false,
+    })
+    expect(group.members).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'creator',
+          email: 'creator@example.com',
+          isAdmin: true,
+          avatar: 'C',
+          balance: 0,
+          totalSpent: 0,
+          joinedDate: expect.any(String),
+        }),
+        expect.objectContaining({
+          id: 'user1',
+          email: 'user1@example.com',
+          isAdmin: false,
+          avatar: 'U1',
+          balance: -10,
+          totalSpent: 10,
+          joinedDate: expect.any(String),
+        }),
+        expect.objectContaining({
+          id: 'user2',
+          email: 'user2@example.com',
+          isAdmin: false,
+          avatar: 'U2',
+          balance: 10,
+          totalSpent: 0,
+          joinedDate: expect.any(String),
+        }),
+      ])
+    )
+    expect(group.recentTransactions).toEqual([
+      expect.objectContaining({
+        amount: 10,
+        type: 'sent',
+        paidBy: 'User 1',
+        participants: ['User 1', 'User 2'],
+        status: 'completed',
+      }),
+    ])
   })
 
   it('lists and removes group members', async () => {
