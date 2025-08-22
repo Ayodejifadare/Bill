@@ -43,7 +43,7 @@ async function formatGroup(prisma, group, userId) {
     totalSpent,
     recentActivity: lastActive ? `Last activity on ${lastActive.toISOString()}` : '',
     members: group.members.map((m) => ({
-      userId: m.userId,
+      id: m.userId,
       name: m.user.name,
       avatar: m.user.avatar || '',
       role: m.role
