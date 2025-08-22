@@ -184,5 +184,43 @@ describe('Bill split routes', () => {
     expect(participant.status).toBe('CONFIRMED')
     expect(participant.isPaid).toBe(true)
   })
+
+  it('sends reminders to participants and logs them', async () => {
+    await prisma.user.create({ data: { id: 'u1', email: 'u1@example.com', name: 'User 1' } })
+    await prisma.user.create({ data: { id: 'u2', email: 'u2@example.com', name: 'User 2' } })
+
+    const bs = await prisma.billSplit.create({
+      data: {
+        id: 'bs-rem',
+        title: 'Trip',
+        totalAmount: 100,
+        createdBy: 'u1',
+        participants: {
+          create: [
+            { userId: 'u1', amount: 50, isPaid: true },
+            { userId: 'u2', amount: 50, isPaid: false }
+          ]
+        }
+      }
+    })
+
+    const res = await request(app)
+      .post(`/bill-splits/${bs.id}/reminders`)
+      .set('Authorization', `Bearer ${sign('u1')}`)
+      .send({ participantIds: ['u2'], type: 'friendly', template: 'Please pay' })
+
+    expect(res.status).toBe(201)
+    expect(res.body.reminders).toHaveLength(1)
+
+    const reminder = await prisma.billSplitReminder.findFirst({
+      where: { billSplitId: bs.id, recipientId: 'u2' }
+    })
+    expect(reminder).not.toBeNull()
+
+    const notification = await prisma.notification.findFirst({
+      where: { recipientId: 'u2', type: 'bill_split_reminder' }
+    })
+    expect(notification).not.toBeNull()
+  })
 })
 

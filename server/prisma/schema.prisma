@@ -55,6 +55,8 @@ model User {
   paymentRequestsReceived PaymentRequest[] @relation("PaymentRequestReceiver")
   securityLogs        SecurityLog[]
   verificationCodes   VerificationCode[]
+  remindersSent     BillSplitReminder[] @relation("BillSplitReminderSender")
+  remindersReceived BillSplitReminder[] @relation("BillSplitReminderRecipient")
 
   @@map("users")
 }
@@ -134,6 +136,7 @@ model BillSplit {
   items        BillItem[]
   receipts     Receipt[]
   invoices     Invoice[]
+  reminders   BillSplitReminder[]
   recurring    RecurringBillSplit?
 
   @@map("bill_splits")
@@ -167,6 +170,23 @@ model BillSplitParticipant {
 
   @@unique([billSplitId, userId])
   @@map("bill_split_participants")
+}
+
+model BillSplitReminder {
+  id          String   @id @default(cuid())
+  billSplitId String
+  senderId    String
+  recipientId String
+  type        String
+  template    String?
+  channels    String
+  createdAt   DateTime @default(now())
+
+  billSplit BillSplit @relation(fields: [billSplitId], references: [id], onDelete: Cascade)
+  sender    User      @relation("BillSplitReminderSender", fields: [senderId], references: [id], onDelete: Cascade)
+  recipient User      @relation("BillSplitReminderRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@map("bill_split_reminders")
 }
 
 model RecurringBillSplit {
