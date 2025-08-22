@@ -30,7 +30,7 @@ export function TransactionHistoryScreen({ onNavigate }: TransactionHistoryScree
   const [showFilters, setShowFilters] = useState(false);
   const [page, setPage] = useState(1);
   const pageSize = 20;
-  const { transactions: fetchedTransactions, loading, hasMore, summary } = useTransactions({ page, limit: pageSize });
+  const { transactions: fetchedTransactions, loading, hasMore, summary } = useTransactions({ page, size: pageSize });
   const [transactions, setTransactions] = useState<Transaction[]>([]);
 
   useEffect(() => {
