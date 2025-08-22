@@ -119,11 +119,45 @@ export function RegisterScreen({ onRegister, onShowLogin }: RegisterScreenProps)
       });
     }
     
-    // Mock registration process
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email,
+          phone: formData.phone,
+          password: formData.password,
+          country: formData.country,
+          acceptMarketing,
+        }),
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        if (data?.errors) {
+          setErrors(data.errors);
+        } else if (data?.message) {
+          setErrors({ api: data.message });
+        }
+        return;
+      }
+
+      if (data?.token && data?.user) {
+        localStorage.setItem('biltip_auth', JSON.stringify({ token: data.token }));
+        localStorage.setItem('biltip_user', JSON.stringify(data.user));
+      }
+
       onRegister();
-    }, 2000);
+    } catch (error: any) {
+      setErrors({ api: error.message || 'Registration failed' });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const updateFormData = (field: string, value: string) => {
