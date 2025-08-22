@@ -11,6 +11,7 @@ import { Avatar, AvatarFallback } from './ui/avatar';
 import { toast } from 'sonner';
 import { useUserProfile } from './UserProfileContext';
 import { fetchPaymentMethods as apiFetchPaymentMethods, type PaymentMethod as ApiPaymentMethod } from '@/api/payment-methods';
+import { apiClient } from '../utils/apiClient';
 
 interface SetupRecurringPaymentScreenProps {
   onNavigate: (tab: string, data?: unknown) => void;
@@ -69,16 +70,13 @@ export function SetupRecurringPaymentScreen({
 
   const loadFriends = useCallback(async () => {
     try {
-      const res = await fetch('/api/friends');
-      if (res.ok) {
-        const data: { friends?: Friend[] } = await res.json();
-        const friendsData: Friend[] = (data.friends || []).map((f) => ({
-          id: f.id,
-          name: f.name,
-          avatar: f.avatar,
-        }));
-        setFriends(friendsData);
-      }
+      const data: { friends?: Friend[] } = await apiClient('/api/friends');
+      const friendsData: Friend[] = (data.friends || []).map((f) => ({
+        id: f.id,
+        name: f.name,
+        avatar: f.avatar,
+      }));
+      setFriends(friendsData);
     } catch (err) {
       console.error('Failed to load friends', err);
     }

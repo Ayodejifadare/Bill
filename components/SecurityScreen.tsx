@@ -7,7 +7,7 @@ import { Switch } from './ui/switch';
 import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
-import { 
+import {
   ArrowLeft, 
   Shield, 
   Key, 
@@ -20,6 +20,7 @@ import {
   Settings,
   Clock
 } from 'lucide-react';
+import { apiClient } from '../utils/apiClient';
 
 interface SecurityActivity {
   id: string;
@@ -68,22 +69,17 @@ export function SecurityScreen({ onNavigate }: SecurityScreenProps) {
   const fetchLogs = async () => {
     if (!token) return;
     try {
-      const res = await fetch(`/api/users/${userId}/security-logs`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setActivities(
-          data.logs.map((l: any) => ({
-            id: l.id,
-            action: l.action,
-            device: l.device || '',
-            location: l.location || '',
-            timestamp: new Date(l.createdAt).toLocaleString(),
-            suspicious: l.suspicious,
-          }))
-        );
-      }
+      const data = await apiClient(`/api/users/${userId}/security-logs`);
+      setActivities(
+        data.logs.map((l: any) => ({
+          id: l.id,
+          action: l.action,
+          device: l.device || '',
+          location: l.location || '',
+          timestamp: new Date(l.createdAt).toLocaleString(),
+          suspicious: l.suspicious,
+        }))
+      );
     } catch (e) {
       console.error('Fetch logs error', e);
     }
@@ -93,17 +89,12 @@ export function SecurityScreen({ onNavigate }: SecurityScreenProps) {
     const fetchSettings = async () => {
       if (!token) return;
       try {
-        const res = await fetch(`/api/users/${userId}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setSecuritySettings(prev => ({
-            ...prev,
-            twoFactorAuth: data.user.twoFactorEnabled,
-            biometricAuth: data.user.biometricEnabled,
-          }));
-        }
+        const data = await apiClient(`/api/users/${userId}`);
+        setSecuritySettings(prev => ({
+          ...prev,
+          twoFactorAuth: data.user.twoFactorEnabled,
+          biometricAuth: data.user.biometricEnabled,
+        }));
         await fetchLogs();
       } catch (e) {
         console.error('Fetch security settings error', e);
@@ -117,20 +108,18 @@ export function SecurityScreen({ onNavigate }: SecurityScreenProps) {
     if (!token) return;
     try {
       if (key === 'twoFactorAuth') {
-        await fetch(`/api/users/${userId}/two-factor`, {
+        await apiClient(`/api/users/${userId}/two-factor`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({ enabled: value }),
         });
       } else if (key === 'biometricAuth') {
-        await fetch(`/api/users/${userId}/biometric`, {
+        await apiClient(`/api/users/${userId}/biometric`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({ enabled: value }),
         });
@@ -148,46 +137,37 @@ export function SecurityScreen({ onNavigate }: SecurityScreenProps) {
       return;
     }
     try {
-      const res = await fetch(`/api/users/${userId}/change-password`, {
+      await apiClient(`/api/users/${userId}/change-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           currentPassword: passwordForm.currentPassword,
           newPassword: passwordForm.newPassword,
         }),
       });
-      if (res.ok) {
-        alert('Password changed successfully!');
-        setShowChangePassword(false);
-        setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-        await fetchLogs();
-      } else {
-        const data = await res.json();
-        alert(data.error || 'Failed to change password');
-      }
-    } catch (e) {
+      alert('Password changed successfully!');
+      setShowChangePassword(false);
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      await fetchLogs();
+    } catch (e: any) {
       console.error('Change password error', e);
+      alert(e.message || 'Failed to change password');
     }
   };
 
   const handleLogoutOthers = async () => {
     if (!token) return;
     try {
-      const res = await fetch(`/api/users/${userId}/logout-others`, {
+      const data = await apiClient(`/api/users/${userId}/logout-others`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` }
       });
-      if (res.ok) {
-        const data = await res.json();
-        const stored = storedAuth ? JSON.parse(storedAuth) : {};
-        stored.token = data.token;
-        localStorage.setItem('biltip_auth', JSON.stringify(stored));
-        alert('Logged out from other sessions');
-        await fetchLogs();
-      }
+      const stored = storedAuth ? JSON.parse(storedAuth) : {};
+      stored.token = data.token;
+      localStorage.setItem('biltip_auth', JSON.stringify(stored));
+      alert('Logged out from other sessions');
+      await fetchLogs();
     } catch (e) {
       console.error('Logout others error', e);
     }

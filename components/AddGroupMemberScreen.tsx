@@ -17,6 +17,7 @@ import { Progress } from './ui/progress';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { toast } from 'sonner';
 import { contactsAPI, showContactError } from '../utils/contacts-api';
+import { apiClient } from '../utils/apiClient';
 
 interface Contact {
   id: string;
@@ -68,17 +69,11 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
       setSyncProgress(20);
       const deviceContacts = await contactsAPI.getContacts();
       setSyncProgress(50);
-      const response = await fetch(`/api/groups/${groupId}/potential-members`, {
+      const data = await apiClient(`/api/groups/${groupId}/potential-members`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ contacts: deviceContacts })
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch potential members');
-      }
-
-      const data = await response.json();
       setSyncProgress(90);
 
       setSyncedContacts(data.contacts || []);
@@ -268,15 +263,11 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
     setIsInviting(true);
 
     try {
-      const response = await fetch(`/api/groups/${groupId}/invite`, {
+      await apiClient(`/api/groups/${groupId}/invite`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ method: 'whatsapp', contacts: selectedContactsList })
       });
-
-      if (!response.ok) {
-        throw new Error('Invite failed');
-      }
 
       const groupName = 'Work Squad';
       selectedContactsList.forEach(contact => {
@@ -302,15 +293,11 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
   const handleSingleInvite = async (contact: Contact) => {
     setIsInviting(true);
     try {
-      const response = await fetch(`/api/groups/${groupId}/invite`, {
+      await apiClient(`/api/groups/${groupId}/invite`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ method: 'whatsapp', contacts: [contact] })
       });
-
-      if (!response.ok) {
-        throw new Error('Invite failed');
-      }
 
       const groupName = 'Work Squad';
       const message = `Hi ${contact.name}! You've been invited to join "${groupName}" on Biltip - a bill splitting app. Join us to split expenses easily! Download it here: https://biltip.com/download`;
@@ -350,15 +337,11 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
     const methodName = inviteMethod === 'whatsapp' ? 'WhatsApp' : inviteMethod === 'sms' ? 'SMS' : 'Email';
 
     try {
-      const response = await fetch(`/api/groups/${groupId}/invite`, {
+      await apiClient(`/api/groups/${groupId}/invite`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ method: inviteMethod, contact: inviteData })
       });
-
-      if (!response.ok) {
-        throw new Error('Invite failed');
-      }
 
       if (inviteMethod === 'whatsapp') {
         const message = getInviteMessage();

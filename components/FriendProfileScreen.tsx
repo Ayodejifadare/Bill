@@ -80,9 +80,7 @@ export function FriendProfileScreen({ friendId, onNavigate }: FriendProfileScree
     if (!friendId) return;
     const load = async () => {
       try {
-        const res = await fetch(`/api/friends/${friendId}`);
-        if (!res.ok) throw new Error('Failed to load friend');
-        const data = await res.json();
+        const data = await apiClient(`/api/friends/${friendId}`);
         setFriend(data.friend);
         setTransactions(data.transactions || []);
         setSharedGroups(data.sharedGroups || []);

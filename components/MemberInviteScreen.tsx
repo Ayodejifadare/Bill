@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { Separator } from './ui/separator';
 import { toast } from 'sonner';
+import { apiClient } from '../utils/apiClient';
 
 interface PendingInvite {
   id: string;
@@ -82,9 +83,7 @@ export function MemberInviteScreen({ groupId, onNavigate }: MemberInviteScreenPr
 
     const fetchInvites = async () => {
       try {
-        const res = await fetch(`/api/groups/${groupId}/invites`);
-        if (!res.ok) throw new Error('Failed to load invites');
-        const data = await res.json();
+        const data = await apiClient(`/api/groups/${groupId}/invites`);
         setPendingInvites(Array.isArray(data.invites) ? data.invites : []);
       } catch (err) {
         setPendingInvites([]);
@@ -94,9 +93,7 @@ export function MemberInviteScreen({ groupId, onNavigate }: MemberInviteScreenPr
 
     const fetchLinks = async () => {
       try {
-        const res = await fetch(`/api/groups/${groupId}/invite-links`);
-        if (!res.ok) throw new Error('Failed to load invite links');
-        const data = await res.json();
+        const data = await apiClient(`/api/groups/${groupId}/invite-links`);
         setInviteLinks(Array.isArray(data.links) ? data.links : []);
       } catch (err) {
         setInviteLinks([]);
@@ -110,11 +107,9 @@ export function MemberInviteScreen({ groupId, onNavigate }: MemberInviteScreenPr
 
   const handleResendInvite = async (inviteId: string) => {
     try {
-      const res = await fetch(`/api/groups/${groupId}/invites/${inviteId}/resend`, {
+      const data = await apiClient(`/api/groups/${groupId}/invites/${inviteId}/resend`, {
         method: 'POST'
       });
-      if (!res.ok) throw new Error('Failed to resend invite');
-      const data = await res.json();
       if (data.invite) {
         setPendingInvites(prev => prev.map(invite => invite.id === inviteId ? data.invite : invite));
       }
@@ -127,8 +122,7 @@ export function MemberInviteScreen({ groupId, onNavigate }: MemberInviteScreenPr
 
   const handleCancelInvite = async (inviteId: string) => {
     try {
-      const res = await fetch(`/api/groups/${groupId}/invites/${inviteId}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Failed to cancel invite');
+      await apiClient(`/api/groups/${groupId}/invites/${inviteId}`, { method: 'DELETE' });
       const invite = pendingInvites.find(i => i.id === inviteId);
       setPendingInvites(prev => prev.filter(i => i.id !== inviteId));
       toast.success(`Invitation cancelled for ${invite?.name || invite?.contact}`);
@@ -139,7 +133,7 @@ export function MemberInviteScreen({ groupId, onNavigate }: MemberInviteScreenPr
 
   const handleCreateInviteLink = async () => {
     try {
-      const res = await fetch(`/api/groups/${groupId}/invite-links`, {
+      const data = await apiClient(`/api/groups/${groupId}/invite-links`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -147,8 +141,6 @@ export function MemberInviteScreen({ groupId, onNavigate }: MemberInviteScreenPr
           expireDays: settings.linkExpireDays
         })
       });
-      if (!res.ok) throw new Error('Failed to create invite link');
-      const data = await res.json();
       if (data.link) {
         setInviteLinks(prev => [data.link, ...prev]);
       }

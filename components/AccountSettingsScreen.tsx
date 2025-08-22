@@ -7,6 +7,7 @@ import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
 import { ArrowLeft, Edit, Mail, Phone, MapPin, Calendar, Shield, Camera } from 'lucide-react';
 import { useUserProfile } from './UserProfileContext';
+import { apiClient } from '../utils/apiClient';
 
 interface AccountSettingsScreenProps {
   onNavigate: (tab: string) => void;
@@ -72,21 +73,12 @@ export function AccountSettingsScreen({ onNavigate }: AccountSettingsScreenProps
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      const storedAuth = localStorage.getItem('biltip_auth');
-      const token = storedAuth ? JSON.parse(storedAuth).token : null;
       const formData = new FormData();
       formData.append('avatar', file);
-      const response = await fetch(`/api/users/${userProfile.id}/avatar`, {
+      const data = await apiClient(`/api/users/${userProfile.id}/avatar`, {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
         body: formData,
       });
-      if (!response.ok) {
-        throw new Error('Upload failed');
-      }
-      const data = await response.json();
       const avatarUrl = data.avatar || data.avatarUrl || data.url;
       if (avatarUrl) {
         setUserData(prev => ({ ...prev, avatar: avatarUrl }));

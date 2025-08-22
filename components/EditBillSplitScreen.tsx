@@ -12,6 +12,7 @@ import { Badge } from './ui/badge';
 import { toast } from 'sonner';
 import { PageLoading, LoadingSpinner } from './ui/loading';
 import { useUserProfile } from './UserProfileContext';
+import { apiClient } from '../utils/apiClient';
 
 interface EditBillSplitScreenProps {
   billSplitId: string | null;
@@ -64,33 +65,21 @@ interface BillSplit {
 }
 
 async function fetchBillSplit(id: string): Promise<BillSplit> {
-  const res = await fetch(`/api/bill-splits/${id}`);
-  if (!res.ok) {
-    throw new Error('Failed to fetch bill split');
-  }
-  const data = await res.json();
+  const data = await apiClient(`/api/bill-splits/${id}`);
   return data.billSplit ?? data;
 }
 
 async function fetchPaymentMethods(): Promise<PaymentMethod[]> {
-  const res = await fetch('/api/payment-methods');
-  if (!res.ok) {
-    throw new Error('Failed to fetch payment methods');
-  }
-  const data = await res.json();
+  const data = await apiClient('/api/payment-methods');
   return data.paymentMethods ?? data;
 }
 
 async function updateBillSplit(id: string, payload: any): Promise<void> {
-  const res = await fetch(`/api/bill-splits/${id}`, {
+  await apiClient(`/api/bill-splits/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || 'Failed to save bill split');
-  }
 }
 
 export function EditBillSplitScreen({ billSplitId, onNavigate }: EditBillSplitScreenProps) {
