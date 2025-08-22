@@ -9,8 +9,23 @@ const getVerificationState = user => ({
   phoneVerified: user.phoneVerified,
   emailVerified: user.emailVerified,
   idVerified: user.idVerified,
-  documentsSubmitted: user.documentsSubmitted
+  documentsSubmitted: user.documentsSubmitted,
+  kycStatus: user.kycStatus
 })
+
+const updateKycStatus = async (prisma, userId) => {
+  const user = await prisma.user.findUnique({ where: { id: userId } })
+  const complete =
+    user.phoneVerified &&
+    user.emailVerified &&
+    user.idVerified &&
+    user.documentsSubmitted
+  const kycStatus = complete ? 'verified' : 'pending'
+  if (user.kycStatus !== kycStatus) {
+    return prisma.user.update({ where: { id: userId }, data: { kycStatus } })
+  }
+  return user
+}
 
 const phoneResendLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
@@ -34,7 +49,7 @@ router.post('/phone', authenticate, async (req, res) => {
         update: { code: generated, target: phone, expiresAt },
         create: { userId, type: 'phone', code: generated, target: phone, expiresAt }
       })
-      const user = await req.prisma.user.findUnique({ where: { id: userId } })
+      const user = await updateKycStatus(req.prisma, userId)
       return res.json({
         message: 'Verification code sent',
         verification: getVerificationState(user)
@@ -51,7 +66,7 @@ router.post('/phone', authenticate, async (req, res) => {
         data: { phoneVerified: true, phone: entry.target || phone }
       })
       await req.prisma.verificationCode.delete({ where: { id: entry.id } })
-      const user = await req.prisma.user.findUnique({ where: { id: userId } })
+      const user = await updateKycStatus(req.prisma, userId)
       return res.json({
         message: 'Phone verified',
         verification: getVerificationState(user)
@@ -89,7 +104,7 @@ router.post('/phone/resend', authenticate, phoneResendLimiter, async (req, res) 
     const phone = existing.target
     console.log(`Resending verification code ${generated} to ${phone}`)
 
-    const user = await req.prisma.user.findUnique({ where: { id: userId } })
+    const user = await updateKycStatus(req.prisma, userId)
     return res.json({
       message: 'Verification code resent',
       verification: getVerificationState(user)
@@ -115,7 +130,7 @@ router.post('/email', authenticate, async (req, res) => {
         update: { code: generated, target: email, expiresAt },
         create: { userId, type: 'email', code: generated, target: email, expiresAt }
       })
-      const user = await req.prisma.user.findUnique({ where: { id: userId } })
+      const user = await updateKycStatus(req.prisma, userId)
       return res.json({
         message: 'Verification code sent',
         verification: getVerificationState(user)
@@ -132,7 +147,7 @@ router.post('/email', authenticate, async (req, res) => {
         data: { emailVerified: true, email: entry.target || email }
       })
       await req.prisma.verificationCode.delete({ where: { id: entry.id } })
-      const user = await req.prisma.user.findUnique({ where: { id: userId } })
+      const user = await updateKycStatus(req.prisma, userId)
       return res.json({
         message: 'Email verified',
         verification: getVerificationState(user)
@@ -153,7 +168,7 @@ router.post('/id', authenticate, async (req, res) => {
       where: { id: userId },
       data: { idVerified: true }
     })
-    const user = await req.prisma.user.findUnique({ where: { id: userId } })
+    const user = await updateKycStatus(req.prisma, userId)
     res.json({
       message: 'ID submitted',
       verification: getVerificationState(user)
@@ -171,7 +186,7 @@ router.post('/documents', authenticate, async (req, res) => {
       where: { id: userId },
       data: { documentsSubmitted: true }
     })
-    const user = await req.prisma.user.findUnique({ where: { id: userId } })
+    const user = await updateKycStatus(req.prisma, userId)
     res.json({
       message: 'Documents submitted',
       verification: getVerificationState(user)

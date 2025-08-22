@@ -29,6 +29,7 @@ model User {
   emailVerified     Boolean  @default(false)
   idVerified        Boolean  @default(false)
   documentsSubmitted Boolean @default(false)
+  kycStatus String   @default("pending")
   tokenVersion    Int      @default(0)
   privacySettings      String?
   preferenceSettings   String?
