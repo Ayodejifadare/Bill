@@ -194,7 +194,7 @@ router.post('/request', [
 // Get pending friend requests
 router.get('/requests', authenticateToken, async (req, res) => {
   try {
-    const incoming = await req.prisma.friendRequest.findMany({
+    const incomingRaw = await req.prisma.friendRequest.findMany({
       where: { receiverId: req.userId, status: 'PENDING' },
       include: {
         sender: {
@@ -206,7 +206,7 @@ router.get('/requests', authenticateToken, async (req, res) => {
       }
     })
 
-    const outgoing = await req.prisma.friendRequest.findMany({
+    const outgoingRaw = await req.prisma.friendRequest.findMany({
       where: { senderId: req.userId, status: 'PENDING' },
       include: {
         sender: {
@@ -217,6 +217,30 @@ router.get('/requests', authenticateToken, async (req, res) => {
         }
       }
     })
+
+    const formatRequest = (r, incoming = false) => ({
+      id: incoming ? r.sender.id : r.receiver.id,
+      name: incoming ? r.sender.name : r.receiver.name,
+      username: incoming ? r.sender.email : r.receiver.email,
+      avatar: incoming ? r.sender.avatar : r.receiver.avatar,
+      status: r.status.toLowerCase(),
+      requestId: r.id,
+      sender: {
+        id: r.sender.id,
+        name: r.sender.name,
+        username: r.sender.email,
+        avatar: r.sender.avatar
+      },
+      receiver: {
+        id: r.receiver.id,
+        name: r.receiver.name,
+        username: r.receiver.email,
+        avatar: r.receiver.avatar
+      }
+    })
+
+    const incoming = incomingRaw.map(r => formatRequest(r, true))
+    const outgoing = outgoingRaw.map(r => formatRequest(r, false))
 
     res.json({ incoming, outgoing })
   } catch (error) {
