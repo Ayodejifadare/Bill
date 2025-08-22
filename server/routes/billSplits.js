@@ -192,20 +192,16 @@ router.get(
         ...(billSplit.location ? { location: billSplit.location } : {}),
         ...(billSplit.note ? { note: billSplit.note } : {}),
         ...(billSplit.splitMethod ? { splitMethod: billSplit.splitMethod } : {}),
-        organizer: {
-          name: billSplit.creator.id === req.userId ? 'You' : billSplit.creator.name,
-          avatar: billSplit.creator.avatar || ''
-        },
+        createdBy:
+          billSplit.creator.id === req.userId ? 'You' : billSplit.creator.name,
         creatorId: billSplit.creator.id,
         groupId: billSplit.groupId,
         groupName: billSplit.group ? billSplit.group.name : undefined,
         paymentMethod,
         participants: billSplit.participants.map(p => ({
-          id: p.user.id,
           name: p.userId === req.userId ? 'You' : p.user.name,
-          avatar: p.user.avatar || '',
           amount: p.amount,
-          status: p.isPaid ? 'paid' : 'pending'
+          paid: p.isPaid
         })),
         items: billSplit.items.map(item => ({
           id: item.id,
