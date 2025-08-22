@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ArrowLeft, TrendingUp, TrendingDown, Calendar, DollarSign, PieChart, BarChart3, Target, Award } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
@@ -13,65 +13,14 @@ interface SpendingInsightsScreenProps {
   onNavigate: (tab: string) => void;
 }
 
-const mockSpendingData = {
-  currentMonth: {
-    total: 645.75,
-    categories: [
-      { name: 'Food & Dining', amount: 285.50, percentage: 44, color: '#ef4444' },
-      { name: 'Transportation', amount: 125.00, percentage: 19, color: '#3b82f6' },
-      { name: 'Entertainment', amount: 95.25, percentage: 15, color: '#10b981' },
-      { name: 'Shopping', amount: 85.00, percentage: 13, color: '#f59e0b' },
-      { name: 'Other', amount: 55.00, percentage: 9, color: '#8b5cf6' }
-    ]
-  },
-  monthlyTrends: [
-    { month: 'Aug', sent: 420, received: 380, splits: 8 },
-    { month: 'Sep', sent: 485, received: 425, splits: 12 },
-    { month: 'Oct', sent: 525, received: 390, splits: 15 },
-    { month: 'Nov', sent: 580, received: 445, splits: 18 },
-    { month: 'Dec', sent: 645, received: 420, splits: 22 },
-    { month: 'Jan', sent: 645, received: 485, splits: 15 }
-  ],
-  goals: [
-    { category: 'Food & Dining', budget: 300, spent: 285.50, target: 'Monthly' },
-    { category: 'Transportation', budget: 150, spent: 125.00, target: 'Monthly' },
-    { category: 'Entertainment', budget: 100, spent: 95.25, target: 'Monthly' }
-  ],
-  insights: [
-    {
-      type: 'positive',
-      title: 'Great Job!',
-      description: 'You spent 15% less on transportation this month',
-      icon: Award
-    },
-    {
-      type: 'warning',
-      title: 'Watch Out',
-      description: 'Food spending is 95% of your monthly budget',
-      icon: Target
-    },
-    {
-      type: 'neutral',
-      title: 'Trend Alert',
-      description: 'Your bill splits have increased by 25% this month',
-      icon: TrendingUp
-    }
-  ],
-  weeklyActivity: [
-    { day: 'Mon', amount: 45 },
-    { day: 'Tue', amount: 78 },
-    { day: 'Wed', amount: 125 },
-    { day: 'Thu', amount: 65 },
-    { day: 'Fri', amount: 185 },
-    { day: 'Sat', amount: 95 },
-    { day: 'Sun', amount: 52 }
-  ]
-};
 
 export function SpendingInsightsScreen({ onNavigate }: SpendingInsightsScreenProps) {
   const { appSettings } = useUserProfile();
   const currencySymbol = appSettings.region === 'NG' ? '₦' : '$';
   const [selectedPeriod, setSelectedPeriod] = useState('This Month');
+  const [spendingData, setSpendingData] = useState<any | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const periods = ['This Week', 'This Month', 'Last 3 Months', 'This Year'];
 
@@ -90,6 +39,50 @@ export function SpendingInsightsScreen({ onNavigate }: SpendingInsightsScreenPro
       default: return 'bg-primary/10';
     }
   };
+
+  useEffect(() => {
+    const fetchInsights = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const storedAuth = localStorage.getItem('biltip_auth');
+        const token = storedAuth ? JSON.parse(storedAuth).token : null;
+        if (!token) {
+          throw new Error('Unauthorized: Please log in.');
+        }
+        const res = await fetch(`/api/spending-insights?period=${encodeURIComponent(selectedPeriod)}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.status === 401) {
+          throw new Error('Unauthorized: Please log in.');
+        }
+        if (!res.ok) {
+          throw new Error('Failed to fetch spending insights');
+        }
+        const data = await res.json();
+        setSpendingData(data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch spending insights');
+        setSpendingData(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchInsights();
+  }, [selectedPeriod]);
+
+  if (loading) {
+    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+  }
+
+  if (error) {
+    return <div className="flex items-center justify-center min-h-screen">Error: {error}</div>;
+  }
+
+  if (!spendingData) {
+    return <div className="flex items-center justify-center min-h-screen">No data</div>;
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -135,7 +128,7 @@ export function SpendingInsightsScreen({ onNavigate }: SpendingInsightsScreenPro
             </div>
             <div className="flex-1 flex flex-col justify-end">
               <p className="text-xl sm:text-2xl font-bold">
-                {currencySymbol}{mockSpendingData.currentMonth.total.toFixed(0)}
+                {currencySymbol}{spendingData.currentMonth.total.toFixed(0)}
               </p>
               <p className="text-sm text-muted-foreground mt-1">Total Spent</p>
             </div>
@@ -159,7 +152,7 @@ export function SpendingInsightsScreen({ onNavigate }: SpendingInsightsScreenPro
         <div className="space-y-4">
           <h3 className="font-medium text-lg">Key Insights</h3>
           <div className="space-y-3">
-            {mockSpendingData.insights.map((insight, index) => {
+            {spendingData.insights.map((insight, index) => {
               const IconComponent = insight.icon;
               return (
                 <Card key={index} className={`p-4 min-h-[60px] ${getInsightBgColor(insight.type)}`}>
@@ -191,7 +184,7 @@ export function SpendingInsightsScreen({ onNavigate }: SpendingInsightsScreenPro
             <Card className="p-4 sm:p-6">
               <h3 className="font-medium mb-4 text-lg">Spending by Category</h3>
               <div className="space-y-4">
-                {mockSpendingData.currentMonth.categories.map((category, index) => (
+                {spendingData.currentMonth.categories.map((category, index) => (
                   <div key={index} className="space-y-3 min-h-[44px] flex flex-col justify-center">
                     <div className="flex justify-between items-start">
                       <div className="min-w-0 flex-1">
@@ -224,7 +217,7 @@ export function SpendingInsightsScreen({ onNavigate }: SpendingInsightsScreenPro
               <div className="w-full h-[30vh] min-h-[200px] max-h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart 
-                    data={mockSpendingData.weeklyActivity}
+                    data={spendingData.weeklyActivity}
                     margin={{ top: 10, right: 10, left: 0, bottom: 10 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e5e5" />
@@ -258,7 +251,7 @@ export function SpendingInsightsScreen({ onNavigate }: SpendingInsightsScreenPro
               <div className="w-full h-[35vh] min-h-[250px] max-h-[350px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart 
-                    data={mockSpendingData.monthlyTrends}
+                    data={spendingData.monthlyTrends}
                     margin={{ top: 10, right: 10, left: 0, bottom: 10 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e5e5" />
@@ -312,7 +305,7 @@ export function SpendingInsightsScreen({ onNavigate }: SpendingInsightsScreenPro
               <div className="w-full h-[25vh] min-h-[180px] max-h-[250px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart 
-                    data={mockSpendingData.monthlyTrends}
+                    data={spendingData.monthlyTrends}
                     margin={{ top: 10, right: 10, left: 0, bottom: 10 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e5e5" />
@@ -343,7 +336,7 @@ export function SpendingInsightsScreen({ onNavigate }: SpendingInsightsScreenPro
             {/* Budget Goals */}
             <div className="space-y-4">
               <h3 className="font-medium text-lg">Budget Goals</h3>
-              {mockSpendingData.goals.map((goal, index) => {
+              {spendingData.goals.map((goal, index) => {
                 const percentage = (goal.spent / goal.budget) * 100;
                 const isOverBudget = percentage > 100;
                 
