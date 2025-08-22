@@ -6,6 +6,7 @@ import { Separator } from './ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Smartphone, Globe } from 'lucide-react';
 import { useUserProfile } from './UserProfileContext';
+import { InputOTP, InputOTPGroup, InputOTPSlot } from './ui/input-otp';
 
 interface LoginScreenProps {
   onLogin: (authData: any) => void;
@@ -64,12 +65,17 @@ export function LoginScreen({ onLogin, onShowRegister }: LoginScreenProps) {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [country, setCountry] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [codeSent, setCodeSent] = useState(false);
+  const [otp, setOtp] = useState('');
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [error, setError] = useState('');
 
   const selectedCountry = countryOptions.find(c => c.code === country);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSendCode = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setError('');
 
     // Set user region based on selected country
     if (selectedCountry) {
@@ -80,29 +86,55 @@ export function LoginScreen({ onLogin, onShowRegister }: LoginScreenProps) {
     }
 
     try {
-      const response = await fetch('/api/auth/login', {
+      const response = await fetch('/auth/request-otp', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        // Using phone number as identifier with a demo password since the
-        // backend expects email/password credentials
         body: JSON.stringify({
-          email: phoneNumber,
-          password: 'password'
+          phone: `${selectedCountry?.phonePrefix}${phoneNumber}`
         })
       });
-
-      if (!response.ok) {
-        throw new Error('Login failed');
-      }
-
       const data = await response.json();
-      onLogin(data);
-    } catch (error) {
-      console.error('Login error:', error);
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to send code');
+      }
+      setCodeSent(true);
+    } catch (error: any) {
+      console.error('OTP request error:', error);
+      setError(error.message || 'Failed to send code');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsVerifying(true);
+    setError('');
+    try {
+      const response = await fetch('/auth/verify-otp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          phone: `${selectedCountry?.phonePrefix}${phoneNumber}`,
+          otp
+        })
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'OTP verification failed');
+      }
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      onLogin({ token: data.token, user: data.user });
+    } catch (error: any) {
+      console.error('OTP verification error:', error);
+      setError(error.message || 'OTP verification failed');
+    } finally {
+      setIsVerifying(false);
     }
   };
 
@@ -126,7 +158,7 @@ export function LoginScreen({ onLogin, onShowRegister }: LoginScreenProps) {
 
         {/* Login Form */}
         <Card className="p-6">
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleSendCode} className="space-y-4">
             {/* Country and Phone Number */}
             <div className="grid grid-cols-2 gap-4">
               {/* Country */}
@@ -192,7 +224,37 @@ export function LoginScreen({ onLogin, onShowRegister }: LoginScreenProps) {
             >
               {isLoading ? 'Sending code...' : 'Send verification code'}
             </Button>
+            {!codeSent && error && (
+              <p className="text-sm text-red-500">{error}</p>
+            )}
           </form>
+
+          {codeSent && (
+            <form onSubmit={handleVerifyOtp} className="mt-4 space-y-4">
+              <InputOTP
+                value={otp}
+                onChange={setOtp}
+                maxLength={6}
+                containerClassName="justify-center"
+              >
+                <InputOTPGroup>
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <InputOTPSlot key={i} index={i} />
+                  ))}
+                </InputOTPGroup>
+              </InputOTP>
+              {error && (
+                <p className="text-sm text-red-500">{error}</p>
+              )}
+              <Button
+                type="submit"
+                className="w-full h-12"
+                disabled={isVerifying || otp.length < 6}
+              >
+                {isVerifying ? 'Verifying...' : 'Verify code'}
+              </Button>
+            </form>
+          )}
 
           {/* Alternative Login Methods */}
           <div className="mt-6 space-y-4">
