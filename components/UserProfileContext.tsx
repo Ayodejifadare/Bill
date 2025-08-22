@@ -31,6 +31,7 @@ interface UserPreferences {
   whatsappAlerts: boolean;
   darkMode: boolean;
   biometrics: boolean;
+  notificationSettings: Record<string, unknown>;
 }
 
 interface UserSettings {
@@ -92,6 +93,7 @@ const defaultPreferences: UserPreferences = {
   whatsappAlerts: false,
   darkMode: false,
   biometrics: false,
+  notificationSettings: {},
 };
 
 const getStoredUserId = (): string | undefined => {
@@ -156,7 +158,14 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
         joinDate: fetched.createdAt ? new Date(fetched.createdAt).toLocaleDateString() : prev?.joinDate,
         kycStatus: fetched.kycStatus ?? 'pending',
         stats: prev?.stats ?? defaultStats,
-        preferences: { ...defaultPreferences, ...(fetched.preferences || {}) },
+        preferences: {
+          ...defaultPreferences,
+          ...(fetched.preferences || {}),
+          notificationSettings: {
+            ...defaultPreferences.notificationSettings,
+            ...(fetched.preferences?.notificationSettings || {})
+          }
+        },
         linkedBankAccounts: prev?.linkedBankAccounts ?? [],
       }));
       if (fetched.region && fetched.currency) {
