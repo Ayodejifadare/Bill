@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, MouseEvent } from 'react';
-import { ArrowLeft, Users, Calendar, CreditCard, MapPin, Receipt, MoreHorizontal, Check, Clock, Edit, Trash2, Settings, Share2 } from 'lucide-react';
+import { ArrowLeft, Users, Calendar, CreditCard, MapPin, Receipt, MoreHorizontal, Check, Clock, Edit, Trash2, Settings, Share2, Building2, Smartphone, Copy } from 'lucide-react';
 import { Button } from './ui/button';
-import { Card } from './ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/card';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
@@ -32,6 +32,18 @@ interface BillItem {
   quantity: number;
 }
 
+interface PaymentMethod {
+  type: 'bank' | 'mobile_money';
+  bankName?: string;
+  accountNumber?: string;
+  accountHolderName?: string;
+  sortCode?: string;
+  routingNumber?: string;
+  accountType?: 'checking' | 'savings';
+  provider?: string;
+  phoneNumber?: string;
+}
+
 interface BillSplit {
   id: string;
   title: string;
@@ -45,6 +57,8 @@ interface BillSplit {
   participants: Participant[];
   items: BillItem[];
   note: string;
+  paymentMethod?: PaymentMethod;
+  paymentInstructions?: string;
 }
 
 const billSplitCache = new Map<string, BillSplit>();
@@ -62,7 +76,8 @@ async function deleteBillSplit(id: string): Promise<void> {
 
 export function BillSplitDetailsScreen({ billSplitId, onNavigate }: BillSplitDetailsScreenProps) {
   const { userProfile, appSettings } = useUserProfile();
-  const currencySymbol = appSettings.region === 'NG' ? '₦' : '$';
+  const isNigeria = appSettings.region === 'NG';
+  const currencySymbol = isNigeria ? '₦' : '$';
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showShareSheet, setShowShareSheet] = useState(false);
   const [billSplit, setBillSplit] = useState<BillSplit | null>(null);
@@ -173,6 +188,39 @@ export function BillSplitDetailsScreen({ billSplitId, onNavigate }: BillSplitDet
 
   const handleSettle = () => {
     onNavigate('settlement', { billSplitId });
+  };
+
+  const copyPaymentDetails = async () => {
+    if (!billSplit?.paymentMethod) return;
+
+    if (!navigator.clipboard || !navigator.clipboard.writeText) {
+      toast.error('Clipboard not supported. Please copy manually.');
+      return;
+    }
+
+    try {
+      if (billSplit.paymentMethod.type === 'bank') {
+        const bankInfo = isNigeria
+          ? `${billSplit.paymentMethod.bankName}\nAccount Name: ${billSplit.paymentMethod.accountHolderName}\nAccount Number: ${billSplit.paymentMethod.accountNumber}\nSort Code: ${billSplit.paymentMethod.sortCode}`
+          : `${billSplit.paymentMethod.bankName}\nAccount Holder: ${billSplit.paymentMethod.accountHolderName}\nRouting Number: ${billSplit.paymentMethod.routingNumber}\nAccount Number: ${billSplit.paymentMethod.accountNumber}`;
+        await navigator.clipboard.writeText(bankInfo);
+        toast.success('Bank account details copied to clipboard');
+      } else {
+        const mobileInfo = `${billSplit.paymentMethod.provider}\nPhone Number: ${billSplit.paymentMethod.phoneNumber}`;
+        await navigator.clipboard.writeText(mobileInfo);
+        toast.success('Mobile money details copied to clipboard');
+      }
+    } catch (error) {
+      toast.error('Failed to copy details. Please copy manually.');
+    }
+  };
+
+  const formatAccountNumber = (accountNumber: string) => {
+    if (isNigeria) {
+      return accountNumber.replace(/(\d{4})(\d{4})(\d{2})/, '$1 $2 $3');
+    } else {
+      return accountNumber.replace(/(\*{4})(\d{4})/, '$1 $2');
+    }
   };
 
   // Create share data for this bill split
@@ -320,6 +368,102 @@ export function BillSplitDetailsScreen({ billSplitId, onNavigate }: BillSplitDet
             </div>
           </div>
         </Card>
+
+        {/* Payment Method Details */}
+        {billSplit.paymentMethod && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                {billSplit.paymentMethod.type === 'bank' ? (
+                  <Building2 className="h-5 w-5" />
+                ) : (
+                  <Smartphone className="h-5 w-5" />
+                )}
+                Payment Method
+              </CardTitle>
+              <CardDescription>
+                Send your share to {billSplit.organizer.name}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Card className="bg-muted">
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-1">
+                      <p className="font-medium">
+                        {billSplit.paymentMethod.type === 'bank'
+                          ? billSplit.paymentMethod.bankName
+                          : billSplit.paymentMethod.provider}
+                      </p>
+
+                      {billSplit.paymentMethod.type === 'bank' ? (
+                        <>
+                          <p className="text-sm text-muted-foreground">
+                            Account Holder: {billSplit.paymentMethod.accountHolderName}
+                          </p>
+                          {!isNigeria && billSplit.paymentMethod.accountType && (
+                            <p className="text-sm text-muted-foreground">
+                              Account Type: {billSplit.paymentMethod.accountType.charAt(0).toUpperCase() + billSplit.paymentMethod.accountType.slice(1)}
+                            </p>
+                          )}
+                          {isNigeria ? (
+                            <>
+                              <p className="text-sm text-muted-foreground">
+                                Sort Code: {billSplit.paymentMethod.sortCode}
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                Account Number: {formatAccountNumber(billSplit.paymentMethod.accountNumber!)}
+                              </p>
+                            </>
+                          ) : (
+                            <>
+                              <p className="text-sm text-muted-foreground">
+                                Routing Number: {billSplit.paymentMethod.routingNumber}
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                Account Number: {formatAccountNumber(billSplit.paymentMethod.accountNumber!)}
+                              </p>
+                            </>
+                          )}
+                        </>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          Phone Number: {billSplit.paymentMethod.phoneNumber}
+                        </p>
+                      )}
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={copyPaymentDetails}
+                      className="p-2"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {billSplit.paymentInstructions && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex gap-2">
+                    <div className="flex-shrink-0 mt-0.5">
+                      <svg className="h-4 w-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-sm text-blue-800 font-medium">Payment Instructions</p>
+                      <p className="text-sm text-blue-700 mt-1">
+                        {billSplit.paymentInstructions}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Participants */}
         <Card className="p-4">
