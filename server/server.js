@@ -5,7 +5,6 @@ import rateLimit from 'express-rate-limit'
 import dotenv from 'dotenv'
 import path from 'path'
 import { PrismaClient } from '@prisma/client'
-import { addClient, removeClient } from './utils/notificationStream.js'
 import authenticate from './middleware/auth.js'
 import onboardingRedirect from './middleware/onboarding.js'
 
@@ -90,20 +89,6 @@ app.use('/api/verification', verificationRoutes)
 app.use('/api/receipts', receiptRoutes)
 app.use('/api', spendingInsightsRoutes)
 
-app.get('/api/notifications/stream', (req, res) => {
-  res.set({
-    'Content-Type': 'text/event-stream',
-    'Cache-Control': 'no-cache',
-    Connection: 'keep-alive'
-  })
-  res.flushHeaders()
-
-  addClient(req.user.id, res)
-
-  req.on('close', () => {
-    removeClient(req.user.id)
-  })
-})
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

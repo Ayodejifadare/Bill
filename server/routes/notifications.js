@@ -1,9 +1,26 @@
 import express from 'express'
 import authenticate from '../middleware/auth.js'
 import { broadcastUnreadCount } from '../utils/notifications.js'
+import { addClient, removeClient } from '../utils/notificationStream.js'
 
 const router = express.Router()
 router.use(authenticate)
+
+// Stream unread notification counts using Server-Sent Events
+router.get('/notifications/stream', (req, res) => {
+  res.set({
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    Connection: 'keep-alive'
+  })
+  res.flushHeaders()
+
+  addClient(req.user.id, res)
+
+  req.on('close', () => {
+    removeClient(req.user.id)
+  })
+})
 
 const defaultSettings = {
   whatsapp: { enabled: true },
