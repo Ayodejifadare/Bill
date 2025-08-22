@@ -9,6 +9,7 @@ import { NetworkErrorHandler, useNetworkStatus } from './components/NetworkError
 import { PageLoading } from './components/ui/loading';
 import { toast } from 'sonner';
 import { saveAuth, loadAuth, clearAuth } from './utils/auth';
+import { apiClient } from './utils/apiClient';
 
 // Lazy load components for code splitting
 const HomeScreen = lazy(() => import('./components/HomeScreen').then(m => ({ default: m.HomeScreen })));
@@ -471,17 +472,23 @@ function AppContent() {
     }
   }, []);
 
-  const handleLogout = useCallback(() => {
+  const handleLogout = useCallback(async () => {
+    try {
+      await apiClient('/api/auth/logout', { method: 'POST' });
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+
     try {
       // Clear stored authentication data
       clearAuth();
       localStorage.removeItem('biltip_contacts_synced');
-      
+
       // Reset app state
       setIsAuthenticated(false);
       setShowLogin(true);
       dispatch({ type: 'CLEAR_ALL' });
-      
+
       toast.success('Logged out successfully');
     } catch (error) {
       console.error('Logout error:', error);
