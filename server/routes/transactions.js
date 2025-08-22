@@ -82,41 +82,37 @@ router.get('/', authenticateToken, async (req, res) => {
       category,
       minAmount,
       maxAmount,
-      keyword
+      keyword,
+      includeSummary
     } = req.query
 
-    const where = {
-      OR: [
-        { senderId: req.userId },
-        { receiverId: req.userId }
-      ]
-    }
+    const baseWhere = {}
 
     if (startDate || endDate) {
-      where.createdAt = {}
-      if (startDate) where.createdAt.gte = new Date(startDate)
-      if (endDate) where.createdAt.lte = new Date(endDate)
+      baseWhere.createdAt = {}
+      if (startDate) baseWhere.createdAt.gte = new Date(startDate)
+      if (endDate) baseWhere.createdAt.lte = new Date(endDate)
     }
 
     if (type) {
       const mappedType = REVERSE_TRANSACTION_TYPE_MAP[type] || type
-      where.type = mappedType
+      baseWhere.type = mappedType
     }
 
     if (status) {
       const mappedStatus = REVERSE_TRANSACTION_STATUS_MAP[status] || status
-      where.status = mappedStatus
+      baseWhere.status = mappedStatus
     }
 
     if (category) {
       const mappedCategory = REVERSE_TRANSACTION_CATEGORY_MAP[category] || category
-      where.category = mappedCategory
+      baseWhere.category = mappedCategory
     }
 
     if (minAmount || maxAmount) {
-      where.amount = {}
-      if (minAmount) where.amount.gte = parseFloat(minAmount)
-      if (maxAmount) where.amount.lte = parseFloat(maxAmount)
+      baseWhere.amount = {}
+      if (minAmount) baseWhere.amount.gte = parseFloat(minAmount)
+      if (maxAmount) baseWhere.amount.lte = parseFloat(maxAmount)
     }
 
     if (keyword) {
@@ -129,7 +125,17 @@ router.get('/', authenticateToken, async (req, res) => {
           { receiver: { name: { contains: keyword } } }
         ]
       }
-      where.AND = Array.isArray(where.AND) ? [...where.AND, keywordFilter] : [keywordFilter]
+      baseWhere.AND = Array.isArray(baseWhere.AND)
+        ? [...baseWhere.AND, keywordFilter]
+        : [keywordFilter]
+    }
+
+    const where = {
+      ...baseWhere,
+      OR: [
+        { senderId: req.userId },
+        { receiverId: req.userId }
+      ]
     }
 
     const baseQuery = {
@@ -211,13 +217,51 @@ router.get('/', authenticateToken, async (req, res) => {
         ? { category: TRANSACTION_CATEGORY_MAP[t.category] || t.category }
         : {})
     }))
+    let summaryData = {}
+    if (includeSummary === 'true' || includeSummary === '1') {
+      const completedStatus =
+        REVERSE_TRANSACTION_STATUS_MAP['completed'] || 'COMPLETED'
+
+      const sentWhere = {
+        ...baseWhere,
+        senderId: req.userId,
+        ...(status ? {} : { status: completedStatus })
+      }
+
+      const receivedWhere = {
+        ...baseWhere,
+        receiverId: req.userId,
+        ...(status ? {} : { status: completedStatus })
+      }
+
+      const [sentAgg, receivedAgg] = await req.prisma.$transaction([
+        req.prisma.transaction.aggregate({
+          where: sentWhere,
+          _sum: { amount: true }
+        }),
+        req.prisma.transaction.aggregate({
+          where: receivedWhere,
+          _sum: { amount: true }
+        })
+      ])
+
+      const totalSent = sentAgg._sum.amount || 0
+      const totalReceived = receivedAgg._sum.amount || 0
+
+      summaryData = {
+        totalSent,
+        totalReceived,
+        netFlow: totalReceived - totalSent
+      }
+    }
 
     res.json({
       transactions: formatted,
       nextCursor,
       hasMore,
       total,
-      pageCount
+      pageCount,
+      ...summaryData
     })
   } catch (error) {
     console.error('Get transactions error:', error)

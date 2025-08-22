@@ -145,6 +145,47 @@ describe('Transaction routes', () => {
     expect(item).not.toHaveProperty('createdAt')
   })
 
+  it('includes summary totals when includeSummary flag is set', async () => {
+    await prisma.user.createMany({
+      data: [
+        { id: 'u1', email: 'u1@example.com', name: 'User 1' },
+        { id: 'u2', email: 'u2@example.com', name: 'User 2' }
+      ]
+    })
+
+    await prisma.transaction.createMany({
+      data: [
+        {
+          id: 's1',
+          amount: 20,
+          senderId: 'u1',
+          receiverId: 'u2',
+          type: 'SEND',
+          status: 'COMPLETED'
+        },
+        {
+          id: 'r1',
+          amount: 30,
+          senderId: 'u2',
+          receiverId: 'u1',
+          type: 'SEND',
+          status: 'COMPLETED'
+        }
+      ]
+    })
+
+    const res = await request(app)
+      .get('/transactions')
+      .query({ includeSummary: 'true' })
+      .set('Authorization', `Bearer ${sign('u1')}`)
+      .send()
+
+    expect(res.status).toBe(200)
+    expect(res.body.totalSent).toBe(20)
+    expect(res.body.totalReceived).toBe(30)
+    expect(res.body.netFlow).toBe(10)
+  })
+
   it('filters transactions by date range', async () => {
     await prisma.user.createMany({
       data: [
