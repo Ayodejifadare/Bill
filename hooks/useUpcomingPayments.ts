@@ -12,7 +12,7 @@ export interface UpcomingPayment {
   amount: number;
   dueDate: string;
   organizer: PaymentOrganizer;
-  status: string;
+  status: 'overdue' | 'pending' | 'due_soon' | 'upcoming';
   participants: number;
   billSplitId?: string;
   requestId?: string;
@@ -40,7 +40,12 @@ export function useUpcomingPayments(): UseUpcomingPaymentsResult {
         throw new Error('Failed to fetch upcoming payments');
       }
       const data = await res.json();
-      setUpcomingPayments(Array.isArray(data.upcomingPayments) ? data.upcomingPayments : []);
+      const payments = Array.isArray(data)
+        ? data
+        : Array.isArray(data.upcomingPayments)
+          ? data.upcomingPayments
+          : [];
+      setUpcomingPayments(payments);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch upcoming payments');
       setUpcomingPayments([]);
