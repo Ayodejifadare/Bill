@@ -97,7 +97,9 @@ model PaymentRequest {
   message     String?
   status      String   @default("PENDING")
   isRecurring Boolean  @default(false)
-  frequency   String?
+  recurringFrequency String?
+  recurringDay Int?
+  recurringDayOfWeek Int?
   nextDueDate DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
