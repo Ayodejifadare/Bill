@@ -593,6 +593,22 @@ router.post(
         data: updateData
       })
 
+      if (status === 'SENT') {
+        const billSplit = await req.prisma.billSplit.findUnique({
+          where: { id },
+          select: { createdBy: true, title: true }
+        })
+        if (billSplit && billSplit.createdBy !== req.userId) {
+          await createNotification(req.prisma, {
+            recipientId: billSplit.createdBy,
+            actorId: req.userId,
+            type: 'bill_split_payment_sent',
+            title: 'Payment sent',
+            message: `Payment sent for ${billSplit.title}`
+          })
+        }
+      }
+
       res.json({ message: 'Payment status updated' })
     } catch (error) {
       console.error('Update payment status error:', error)
