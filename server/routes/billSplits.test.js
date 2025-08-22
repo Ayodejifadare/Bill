@@ -117,7 +117,17 @@ describe('Bill split routes', () => {
     expect(res.body.billSplit.participants).toHaveLength(2)
     expect(res.body.billSplit.items).toHaveLength(2)
     expect(res.body.billSplit.paymentMethod).toMatchObject({ id: pm.id, type: 'bank' })
-    expect(res.body.billSplit.organizer.name).toBe('You')
+    expect(res.body.billSplit.createdBy).toBe('You')
+    expect(res.body.billSplit.participants).toContainEqual({
+      name: 'You',
+      amount: 50,
+      paid: true
+    })
+    expect(res.body.billSplit.participants).toContainEqual({
+      name: 'User 2',
+      amount: 50,
+      paid: false
+    })
     expect(res.body.billSplit.creatorId).toBe('u1')
   })
 
