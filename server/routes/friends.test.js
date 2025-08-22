@@ -75,6 +75,44 @@ describe('Friend routes', () => {
     expect(pending.requestId).toBe(fr.id)
   })
 
+  it('includes last transaction information for active friends', async () => {
+    await prisma.user.create({ data: { id: 'a1', email: 'a1@example.com', name: 'A1' } })
+    await prisma.user.create({ data: { id: 'a2', email: 'a2@example.com', name: 'A2' } })
+    await prisma.user.create({ data: { id: 'a3', email: 'a3@example.com', name: 'A3' } })
+
+    await prisma.friendship.create({ data: { user1Id: 'a1', user2Id: 'a2' } })
+    await prisma.friendship.create({ data: { user1Id: 'a1', user2Id: 'a3' } })
+
+    await prisma.transaction.create({
+      data: {
+        amount: 10,
+        senderId: 'a1',
+        receiverId: 'a2',
+        type: 'SEND',
+        status: 'PENDING'
+      }
+    })
+    await prisma.transaction.create({
+      data: {
+        amount: 20,
+        senderId: 'a2',
+        receiverId: 'a1',
+        type: 'SEND',
+        status: 'PENDING'
+      }
+    })
+
+    const res = await request(app)
+      .get('/friends')
+      .set('Authorization', `Bearer ${sign('a1')}`)
+
+    expect(res.status).toBe(200)
+    const withTx = res.body.friends.find(f => f.id === 'a2')
+    const withoutTx = res.body.friends.find(f => f.id === 'a3')
+    expect(withTx.lastTransaction).toEqual({ amount: 20, type: 'owed' })
+    expect(withoutTx.lastTransaction).toBeUndefined()
+  })
+
 
   it('returns summary of amounts owed with friends', async () => {
     await prisma.user.create({ data: { id: 'u1', email: 'u1@example.com', name: 'User 1' } })
@@ -130,6 +168,7 @@ describe('Friend routes', () => {
     expect(res.status).toBe(200)
     expect(res.body.owedToUser).toBe(30)
     expect(res.body.userOwes).toBe(10)
+  })
 
   it('returns incoming and outgoing friend requests with metadata', async () => {
     await prisma.user.create({ data: { id: 'a1', email: 'a1@example.com', name: 'A1' } })
