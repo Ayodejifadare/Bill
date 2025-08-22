@@ -1,3 +1,20 @@
+import { apiBaseUrl, useMockApi } from './config';
+import { handle as mockFriends } from '../mocks/friends';
+import { handle as mockGroups } from '../mocks/groups';
+import { handle as mockUpcomingPayments } from '../mocks/upcoming-payments';
+import { handle as mockContacts } from '../mocks/contacts';
+import { handle as mockRequests } from '../mocks/requests';
+
+type MockHandler = (path: string, init?: RequestInit) => Promise<any>;
+
+const mockRoutes: Array<{ test: RegExp; handler: MockHandler }> = [
+  { test: /^\/friends/, handler: mockFriends },
+  { test: /^\/groups/, handler: mockGroups },
+  { test: /^\/upcoming-payments/, handler: mockUpcomingPayments },
+  { test: /^\/contacts\/match/, handler: mockContacts },
+  { test: /^\/requests/, handler: mockRequests },
+];
+
 export async function apiClient(
   input: RequestInfo | URL,
   init: RequestInit = {}
@@ -14,7 +31,29 @@ export async function apiClient(
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const response = await fetch(input, { ...init, headers });
+  const resource = typeof input === 'string'
+    ? input
+    : input instanceof URL
+      ? input.pathname + input.search
+      : String(input);
+  const url = resource.startsWith('http')
+    ? resource
+    : resource.startsWith(apiBaseUrl)
+      ? resource
+      : `${apiBaseUrl}${resource}`;
+
+  if (useMockApi) {
+    const path = resource.startsWith('http')
+      ? new URL(resource).pathname
+      : resource;
+    const normalized = path.startsWith(apiBaseUrl) ? path.slice(apiBaseUrl.length) || '/' : path;
+    const route = mockRoutes.find(r => r.test.test(normalized));
+    if (route) {
+      return route.handler(normalized, { ...init, headers });
+    }
+  }
+
+  const response = await fetch(url, { ...init, headers });
   if (!response.ok) {
     let message = `Request failed with status ${response.status}`;
     try {

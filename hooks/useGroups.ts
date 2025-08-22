@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { apiClient } from '../utils/apiClient';
 
 export interface Group {
   id: string;
@@ -43,11 +44,7 @@ export function useGroups(): UseGroupsResult {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/groups');
-      if (!res.ok) {
-        throw new Error('Failed to fetch groups');
-      }
-      const data = await res.json();
+      const data = await apiClient('/groups');
       setGroups(Array.isArray(data.groups) ? data.groups : []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch groups');
@@ -64,12 +61,8 @@ export function useGroups(): UseGroupsResult {
   const joinGroup = useCallback(async (groupId: string) => {
     setError(null);
     try {
-      const res = await fetch(`/api/groups/${groupId}/join`, { method: 'POST' });
-      if (!res.ok) {
-        throw new Error('Failed to join group');
-      }
-      const data = await res.json();
-      if (data.group) {
+      const data = await apiClient(`/groups/${groupId}/join`, { method: 'POST' });
+      if (data?.group) {
         setGroups(prev => [...prev, data.group]);
       }
     } catch (err) {
@@ -80,10 +73,7 @@ export function useGroups(): UseGroupsResult {
   const leaveGroup = useCallback(async (groupId: string) => {
     setError(null);
     try {
-      const res = await fetch(`/api/groups/${groupId}/leave`, { method: 'POST' });
-      if (!res.ok) {
-        throw new Error('Failed to leave group');
-      }
+      await apiClient(`/groups/${groupId}/leave`, { method: 'POST' });
       setGroups(prev => prev.filter(g => g.id !== groupId));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to leave group');
@@ -93,15 +83,11 @@ export function useGroups(): UseGroupsResult {
   const createGroup = useCallback(async (payload: CreateGroupPayload) => {
     setError(null);
     try {
-      const res = await fetch('/api/groups', {
+      const data = await apiClient('/groups', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      if (!res.ok) {
-        throw new Error('Failed to create group');
-      }
-      const data = await res.json();
       const newGroup: Group | undefined = data.group || data;
       if (newGroup) {
         setGroups(prev => [...prev, newGroup]);

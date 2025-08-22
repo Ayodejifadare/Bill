@@ -3,6 +3,7 @@
 
 import type { MatchedContact } from '../components/contact-sync/types';
 import { toast } from 'sonner';
+import { apiClient } from './apiClient';
 
 export type ContactErrorCode =
   | 'permission-denied'
@@ -524,18 +525,11 @@ class ContactsAPI {
   // Match contacts with existing users by calling the backend
   async matchContacts(contacts: Contact[]): Promise<MatchedContact[]> {
     try {
-      const res = await fetch('/api/contacts/match', {
+      const data = await apiClient('/contacts/match', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ contacts })
       });
-
-      if (!res.ok) {
-        const text = await res.text().catch(() => '');
-        throw new Error(`Network error: ${text || res.statusText}`);
-      }
-
-      const data = await res.json();
       const results = Array.isArray(data.contacts)
         ? data.contacts
         : Array.isArray(data.matchedContacts)

@@ -6,6 +6,7 @@
 // so navigation between screens doesn't trigger redundant network requests.
 
 import { fetchFriends as fetchFriendsApi, Friend } from '../hooks/useFriends';
+import { apiClient } from './apiClient';
 
 export interface Group {
   id: string;
@@ -45,11 +46,7 @@ export async function fetchFriends(_isNigeria: boolean): Promise<Friend[]> {
 export async function fetchGroups(_isNigeria: boolean): Promise<Group[]> {
   if (groupsCache) return groupsCache;
 
-  const res = await fetch('/api/groups');
-  if (!res.ok) {
-    throw new Error('Failed to fetch groups');
-  }
-  const data = await res.json();
+  const data = await apiClient('/groups');
   groupsCache = Array.isArray(data.groups) ? data.groups : data;
   return groupsCache;
 }
@@ -61,11 +58,7 @@ export async function fetchExternalAccounts(
     return externalAccountsCache.get(groupId)!;
   }
 
-  const res = await fetch(`/api/groups/${groupId}/accounts`);
-  if (!res.ok) {
-    throw new Error('Failed to fetch external accounts');
-  }
-  const data = await res.json();
+  const data = await apiClient(`/groups/${groupId}/accounts`);
   const accounts: ExternalAccount[] = Array.isArray(data.accounts)
     ? data.accounts
     : data;
