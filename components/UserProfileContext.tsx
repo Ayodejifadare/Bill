@@ -159,6 +159,15 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
         preferences: { ...defaultPreferences, ...(fetched.preferences || {}) },
         linkedBankAccounts: prev?.linkedBankAccounts ?? [],
       }));
+      if (fetched.region && fetched.currency) {
+        const settings = { region: fetched.region, currency: fetched.currency };
+        setAppSettings(settings);
+        try {
+          localStorage.setItem('biltip-app-settings', JSON.stringify(settings));
+        } catch (error) {
+          console.warn('Error saving app settings:', error);
+        }
+      }
     } catch (error) {
       console.error('Error fetching user profile:', error);
     }
@@ -220,15 +229,33 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
       ...appSettings,
       ...settingsUpdate
     };
-    
+
     setAppSettings(newSettings);
-    
-    // Persist to localStorage
+
     try {
       localStorage.setItem('biltip-app-settings', JSON.stringify(newSettings));
     } catch (error) {
       console.warn('Error saving app settings:', error);
     }
+
+    void (async () => {
+      try {
+        const userId = userProfile?.id || getStoredUserId();
+        if (!userId) return;
+        await apiClient(`/api/users/${userId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            region: newSettings.region,
+            currency: newSettings.currency,
+          }),
+        });
+      } catch (error) {
+        console.warn('Error updating app settings:', error);
+      }
+    })();
   };
 
   const saveSettings = async (settings: UserSettings) => {

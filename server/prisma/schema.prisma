@@ -32,6 +32,8 @@ model User {
   tokenVersion    Int      @default(0)
   privacySettings      String?
   preferenceSettings   String?
+  region    String   @default("US")
+  currency  String   @default("USD")
   onboardingCompleted  Boolean @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
