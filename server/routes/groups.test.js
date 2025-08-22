@@ -72,15 +72,12 @@ describe('Group join/leave routes', () => {
       totalSpent: 0,
       recentActivity: '',
       isAdmin: false,
-      lastActive: '',
+      lastActive: null,
       pendingBills: 0,
-      color: ''
+      color: 'bg-blue-500'
     })
     expect(joinRes.body.group.members).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ name: 'Creator', avatar: 'C' }),
-        expect.objectContaining({ name: 'User 1', avatar: 'U1' })
-      ])
+      expect.arrayContaining(['C', 'U1'])
     )
 
     const leaveRes = await request(app)
@@ -127,7 +124,7 @@ describe('Group join/leave routes', () => {
       .send({
         name: 'My Group',
         description: 'Group description',
-        color: '#123456',
+        color: 'red',
         memberIds: ['u1', 'u2']
       })
 
@@ -135,15 +132,11 @@ describe('Group join/leave routes', () => {
     expect(res.body.group).toMatchObject({
       name: 'My Group',
       description: 'Group description',
-      color: '#123456',
+      color: 'bg-red-500',
       memberCount: 3
     })
     expect(res.body.group.members).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ name: 'U1', avatar: 'U' }),
-        expect.objectContaining({ name: 'U2', avatar: 'U' }),
-        expect.objectContaining({ name: 'Creator', avatar: 'C' })
-      ])
+      expect.arrayContaining(['U1', 'U2', 'C'])
     )
   })
 
@@ -155,12 +148,8 @@ describe('Group join/leave routes', () => {
 
     expect(res.status).toBe(201)
     const members = res.body.group.members
-    expect(members[0]).toHaveProperty('name', 'Creator')
-    members.forEach((m) => {
-      expect(m).not.toHaveProperty('id')
-      expect(m).not.toHaveProperty('userId')
-      expect(m).toHaveProperty('avatar')
-    })
+    expect(Array.isArray(members)).toBe(true)
+    expect(typeof members[0]).toBe('string')
   })
 
   it('rejects empty memberIds array', async () => {
@@ -230,11 +219,7 @@ describe('Group join/leave routes', () => {
     })
     expect(group.members).toHaveLength(3)
     expect(group.members).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ name: 'User 1', avatar: 'U1' }),
-        expect.objectContaining({ name: 'User 2', avatar: 'U2' }),
-        expect.objectContaining({ name: 'Creator', avatar: 'C' })
-      ])
+      expect.arrayContaining(['U1', 'U2', 'C'])
     )
     expect(group).toHaveProperty('description')
     expect(group).toHaveProperty('recentActivity')

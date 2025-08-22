@@ -1,4 +1,5 @@
 import express from 'express'
+import { formatDistanceToNow } from 'date-fns'
 import groupAccountRouter from './groupAccounts.js'
 import groupMemberRouter from './groupMembers.js'
 import groupInviteRouter from './groupInvites.js'
@@ -9,6 +10,23 @@ import {
   TRANSACTION_STATUS_MAP
 } from '../../shared/transactions.js'
 import authenticate from '../middleware/auth.js'
+
+const COLOR_CLASS_MAP = {
+  blue: 'bg-blue-500',
+  green: 'bg-green-500',
+  purple: 'bg-purple-500',
+  orange: 'bg-orange-500',
+  red: 'bg-red-500',
+  teal: 'bg-teal-500',
+  pink: 'bg-pink-500',
+  indigo: 'bg-indigo-500'
+}
+
+function mapColor(color = '') {
+  if (color.startsWith('bg-')) return color
+  const key = color.toLowerCase()
+  return COLOR_CLASS_MAP[key] || COLOR_CLASS_MAP.blue
+}
 
 const router = express.Router()
 
@@ -30,7 +48,7 @@ async function formatGroup(prisma, group, userId) {
   let lastActive = null
 
   if (memberIds.length > 0) {
-    const aggregates = await prisma.transaction.aggregate({
+    const txAgg = await prisma.transaction.aggregate({
       where: {
         OR: [
           { senderId: { in: memberIds } },
@@ -41,8 +59,25 @@ async function formatGroup(prisma, group, userId) {
       _max: { createdAt: true }
     })
 
-    totalSpent = aggregates._sum.amount || 0
-    lastActive = aggregates._max.createdAt
+    totalSpent += txAgg._sum.amount || 0
+    lastActive = txAgg._max.createdAt
+
+    const billSplits = await prisma.billSplit.findMany({
+      where: { groupId: group.id },
+      select: {
+        createdAt: true,
+        participants: { select: { amount: true } }
+      }
+    })
+
+    billSplits.forEach((bs) => {
+      bs.participants.forEach((p) => {
+        totalSpent += p.amount
+      })
+      if (!lastActive || bs.createdAt > lastActive) {
+        lastActive = bs.createdAt
+      }
+    })
   }
 
   const pendingBills = userId
@@ -55,10 +90,9 @@ async function formatGroup(prisma, group, userId) {
       })
     : 0
 
-  const memberPreview = group.members.slice(0, 3).map((m) => ({
-    name: m.user.name,
-    avatar: getInitials(m.user.name)
-  }))
+  const memberPreview = group.members
+    .slice(0, 3)
+    .map((m) => getInitials(m.user.name))
 
   return {
     id: group.id,
@@ -66,14 +100,16 @@ async function formatGroup(prisma, group, userId) {
     description: group.description || '',
     memberCount: group.members.length,
     totalSpent,
-    recentActivity: lastActive ? `Last activity on ${lastActive.toISOString()}` : '',
+    recentActivity: lastActive
+      ? formatDistanceToNow(lastActive, { addSuffix: true })
+      : '',
     members: memberPreview,
     isAdmin: userId
       ? group.members.some((m) => m.userId === userId && m.role === 'ADMIN')
       : false,
-    lastActive: lastActive ? lastActive.toISOString() : '',
+    lastActive: lastActive ? lastActive.toISOString() : null,
     pendingBills,
-    color: group.color || ''
+    color: mapColor(group.color)
   }
 }
 

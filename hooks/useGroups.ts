@@ -8,12 +8,9 @@ export interface Group {
   memberCount: number;
   totalSpent: number;
   recentActivity: string;
-  members: Array<{
-    name: string;
-    avatar: string;
-  }>;
+  members: string[];
   isAdmin: boolean;
-  lastActive: string;
+  lastActive: string | null;
   pendingBills: number;
   color: string;
 }

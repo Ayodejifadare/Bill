@@ -18,7 +18,7 @@ describe('useGroups', () => {
         recentActivity: '',
         members: [],
         isAdmin: false,
-        lastActive: '',
+        lastActive: null,
         pendingBills: 0,
         color: ''
       }
@@ -72,7 +72,7 @@ describe('useGroups', () => {
       recentActivity: '',
       members: [],
       isAdmin: false,
-      lastActive: '',
+      lastActive: null,
       pendingBills: 0,
       color: ''
     };
@@ -100,7 +100,7 @@ describe('useGroups', () => {
       recentActivity: '',
       members: [],
       isAdmin: false,
-      lastActive: '',
+      lastActive: null,
       pendingBills: 0,
       color: ''
     };
@@ -134,7 +134,7 @@ describe('useGroups', () => {
         recentActivity: '',
         members: [],
         isAdmin: false,
-        lastActive: '',
+        lastActive: null,
         pendingBills: 0,
         color: ''
       };
@@ -148,7 +148,7 @@ describe('useGroups', () => {
         recentActivity: '',
         members: [],
         isAdmin: false,
-        lastActive: '',
+        lastActive: null,
         pendingBills: 0,
         color: ''
       };
@@ -181,7 +181,7 @@ describe('useGroups', () => {
       recentActivity: '',
       members: [],
       isAdmin: false,
-      lastActive: '',
+      lastActive: null,
       pendingBills: 0,
       color: ''
     };
@@ -194,7 +194,7 @@ describe('useGroups', () => {
       recentActivity: '',
       members: [],
       isAdmin: false,
-      lastActive: '',
+      lastActive: null,
       pendingBills: 0,
       color: ''
     };

@@ -9,11 +9,11 @@ let groups: Group[] = [
     memberCount: 3,
     totalSpent: 0,
     recentActivity: '',
-    members: [],
+    members: ['WT', 'FG', 'AB'],
     isAdmin: true,
     lastActive: new Date().toISOString(),
     pendingBills: 0,
-    color: '#ff0000'
+    color: 'bg-red-500'
   }
 ];
 
@@ -49,7 +49,7 @@ export async function handle(path: string, init: RequestInit = {}) {
       isAdmin: true,
       lastActive: new Date().toISOString(),
       pendingBills: 0,
-      color: body.color || '#000000'
+      color: body.color || 'bg-blue-500'
     };
     groups.push(newGroup);
     return { group: newGroup };
