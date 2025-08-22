@@ -167,6 +167,7 @@ export function RequestMoney({ onNavigate, prefillData }: RequestMoneyProps) {
         amount: parseFloat(amount),
         recipients: selectedFriends.map(f => f.id),
         paymentMethod: selectedPaymentMethod,
+        message: message.trim() || undefined,
       });
 
       if (isRecurring) {

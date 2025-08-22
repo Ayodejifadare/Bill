@@ -94,6 +94,7 @@ model PaymentRequest {
   id          String   @id @default(cuid())
   amount      Float
   description String?
+  message     String?
   status      String   @default("PENDING")
   isRecurring Boolean  @default(false)
   frequency   String?

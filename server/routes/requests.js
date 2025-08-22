@@ -37,7 +37,8 @@ router.post(
     body('recipients').isArray({ min: 1 }),
     body('recipients.*').isString().notEmpty(),
     body('paymentMethod').isString().notEmpty(),
-    body('description').optional().isString()
+    body('description').optional().isString(),
+    body('message').optional().isString()
   ],
   async (req, res) => {
     try {
@@ -46,7 +47,7 @@ router.post(
         return res.status(400).json({ errors: errors.array() })
       }
 
-      const { amount, recipients, paymentMethod, description } = req.body
+      const { amount, recipients, paymentMethod, description, message } = req.body
 
       const method = await req.prisma.paymentMethod.findFirst({
         where: { id: paymentMethod, userId: req.userId }
@@ -76,9 +77,10 @@ router.post(
               receiverId,
               amount,
               description,
+              message,
               status: 'PENDING'
             },
-            select: { id: true, status: true }
+            select: { id: true, status: true, message: true }
           })
         )
       )
