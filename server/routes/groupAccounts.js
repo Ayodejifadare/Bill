@@ -1,7 +1,29 @@
 import express from 'express'
+import authenticate from '../middleware/auth.js'
 
 // Use mergeParams to access groupId from parent router
 const router = express.Router({ mergeParams: true })
+router.use(authenticate)
+
+const requireGroupAdmin = async (req, res, next) => {
+  try {
+    const membership = await req.prisma.groupMember.findUnique({
+      where: {
+        groupId_userId: {
+          groupId: req.params.groupId,
+          userId: req.user.id
+        }
+      }
+    })
+    if (!membership || membership.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Forbidden' })
+    }
+    next()
+  } catch (err) {
+    console.error('Group admin check error:', err)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
 
 const NIGERIAN_BANKS = [
   { code: '044', name: 'Access Bank' },
@@ -52,7 +74,7 @@ router.get('/', async (req, res) => {
 })
 
 // Create a new account for a group
-router.post('/', async (req, res) => {
+router.post('/', requireGroupAdmin, async (req, res) => {
   try {
     const { type } = req.body
     if (type === 'bank') {
@@ -70,7 +92,7 @@ router.post('/', async (req, res) => {
     }
 
     const groupId = req.params.groupId
-    const userId = req.headers['x-user-id'] || 'current-user'
+    const userId = req.user.id
     const count = await req.prisma.groupAccount.count({ where: { groupId } })
 
     const account = await req.prisma.groupAccount.create({
@@ -99,7 +121,7 @@ router.post('/', async (req, res) => {
 })
 
 // Update a specific account
-router.put('/:accountId', async (req, res) => {
+router.put('/:accountId', requireGroupAdmin, async (req, res) => {
   try {
     const account = await req.prisma.groupAccount.findFirst({
       where: { id: req.params.accountId, groupId: req.params.groupId }
@@ -128,7 +150,7 @@ router.put('/:accountId', async (req, res) => {
 })
 
 // Delete an account from a group
-router.delete('/:accountId', async (req, res) => {
+router.delete('/:accountId', requireGroupAdmin, async (req, res) => {
   try {
     const account = await req.prisma.groupAccount.findFirst({
       where: { id: req.params.accountId, groupId: req.params.groupId }
