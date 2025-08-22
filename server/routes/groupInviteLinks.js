@@ -1,5 +1,30 @@
 import express from 'express'
+import authenticate from '../middleware/auth.js'
+
 const router = express.Router({ mergeParams: true })
+
+const requireGroupAdmin = async (req, res, next) => {
+  try {
+    const membership = await req.prisma.groupMember.findUnique({
+      where: {
+        groupId_userId: {
+          groupId: req.params.groupId,
+          userId: req.user.id
+        }
+      }
+    })
+    if (!membership || membership.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Forbidden' })
+    }
+    next()
+  } catch (err) {
+    console.error('Group admin check error:', err)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+router.use(authenticate)
+router.use(requireGroupAdmin)
 
 // GET / - list invite links
 router.get('/', async (req, res) => {
@@ -39,7 +64,7 @@ router.post('/', async (req, res) => {
         link,
         maxUses,
         expiresAt,
-        createdBy: req.headers['x-user-id'] || 'system'
+        createdBy: req.user.id
       }
     })
 
@@ -57,6 +82,53 @@ router.post('/', async (req, res) => {
     res.status(201).json({ link: formatted })
   } catch (error) {
     console.error('Create invite link error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+// POST /:linkId/deactivate - disable an invite link
+router.post('/:linkId/deactivate', async (req, res) => {
+  try {
+    const existing = await req.prisma.groupInviteLink.findUnique({
+      where: { id: req.params.linkId }
+    })
+    if (!existing || existing.groupId !== req.params.groupId) {
+      return res.status(404).json({ error: 'Link not found' })
+    }
+    const updated = await req.prisma.groupInviteLink.update({
+      where: { id: existing.id },
+      data: { isActive: false }
+    })
+    const formatted = {
+      id: updated.id,
+      link: updated.link,
+      createdAt: updated.createdAt.toISOString(),
+      expiresAt: updated.expiresAt.toISOString(),
+      maxUses: updated.maxUses,
+      currentUses: updated.currentUses,
+      createdBy: updated.createdBy,
+      isActive: updated.isActive
+    }
+    res.json({ link: formatted })
+  } catch (error) {
+    console.error('Deactivate invite link error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+// DELETE /:linkId - remove an invite link
+router.delete('/:linkId', async (req, res) => {
+  try {
+    const existing = await req.prisma.groupInviteLink.findUnique({
+      where: { id: req.params.linkId }
+    })
+    if (!existing || existing.groupId !== req.params.groupId) {
+      return res.status(404).json({ error: 'Link not found' })
+    }
+    await req.prisma.groupInviteLink.delete({ where: { id: existing.id } })
+    res.json({})
+  } catch (error) {
+    console.error('Delete invite link error:', error)
     res.status(500).json({ error: 'Internal server error' })
   }
 })
