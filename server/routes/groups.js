@@ -367,7 +367,7 @@ router.get('/:groupId', authenticate, async (req, res) => {
       members: group.members.map((m) => ({
         id: m.user.id,
         name: m.user.name,
-        avatar: m.user.avatar || '',
+        avatar: m.user.avatar || getInitials(m.user.name),
         email: m.user.email,
         isAdmin: m.role === 'ADMIN',
         balance: stats[m.userId]?.balance || 0,
