@@ -1,5 +1,6 @@
 import express from 'express'
 import authenticate from '../middleware/auth.js'
+import generateInsights from '../utils/insights.js'
 
 const router = express.Router()
 
@@ -104,12 +105,14 @@ router.get('/spending-insights', authenticate, async (req, res) => {
       }
     })
 
+    const insights = generateInsights(transactions, req.user.id)
+
     res.json({
       currentMonth: { total, categories: [] },
       monthlyTrends,
       weeklyActivity,
       goals: [],
-      insights: []
+      insights
     })
   } catch (err) {
     console.error('Spending insights error:', err)
