@@ -83,7 +83,10 @@ router.post('/verify-otp', [
 router.post('/register', [
   body('email').isEmail().normalizeEmail(),
   body('name').trim().isLength({ min: 2 }),
-  body('password').isLength({ min: 6 })
+  body('password').isLength({ min: 6 }),
+  body('firstName').trim().isLength({ min: 2 }),
+  body('lastName').trim().isLength({ min: 2 }),
+  body('phone').matches(/^\+?[1-9]\d{7,14}$/)
 ], async (req, res) => {
   try {
     const errors = validationResult(req)
@@ -91,7 +94,7 @@ router.post('/register', [
       return res.status(400).json({ errors: errors.array() })
     }
 
-    const { email, name, password } = req.body
+    const { email, name, password, firstName, lastName, phone } = req.body
 
     // Check if user already exists
     const existingUser = await req.prisma.user.findUnique({
@@ -110,12 +113,18 @@ router.post('/register', [
       data: {
         email,
         name,
-        password: hashedPassword
+        password: hashedPassword,
+        firstName,
+        lastName,
+        phone
       },
       select: {
         id: true,
         email: true,
         name: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
         balance: true,
         createdAt: true,
         phoneVerified: true,
