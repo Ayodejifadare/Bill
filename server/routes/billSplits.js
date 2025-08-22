@@ -1,6 +1,7 @@
 import express from 'express'
 import { body, validationResult, param } from 'express-validator'
 import jwt from 'jsonwebtoken'
+import { computeNextRun } from '../utils/recurringBillSplitScheduler.js'
 
 const router = express.Router()
 
@@ -229,72 +230,109 @@ router.get(
 )
 
 // Create bill split
-router.post('/', [
-  authenticateToken,
-  body('title').trim().notEmpty(),
-  body('totalAmount').isFloat({ min: 0.01 }),
-  body('participants').isArray({ min: 1 }),
-  body('description').optional().trim()
-], async (req, res) => {
-  try {
-    const errors = validationResult(req)
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() })
-    }
+router.post(
+  '/',
+  [
+    authenticateToken,
+    body('title').trim().notEmpty(),
+    body('totalAmount').isFloat({ min: 0.01 }),
+    body('participants').isArray({ min: 1 }),
+    body('participants.*.id').trim().notEmpty(),
+    body('participants.*.amount').isFloat({ gt: 0 }),
+    body('splitMethod').optional().isString(),
+    body('groupId').optional().trim(),
+    body('paymentMethodId').optional().trim(),
+    body('isRecurring').optional().isBoolean(),
+    body('frequency').optional().isString(),
+    body('day').optional().isInt(),
+    body('description').optional().trim()
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req)
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() })
+      }
 
-    const { title, totalAmount, participants, description } = req.body
+      const {
+        title,
+        totalAmount,
+        participants,
+        description,
+        splitMethod,
+        groupId,
+        paymentMethodId,
+        isRecurring = false,
+        frequency,
+        day
+      } = req.body
 
-    // Calculate amount per participant
-    const amountPerParticipant = totalAmount / participants.length
-
-    // Create bill split with participants
-    const billSplit = await req.prisma.$transaction(async (prisma) => {
-      // Create bill split
-      const newBillSplit = await prisma.billSplit.create({
-        data: {
-          title,
-          description,
-          totalAmount,
-          createdBy: req.userId
-        }
-      })
-
-      // Create participants
-      await prisma.billSplitParticipant.createMany({
-        data: participants.map(userId => ({
-          billSplitId: newBillSplit.id,
-          userId,
-          amount: amountPerParticipant
-        }))
-      })
-
-      // Return bill split with participants
-      return await prisma.billSplit.findUnique({
-        where: { id: newBillSplit.id },
-        include: {
-          creator: {
-            select: { id: true, name: true, email: true, avatar: true }
-          },
-          participants: {
-            include: {
-              user: {
-                select: { id: true, name: true, email: true, avatar: true }
-              }
-            }
+      const billSplit = await req.prisma.$transaction(async prisma => {
+        const newBillSplit = await prisma.billSplit.create({
+          data: {
+            title,
+            description,
+            totalAmount,
+            createdBy: req.userId,
+            ...(splitMethod && { splitMethod }),
+            ...(groupId && { groupId }),
+            ...(paymentMethodId && { paymentMethodId }),
+            isRecurring
           }
+        })
+
+        await prisma.billSplitParticipant.createMany({
+          data: participants.map(p => ({
+            billSplitId: newBillSplit.id,
+            userId: p.id,
+            amount: p.amount
+          }))
+        })
+
+        if (isRecurring && frequency) {
+          const nextRun = computeNextRun(frequency, day)
+          await prisma.recurringBillSplit.create({
+            data: {
+              billSplitId: newBillSplit.id,
+              frequency,
+              day,
+              nextRun
+            }
+          })
+        }
+
+        return await prisma.billSplit.findUnique({
+          where: { id: newBillSplit.id },
+          include: {
+            creator: {
+              select: { id: true, name: true, email: true, avatar: true }
+            },
+            participants: {
+              include: {
+                user: {
+                  select: { id: true, name: true, email: true, avatar: true }
+                }
+              }
+            },
+            recurring: true
+          }
+        })
+      })
+
+      const { recurring, ...rest } = billSplit
+      res.status(201).json({
+        message: 'Bill split created successfully',
+        billSplit: {
+          ...rest,
+          ...(recurring && { schedule: recurring })
         }
       })
-    })
-
-    res.status(201).json({
-      message: 'Bill split created successfully',
-      billSplit
-    })
-  } catch (error) {
-    console.error('Create bill split error:', error)
-    res.status(500).json({ error: 'Internal server error' })
+    } catch (error) {
+      console.error('Create bill split error:', error)
+      res.status(500).json({ error: 'Internal server error' })
+    }
   }
-})
+)
 
 // Update bill split
 router.put(
