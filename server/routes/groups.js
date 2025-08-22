@@ -241,7 +241,7 @@ router.post('/:groupId/leave', authenticate, async (req, res) => {
 })
 
 // GET /:groupId - get group details with members and recent transactions
-router.get('/:groupId', async (req, res) => {
+router.get('/:groupId', authenticate, async (req, res) => {
   try {
     const group = await req.prisma.group.findUnique({
       where: { id: req.params.groupId },
@@ -256,6 +256,12 @@ router.get('/:groupId', async (req, res) => {
 
     if (!group) {
       return res.status(404).json({ error: 'Group not found' })
+    }
+
+    // Ensure requesting user is a group member
+    const isMember = group.members.some((m) => m.userId === req.user.id)
+    if (!isMember) {
+      return res.status(403).json({ error: 'Access denied' })
     }
 
     const memberIds = group.members.map((m) => m.userId)
@@ -281,23 +287,55 @@ router.get('/:groupId', async (req, res) => {
       hasMoreTransactions = true
     }
 
-      const formattedGroup = {
-        id: group.id,
-        name: group.name,
-        description: group.description || '',
-        totalSpent: 0,
-        totalMembers: group.members.length,
-        isAdmin: false,
-        createdDate: group.createdAt.toISOString(),
-        color: group.color || '',
-        members: group.members.map((m) => ({
-          id: m.user.id,
-          name: m.user.name,
-          avatar: m.user.avatar || '',
+    // Calculate balances and total spent
+    const stats = {}
+    memberIds.forEach((id) => {
+      stats[id] = { totalSpent: 0, balance: 0 }
+    })
+
+    const allTransactions = await req.prisma.transaction.findMany({
+      where: {
+        OR: [
+          { senderId: { in: memberIds } },
+          { receiverId: { in: memberIds } }
+        ]
+      },
+      select: { senderId: true, receiverId: true, amount: true }
+    })
+
+    let totalSpent = 0
+    allTransactions.forEach((t) => {
+      if (stats[t.senderId]) {
+        stats[t.senderId].totalSpent += t.amount
+        stats[t.senderId].balance -= t.amount
+      }
+      if (stats[t.receiverId]) {
+        stats[t.receiverId].balance += t.amount
+      }
+      if (stats[t.senderId] || stats[t.receiverId]) {
+        totalSpent += t.amount
+      }
+    })
+
+    const formattedGroup = {
+      id: group.id,
+      name: group.name,
+      description: group.description || '',
+      totalSpent,
+      totalMembers: group.members.length,
+      isAdmin: group.members.some(
+        (m) => m.userId === req.user.id && m.role === 'ADMIN'
+      ),
+      createdDate: group.createdAt.toISOString(),
+      color: group.color || '',
+      members: group.members.map((m) => ({
+        id: m.user.id,
+        name: m.user.name,
+        avatar: m.user.avatar || '',
         email: m.user.email,
-        isAdmin: false,
-        balance: 0,
-        totalSpent: 0,
+        isAdmin: m.role === 'ADMIN',
+        balance: stats[m.userId]?.balance || 0,
+        totalSpent: stats[m.userId]?.totalSpent || 0,
         joinedDate: m.joinedAt.toISOString()
       })),
       recentTransactions: transactions.map((t) => ({
@@ -308,7 +346,10 @@ router.get('/:groupId', async (req, res) => {
         date: t.createdAt.toISOString(),
         status: TRANSACTION_STATUS_MAP[t.status] || t.status,
         paidBy: t.sender?.name || t.senderId,
-        participants: [t.sender?.name || t.senderId, t.receiver?.name || t.receiverId]
+        participants: [
+          t.sender?.name || t.senderId,
+          t.receiver?.name || t.receiverId
+        ]
       })),
       hasMoreTransactions
     }
