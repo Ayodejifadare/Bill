@@ -145,6 +145,214 @@ describe('Transaction routes', () => {
     expect(item).not.toHaveProperty('createdAt')
   })
 
+  it('filters transactions by date range', async () => {
+    await prisma.user.createMany({
+      data: [
+        { id: 'u1', email: 'u1@example.com', name: 'User 1' },
+        { id: 'u2', email: 'u2@example.com', name: 'User 2' }
+      ]
+    })
+
+    await prisma.transaction.createMany({
+      data: [
+        {
+          id: 'd1',
+          amount: 10,
+          senderId: 'u1',
+          receiverId: 'u2',
+          type: 'SEND',
+          status: 'COMPLETED',
+          category: 'FOOD',
+          createdAt: new Date('2024-01-01')
+        },
+        {
+          id: 'd2',
+          amount: 20,
+          senderId: 'u1',
+          receiverId: 'u2',
+          type: 'SEND',
+          status: 'COMPLETED',
+          category: 'RENT',
+          createdAt: new Date('2024-02-01')
+        },
+        {
+          id: 'd3',
+          amount: 30,
+          senderId: 'u1',
+          receiverId: 'u2',
+          type: 'SEND',
+          status: 'COMPLETED',
+          category: 'UTILITIES',
+          createdAt: new Date('2024-03-01')
+        }
+      ]
+    })
+
+    const res = await request(app)
+      .get('/transactions')
+      .query({ startDate: '2024-02-01', endDate: '2024-03-01' })
+      .set('Authorization', `Bearer ${sign('u1')}`)
+      .send()
+
+    expect(res.status).toBe(200)
+    expect(res.body.transactions).toHaveLength(2)
+    const ids = res.body.transactions.map(t => t.id)
+    expect(ids).toEqual(['d3', 'd2'])
+    expect(res.body.transactions[0]).toMatchObject({
+      recipient: { id: 'u2' },
+      category: 'utilities'
+    })
+    expect(res.body.transactions[0]).toHaveProperty('date')
+    expect(res.body.total).toBe(2)
+    expect(res.body.pageCount).toBe(1)
+  })
+
+  it('filters transactions by type and category', async () => {
+    await prisma.user.createMany({
+      data: [
+        { id: 'u1', email: 'u1@example.com', name: 'User 1' },
+        { id: 'u2', email: 'u2@example.com', name: 'User 2' }
+      ]
+    })
+
+    await prisma.transaction.createMany({
+      data: [
+        {
+          id: 'f1',
+          amount: 5,
+          senderId: 'u1',
+          receiverId: 'u2',
+          type: 'SEND',
+          status: 'COMPLETED',
+          category: 'FOOD'
+        },
+        {
+          id: 'f2',
+          amount: 15,
+          senderId: 'u2',
+          receiverId: 'u1',
+          type: 'SEND',
+          status: 'COMPLETED',
+          category: 'RENT'
+        },
+        {
+          id: 'f3',
+          amount: 25,
+          senderId: 'u1',
+          receiverId: 'u2',
+          type: 'BILL_SPLIT',
+          status: 'COMPLETED',
+          category: 'ENTERTAINMENT'
+        }
+      ]
+    })
+
+    const res = await request(app)
+      .get('/transactions')
+      .query({ type: 'bill_split', category: 'entertainment' })
+      .set('Authorization', `Bearer ${sign('u1')}`)
+      .send()
+
+    expect(res.status).toBe(200)
+    expect(res.body.transactions).toHaveLength(1)
+    expect(res.body.transactions[0].id).toBe('f3')
+    expect(res.body.transactions[0].category).toBe('entertainment')
+  })
+
+  it('searches transactions by keyword in description and participant names', async () => {
+    await prisma.user.createMany({
+      data: [
+        { id: 'u1', email: 'u1@example.com', name: 'User One' },
+        { id: 'u2', email: 'u2@example.com', name: 'Alice Doe' },
+        { id: 'u3', email: 'u3@example.com', name: 'Bob Roe' }
+      ]
+    })
+
+    await prisma.transaction.createMany({
+      data: [
+        {
+          id: 'k1',
+          amount: 12,
+          senderId: 'u1',
+          receiverId: 'u2',
+          type: 'SEND',
+          status: 'COMPLETED',
+          description: 'Lunch payment'
+        },
+        {
+          id: 'k2',
+          amount: 8,
+          senderId: 'u3',
+          receiverId: 'u1',
+          type: 'SEND',
+          status: 'COMPLETED'
+        }
+      ]
+    })
+
+    const byDescription = await request(app)
+      .get('/transactions')
+      .query({ keyword: 'lunch' })
+      .set('Authorization', `Bearer ${sign('u1')}`)
+      .send()
+
+    expect(byDescription.status).toBe(200)
+    expect(byDescription.body.transactions).toHaveLength(1)
+    expect(byDescription.body.transactions[0].id).toBe('k1')
+
+    const byName = await request(app)
+      .get('/transactions')
+      .query({ keyword: 'bob' })
+      .set('Authorization', `Bearer ${sign('u1')}`)
+      .send()
+
+    expect(byName.status).toBe(200)
+    expect(byName.body.transactions).toHaveLength(1)
+    expect(byName.body.transactions[0].id).toBe('k2')
+  })
+
+  it('supports page-based pagination with hasMore', async () => {
+    await prisma.user.createMany({
+      data: [
+        { id: 'u1', email: 'u1@example.com', name: 'User 1' },
+        { id: 'u2', email: 'u2@example.com', name: 'User 2' }
+      ]
+    })
+
+    const txData = Array.from({ length: 5 }).map((_, i) => ({
+      id: `p${i + 1}`,
+      amount: i + 1,
+      senderId: 'u1',
+      receiverId: 'u2',
+      type: 'SEND',
+      status: 'COMPLETED',
+      category: 'OTHER'
+    }))
+    await prisma.transaction.createMany({ data: txData })
+
+    const page1 = await request(app)
+      .get('/transactions')
+      .query({ page: 1, size: 2 })
+      .set('Authorization', `Bearer ${sign('u1')}`)
+      .send()
+
+    expect(page1.status).toBe(200)
+    expect(page1.body.transactions).toHaveLength(2)
+    expect(page1.body.total).toBe(5)
+    expect(page1.body.pageCount).toBe(3)
+    expect(page1.body.hasMore).toBe(true)
+
+    const page3 = await request(app)
+      .get('/transactions')
+      .query({ page: 3, size: 2 })
+      .set('Authorization', `Bearer ${sign('u1')}`)
+      .send()
+
+    expect(page3.status).toBe(200)
+    expect(page3.body.transactions).toHaveLength(1)
+    expect(page3.body.hasMore).toBe(false)
+  })
+
   it('returns 404 for missing or unauthorized transaction', async () => {
     await prisma.user.create({ data: { id: 'u1', email: 'u1@example.com', name: 'User 1' } })
     await prisma.user.create({ data: { id: 'u2', email: 'u2@example.com', name: 'User 2' } })
