@@ -166,15 +166,47 @@ export function SetupRecurringPaymentScreen({
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!validateForm()) {
       toast.error('Please fix the form errors');
       return;
     }
-    
-    const action = editMode ? 'updated' : 'created';
-    toast.success(`Recurring payment ${action} successfully`);
-    onNavigate('recurring-payments');
+
+    const payload = {
+      title: formData.title,
+      recipient: formData.recipient,
+      amount: parseFloat(formData.amount),
+      frequency: formData.frequency,
+      startDate: formData.startDate.toISOString(),
+      endDate: formData.hasEndDate && formData.endDate ? formData.endDate.toISOString() : null,
+      totalPayments: formData.totalPayments ? parseInt(formData.totalPayments) : null,
+      category: formData.category,
+      paymentMethod: formData.paymentMethod,
+      type: formData.type,
+    };
+
+    try {
+      if (editMode && paymentId) {
+        await apiClient(`/api/recurring-payments/${paymentId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        toast.success('Recurring payment updated successfully');
+      } else {
+        await apiClient('/api/recurring-payments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        toast.success('Recurring payment created successfully');
+      }
+      window.dispatchEvent(new Event('recurringPaymentsUpdated'));
+      onNavigate('recurring-payments');
+    } catch (err) {
+      console.error('Failed to save recurring payment', err);
+      toast.error('Failed to save recurring payment');
+    }
   };
 
   const getFrequencyPreview = () => {

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { ArrowLeft, Plus, Calendar, Clock, Edit, Trash2, Pause, Play, AlertCircle } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
@@ -10,6 +10,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { toast } from 'sonner';
 import { useUserProfile } from './UserProfileContext';
+import { apiClient } from '../utils/apiClient';
 
 interface RecurringPaymentsScreenProps {
   onNavigate: (tab: string, data?: any) => void;
@@ -33,76 +34,58 @@ interface RecurringPayment {
   billSplitId?: string;
 }
 
-const mockRecurringPayments: RecurringPayment[] = [
-  {
-    id: '1',
-    title: 'Monthly Rent Split',
-    recipient: 'Alex Rodriguez',
-    amount: 375.00,
-    frequency: 'monthly',
-    nextPayment: '2025-02-01',
-    status: 'active',
-    category: 'Housing',
-    paymentMethod: 'Access Bank',
-    startDate: '2024-12-01',
-    totalPayments: 12,
-    completedPayments: 2,
-    type: 'bill_split',
-    billSplitId: 'rent-split-1'
-  },
-  {
-    id: '2',
-    title: 'Netflix Subscription Split',
-    recipient: 'Sarah Johnson',
-    amount: 4.99,
-    frequency: 'monthly',
-    nextPayment: '2025-02-15',
-    status: 'active',
-    category: 'Entertainment',
-    paymentMethod: 'Opay',
-    startDate: '2024-11-15',
-    completedPayments: 3,
-    type: 'subscription'
-  },
-  {
-    id: '3',
-    title: 'Weekly Grocery Split',
-    recipient: 'Mike Chen',
-    amount: 45.30,
-    frequency: 'weekly',
-    nextPayment: '2025-01-20',
-    status: 'active',
-    category: 'Food & Groceries',
-    paymentMethod: 'GTBank',
-    startDate: '2025-01-01',
-    completedPayments: 2,
-    type: 'bill_split',
-    billSplitId: 'grocery-split-1'
-  },
-  {
-    id: '4',
-    title: 'Gym Membership Split',
-    recipient: 'Emily Davis',
-    amount: 25.00,
-    frequency: 'monthly',
-    nextPayment: '2025-01-25',
-    status: 'paused',
-    category: 'Health & Fitness',
-    paymentMethod: 'Access Bank',
-    startDate: '2024-10-25',
-    endDate: '2025-10-25',
-    totalPayments: 12,
-    completedPayments: 3,
-    type: 'bill_split'
-  }
-];
-
 export function RecurringPaymentsScreen({ onNavigate }: RecurringPaymentsScreenProps) {
   const { appSettings } = useUserProfile();
   const currencySymbol = appSettings.region === 'NG' ? '₦' : '$';
-  const [recurringPayments, setRecurringPayments] = useState(mockRecurringPayments);
+  const [recurringPayments, setRecurringPayments] = useState<RecurringPayment[]>([]);
   const [selectedPayment, setSelectedPayment] = useState<string | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+
+  const fetchRecurringPayments = useCallback(async () => {
+    try {
+      const data: RecurringPayment[] = await apiClient('/api/recurring-payments');
+      setRecurringPayments(data || []);
+    } catch (err) {
+      console.error('Failed to load recurring payments', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchRecurringPayments();
+    window.addEventListener('recurringPaymentsUpdated', fetchRecurringPayments);
+    return () => window.removeEventListener('recurringPaymentsUpdated', fetchRecurringPayments);
+  }, [fetchRecurringPayments]);
+
+  const createPayment = useCallback(async (data: Partial<RecurringPayment>) => {
+    try {
+      await apiClient('/api/recurring-payments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      toast.success('Recurring payment created');
+      fetchRecurringPayments();
+      window.dispatchEvent(new Event('recurringPaymentsUpdated'));
+    } catch (err) {
+      console.error('Create recurring payment failed', err);
+      toast.error('Failed to create recurring payment');
+    }
+  }, [fetchRecurringPayments]);
+
+  const updatePayment = useCallback(async (id: string, data: Partial<RecurringPayment>) => {
+    try {
+      await apiClient(`/api/recurring-payments/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      fetchRecurringPayments();
+      window.dispatchEvent(new Event('recurringPaymentsUpdated'));
+    } catch (err) {
+      console.error('Update recurring payment failed', err);
+      toast.error('Failed to update recurring payment');
+    }
+  }, [fetchRecurringPayments]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -141,29 +124,35 @@ export function RecurringPaymentsScreen({ onNavigate }: RecurringPaymentsScreenP
     });
   };
 
-  const togglePaymentStatus = (paymentId: string) => {
-    setRecurringPayments(payments => 
-      payments.map(payment => {
-        if (payment.id === paymentId) {
-          const newStatus = payment.status === 'active' ? 'paused' : 'active';
-          toast.success(`Recurring payment ${newStatus === 'active' ? 'resumed' : 'paused'}`);
-          return { ...payment, status: newStatus };
-        }
-        return payment;
-      })
-    );
+  const togglePaymentStatus = async (paymentId: string) => {
+    const payment = recurringPayments.find(p => p.id === paymentId);
+    if (!payment) return;
+    const newStatus = payment.status === 'active' ? 'paused' : 'active';
+    await updatePayment(paymentId, { status: newStatus });
+    toast.success(`Recurring payment ${newStatus === 'active' ? 'resumed' : 'paused'}`);
   };
 
-  const deletePayment = () => {
+  const deletePayment = async () => {
     if (selectedPayment) {
-      setRecurringPayments(payments => 
-        payments.filter(payment => payment.id !== selectedPayment)
-      );
-      toast.success('Recurring payment deleted');
-      setShowDeleteDialog(false);
-      setSelectedPayment(null);
+      try {
+        await apiClient(`/api/recurring-payments/${selectedPayment}`, { method: 'DELETE' });
+        toast.success('Recurring payment deleted');
+        setShowDeleteDialog(false);
+        setSelectedPayment(null);
+        fetchRecurringPayments();
+        window.dispatchEvent(new Event('recurringPaymentsUpdated'));
+      } catch (err) {
+        console.error('Delete recurring payment failed', err);
+        toast.error('Failed to delete recurring payment');
+      }
     }
   };
+
+  useEffect(() => {
+    (window as any).createRecurringPayment = createPayment;
+    (window as any).updateRecurringPayment = updatePayment;
+    (window as any).deleteRecurringPayment = deletePayment;
+  }, [createPayment, updatePayment, deletePayment]);
 
   const activePayments = recurringPayments.filter(p => p.status === 'active');
   const pausedPayments = recurringPayments.filter(p => p.status === 'paused');

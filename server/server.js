@@ -24,6 +24,7 @@ import contactRoutes from './routes/contacts.js'
 import verificationRoutes from './routes/verification.js'
 import receiptRoutes from './routes/receipts.js'
 import spendingInsightsRoutes from './routes/spendingInsights.js'
+import recurringPaymentRoutes from './routes/recurringPayments.js'
 import { cleanupExpiredCodes } from './utils/verificationCodes.js'
 
 // Load environment variables
@@ -75,6 +76,7 @@ app.use('/api/friends', friendRoutes)
 app.use('/api/groups', groupRoutes)
 app.use('/api/payment-methods', paymentMethodRoutes)
 app.use('/api/requests', requestRoutes)
+app.use('/api/recurring-payments', recurringPaymentRoutes)
 app.use('/api', upcomingPaymentRoutes)
 app.use('/api', notificationRoutes)
 app.use('/api/contacts', contactRoutes)
