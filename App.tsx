@@ -411,31 +411,28 @@ function AppContent() {
     }
   }, [navState.currentGroupId, handleNavigate]);
 
-  const handleLogin = useCallback((userData?: any) => {
+  const handleLogin = useCallback((authResponse?: any) => {
     try {
       setIsInitializing(true);
-      
-      // Store authentication data
+
+      const token = authResponse?.token;
+      const user = authResponse?.user || {};
+      if (!token) {
+        throw new Error('No token received');
+      }
+
       const authData = {
-        token: 'demo_token_' + Date.now(),
-        expiresAt: Date.now() + (7 * 24 * 60 * 60 * 1000), // 7 days
-        loginTime: new Date().toISOString()
+        token,
+        expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days
+        loginTime: new Date().toISOString(),
       };
-      
-      const defaultUserData = {
-        id: 'demo_user_1',
-        name: userData?.name || 'Demo User',
-        email: userData?.email || 'demo@biltip.com',
-        phone: userData?.phone || '+1234567890',
-        region: userData?.region || 'US'
-      };
-      
+
       localStorage.setItem('biltip_auth', JSON.stringify(authData));
-      localStorage.setItem('biltip_user', JSON.stringify(defaultUserData));
-      
+      localStorage.setItem('biltip_user', JSON.stringify(user));
+
       setIsAuthenticated(true);
       dispatch({ type: 'SET_TAB', payload: 'home' });
-      toast.success(`Welcome to Biltip, ${defaultUserData.name}!`);
+      toast.success(`Welcome to Biltip, ${user.name || 'User'}!`);
     } catch (error) {
       console.error('Login error:', error);
       toast.error('Login failed. Please try again.');
