@@ -85,10 +85,14 @@ describe('Group join/leave routes', () => {
 
     const leaveRes = await request(app)
       .post(`/groups/${groupId}/leave`)
-      .set('x-user-id', 'user1')
+      .set('x-user-id', 'creator')
       .send()
     expect(leaveRes.status).toBe(200)
-    expect(leaveRes.body.group.members).toEqual(['creator'])
+    expect(leaveRes.body).toEqual({ success: true })
+
+    const members = await prisma.groupMember.findMany({ where: { groupId } })
+    expect(members).toHaveLength(1)
+    expect(members[0]).toMatchObject({ userId: 'user1', role: 'ADMIN' })
   })
 
   it('requires authentication to join and leave a group', async () => {

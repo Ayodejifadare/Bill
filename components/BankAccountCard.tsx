@@ -24,9 +24,9 @@ export function BankAccountCard({ account, ...rest }: BankAccountCardProps) {
       account={{
         id: account.id,
         type: 'bank',
-        bank: account.bankName || account.bank,
+        bankName: account.bankName || account.bank,
         accountNumber: account.accountNumber,
-        accountName: account.accountHolderName || account.accountName,
+        accountHolderName: account.accountHolderName || account.accountName,
         sortCode: account.sortCode,
         routingNumber: account.routingNumber,
         accountType: account.accountType,

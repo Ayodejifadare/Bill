@@ -75,6 +75,7 @@ describe('Friend routes', () => {
     expect(pending.requestId).toBe(fr.id)
   })
 
+
   it('returns summary of amounts owed with friends', async () => {
     await prisma.user.create({ data: { id: 'u1', email: 'u1@example.com', name: 'User 1' } })
     await prisma.user.create({ data: { id: 'u2', email: 'u2@example.com', name: 'User 2' } })
@@ -129,6 +130,30 @@ describe('Friend routes', () => {
     expect(res.status).toBe(200)
     expect(res.body.owedToUser).toBe(30)
     expect(res.body.userOwes).toBe(10)
+
+  it('returns incoming and outgoing friend requests with metadata', async () => {
+    await prisma.user.create({ data: { id: 'a1', email: 'a1@example.com', name: 'A1' } })
+    await prisma.user.create({ data: { id: 'a2', email: 'a2@example.com', name: 'A2' } })
+    await prisma.user.create({ data: { id: 'a3', email: 'a3@example.com', name: 'A3' } })
+
+    const incoming = await prisma.friendRequest.create({ data: { senderId: 'a2', receiverId: 'a1' } })
+    const outgoing = await prisma.friendRequest.create({ data: { senderId: 'a1', receiverId: 'a3' } })
+
+    const res = await request(app)
+      .get('/friends/requests')
+      .set('Authorization', `Bearer ${sign('a1')}`)
+
+    expect(res.status).toBe(200)
+    expect(res.body.incoming).toHaveLength(1)
+    expect(res.body.outgoing).toHaveLength(1)
+    const inc = res.body.incoming[0]
+    const out = res.body.outgoing[0]
+    expect(inc.requestId).toBe(incoming.id)
+    expect(out.requestId).toBe(outgoing.id)
+    expect(inc.sender.id).toBe('a2')
+    expect(out.receiver.id).toBe('a3')
+    expect(inc.status).toBe('pending')
+    expect(out.status).toBe('pending')
   })
 
   it('sends and accepts friend requests', async () => {

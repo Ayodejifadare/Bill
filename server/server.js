@@ -71,6 +71,8 @@ app.use((req, res, next) => {
 
 // Auth routes (login, register, OTP)
 app.use('/api/auth', authRoutes)
+// Protect all other API routes with authentication
+app.use('/api', authenticate)
 // Redirect first-time users to onboarding if needed
 app.use('/api', onboardingRedirect)
 app.use('/api/users', userRoutes)
@@ -88,7 +90,7 @@ app.use('/api/verification', verificationRoutes)
 app.use('/api/receipts', receiptRoutes)
 app.use('/api', spendingInsightsRoutes)
 
-app.get('/api/notifications/stream', authenticate, (req, res) => {
+app.get('/api/notifications/stream', (req, res) => {
   res.set({
     'Content-Type': 'text/event-stream',
     'Cache-Control': 'no-cache',
