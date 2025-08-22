@@ -39,8 +39,6 @@ interface SecurityScreenProps {
 
 export function SecurityScreen({ onNavigate }: SecurityScreenProps) {
   const { userProfile } = useUserProfile();
-  const storedAuth = typeof window !== 'undefined' ? localStorage.getItem('biltip_auth') : null;
-  const token = storedAuth ? JSON.parse(storedAuth).token : null;
   const userId = userProfile.id;
 
   const [securitySettings, setSecuritySettings] = useState({
@@ -67,7 +65,6 @@ export function SecurityScreen({ onNavigate }: SecurityScreenProps) {
   });
 
   const fetchLogs = async () => {
-    if (!token) return;
     try {
       const data = await apiClient(`/api/users/${userId}/security-logs`);
       setActivities(
@@ -87,7 +84,6 @@ export function SecurityScreen({ onNavigate }: SecurityScreenProps) {
 
   useEffect(() => {
     const fetchSettings = async () => {
-      if (!token) return;
       try {
         const data = await apiClient(`/api/users/${userId}`);
         setSecuritySettings(prev => ({
@@ -101,11 +97,10 @@ export function SecurityScreen({ onNavigate }: SecurityScreenProps) {
       }
     };
     fetchSettings();
-  }, [token, userId]);
+  }, [userId]);
 
   const updateSetting = async (key: string, value: boolean | string) => {
     setSecuritySettings(prev => ({ ...prev, [key]: value }));
-    if (!token) return;
     try {
       if (key === 'twoFactorAuth') {
         await apiClient(`/api/users/${userId}/two-factor`, {
@@ -131,7 +126,6 @@ export function SecurityScreen({ onNavigate }: SecurityScreenProps) {
   };
 
   const handleChangePassword = async () => {
-    if (!token) return;
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
       alert('Passwords do not match');
       return;
@@ -158,11 +152,11 @@ export function SecurityScreen({ onNavigate }: SecurityScreenProps) {
   };
 
   const handleLogoutOthers = async () => {
-    if (!token) return;
     try {
       const data = await apiClient(`/api/users/${userId}/logout-others`, {
         method: 'POST',
       });
+      const storedAuth = localStorage.getItem('biltip_auth');
       const stored = storedAuth ? JSON.parse(storedAuth) : {};
       stored.token = data.token;
       localStorage.setItem('biltip_auth', JSON.stringify(stored));

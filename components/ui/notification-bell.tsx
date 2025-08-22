@@ -3,6 +3,7 @@ import { Bell } from 'lucide-react';
 import { EventSourcePolyfill } from 'event-source-polyfill';
 import { Button } from './button';
 import { Alert, AlertDescription } from './alert';
+import { apiClient } from '../../utils/apiClient';
 
 interface NotificationBellProps {
   onClick: () => void;
@@ -14,36 +15,27 @@ export function NotificationBell({ onClick }: NotificationBellProps) {
   const [error, setError] = useState<string | null>(null);
 
   const fetchWithRetry = async (
-    url: string,
-    options?: RequestInit,
+    input: RequestInfo | URL,
+    init?: RequestInit,
     retries = 3,
     delay = 1000,
-  ): Promise<Response> => {
+  ): Promise<any> => {
     try {
-      const res = await fetch(url, options);
-      if (!res.ok) {
-        throw new Error('Failed to fetch unread notifications');
-      }
-      return res;
+      return await apiClient(input, init);
     } catch (err) {
       if (retries <= 1) {
         throw err;
       }
       await new Promise((resolve) => setTimeout(resolve, delay));
-      return fetchWithRetry(url, options, retries - 1, delay * 2);
+      return fetchWithRetry(input, init, retries - 1, delay * 2);
     }
   };
 
   const fetchUnread = async () => {
     setLoading(true);
     try {
-      const storedAuth = localStorage.getItem('auth');
-      const token = storedAuth ? JSON.parse(storedAuth).token : null;
-      const res = await fetchWithRetry('/api/notifications/unread', {
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      });
-      const data = await res.json();
-      setUnread(data.count || 0);
+      const data = await fetchWithRetry('/api/notifications/unread');
+      setUnread(data?.count || 0);
       setError(null);
     } catch (err) {
       setUnread(0);
@@ -55,7 +47,7 @@ export function NotificationBell({ onClick }: NotificationBellProps) {
 
   useEffect(() => {
     fetchUnread();
-    const storedAuth = localStorage.getItem('auth');
+    const storedAuth = localStorage.getItem('biltip_auth');
     const token = storedAuth ? JSON.parse(storedAuth).token : null;
     let es: EventSource | null = null;
     if (token && typeof window !== 'undefined') {
