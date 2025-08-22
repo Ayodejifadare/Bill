@@ -54,15 +54,18 @@ router.get('/transactions', async (req, res) => {
   }
 })
 
-// POST /split-bill - split a bill between group members
+// POST /split-bill - create a bill split transaction
 router.post('/split-bill', async (req, res) => {
   try {
-    const { amount, participants = [] } = req.body || {}
+    const { amount, description = '', participants = [] } = req.body || {}
 
-    if (!amount || !Array.isArray(participants) || participants.length < 2) {
+    if (!amount || isNaN(amount) || amount <= 0) {
+      return res.status(400).json({ error: 'Valid amount is required' })
+    }
+    if (!Array.isArray(participants) || participants.length === 0) {
       return res
         .status(400)
-        .json({ error: 'Amount and at least two participants required' })
+        .json({ error: 'Participants array with at least one member is required' })
     }
 
     // Ensure group exists and get members
@@ -75,48 +78,54 @@ router.post('/split-bill', async (req, res) => {
     }
 
     const memberIds = group.members.map((m) => m.userId)
-    // verify all participants are members of the group
-    const invalid = participants.find((id) => !memberIds.includes(id))
+
+    // Ensure current user is included as payer
+    const payerId = req.user.id
+    const allParticipants = participants.includes(payerId)
+      ? participants
+      : [payerId, ...participants]
+
+    // Verify all participants are members of the group
+    const invalid = allParticipants.find((id) => !memberIds.includes(id))
     if (invalid) {
       return res.status(400).json({ error: 'Invalid participant' })
     }
 
-    // first participant is considered the payer
-    const payerId = participants[0]
-    const share = amount / participants.length
+    const share = amount / allParticipants.length
 
-    const result = await req.prisma.$transaction(async (prisma) => {
-      // Create bill split
+    const txs = await req.prisma.$transaction(async (prisma) => {
+      // Create bill split record
       const billSplit = await prisma.billSplit.create({
         data: {
-          title: 'Group bill split',
+          title: description || 'Group bill split',
+          description,
           totalAmount: amount,
           createdBy: payerId,
-          description: 'Bill split'
+          groupId: req.params.groupId
         }
       })
 
-      // Create participants
+      // Participants including payer (paid true for payer)
       await prisma.billSplitParticipant.createMany({
-        data: participants.map((id) => ({
+        data: allParticipants.map((id) => ({
           billSplitId: billSplit.id,
           userId: id,
-          amount: share
+          amount: share,
+          isPaid: id === payerId
         }))
       })
 
-      const newTransactions = []
-      for (const id of participants) {
-        if (id === payerId) continue
-
+      // Create transactions for each participant (including payer for total spent)
+      const created = []
+      for (const id of allParticipants) {
         const tx = await prisma.transaction.create({
           data: {
             senderId: payerId,
             receiverId: id,
             amount: share,
-            type: 'SEND',
-            status: 'COMPLETED',
-            description: 'Bill split',
+            type: 'BILL_SPLIT',
+            status: id === payerId ? 'COMPLETED' : 'PENDING',
+            description,
             billSplitId: billSplit.id
           },
           include: {
@@ -124,60 +133,29 @@ router.post('/split-bill', async (req, res) => {
             receiver: { select: { id: true, name: true } }
           }
         })
-        newTransactions.push(tx)
-
-        // Update balances
-        await prisma.user.update({
-          where: { id: payerId },
-          data: { balance: { decrement: share } }
-        })
-        await prisma.user.update({
-          where: { id },
-          data: { balance: { increment: share } }
-        })
+        created.push(tx)
       }
 
-      // Fetch all group transactions after the split
-      const allTx = await prisma.transaction.findMany({
-        where: {
-          OR: [
-            { senderId: { in: memberIds } },
-            { receiverId: { in: memberIds } }
-          ]
-        },
-        include: {
-          sender: { select: { id: true, name: true } },
-          receiver: { select: { id: true, name: true } }
-        },
-        orderBy: { createdAt: 'desc' }
-      })
-
-      // Calculate balances for all group members
-      const balances = {}
-      memberIds.forEach((id) => (balances[id] = 0))
-      allTx.forEach((t) => {
-        if (balances[t.senderId] !== undefined) balances[t.senderId] -= t.amount
-        if (balances[t.receiverId] !== undefined) balances[t.receiverId] += t.amount
-      })
-
-      const formatted = allTx.map((t) => ({
-        id: t.id,
-        type: TRANSACTION_TYPE_MAP[t.type] || t.type,
-        amount: t.amount,
-        description: t.description || '',
-        date: t.createdAt.toISOString(),
-        status: TRANSACTION_STATUS_MAP[t.status] || t.status,
-        paidBy: t.sender?.name || t.senderId,
-        participants: [
-          t.sender?.name || t.senderId,
-          t.receiver?.name || t.receiverId
-        ]
-      }))
-
-      return { billSplitId: billSplit.id, transactions: formatted, balances }
+      return created
     })
 
-    res.status(201).json(result)
+    // Choose a transaction involving another participant to return
+    const tx = txs.find((t) => t.receiverId !== payerId) || txs[0]
+    const formatted = {
+      id: tx.id,
+      type: TRANSACTION_TYPE_MAP[tx.type] || tx.type,
+      amount: tx.amount,
+      description: tx.description || '',
+      date: tx.createdAt.toISOString(),
+      status: TRANSACTION_STATUS_MAP[tx.status] || tx.status,
+      paidBy: tx.sender?.name || tx.senderId,
+      participants: [
+        tx.sender?.name || tx.senderId,
+        tx.receiver?.name || tx.receiverId
+      ]
+    }
+
+    res.status(201).json({ transaction: formatted })
   } catch (error) {
     console.error('Split bill error:', error)
     res.status(500).json({ error: 'Internal server error' })
