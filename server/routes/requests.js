@@ -33,11 +33,11 @@ router.post(
   '/',
   [
     authenticateToken,
-    body('receiverId').notEmpty(),
     body('amount').isFloat({ gt: 0 }),
-    body('isRecurring').optional().isBoolean(),
-    body('frequency').optional().isString(),
-    body('nextDueDate').optional().isISO8601()
+    body('recipients').isArray({ min: 1 }),
+    body('recipients.*').isString().notEmpty(),
+    body('paymentMethod').isString().notEmpty(),
+    body('description').optional().isString()
   ],
   async (req, res) => {
     try {
@@ -46,30 +46,44 @@ router.post(
         return res.status(400).json({ errors: errors.array() })
       }
 
-      const { receiverId, amount, description, isRecurring, frequency, nextDueDate } = req.body
+      const { amount, recipients, paymentMethod, description } = req.body
 
-      if (receiverId === req.userId) {
+      const method = await req.prisma.paymentMethod.findFirst({
+        where: { id: paymentMethod, userId: req.userId }
+      })
+      if (!method) {
+        return res.status(403).json({ error: 'Invalid payment method' })
+      }
+
+      const uniqueRecipients = [...new Set(recipients)]
+      if (uniqueRecipients.some((id) => id === req.userId)) {
         return res.status(400).json({ error: 'Cannot request payment from yourself' })
       }
 
-      const receiver = await req.prisma.user.findUnique({ where: { id: receiverId } })
-      if (!receiver) {
-        return res.status(404).json({ error: 'Receiver not found' })
+      const recipientsExist = await req.prisma.user.findMany({
+        where: { id: { in: uniqueRecipients } },
+        select: { id: true }
+      })
+      if (recipientsExist.length !== uniqueRecipients.length) {
+        return res.status(400).json({ error: 'Invalid recipients' })
       }
 
-      const request = await req.prisma.paymentRequest.create({
-        data: {
-          senderId: req.userId,
-          receiverId,
-          amount,
-          description,
-          isRecurring: isRecurring || false,
-          frequency,
-          nextDueDate: nextDueDate ? new Date(nextDueDate) : null
-        }
-      })
+      const requests = await Promise.all(
+        uniqueRecipients.map((receiverId) =>
+          req.prisma.paymentRequest.create({
+            data: {
+              senderId: req.userId,
+              receiverId,
+              amount,
+              description,
+              status: 'PENDING'
+            },
+            select: { id: true, status: true }
+          })
+        )
+      )
 
-      res.status(201).json({ request })
+      res.status(201).json({ requests })
     } catch (error) {
       console.error('Create payment request error:', error)
       res.status(500).json({ error: 'Internal server error' })
