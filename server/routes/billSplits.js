@@ -31,7 +31,15 @@ const authenticateToken = async (req, res, next) => {
 // Get user's bill splits
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    const { groupId } = req.query
+    const {
+      groupId,
+      category,
+      minAmount,
+      maxAmount,
+      keyword,
+      page,
+      size
+    } = req.query
 
     const whereClause = {
       OR: [
@@ -45,22 +53,59 @@ router.get('/', authenticateToken, async (req, res) => {
       ...(groupId ? { groupId } : {})
     }
 
-    const billSplits = await req.prisma.billSplit.findMany({
-      where: whereClause,
-      include: {
-        creator: {
-          select: { id: true, name: true }
-        },
-        participants: {
-          include: {
-            user: {
-              select: { id: true, name: true }
+    if (category) whereClause.category = category
+
+    if (minAmount || maxAmount) {
+      whereClause.totalAmount = {}
+      if (minAmount) whereClause.totalAmount.gte = parseFloat(minAmount)
+      if (maxAmount) whereClause.totalAmount.lte = parseFloat(maxAmount)
+    }
+
+    if (keyword) {
+      const keywordFilter = {
+        OR: [
+          { title: { contains: keyword, mode: 'insensitive' } },
+          { description: { contains: keyword, mode: 'insensitive' } },
+          {
+            participants: {
+              some: {
+                user: { name: { contains: keyword, mode: 'insensitive' } }
+              }
             }
           }
-        }
-      },
-      orderBy: { createdAt: 'desc' }
-    })
+        ]
+      }
+      whereClause.AND = Array.isArray(whereClause.AND)
+        ? [...whereClause.AND, keywordFilter]
+        : [keywordFilter]
+    }
+
+    const pageNum = parseInt(page) || 1
+    const pageSize = parseInt(size) || 20
+
+    const [total, billSplits] = await req.prisma.$transaction([
+      req.prisma.billSplit.count({ where: whereClause }),
+      req.prisma.billSplit.findMany({
+        where: whereClause,
+        include: {
+          creator: {
+            select: { id: true, name: true }
+          },
+          participants: {
+            include: {
+              user: {
+                select: { id: true, name: true }
+              }
+            }
+          }
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: (pageNum - 1) * pageSize,
+        take: pageSize
+      })
+    ])
+
+    const pageCount = Math.ceil(total / pageSize)
 
     const formattedSplits = billSplits.map(split => {
       const paidCount = split.participants.filter(p => p.isPaid).length
@@ -79,11 +124,12 @@ router.get('/', authenticateToken, async (req, res) => {
         })),
         createdBy: split.creator.id === req.userId ? 'You' : split.creator.name,
         date: split.createdAt.toISOString(),
-        ...(split.groupId ? { groupId: split.groupId } : {})
+        ...(split.groupId ? { groupId: split.groupId } : {}),
+        ...(split.category ? { category: split.category } : {})
       }
     })
 
-    res.json({ billSplits: formattedSplits })
+    res.json({ billSplits: formattedSplits, total, pageCount })
   } catch (error) {
     console.error('Get bill splits error:', error)
     res.status(500).json({ error: 'Internal server error' })

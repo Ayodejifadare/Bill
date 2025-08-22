@@ -20,7 +20,7 @@ interface BillsScreenProps {
 
 export function BillsScreen({ onNavigate, groupId }: BillsScreenProps) {
   const [activeFilter, setActiveFilter] = useState('all');
-  const { billSplits, loading, error } = useBillSplits(groupId || undefined);
+  const { billSplits, loading, error } = useBillSplits({ groupId: groupId || undefined });
   const { appSettings } = useUserProfile();
   const currencySymbol = appSettings.region === 'NG' ? '₦' : '$';
 
