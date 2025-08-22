@@ -1,6 +1,7 @@
 import express from 'express'
 import { body, validationResult } from 'express-validator'
 import jwt from 'jsonwebtoken'
+import { computeNextDueDate } from '../utils/recurringRequestScheduler.js'
 
 const router = express.Router()
 
@@ -38,7 +39,11 @@ router.post(
     body('recipients.*').isString().notEmpty(),
     body('paymentMethod').isString().notEmpty(),
     body('description').optional().isString(),
-    body('message').optional().isString()
+    body('message').optional().isString(),
+    body('isRecurring').optional().isBoolean(),
+    body('recurringFrequency').optional().isString(),
+    body('recurringDay').optional().isInt({ min: 1, max: 31 }),
+    body('recurringDayOfWeek').optional().isInt({ min: 0, max: 6 })
   ],
   async (req, res) => {
     try {
@@ -47,7 +52,17 @@ router.post(
         return res.status(400).json({ errors: errors.array() })
       }
 
-      const { amount, recipients, paymentMethod, description, message } = req.body
+      const {
+        amount,
+        recipients,
+        paymentMethod,
+        description,
+        message,
+        isRecurring = false,
+        recurringFrequency,
+        recurringDay,
+        recurringDayOfWeek
+      } = req.body
 
       const method = await req.prisma.paymentMethod.findFirst({
         where: { id: paymentMethod, userId: req.userId }
@@ -69,6 +84,10 @@ router.post(
         return res.status(400).json({ error: 'Invalid recipients' })
       }
 
+      const nextDueDate = isRecurring
+        ? computeNextDueDate(recurringFrequency, recurringDay, recurringDayOfWeek)
+        : null
+
       const requests = await Promise.all(
         uniqueRecipients.map((receiverId) =>
           req.prisma.paymentRequest.create({
@@ -78,7 +97,12 @@ router.post(
               amount,
               description,
               message,
-              status: 'PENDING'
+              status: 'PENDING',
+              isRecurring,
+              recurringFrequency: isRecurring ? recurringFrequency : null,
+              recurringDay: isRecurring ? recurringDay : null,
+              recurringDayOfWeek: isRecurring ? recurringDayOfWeek : null,
+              nextDueDate
             },
             select: { id: true, status: true, message: true }
           })

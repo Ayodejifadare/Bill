@@ -26,6 +26,7 @@ import spendingInsightsRoutes from './routes/spendingInsights.js'
 import recurringPaymentRoutes from './routes/recurringPayments.js'
 import { cleanupExpiredCodes } from './utils/verificationCodes.js'
 import { scheduleRecurringBillSplits } from './utils/recurringBillSplitScheduler.js'
+import { scheduleRecurringRequests } from './utils/recurringRequestScheduler.js'
 
 // Load environment variables
 dotenv.config()
@@ -39,6 +40,7 @@ const prisma = new PrismaClient()
 
 // Setup recurring bill split scheduler
 scheduleRecurringBillSplits(prisma)
+scheduleRecurringRequests(prisma)
 
 // Periodically remove expired verification codes
 setInterval(() => cleanupExpiredCodes(prisma), 60 * 60 * 1000)
