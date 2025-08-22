@@ -45,7 +45,8 @@ async function formatGroup(prisma, group, userId) {
     members: group.members.map((m) => ({
       userId: m.userId,
       name: m.user.name,
-      avatar: m.user.avatar || ''
+      avatar: m.user.avatar || '',
+      role: m.role
     })),
     isAdmin: userId
       ? group.members.some((m) => m.userId === userId && m.role === 'ADMIN')
@@ -86,7 +87,7 @@ router.get('/', authenticate, async (req, res) => {
 })
 
 // POST / - create a new group
-router.post('/', async (req, res) => {
+router.post('/', authenticate, async (req, res) => {
   try {
     const { name, description, color, memberIds } = req.body || {}
 
@@ -116,10 +117,22 @@ router.post('/', async (req, res) => {
       data: { name, description, color }
     })
 
+    // Add the creator as an admin
+    await req.prisma.groupMember.create({
+      data: { groupId: group.id, userId: req.user.id, role: 'ADMIN' }
+    })
+
     if (Array.isArray(memberIds)) {
-      await req.prisma.groupMember.createMany({
-        data: memberIds.map((userId) => ({ groupId: group.id, userId }))
-      })
+      const otherMemberIds = memberIds.filter((id) => id !== req.user.id)
+      if (otherMemberIds.length > 0) {
+        await req.prisma.groupMember.createMany({
+          data: otherMemberIds.map((userId) => ({
+            groupId: group.id,
+            userId,
+            role: 'MEMBER'
+          }))
+        })
+      }
     }
 
     const fullGroup = await req.prisma.group.findUnique({
@@ -133,7 +146,11 @@ router.post('/', async (req, res) => {
       }
     })
 
-    const formattedGroup = await formatGroup(req.prisma, fullGroup)
+    const formattedGroup = await formatGroup(
+      req.prisma,
+      fullGroup,
+      req.user.id
+    )
 
     res.status(201).json({ group: formattedGroup })
   } catch (error) {

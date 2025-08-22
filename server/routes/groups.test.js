@@ -30,6 +30,10 @@ describe('Group join/leave routes', () => {
     await prisma.group.deleteMany()
     await prisma.user.deleteMany()
 
+    await prisma.user.create({
+      data: { id: 'creator', email: 'creator@example.com', name: 'Creator' }
+    })
+
     app = express()
     app.use(express.json())
     app.use((req, res, next) => {
@@ -45,7 +49,10 @@ describe('Group join/leave routes', () => {
   })
 
   it('joins and leaves a group', async () => {
-    const createRes = await request(app).post('/groups').send({ name: 'Test' })
+    const createRes = await request(app)
+      .post('/groups')
+      .set('x-user-id', 'creator')
+      .send({ name: 'Test' })
     const groupId = createRes.body.group.id
 
     await prisma.user.create({
@@ -61,7 +68,7 @@ describe('Group join/leave routes', () => {
       id: groupId,
       name: 'Test',
       description: '',
-      memberCount: 1,
+      memberCount: 2,
       totalSpent: 0,
       recentActivity: '',
       isAdmin: false,
@@ -69,20 +76,34 @@ describe('Group join/leave routes', () => {
       pendingBills: 0,
       color: ''
     })
-    expect(joinRes.body.group.members).toEqual([
-      { userId: 'user1', name: 'User 1', avatar: '' }
-    ])
+    expect(joinRes.body.group.members).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          userId: 'creator',
+          name: 'Creator',
+          role: 'ADMIN'
+        }),
+        expect.objectContaining({
+          userId: 'user1',
+          name: 'User 1',
+          role: 'MEMBER'
+        })
+      ])
+    )
 
     const leaveRes = await request(app)
       .post(`/groups/${groupId}/leave`)
       .set('x-user-id', 'user1')
       .send()
     expect(leaveRes.status).toBe(200)
-    expect(leaveRes.body.group.members).not.toContain('user1')
+    expect(leaveRes.body.group.members).toEqual(['creator'])
   })
 
   it('requires authentication to join and leave a group', async () => {
-    const createRes = await request(app).post('/groups').send({ name: 'Test' })
+    const createRes = await request(app)
+      .post('/groups')
+      .set('x-user-id', 'creator')
+      .send({ name: 'Test' })
     const groupId = createRes.body.group.id
 
     const joinRes = await request(app)
@@ -106,6 +127,7 @@ describe('Group join/leave routes', () => {
 
     const res = await request(app)
       .post('/groups')
+      .set('x-user-id', 'creator')
       .send({
         name: 'My Group',
         description: 'Group description',
@@ -118,12 +140,13 @@ describe('Group join/leave routes', () => {
       name: 'My Group',
       description: 'Group description',
       color: '#123456',
-      memberCount: 2
+      memberCount: 3
     })
     expect(res.body.group.members).toEqual(
       expect.arrayContaining([
-        { userId: 'u1', name: 'U1', avatar: '' },
-        { userId: 'u2', name: 'U2', avatar: '' }
+        expect.objectContaining({ userId: 'u1', name: 'U1', role: 'MEMBER' }),
+        expect.objectContaining({ userId: 'u2', name: 'U2', role: 'MEMBER' }),
+        expect.objectContaining({ userId: 'creator', name: 'Creator', role: 'ADMIN' })
       ])
     )
   })
@@ -131,6 +154,7 @@ describe('Group join/leave routes', () => {
   it('rejects empty memberIds array', async () => {
     const res = await request(app)
       .post('/groups')
+      .set('x-user-id', 'creator')
       .send({ name: 'Test', memberIds: [] })
 
     expect(res.status).toBe(400)
@@ -144,6 +168,7 @@ describe('Group join/leave routes', () => {
 
     const res = await request(app)
       .post('/groups')
+      .set('x-user-id', 'creator')
       .send({ name: 'Test', memberIds: ['u1', 'u2'] })
 
     expect(res.status).toBe(400)
@@ -153,7 +178,10 @@ describe('Group join/leave routes', () => {
   })
 
   it('lists groups with member details and aggregates', async () => {
-    const createRes = await request(app).post('/groups').send({ name: 'Test' })
+    const createRes = await request(app)
+      .post('/groups')
+      .set('x-user-id', 'creator')
+      .send({ name: 'Test' })
     const groupId = createRes.body.group.id
 
     await prisma.user.createMany({
@@ -185,14 +213,15 @@ describe('Group join/leave routes', () => {
     expect(group).toMatchObject({
       id: groupId,
       name: 'Test',
-      memberCount: 2,
+      memberCount: 3,
       totalSpent: 15
     })
-    expect(group.members).toHaveLength(2)
+    expect(group.members).toHaveLength(3)
     expect(group.members).toEqual(
       expect.arrayContaining([
-        { userId: 'user1', name: 'User 1', avatar: '' },
-        { userId: 'user2', name: 'User 2', avatar: '' }
+        expect.objectContaining({ userId: 'user1', name: 'User 1', role: 'MEMBER' }),
+        expect.objectContaining({ userId: 'user2', name: 'User 2', role: 'MEMBER' }),
+        expect.objectContaining({ userId: 'creator', name: 'Creator', role: 'ADMIN' })
       ])
     )
     expect(group).toHaveProperty('description')
@@ -204,7 +233,10 @@ describe('Group join/leave routes', () => {
   })
 
   it('fetches group details with members and transactions', async () => {
-    const createRes = await request(app).post('/groups').send({ name: 'Test' })
+    const createRes = await request(app)
+      .post('/groups')
+      .set('x-user-id', 'creator')
+      .send({ name: 'Test' })
     const groupId = createRes.body.group.id
 
     await prisma.user.createMany({
@@ -235,12 +267,15 @@ describe('Group join/leave routes', () => {
 
     expect(res.status).toBe(200)
     expect(res.body.group.id).toBe(groupId)
-    expect(res.body.group.members).toHaveLength(2)
+    expect(res.body.group.members).toHaveLength(3)
     expect(res.body.group.recentTransactions).toHaveLength(1)
   })
 
   it('lists and removes group members', async () => {
-    const createRes = await request(app).post('/groups').send({ name: 'Test' })
+    const createRes = await request(app)
+      .post('/groups')
+      .set('x-user-id', 'creator')
+      .send({ name: 'Test' })
     const groupId = createRes.body.group.id
     await prisma.user.createMany({
       data: [
@@ -257,17 +292,20 @@ describe('Group join/leave routes', () => {
 
     const listRes = await request(app).get(`/groups/${groupId}/members`)
     expect(listRes.status).toBe(200)
-    expect(listRes.body.members).toHaveLength(2)
+    expect(listRes.body.members).toHaveLength(3)
 
     const delRes = await request(app).delete(`/groups/${groupId}/members/u2`)
     expect(delRes.status).toBe(200)
 
     const listRes2 = await request(app).get(`/groups/${groupId}/members`)
-    expect(listRes2.body.members).toHaveLength(1)
+    expect(listRes2.body.members).toHaveLength(2)
   })
 
   it('handles invites and invite links', async () => {
-    const createRes = await request(app).post('/groups').send({ name: 'Test' })
+    const createRes = await request(app)
+      .post('/groups')
+      .set('x-user-id', 'creator')
+      .send({ name: 'Test' })
     const groupId = createRes.body.group.id
     // create initial invite
     const invite = await prisma.groupInvite.create({
@@ -304,7 +342,10 @@ describe('Group join/leave routes', () => {
   })
 
   it('fetches group transactions and splits bill', async () => {
-    const createRes = await request(app).post('/groups').send({ name: 'Test' })
+    const createRes = await request(app)
+      .post('/groups')
+      .set('x-user-id', 'creator')
+      .send({ name: 'Test' })
     const groupId = createRes.body.group.id
     await prisma.user.createMany({
       data: [
