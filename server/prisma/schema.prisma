@@ -54,6 +54,7 @@ model User {
   paymentRequestsSent     PaymentRequest[] @relation("PaymentRequestSender")
   paymentRequestsReceived PaymentRequest[] @relation("PaymentRequestReceiver")
   securityLogs        SecurityLog[]
+  verificationCodes   VerificationCode[]
 
   @@map("users")
 }
@@ -371,4 +372,18 @@ model Invoice {
   billSplit   BillSplit?   @relation(fields: [billSplitId], references: [id])
 
   @@map("invoices")
+}
+
+model VerificationCode {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String
+  code      String
+  target    String?
+  expiresAt DateTime
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, type])
+  @@map("verification_codes")
 }

@@ -23,6 +23,10 @@ describe('Verification routes', () => {
       cwd: path.join(__dirname, '..'),
       stdio: 'inherit'
     })
+    execSync('npx prisma generate', {
+      cwd: path.join(__dirname, '..'),
+      stdio: 'inherit'
+    })
     prisma = new PrismaClient()
   })
 
@@ -52,10 +56,14 @@ describe('Verification routes', () => {
     expect(sendRes.status).toBe(200)
     expect(sendRes.body.verification.phoneVerified).toBe(false)
 
+    const codeEntry = await prisma.verificationCode.findFirst({
+      where: { userId: 'u1', type: 'phone' }
+    })
+
     const verifyRes = await request(app)
       .post('/api/verification/phone')
       .set('Authorization', `Bearer ${token}`)
-      .send({ phone: '+1234567890', code: '123456' })
+      .send({ phone: '+1234567890', code: codeEntry.code })
     expect(verifyRes.status).toBe(200)
     expect(verifyRes.body.verification.phoneVerified).toBe(true)
   })
