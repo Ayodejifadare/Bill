@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { ArrowLeft, Plus, Building2, Smartphone, Copy, Trash2, Check, Edit2, Crown } from 'lucide-react';
 import { toast } from 'sonner';
 import { useUserProfile } from './UserProfileContext';
+import { apiClient } from '../utils/apiClient';
 
 interface ExternalAccount {
   id: string;
@@ -92,81 +93,14 @@ const MOBILE_MONEY_PROVIDERS = [
   { code: 'piggyvest', name: 'PiggyVest' }
 ];
 
-// Mock group data
-const mockGroups: Record<string, Group> = {
-  '1': { id: '1', name: 'Work Squad', isAdmin: true },
-  '2': { id: '2', name: 'Roommates', isAdmin: false },
-  '3': { id: '3', name: 'Travel Buddies', isAdmin: true }
-};
-
-// Mock external accounts for groups
-const mockExternalAccounts: Record<string, ExternalAccount[]> = {
-  '1': [
-    {
-      id: '1',
-      name: 'Team Lunch Account',
-      type: 'bank',
-      bank: 'Chase Bank',
-      accountNumber: '1234567890',
-      accountName: 'Emily Davis',
-      routingNumber: '021000021',
-      accountType: 'checking',
-      isDefault: true,
-      createdBy: 'Emily Davis',
-      createdDate: '2025-01-10T10:00:00Z'
-    },
-    {
-      id: '2',
-      name: 'Office Supplies Fund',
-      type: 'mobile_money',
-      provider: 'Zelle',
-      phoneNumber: '+1 (555) 123-4567',
-      isDefault: false,
-      createdBy: 'John Doe',
-      createdDate: '2025-01-05T15:30:00Z'
-    }
-  ],
-  '2': [
-    {
-      id: '1',
-      name: 'Utilities & Rent',
-      type: 'bank',
-      bank: 'Bank of America',
-      accountNumber: '9876543210',
-      accountName: 'Alex Rodriguez',
-      routingNumber: '026009593',
-      accountType: 'checking',
-      isDefault: true,
-      createdBy: 'Alex Rodriguez',
-      createdDate: '2024-12-01T10:00:00Z'
-    }
-  ],
-  '3': [
-    {
-      id: '1',
-      name: 'Travel Expenses',
-      type: 'bank',
-      bank: 'Wells Fargo',
-      accountNumber: '5432109876',
-      accountName: 'Sarah Johnson',
-      routingNumber: '121000248',
-      accountType: 'savings',
-      isDefault: true,
-      createdBy: 'Sarah Johnson',
-      createdDate: '2024-03-15T14:20:00Z'
-    }
-  ]
-};
-
 export function VirtualAccountScreen({ groupId, onNavigate }: VirtualAccountScreenProps) {
   const { appSettings } = useUserProfile();
   const isNigeria = appSettings.region === 'NG';
   const banks = isNigeria ? NIGERIAN_BANKS : US_BANKS;
 
-  const group = groupId ? mockGroups[groupId] : null;
-  const [externalAccounts, setExternalAccounts] = useState<ExternalAccount[]>(
-    groupId ? mockExternalAccounts[groupId] || [] : []
-  );
+  const [group, setGroup] = useState<Group | null>(null);
+  const [externalAccounts, setExternalAccounts] = useState<ExternalAccount[]>([]);
+  const [isGroupLoading, setIsGroupLoading] = useState(true);
 
   const [isAddingMethod, setIsAddingMethod] = useState(false);
   const [methodType, setMethodType] = useState<'bank' | 'mobile_money'>('bank');
@@ -179,6 +113,63 @@ export function VirtualAccountScreen({ groupId, onNavigate }: VirtualAccountScre
     phoneNumber: ''
   });
   const [isLoading, setIsLoading] = useState(false);
+
+  const fetchGroup = async () => {
+    if (!groupId) {
+      setGroup(null);
+      setIsGroupLoading(false);
+      return;
+    }
+    setIsGroupLoading(true);
+    try {
+      const data = await apiClient(`/api/groups/${groupId}`);
+      if (data?.group) {
+        setGroup({
+          id: data.group.id,
+          name: data.group.name,
+          isAdmin: data.group.isAdmin,
+        });
+      } else {
+        setGroup(null);
+      }
+    } catch (error) {
+      toast.error('Failed to load group');
+      setGroup(null);
+    } finally {
+      setIsGroupLoading(false);
+    }
+  };
+
+  const fetchAccounts = async () => {
+    if (!groupId) return;
+    try {
+      const data = await apiClient(`/api/groups/${groupId}/accounts`);
+      setExternalAccounts(data.accounts || []);
+    } catch (error) {
+      toast.error('Failed to load group accounts');
+    }
+  };
+
+  React.useEffect(() => {
+    fetchGroup();
+    fetchAccounts();
+  }, [groupId]);
+
+  if (isGroupLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="sm" onClick={() => onNavigate('friends')} className="p-2">
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1>Group Accounts</h1>
+            <p className="text-muted-foreground">Loading...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!group) {
     return (
@@ -231,67 +222,67 @@ export function VirtualAccountScreen({ groupId, onNavigate }: VirtualAccountScre
     setIsLoading(true);
 
     try {
-      // Simulate API call for account verification
-      await new Promise(resolve => setTimeout(resolve, 1500));
-
       const selectedBank = banks.find(bank => bank.name === formData.bank);
-      
-      // Auto-generate display name
-      const displayName = methodType === 'bank' 
-        ? `${formData.accountName} - ${formData.bank}`
-        : `${formData.phoneNumber} - ${formData.provider}`;
-      
-      const newAccount: ExternalAccount = {
-        id: Date.now().toString(),
-        name: displayName,
+      const payload: any = {
         type: methodType,
-        ...(methodType === 'bank' ? {
-          bank: formData.bank,
-          accountNumber: isNigeria ? formData.accountNumber : `****${formData.accountNumber.slice(-4)}`,
-          accountName: formData.accountName,
-          accountType: formData.accountType,
-          ...(isNigeria ? {
-            sortCode: selectedBank?.code
-          } : {
-            routingNumber: selectedBank?.code
-          })
-        } : {
-          provider: formData.provider,
-          phoneNumber: formData.phoneNumber
-        }),
-        isDefault: externalAccounts.length === 0,
-        createdBy: 'You', // In real app, this would be current user
-        createdDate: new Date().toISOString()
+        ...(methodType === 'bank'
+          ? {
+              bank: formData.bank,
+              accountNumber: formData.accountNumber,
+              accountName: formData.accountName,
+              accountType: formData.accountType,
+              ...(isNigeria
+                ? { sortCode: selectedBank?.code }
+                : { routingNumber: selectedBank?.code })
+            }
+          : {
+              provider: formData.provider,
+              phoneNumber: formData.phoneNumber
+            })
       };
 
-      setExternalAccounts([...externalAccounts, newAccount]);
+      await apiClient(`/api/groups/${groupId}/accounts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
       toast.success('External account added successfully!');
       setIsAddingMethod(false);
       resetForm();
-    } catch (error) {
-      toast.error('Failed to verify account. Please check details.');
+      await fetchAccounts();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to add account');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleSetDefault = (accountId: string) => {
-    const updated = externalAccounts.map(account => ({
-      ...account,
-      isDefault: account.id === accountId
-    }));
-    setExternalAccounts(updated);
-    toast.success('Default external account updated');
+  const handleSetDefault = async (accountId: string) => {
+    if (!groupId) return;
+    try {
+      await apiClient(`/api/groups/${groupId}/accounts/${accountId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isDefault: true })
+      });
+      toast.success('Default external account updated');
+      await fetchAccounts();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to update default account');
+    }
   };
 
-  const handleDeleteMethod = (accountId: string) => {
-    const updated = externalAccounts.filter(account => account.id !== accountId);
-    // If we deleted the default method, make the first remaining method default
-    if (updated.length > 0 && !updated.some(m => m.isDefault)) {
-      updated[0].isDefault = true;
+  const handleDeleteMethod = async (accountId: string) => {
+    if (!groupId) return;
+    try {
+      await apiClient(`/api/groups/${groupId}/accounts/${accountId}`, {
+        method: 'DELETE'
+      });
+      toast.success('External account removed');
+      await fetchAccounts();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to remove account');
     }
-    setExternalAccounts(updated);
-    toast.success('External account removed');
   };
 
   const copyToClipboard = (text: string, label?: string) => {
