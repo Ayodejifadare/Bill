@@ -41,6 +41,32 @@ const authenticateToken = async (req, res, next) => {
   }
 }
 
+// Get distinct transaction categories for the current user
+router.get('/categories', authenticateToken, async (req, res) => {
+  try {
+    const categories = await req.prisma.transaction.findMany({
+      where: {
+        OR: [
+          { senderId: req.userId },
+          { receiverId: req.userId }
+        ],
+        category: { not: null }
+      },
+      distinct: ['category'],
+      select: { category: true }
+    })
+
+    const mapped = categories
+      .map(c => TRANSACTION_CATEGORY_MAP[c.category] || c.category)
+      .filter(Boolean)
+
+    res.json({ categories: mapped })
+  } catch (error) {
+    console.error('Get transaction categories error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
 // Get user's transactions
 router.get('/', authenticateToken, async (req, res) => {
   try {
