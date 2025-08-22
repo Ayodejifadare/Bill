@@ -137,6 +137,94 @@ router.get('/', authenticateToken, async (req, res) => {
   }
 })
 
+// Get single transaction
+router.get('/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params
+
+    const transaction = await req.prisma.transaction.findUnique({
+      where: { id },
+      include: {
+        sender: {
+          select: { id: true, name: true, email: true, avatar: true }
+        },
+        receiver: {
+          select: { id: true, name: true, email: true, avatar: true }
+        },
+        billSplit: {
+          include: { participants: true }
+        }
+      }
+    })
+
+    if (
+      !transaction ||
+      (transaction.senderId !== req.userId && transaction.receiverId !== req.userId)
+    ) {
+      return res.status(404).json({ error: 'Transaction not found' })
+    }
+
+    let paymentMethod = null
+    if (transaction.billSplit?.paymentMethodId) {
+      const pm = await req.prisma.paymentMethod.findUnique({
+        where: { id: transaction.billSplit.paymentMethodId }
+      })
+      if (pm) {
+        paymentMethod = {
+          type: pm.type,
+          bankName: pm.bank,
+          accountNumber: pm.accountNumber,
+          accountHolderName: pm.accountName,
+          sortCode: pm.sortCode,
+          routingNumber: pm.routingNumber,
+          accountType: pm.accountType,
+          provider: pm.provider,
+          phoneNumber: pm.phoneNumber
+        }
+      }
+    }
+
+    let type = TRANSACTION_TYPE_MAP[transaction.type] || transaction.type
+    if (type === 'sent' || type === 'received') {
+      type = transaction.senderId === req.userId ? 'sent' : 'received'
+    }
+
+    const otherUser =
+      transaction.senderId === req.userId
+        ? transaction.receiver
+        : transaction.sender
+
+    const formatted = {
+      id: transaction.id,
+      amount: transaction.amount,
+      description: transaction.description || '',
+      date: transaction.createdAt.toISOString(),
+      type,
+      status: TRANSACTION_STATUS_MAP[transaction.status] || transaction.status,
+      sender: transaction.sender,
+      receiver: transaction.receiver,
+      user: otherUser,
+      ...(transaction.billSplit?.location
+        ? { location: transaction.billSplit.location }
+        : {}),
+      ...(transaction.billSplit?.note ? { note: transaction.billSplit.note } : {}),
+      ...(transaction.billSplit
+        ? {
+            totalParticipants: transaction.billSplit.participants.length,
+            paidParticipants: transaction.billSplit.participants.filter((p) => p.isPaid).length
+          }
+        : {}),
+      ...(paymentMethod ? { paymentMethod } : {}),
+      transactionId: transaction.id
+    }
+
+    res.json({ transaction: formatted })
+  } catch (error) {
+    console.error('Get transaction error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
 // Send money
 router.post('/send', [
   authenticateToken,
