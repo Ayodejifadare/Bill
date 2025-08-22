@@ -18,6 +18,7 @@ import groupRoutes from './routes/groups.js'
 import notificationRoutes from './routes/notifications.js'
 import paymentMethodRoutes from './routes/paymentMethods.js'
 import upcomingPaymentRoutes from './routes/upcomingPayments.js'
+import requestRoutes from './routes/requests.js'
 
 // Load environment variables
 dotenv.config()
@@ -62,6 +63,7 @@ app.use('/api/bill-splits', billSplitRoutes)
 app.use('/api/friends', friendRoutes)
 app.use('/api/groups', groupRoutes)
 app.use('/api/payment-methods', paymentMethodRoutes)
+app.use('/api/requests', requestRoutes)
 app.use('/api', upcomingPaymentRoutes)
 app.use('/api', notificationRoutes)
 

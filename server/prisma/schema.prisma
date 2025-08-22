@@ -46,6 +46,8 @@ model User {
   notifications       Notification[] @relation("NotificationRecipient")
   notificationPreference NotificationPreference?
   notificationsActing Notification[] @relation("NotificationActor")
+  paymentRequestsSent     PaymentRequest[] @relation("PaymentRequestSender")
+  paymentRequestsReceived PaymentRequest[] @relation("PaymentRequestReceiver")
   securityLogs        SecurityLog[]
 
   @@map("users")
@@ -71,6 +73,28 @@ model Transaction {
   billSplit BillSplit? @relation(fields: [billSplitId], references: [id])
 
   @@map("transactions")
+}
+
+model PaymentRequest {
+  id          String   @id @default(cuid())
+  amount      Float
+  description String?
+  status      String   @default("PENDING")
+  isRecurring Boolean  @default(false)
+  frequency   String?
+  nextDueDate DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Foreign keys
+  senderId   String
+  receiverId String
+
+  // Relationships
+  sender   User @relation("PaymentRequestSender", fields: [senderId], references: [id])
+  receiver User @relation("PaymentRequestReceiver", fields: [receiverId], references: [id])
+
+  @@map("payment_requests")
 }
 
 model BillSplit {
