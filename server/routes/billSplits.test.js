@@ -31,6 +31,8 @@ describe('Bill split routes', () => {
     await prisma.notification.deleteMany()
     await prisma.notificationPreference.deleteMany()
     await prisma.transaction.deleteMany()
+    await prisma.billSplitReminder.deleteMany()
+    await prisma.recurringBillSplit.deleteMany()
     await prisma.billSplitParticipant.deleteMany()
     await prisma.billItem.deleteMany()
     await prisma.billSplit.deleteMany()
@@ -267,6 +269,11 @@ describe('Bill split routes', () => {
     })
     expect(participant.status).toBe('SENT')
     expect(participant.isPaid).toBe(false)
+
+    const notification = await prisma.notification.findFirst({
+      where: { recipientId: 'u1', type: 'bill_split_payment_sent' }
+    })
+    expect(notification).not.toBeNull()
 
     const confirmRes = await request(app)
       .post(`/bill-splits/${bs.id}/payments`)
