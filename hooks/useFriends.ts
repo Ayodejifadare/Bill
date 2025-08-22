@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { apiClient } from '../utils/apiClient';
 
 export interface Friend {
   id: string;
@@ -13,12 +14,8 @@ let inflight: Promise<Friend[]> | null = null;
 export async function fetchFriends(): Promise<Friend[]> {
   if (friendsCache) return friendsCache;
   if (inflight) return inflight;
-  inflight = fetch('/api/friends')
-    .then(async (res) => {
-      if (!res.ok) {
-        throw new Error('Failed to fetch friends');
-      }
-      const data = await res.json();
+  inflight = apiClient('/friends')
+    .then((data) => {
       friendsCache = Array.isArray(data.friends) ? data.friends : [];
       return friendsCache;
     })

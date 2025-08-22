@@ -5,6 +5,8 @@ import { PermissionRequestScreen } from './contact-sync/PermissionRequestScreen'
 import { SyncingProgressScreen } from './contact-sync/SyncingProgressScreen';
 import { ContactResultsScreen } from './contact-sync/ContactResultsScreen';
 import { MatchedContact, ContactSyncScreenProps, SyncStep } from './contact-sync/types';
+import { mockMatchedContacts } from './contact-sync/constants';
+import { useMockApi } from '../utils/config';
 
 export function ContactSyncScreen({ onNavigate }: ContactSyncScreenProps) {
   const [syncStep, setSyncStep] = useState<SyncStep>('permission');
@@ -65,42 +67,53 @@ export function ContactSyncScreen({ onNavigate }: ContactSyncScreenProps) {
     try {
       updateSyncProgress(10, 'Accessing your contacts...');
       
-      // Get contacts with better error handling
-      const contacts = await contactsAPI.getContacts();
-      setContactCount(contacts.length);
-      
-      updateSyncProgress(40, `Found ${contacts.length} contacts`);
-      
-      // Simulate more realistic sync timing
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      updateSyncProgress(70, 'Matching with Biltip users...');
-      
-      // Match contacts with existing users
-      const matched = await contactsAPI.matchContacts(contacts);
-      
+      let contacts: Contact[] = [];
+      let matched: MatchedContact[] = [];
+
+      if (useMockApi) {
+        contacts = mockMatchedContacts.map(c => ({
+          id: c.id,
+          name: c.name,
+          phoneNumbers: c.phone ? [c.phone] : [],
+          emails: c.email ? [c.email] : [],
+          displayName: c.name
+        }));
+        setContactCount(contacts.length);
+        updateSyncProgress(40, `Found ${contacts.length} contacts`);
+        await new Promise(resolve => setTimeout(resolve, 500));
+        updateSyncProgress(70, 'Matching with Biltip users...');
+        matched = mockMatchedContacts;
+      } else {
+        contacts = await contactsAPI.getContacts();
+        setContactCount(contacts.length);
+        updateSyncProgress(40, `Found ${contacts.length} contacts`);
+        await new Promise(resolve => setTimeout(resolve, 500));
+        updateSyncProgress(70, 'Matching with Biltip users...');
+        matched = await contactsAPI.matchContacts(contacts);
+      }
+
       updateSyncProgress(90, 'Almost done...');
-      
+
       // Final delay for smooth UX
       await new Promise(resolve => setTimeout(resolve, 300));
-      
+
       updateSyncProgress(100);
-      
+
       setTimeout(() => {
         setMatchedContacts(matched);
         setSyncStep('results');
-        
+
         const existingUsers = matched.filter(c => c.status === 'existing_user').length;
         const inviteableContacts = matched.filter(c => c.status === 'not_on_app').length;
-        
+
         if (existingUsers > 0) {
           toast.success(`Found ${existingUsers} friend${existingUsers !== 1 ? 's' : ''} on Biltip!`);
         }
-        
+
         if (inviteableContacts > 0) {
           toast.success(`${inviteableContacts} contact${inviteableContacts !== 1 ? 's' : ''} can be invited to join!`);
         }
-        
+
         if (existingUsers === 0 && inviteableContacts === 0) {
           toast.info('Contact sync complete');
         }
@@ -160,43 +173,60 @@ export function ContactSyncScreen({ onNavigate }: ContactSyncScreenProps) {
   // Enhanced file import with better UX
   const handleFileImport = async () => {
     try {
+      if (useMockApi) {
+        setSyncStep('syncing');
+        setSyncProgress(0);
+        setSyncStartTime(Date.now());
+        updateSyncProgress(10, 'Opening file picker...');
+        await new Promise(resolve => setTimeout(resolve, 500));
+        const matched = mockMatchedContacts;
+        setContactCount(matched.length);
+        updateSyncProgress(90, 'Finalizing...');
+        setTimeout(() => {
+          updateSyncProgress(100);
+          setMatchedContacts(matched);
+          setSyncStep('results');
+          setHasPermission(true);
+          toast.success(`Imported ${matched.length} contacts successfully!`);
+        }, 500);
+        return;
+      }
+
       setSyncStep('syncing');
       setSyncProgress(0);
       setSyncStartTime(Date.now());
-      
+
       updateSyncProgress(10, 'Opening file picker...');
-      
-      // Use the specific file import method
+
       const contacts = await contactsAPI.importContactsFromFile();
       setContactCount(contacts.length);
-      
+
       updateSyncProgress(50, `Processing ${contacts.length} contacts...`);
-      
+
       const matched = await contactsAPI.matchContacts(contacts);
-      
+
       updateSyncProgress(90, 'Finalizing...');
-      
+
       setTimeout(() => {
         updateSyncProgress(100);
         setMatchedContacts(matched);
         setSyncStep('results');
         setHasPermission(true);
-        
+
         const existingUsers = matched.filter(c => c.status === 'existing_user').length;
         const inviteableContacts = matched.filter(c => c.status === 'not_on_app').length;
-        
+
         toast.success(`Imported ${contacts.length} contacts successfully!`);
-        
+
         if (existingUsers > 0) {
           toast.success(`Found ${existingUsers} friend${existingUsers !== 1 ? 's' : ''} on Biltip!`, { delay: 1000 });
         }
       }, 500);
-      
+
     } catch (error) {
       console.error('File import failed:', error);
       setSyncStep('permission');
-      
-      // Enhanced error handling for file import
+
       if (error.message === 'CROSS_ORIGIN_RESTRICTION') {
         showContactError('File picker not available in this environment. Please try the upload option.');
       } else if (error.name === 'SecurityError') {

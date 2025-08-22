@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { apiClient } from '../utils/apiClient';
 
 export interface PaymentOrganizer {
   name: string;
@@ -35,11 +36,7 @@ export function useUpcomingPayments(): UseUpcomingPaymentsResult {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/upcoming-payments');
-      if (!res.ok) {
-        throw new Error('Failed to fetch upcoming payments');
-      }
-      const data = await res.json();
+      const data = await apiClient('/upcoming-payments');
       const payments = Array.isArray(data)
         ? data
         : Array.isArray(data.upcomingPayments)
