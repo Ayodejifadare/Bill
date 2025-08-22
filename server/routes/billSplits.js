@@ -425,7 +425,7 @@ router.post(
   [
     authenticateToken,
     param('id').trim().notEmpty(),
-    body('status').optional().isString()
+    body('status').optional().isIn(['SENT', 'CONFIRMED'])
   ],
   async (req, res) => {
     const errors = validationResult(req)
@@ -446,7 +446,7 @@ router.post(
       }
 
       const updateData = { status }
-      if (status.toUpperCase() === 'CONFIRMED') {
+      if (status === 'CONFIRMED') {
         updateData.isPaid = true
       }
 
