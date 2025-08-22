@@ -120,10 +120,13 @@ export function GroupSection({ onNavigate }: GroupSectionProps) {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
                     <div className="flex -space-x-1">
-                      {group.members.slice(0, 3).map((member, index) => (
-                        <Avatar key={index} className="h-6 w-6 border-2 border-background">
+                      {group.members.slice(0, 3).map((initials, index) => (
+                        <Avatar
+                          key={index}
+                          className="h-6 w-6 border-2 border-background"
+                        >
                           <AvatarFallback className="text-xs bg-muted">
-                            {member.avatar}
+                            {initials}
                           </AvatarFallback>
                         </Avatar>
                       ))}
