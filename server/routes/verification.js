@@ -1,11 +1,8 @@
 import express from 'express'
 import authenticate from '../middleware/auth.js'
+import { generateCode, cleanupExpiredCodes } from '../utils/verificationCodes.js'
 
 const router = express.Router()
-
-const phoneCodes = new Map()
-const emailCodes = new Map()
-const CODE = '123456'
 
 const getVerificationState = user => ({
   phoneVerified: user.phoneVerified,
@@ -19,8 +16,16 @@ router.post('/phone', authenticate, async (req, res) => {
     const userId = req.user.id
     const { phone, code } = req.body
 
+    await cleanupExpiredCodes(req.prisma)
+
     if (!code) {
-      phoneCodes.set(userId, { code: CODE, phone })
+      const generated = generateCode()
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000)
+      await req.prisma.verificationCode.upsert({
+        where: { userId_type: { userId, type: 'phone' } },
+        update: { code: generated, target: phone, expiresAt },
+        create: { userId, type: 'phone', code: generated, target: phone, expiresAt }
+      })
       const user = await req.prisma.user.findUnique({ where: { id: userId } })
       return res.json({
         message: 'Verification code sent',
@@ -28,13 +33,16 @@ router.post('/phone', authenticate, async (req, res) => {
       })
     }
 
-    const entry = phoneCodes.get(userId)
-    if (entry && entry.code === code) {
+    const entry = await req.prisma.verificationCode.findUnique({
+      where: { userId_type: { userId, type: 'phone' } }
+    })
+
+    if (entry && entry.code === code && entry.expiresAt > new Date()) {
       await req.prisma.user.update({
         where: { id: userId },
-        data: { phoneVerified: true, phone: entry.phone || phone }
+        data: { phoneVerified: true, phone: entry.target || phone }
       })
-      phoneCodes.delete(userId)
+      await req.prisma.verificationCode.delete({ where: { id: entry.id } })
       const user = await req.prisma.user.findUnique({ where: { id: userId } })
       return res.json({
         message: 'Phone verified',
@@ -54,8 +62,16 @@ router.post('/email', authenticate, async (req, res) => {
     const userId = req.user.id
     const { email, code } = req.body
 
+    await cleanupExpiredCodes(req.prisma)
+
     if (!code) {
-      emailCodes.set(userId, { code: CODE, email })
+      const generated = generateCode()
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000)
+      await req.prisma.verificationCode.upsert({
+        where: { userId_type: { userId, type: 'email' } },
+        update: { code: generated, target: email, expiresAt },
+        create: { userId, type: 'email', code: generated, target: email, expiresAt }
+      })
       const user = await req.prisma.user.findUnique({ where: { id: userId } })
       return res.json({
         message: 'Verification code sent',
@@ -63,13 +79,16 @@ router.post('/email', authenticate, async (req, res) => {
       })
     }
 
-    const entry = emailCodes.get(userId)
-    if (entry && entry.code === code) {
+    const entry = await req.prisma.verificationCode.findUnique({
+      where: { userId_type: { userId, type: 'email' } }
+    })
+
+    if (entry && entry.code === code && entry.expiresAt > new Date()) {
       await req.prisma.user.update({
         where: { id: userId },
-        data: { emailVerified: true, email: entry.email || email }
+        data: { emailVerified: true, email: entry.target || email }
       })
-      emailCodes.delete(userId)
+      await req.prisma.verificationCode.delete({ where: { id: entry.id } })
       const user = await req.prisma.user.findUnique({ where: { id: userId } })
       return res.json({
         message: 'Email verified',
@@ -116,6 +135,16 @@ router.post('/documents', authenticate, async (req, res) => {
     })
   } catch (error) {
     console.error('Document submission error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+router.delete('/cleanup', authenticate, async (req, res) => {
+  try {
+    await cleanupExpiredCodes(req.prisma)
+    res.json({ message: 'Expired codes cleaned' })
+  } catch (error) {
+    console.error('Cleanup verification code error:', error)
     res.status(500).json({ error: 'Internal server error' })
   }
 })

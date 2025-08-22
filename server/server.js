@@ -24,6 +24,7 @@ import contactRoutes from './routes/contacts.js'
 import verificationRoutes from './routes/verification.js'
 import receiptRoutes from './routes/receipts.js'
 import spendingInsightsRoutes from './routes/spendingInsights.js'
+import { cleanupExpiredCodes } from './utils/verificationCodes.js'
 
 // Load environment variables
 dotenv.config()
@@ -34,6 +35,9 @@ const UPLOAD_DIR = process.env.AVATAR_UPLOAD_DIR || 'uploads'
 
 // Initialize Prisma Client
 const prisma = new PrismaClient()
+
+// Periodically remove expired verification codes
+setInterval(() => cleanupExpiredCodes(prisma), 60 * 60 * 1000)
 
 // Middleware
 app.use(helmet())
