@@ -112,6 +112,45 @@ router.get('/:id/payment-methods', authenticateToken, async (req, res) => {
   }
 })
 
+// Get onboarding state
+router.get('/:id/onboarding', authenticateToken, async (req, res) => {
+  try {
+    if (req.userId !== req.params.id) {
+      return res.status(403).json({ error: 'Unauthorized' })
+    }
+    const user = await req.prisma.user.findUnique({
+      where: { id: req.params.id },
+      select: { onboardingCompleted: true }
+    })
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' })
+    }
+    res.json({ onboardingCompleted: user.onboardingCompleted })
+  } catch (error) {
+    console.error('Get onboarding error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+// Update onboarding state
+router.post('/:id/onboarding', authenticateToken, async (req, res) => {
+  try {
+    if (req.userId !== req.params.id) {
+      return res.status(403).json({ error: 'Unauthorized' })
+    }
+    const { onboardingCompleted } = req.body
+    const user = await req.prisma.user.update({
+      where: { id: req.params.id },
+      data: { onboardingCompleted: !!onboardingCompleted },
+      select: { onboardingCompleted: true }
+    })
+    res.json({ onboardingCompleted: user.onboardingCompleted })
+  } catch (error) {
+    console.error('Update onboarding error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
 // Get user profile
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
@@ -131,7 +170,8 @@ router.get('/:id', authenticateToken, async (req, res) => {
         createdAt: true,
         twoFactorEnabled: true,
         biometricEnabled: true,
-        preferenceSettings: true
+        preferenceSettings: true,
+        onboardingCompleted: true
       }
     })
 

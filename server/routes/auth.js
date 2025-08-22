@@ -47,7 +47,8 @@ router.post('/register', [
         phoneVerified: true,
         emailVerified: true,
         idVerified: true,
-        documentsSubmitted: true
+        documentsSubmitted: true,
+        onboardingCompleted: true
       }
     })
 
@@ -141,7 +142,8 @@ router.get('/me', async (req, res) => {
         phoneVerified: true,
         emailVerified: true,
         idVerified: true,
-        documentsSubmitted: true
+        documentsSubmitted: true,
+        onboardingCompleted: true
       }
     })
 
