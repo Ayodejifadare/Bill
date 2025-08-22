@@ -68,6 +68,42 @@ describe('Verification routes', () => {
     expect(verifyRes.body.verification.phoneVerified).toBe(true)
   })
 
+  it('resends phone verification code and enforces rate limiting', async () => {
+    await request(app)
+      .post('/api/verification/phone')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ phone: '+1234567890' })
+
+    const firstEntry = await prisma.verificationCode.findFirst({
+      where: { userId: 'u1', type: 'phone' }
+    })
+
+    const resendRes = await request(app)
+      .post('/api/verification/phone/resend')
+      .set('Authorization', `Bearer ${token}`)
+      .send({})
+    expect(resendRes.status).toBe(200)
+
+    const secondEntry = await prisma.verificationCode.findFirst({
+      where: { userId: 'u1', type: 'phone' }
+    })
+    expect(secondEntry.code).not.toBe(firstEntry.code)
+
+    await request(app)
+      .post('/api/verification/phone/resend')
+      .set('Authorization', `Bearer ${token}`)
+      .send({})
+    await request(app)
+      .post('/api/verification/phone/resend')
+      .set('Authorization', `Bearer ${token}`)
+      .send({})
+    const limitRes = await request(app)
+      .post('/api/verification/phone/resend')
+      .set('Authorization', `Bearer ${token}`)
+      .send({})
+    expect(limitRes.status).toBe(429)
+  })
+
   it('marks ID and documents as submitted', async () => {
     const idRes = await request(app)
       .post('/api/verification/id')

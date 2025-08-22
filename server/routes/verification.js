@@ -1,4 +1,5 @@
 import express from 'express'
+import rateLimit from 'express-rate-limit'
 import authenticate from '../middleware/auth.js'
 import { generateCode, cleanupExpiredCodes } from '../utils/verificationCodes.js'
 
@@ -9,6 +10,13 @@ const getVerificationState = user => ({
   emailVerified: user.emailVerified,
   idVerified: user.idVerified,
   documentsSubmitted: user.documentsSubmitted
+})
+
+const phoneResendLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 3,
+  message: 'Too many resend attempts. Please try again later.',
+  keyGenerator: req => req.user.id
 })
 
 router.post('/phone', authenticate, async (req, res) => {
@@ -53,6 +61,41 @@ router.post('/phone', authenticate, async (req, res) => {
     return res.status(400).json({ error: 'Invalid code' })
   } catch (error) {
     console.error('Phone verification error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+router.post('/phone/resend', authenticate, phoneResendLimiter, async (req, res) => {
+  try {
+    const userId = req.user.id
+
+    await cleanupExpiredCodes(req.prisma)
+
+    const existing = await req.prisma.verificationCode.findUnique({
+      where: { userId_type: { userId, type: 'phone' } }
+    })
+
+    if (!existing) {
+      return res.status(404).json({ error: 'No phone verification in progress' })
+    }
+
+    const generated = generateCode()
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000)
+    await req.prisma.verificationCode.update({
+      where: { id: existing.id },
+      data: { code: generated, expiresAt }
+    })
+
+    const phone = existing.target
+    console.log(`Resending verification code ${generated} to ${phone}`)
+
+    const user = await req.prisma.user.findUnique({ where: { id: userId } })
+    return res.json({
+      message: 'Verification code resent',
+      verification: getVerificationState(user)
+    })
+  } catch (error) {
+    console.error('Phone verification resend error:', error)
     res.status(500).json({ error: 'Internal server error' })
   }
 })
