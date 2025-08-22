@@ -66,17 +66,12 @@ export function BillsScreen({ onNavigate, groupId }: BillsScreenProps) {
     }
   };
 
-  // Mock group names for display
-  const groupNames: Record<string, string> = {
-    '1': 'Work Squad',
-    '2': 'Roommates',
-    '3': 'Travel Buddies'
-  };
+  const groupName = billSplits.length > 0 ? billSplits[0].groupName : undefined;
 
   return (
     <div>
       <ScreenHeader
-        title={groupId ? `${groupNames[groupId]} Bills` : 'Bill Splits'}
+        title={groupId ? `${groupName || 'Group'} Bills` : 'Bill Splits'}
         subtitle={groupId ? "Group bill splits and expenses" : undefined}
         showBackButton={!!groupId}
         onBack={() => groupId && onNavigate('group-details', { groupId })}
