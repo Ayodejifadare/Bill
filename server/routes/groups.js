@@ -362,15 +362,110 @@ router.get('/:groupId', authenticate, async (req, res) => {
 })
 
 // Potential members from contact sync
-router.post('/:groupId/potential-members', async (req, res) => {
+router.post('/:groupId/potential-members', authenticate, async (req, res) => {
   try {
-    const contacts = (req.body.contacts || []).map((c) => ({
-      id: c.id,
-      name: c.name,
-      phoneNumber: c.phoneNumbers?.[0] || c.phone || '',
-      status: 'existing_user'
-    }))
-    res.json({ contacts })
+    const contacts = Array.isArray(req.body.contacts) ? req.body.contacts : []
+    const userId = req.user.id
+
+    // Preload current user's friendships for mutual friend calculation
+    const myFriendships = await req.prisma.friendship.findMany({
+      where: {
+        OR: [{ user1Id: userId }, { user2Id: userId }]
+      },
+      select: { user1Id: true, user2Id: true }
+    })
+    const myFriendIds = new Set(
+      myFriendships.map((f) => (f.user1Id === userId ? f.user2Id : f.user1Id))
+    )
+
+    const formatted = await Promise.all(
+      contacts.map(async (c) => {
+        const phone =
+          c.phone || c.phoneNumber || c.phoneNumbers?.[0] || undefined
+        const email = c.email || c.emails?.[0] || undefined
+
+        let user = null
+        if (phone) {
+          user = await req.prisma.user.findFirst({
+            where: { phone }
+          })
+        }
+        if (!user && email) {
+          user = await req.prisma.user.findFirst({
+            where: { email }
+          })
+        }
+
+        const base = {
+          id: c.id,
+          name: c.name,
+          phoneNumber: phone || '',
+          email: email || '',
+          status: 'not_on_app',
+          isInGroup: false,
+          isFriend: false,
+          mutualFriends: 0
+        }
+
+        if (!user) {
+          return base
+        }
+
+        base.userId = user.id
+        base.status = 'existing_user'
+
+        // Check group membership
+        const membership = await req.prisma.groupMember.findUnique({
+          where: { groupId_userId: { groupId: req.params.groupId, userId: user.id } }
+        })
+        base.isInGroup = Boolean(membership)
+
+        // Determine friendship status
+        const friendship = await req.prisma.friendship.findFirst({
+          where: {
+            OR: [
+              { user1Id: userId, user2Id: user.id },
+              { user1Id: user.id, user2Id: userId }
+            ]
+          }
+        })
+        if (friendship) {
+          base.status = 'friends'
+          base.isFriend = true
+        } else {
+          const pendingRequest = await req.prisma.friendRequest.findFirst({
+            where: {
+              OR: [
+                { senderId: userId, receiverId: user.id },
+                { senderId: user.id, receiverId: userId }
+              ],
+              status: 'PENDING'
+            }
+          })
+          if (pendingRequest) {
+            base.status = 'pending'
+          }
+        }
+
+        // Mutual friends
+        const contactFriendships = await req.prisma.friendship.findMany({
+          where: {
+            OR: [{ user1Id: user.id }, { user2Id: user.id }]
+          },
+          select: { user1Id: true, user2Id: true }
+        })
+        const contactFriendIds = contactFriendships.map((f) =>
+          f.user1Id === user.id ? f.user2Id : f.user1Id
+        )
+        base.mutualFriends = contactFriendIds.filter((id) =>
+          myFriendIds.has(id)
+        ).length
+
+        return base
+      })
+    )
+
+    res.json({ contacts: formatted })
   } catch (error) {
     console.error('Potential members error:', error)
     res.status(500).json({ error: 'Internal server error' })
