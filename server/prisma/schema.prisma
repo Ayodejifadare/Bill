@@ -308,6 +308,8 @@ model GroupAccount {
   bank        String?
   accountNumber String?
   accountName String?
+  sortCode      String?
+  routingNumber String?
   provider    String?
   phoneNumber String?
   isDefault   Boolean @default(false)

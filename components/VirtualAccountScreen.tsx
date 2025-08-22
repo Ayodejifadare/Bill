@@ -16,9 +16,9 @@ interface ExternalAccount {
   name: string;
   type: 'bank' | 'mobile_money';
   // Bank fields
-  bank?: string;
+  bankName?: string;
   accountNumber?: string;
-  accountName?: string;
+  accountHolderName?: string;
   sortCode?: string;
   routingNumber?: string;
   accountType?: 'checking' | 'savings';
@@ -292,9 +292,9 @@ export function VirtualAccountScreen({ groupId, onNavigate }: VirtualAccountScre
 
   const copyFullAccountInfo = (account: ExternalAccount) => {
     if (account.type === 'bank') {
-      const accountInfo = isNigeria 
-        ? `${account.bank}\nAccount Name: ${account.accountName}\nAccount Number: ${account.accountNumber}\nSort Code: ${account.sortCode}`
-        : `${account.bank}\nAccount Holder: ${account.accountName}\nRouting Number: ${account.routingNumber}\nAccount Number: ${account.accountNumber}`;
+      const accountInfo = isNigeria
+        ? `${account.bankName}\nAccount Name: ${account.accountHolderName}\nAccount Number: ${account.accountNumber}\nSort Code: ${account.sortCode}`
+        : `${account.bankName}\nAccount Holder: ${account.accountHolderName}\nRouting Number: ${account.routingNumber}\nAccount Number: ${account.accountNumber}`;
       copyToClipboard(accountInfo);
     } else {
       copyToClipboard(`${account.provider}\nPhone: ${account.phoneNumber}`);
@@ -556,7 +556,7 @@ export function VirtualAccountScreen({ groupId, onNavigate }: VirtualAccountScre
                     <div>
                       <h4>{account.name}</h4>
                       <p className="text-sm text-muted-foreground">
-                        {account.type === 'bank' ? account.bank : account.provider} • Added by {account.createdBy}
+                        {account.type === 'bank' ? account.bankName : account.provider} • Added by {account.createdBy}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {formatDate(account.createdDate)}
@@ -579,12 +579,12 @@ export function VirtualAccountScreen({ groupId, onNavigate }: VirtualAccountScre
                           {isNigeria ? 'Account Name:' : 'Account Holder:'}
                         </span>
                         <div className="flex items-center gap-2">
-                          <span>{account.accountName}</span>
+                          <span>{account.accountHolderName}</span>
                           <Button
                             variant="ghost"
                             size="sm"
                             className="h-6 w-6 p-0"
-                            onClick={() => copyToClipboard(account.accountName!, 'Account name')}
+                            onClick={() => copyToClipboard(account.accountHolderName!, 'Account name')}
                           >
                             <Copy className="h-3 w-3" />
                           </Button>
