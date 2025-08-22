@@ -110,6 +110,39 @@ describe('Bill split routes', () => {
     expect(res.body.billSplit.creatorId).toBe('u1')
   })
 
+  it('lists bill splits with group info', async () => {
+    await prisma.user.create({ data: { id: 'u1', email: 'u1@example.com', name: 'User 1' } })
+    await prisma.user.create({ data: { id: 'u2', email: 'u2@example.com', name: 'User 2' } })
+
+    const group = await prisma.group.create({ data: { id: 'g1', name: 'Test Group' } })
+
+    await prisma.billSplit.create({
+      data: {
+        id: 'bs-list',
+        title: 'Lunch',
+        totalAmount: 40,
+        createdBy: 'u1',
+        groupId: group.id,
+        participants: {
+          create: [
+            { userId: 'u1', amount: 20, isPaid: true },
+            { userId: 'u2', amount: 20, isPaid: false }
+          ]
+        }
+      }
+    })
+
+    const res = await request(app)
+      .get('/bill-splits')
+      .set('Authorization', `Bearer ${sign('u1')}`)
+      .send()
+
+    expect(res.status).toBe(200)
+    expect(res.body.billSplits).toHaveLength(1)
+    expect(res.body.billSplits[0].groupId).toBe(group.id)
+    expect(res.body.billSplits[0].groupName).toBe(group.name)
+  })
+
   it('returns 404 for missing or unauthorized bill split', async () => {
     await prisma.user.create({ data: { id: 'u1', email: 'u1@example.com', name: 'User 1' } })
     await prisma.user.create({ data: { id: 'u2', email: 'u2@example.com', name: 'User 2' } })

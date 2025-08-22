@@ -87,7 +87,8 @@ router.get('/', authenticateToken, async (req, res) => {
           creator: { select: { id: true, name: true } },
           participants: {
             include: { user: { select: { id: true, name: true } } }
-          }
+          },
+          group: { select: { id: true, name: true } }
         },
         orderBy: { createdAt: 'desc' },
         skip: (pageNum - 1) * pageSize,
@@ -112,7 +113,8 @@ router.get('/', authenticateToken, async (req, res) => {
         })),
         createdBy: split.creator.id === req.userId ? 'You' : split.creator.name,
         date: split.createdAt.toISOString(),
-        ...(split.groupId && { groupId: split.groupId }),
+        groupId: split.groupId,
+        groupName: split.group ? split.group.name : undefined,
         ...(split.category && { category: split.category })
       }
     })
@@ -154,7 +156,8 @@ router.get(
               }
             }
           },
-          items: true
+          items: true,
+          group: { select: { id: true, name: true } }
         }
       })
 
@@ -206,6 +209,8 @@ router.get(
           avatar: billSplit.creator.avatar || ''
         },
         creatorId: billSplit.creator.id,
+        groupId: billSplit.groupId,
+        groupName: billSplit.group ? billSplit.group.name : undefined,
         paymentMethod,
         participants: billSplit.participants.map(p => ({
           id: p.user.id,
