@@ -6,11 +6,11 @@ import { Avatar, AvatarFallback } from './ui/avatar';
 import { EmptyState } from './ui/empty-state';
 import { ScreenHeader } from './ui/screen-header';
 import { FilterTabs } from './ui/filter-tabs';
-import { Plus, Clock, CheckCircle, AlertCircle, Receipt } from 'lucide-react';
+import { Plus, Clock, CheckCircle, AlertCircle, Receipt, RotateCcw, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import { BillSplitSkeleton } from './ui/loading';
 import { Alert, AlertDescription } from './ui/alert';
-import { useBillSplits } from '../hooks/useBillSplits';
+import { useBillSplits, BillSplit } from '../hooks/useBillSplits';
 import { useUserProfile } from './UserProfileContext';
 
 interface BillsScreenProps {
@@ -23,6 +23,15 @@ export function BillsScreen({ onNavigate, groupId }: BillsScreenProps) {
   const { billSplits, loading, error } = useBillSplits({ groupId: groupId || undefined });
   const { appSettings } = useUserProfile();
   const currencySymbol = appSettings.region === 'NG' ? '₦' : '$';
+
+  const handleReorderSplit = (bill: BillSplit) => {
+    toast.success('Bill split reordered');
+    onNavigate('split', { groupId: bill.groupId, templateBill: bill, mode: 'reorder' });
+  };
+
+  const handleReuseSplit = (bill: BillSplit) => {
+    onNavigate('split', { groupId: bill.groupId, templateBill: bill, mode: 'reuse' });
+  };
 
   const filteredBills = billSplits.filter(bill => {
     // First filter by group if groupId is provided
@@ -174,36 +183,71 @@ export function BillsScreen({ onNavigate, groupId }: BillsScreenProps) {
                 </div>
 
                 {/* Actions */}
-                {bill.status === 'pending' && (
-                  <div className="flex gap-2 pt-2">
-                    <Button
-                      size="sm"
-                      className="flex-1"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onNavigate('pay-bill', { billId: bill.id });
-                      }}
-                    >
-                      Pay {currencySymbol}{bill.yourShare.toFixed(2)}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const unpaidParticipants = bill.participants.filter(p => !p.paid && p.name !== 'You');
-                        if (unpaidParticipants.length > 0) {
-                          onNavigate('send-reminder', {
-                            billSplitId: bill.id,
-                            paymentType: 'bill-split'
-                          });
-                        } else {
-                          toast.info('All participants have already paid');
-                        }
-                      }}
-                    >
-                      Remind Others
-                    </Button>
+                {(bill.status === 'pending' || bill.status === 'completed' || bill.createdBy === 'You') && (
+                  <div className="flex flex-wrap gap-2 pt-2">
+                    {bill.status === 'pending' && (
+                      <>
+                        <Button
+                          size="sm"
+                          className="flex-1"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onNavigate('pay-bill', { billId: bill.id });
+                          }}
+                        >
+                          Pay {currencySymbol}{bill.yourShare.toFixed(2)}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const unpaidParticipants = bill.participants.filter(p => !p.paid && p.name !== 'You');
+                            if (unpaidParticipants.length > 0) {
+                              onNavigate('send-reminder', {
+                                billSplitId: bill.id,
+                                paymentType: 'bill-split'
+                              });
+                            } else {
+                              toast.info('All participants have already paid');
+                            }
+                          }}
+                        >
+                          Remind Others
+                        </Button>
+                      </>
+                    )}
+                    {/* Reorder/Reuse buttons - always show for completed bills, show for pending if you're the creator */}
+                    {(bill.status === 'completed' || bill.createdBy === 'You') && (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleReorderSplit(bill);
+                          }}
+                          className="flex items-center gap-1"
+                          title="Create identical split with same participants and amounts"
+                        >
+                          <RotateCcw className="h-3 w-3" />
+                          Reorder
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleReuseSplit(bill);
+                          }}
+                          className="flex items-center gap-1"
+                          title="Use as template - you can modify before creating"
+                        >
+                          <Copy className="h-3 w-3" />
+                          Reuse
+                        </Button>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
