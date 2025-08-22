@@ -269,11 +269,7 @@ router.post('/requests/:id/accept', authenticateToken, async (req, res) => {
       message: `${friendRequest.receiver.name} accepted your friend request`
     })
 
-    res.json({
-      message: 'Friend request accepted',
-      friendRequest,
-      friendship
-    })
+    res.json({ friendRequest, friendship })
   } catch (error) {
     console.error('Accept friend request error:', error)
     res.status(500).json({ error: 'Internal server error' })
@@ -316,10 +312,7 @@ router.post('/requests/:id/decline', authenticateToken, async (req, res) => {
       message: `${friendRequest.receiver.name} declined your friend request`
     })
 
-    res.json({
-      message: 'Friend request declined',
-      friendRequest
-    })
+    res.json({ friendRequest })
   } catch (error) {
     console.error('Decline friend request error:', error)
     res.status(500).json({ error: 'Internal server error' })
@@ -370,10 +363,7 @@ router.delete('/requests/:id', authenticateToken, async (req, res) => {
       message: `${friendRequest.sender.name} cancelled the friend request`
     })
 
-    res.json({
-      message: 'Friend request cancelled',
-      friendRequest
-    })
+    res.json({ friendRequest })
   } catch (error) {
     console.error('Cancel friend request error:', error)
     res.status(500).json({ error: 'Internal server error' })
