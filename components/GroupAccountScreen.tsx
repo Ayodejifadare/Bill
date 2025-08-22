@@ -94,21 +94,14 @@ const MOBILE_MONEY_PROVIDERS = [
   { code: 'piggyvest', name: 'PiggyVest' }
 ];
 
-// Mock group data
-const mockGroups: Record<string, Group> = {
-  '1': { id: '1', name: 'Work Squad', isAdmin: true },
-  '2': { id: '2', name: 'Roommates', isAdmin: false },
-  '3': { id: '3', name: 'Travel Buddies', isAdmin: true }
-};
-
-
 export function GroupAccountScreen({ groupId, onNavigate }: GroupAccountScreenProps) {
   const { appSettings } = useUserProfile();
   const isNigeria = appSettings.region === 'NG';
   const banks = isNigeria ? NIGERIAN_BANKS : US_BANKS;
 
-  const group = groupId ? mockGroups[groupId] : null;
+  const [group, setGroup] = useState<Group | null>(null);
   const [groupAccounts, setGroupAccounts] = useState<GroupAccount[]>([]);
+  const [isGroupLoading, setIsGroupLoading] = useState(true);
 
   const [isAddingMethod, setIsAddingMethod] = useState(false);
   const [methodType, setMethodType] = useState<'bank' | 'mobile_money'>('bank');
@@ -132,9 +125,52 @@ export function GroupAccountScreen({ groupId, onNavigate }: GroupAccountScreenPr
     }
   };
 
+  const fetchGroup = async () => {
+    if (!groupId) {
+      setGroup(null);
+      setIsGroupLoading(false);
+      return;
+    }
+    setIsGroupLoading(true);
+    try {
+      const data = await apiClient(`/api/groups/${groupId}`);
+      if (data?.group) {
+        setGroup({
+          id: data.group.id,
+          name: data.group.name,
+          isAdmin: data.group.isAdmin,
+        });
+      } else {
+        setGroup(null);
+      }
+    } catch (error) {
+      toast.error('Failed to load group');
+      setGroup(null);
+    } finally {
+      setIsGroupLoading(false);
+    }
+  };
+
   React.useEffect(() => {
+    fetchGroup();
     fetchAccounts();
   }, [groupId]);
+
+  if (isGroupLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="sm" onClick={() => onNavigate('friends')} className="p-2">
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1>Group Accounts</h1>
+            <p className="text-muted-foreground">Loading...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!group) {
     return (
