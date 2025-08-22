@@ -1,7 +1,12 @@
 import express from 'express'
 import { TRANSACTION_TYPE_MAP, TRANSACTION_STATUS_MAP } from '../../shared/transactions.js'
+import authenticate from '../middleware/auth.js'
+import { requireGroupMember } from '../utils/permissions.js'
 
 const router = express.Router({ mergeParams: true })
+
+router.use(authenticate)
+router.use(requireGroupMember)
 
 // GET /transactions?page=1 - list transactions for group
 router.get('/transactions', async (req, res) => {
