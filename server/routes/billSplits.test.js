@@ -143,6 +143,47 @@ describe('Bill split routes', () => {
     expect(res.body.billSplits[0].groupName).toBe(group.name)
   })
 
+  it('includes schedule metadata for recurring bill splits', async () => {
+    await prisma.user.create({ data: { id: 'u1', email: 'u1@example.com', name: 'User 1' } })
+    await prisma.user.create({ data: { id: 'u2', email: 'u2@example.com', name: 'User 2' } })
+
+    const bs = await prisma.billSplit.create({
+      data: {
+        id: 'bs-rec',
+        title: 'Sub',
+        totalAmount: 20,
+        createdBy: 'u1',
+        isRecurring: true,
+        participants: {
+          create: [
+            { userId: 'u1', amount: 10, isPaid: true },
+            { userId: 'u2', amount: 10, isPaid: false }
+          ]
+        }
+      }
+    })
+
+    const nextRun = new Date('2025-01-01T00:00:00Z')
+    await prisma.recurringBillSplit.create({
+      data: { billSplitId: bs.id, frequency: 'weekly', day: 1, nextRun }
+    })
+
+    const byId = await request(app)
+      .get(`/bill-splits/${bs.id}`)
+      .set('Authorization', `Bearer ${sign('u1')}`)
+      .send()
+    expect(byId.status).toBe(200)
+    expect(byId.body.billSplit.schedule.frequency).toBe('weekly')
+    expect(byId.body.billSplit.schedule.nextRun).toBe(nextRun.toISOString())
+
+    const list = await request(app)
+      .get('/bill-splits')
+      .set('Authorization', `Bearer ${sign('u1')}`)
+      .send()
+    expect(list.status).toBe(200)
+    expect(list.body.billSplits[0].schedule.frequency).toBe('weekly')
+  })
+
   it('returns 404 for missing or unauthorized bill split', async () => {
     await prisma.user.create({ data: { id: 'u1', email: 'u1@example.com', name: 'User 1' } })
     await prisma.user.create({ data: { id: 'u2', email: 'u2@example.com', name: 'User 2' } })
