@@ -40,11 +40,18 @@ router.get('/notification-settings', async (req, res) => {
 
     if (!preference) {
       preference = await req.prisma.notificationPreference.create({
-        data: { userId: req.user.id, preferences: defaultSettings }
+        data: {
+          userId: req.user.id,
+          preferences: JSON.stringify(defaultSettings)
+        }
       })
     }
 
-    res.json({ settings: preference.preferences })
+    const settings = typeof preference.preferences === 'string'
+      ? JSON.parse(preference.preferences)
+      : preference.preferences
+
+    res.json({ settings })
   } catch (error) {
     console.error('Get notification settings error:', error)
     res.status(500).json({ error: 'Internal server error' })
@@ -57,11 +64,15 @@ router.patch('/notification-settings', async (req, res) => {
     const settings = req.body
     const preference = await req.prisma.notificationPreference.upsert({
       where: { userId: req.user.id },
-      update: { preferences: settings },
-      create: { userId: req.user.id, preferences: settings }
+      update: { preferences: JSON.stringify(settings) },
+      create: { userId: req.user.id, preferences: JSON.stringify(settings) }
     })
 
-    res.json({ settings: preference.preferences })
+    const parsed = typeof preference.preferences === 'string'
+      ? JSON.parse(preference.preferences)
+      : preference.preferences
+
+    res.json({ settings: parsed })
   } catch (error) {
     console.error('Update notification settings error:', error)
     res.status(500).json({ error: 'Internal server error' })
