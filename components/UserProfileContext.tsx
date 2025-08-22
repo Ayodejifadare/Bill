@@ -142,8 +142,12 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
     try {
       const userId = getStoredUserId() || userProfile?.id;
       if (!userId) return;
-      const data = await apiClient(`/api/users/${userId}`);
-      const fetched = data.user;
+      const [profileData, statsData] = await Promise.all([
+        apiClient(`/api/users/${userId}`),
+        apiClient(`/api/users/${userId}/stats`).catch(() => ({ stats: defaultStats }))
+      ]);
+      const fetched = profileData.user;
+      const stats = statsData?.stats ?? defaultStats;
       setUserProfile(prev => ({
         id: fetched.id,
         name: fetched.name,
@@ -157,6 +161,7 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
         avatar: fetched.avatar,
         joinDate: fetched.createdAt ? new Date(fetched.createdAt).toLocaleDateString() : prev?.joinDate,
         kycStatus: fetched.kycStatus ?? 'pending',
+
         stats: prev?.stats ?? defaultStats,
         preferences: {
           ...defaultPreferences,
@@ -166,6 +171,10 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
             ...(fetched.preferences?.notificationSettings || {})
           }
         },
+
+        stats,
+        preferences: { ...defaultPreferences, ...(fetched.preferences || {}) },
+
         linkedBankAccounts: prev?.linkedBankAccounts ?? [],
       }));
       if (fetched.region && fetched.currency) {
