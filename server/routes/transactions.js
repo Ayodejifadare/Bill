@@ -1,7 +1,7 @@
 import express from 'express'
 import { body, validationResult } from 'express-validator'
 import jwt from 'jsonwebtoken'
-import { TRANSACTION_TYPE_MAP, TRANSACTION_STATUS_MAP } from '../../shared/transactions.js'
+import { TRANSACTION_TYPE_MAP, TRANSACTION_STATUS_MAP, TRANSACTION_CATEGORY_MAP } from '../../shared/transactions.js'
 import { createNotification } from '../utils/notifications.js'
 
 // Build reverse lookup maps for filters
@@ -10,6 +10,9 @@ const REVERSE_TRANSACTION_TYPE_MAP = Object.fromEntries(
 )
 const REVERSE_TRANSACTION_STATUS_MAP = Object.fromEntries(
   Object.entries(TRANSACTION_STATUS_MAP).map(([key, value]) => [value, key])
+)
+const REVERSE_TRANSACTION_CATEGORY_MAP = Object.fromEntries(
+  Object.entries(TRANSACTION_CATEGORY_MAP).map(([key, value]) => [value, key])
 )
 
 const router = express.Router()
@@ -80,7 +83,8 @@ router.get('/', authenticateToken, async (req, res) => {
     }
 
     if (category) {
-      where.category = category
+      const mappedCategory = REVERSE_TRANSACTION_CATEGORY_MAP[category] || category
+      where.category = mappedCategory
     }
 
     if (minAmount || maxAmount) {
@@ -164,7 +168,9 @@ router.get('/', authenticateToken, async (req, res) => {
       ...t,
       type: TRANSACTION_TYPE_MAP[t.type] || t.type,
       status: TRANSACTION_STATUS_MAP[t.status] || t.status,
-      ...(t.category ? { category: t.category } : {})
+      ...(t.category
+        ? { category: TRANSACTION_CATEGORY_MAP[t.category] || t.category }
+        : {})
     }))
 
     res.json({
@@ -247,6 +253,9 @@ router.get('/:id', authenticateToken, async (req, res) => {
       sender: transaction.sender,
       receiver: transaction.receiver,
       user: otherUser,
+      ...(transaction.category
+        ? { category: TRANSACTION_CATEGORY_MAP[transaction.category] || transaction.category }
+        : {}),
       ...(transaction.billSplit?.location
         ? { location: transaction.billSplit.location }
         : {}),
@@ -273,7 +282,8 @@ router.post('/send', [
   authenticateToken,
   body('receiverId').notEmpty(),
   body('amount').isFloat({ min: 0.01 }),
-  body('description').optional().trim()
+  body('description').optional().trim(),
+  body('category').optional().isIn(Object.values(TRANSACTION_CATEGORY_MAP))
 ], async (req, res) => {
   try {
     const errors = validationResult(req)
@@ -281,7 +291,9 @@ router.post('/send', [
       return res.status(400).json({ errors: errors.array() })
     }
 
-    const { receiverId, amount, description } = req.body
+    const { receiverId, amount, description, category } = req.body
+    const mappedCategory =
+      category ? REVERSE_TRANSACTION_CATEGORY_MAP[category] || category : undefined
 
     // Check if receiver exists
     const receiver = await req.prisma.user.findUnique({
@@ -311,7 +323,8 @@ router.post('/send', [
           amount,
           description,
           type: 'SEND',
-          status: 'COMPLETED'
+          status: 'COMPLETED',
+          ...(mappedCategory ? { category: mappedCategory } : {})
         },
         include: {
           sender: {
@@ -341,7 +354,10 @@ router.post('/send', [
     const formatted = {
       ...transaction,
       type: TRANSACTION_TYPE_MAP[transaction.type] || transaction.type,
-      status: TRANSACTION_STATUS_MAP[transaction.status] || transaction.status
+      status: TRANSACTION_STATUS_MAP[transaction.status] || transaction.status,
+      ...(transaction.category
+        ? { category: TRANSACTION_CATEGORY_MAP[transaction.category] || transaction.category }
+        : {})
     }
 
     await createNotification(req.prisma, {
