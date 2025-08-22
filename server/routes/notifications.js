@@ -22,7 +22,7 @@ router.get('/notifications/stream', (req, res) => {
   })
 })
 
-const defaultSettings = {
+export const defaultSettings = {
   whatsapp: { enabled: true },
   push: {
     enabled: true,
@@ -46,6 +46,30 @@ const defaultSettings = {
     securityAlerts: true,
     urgentReminders: false
   }
+}
+
+export async function updateNotificationPreference(prisma, userId, settings, merge = true) {
+  let preference = await prisma.notificationPreference.findUnique({ where: { userId } })
+  const current = preference
+    ? typeof preference.preferences === 'string'
+      ? JSON.parse(preference.preferences)
+      : preference.preferences
+    : defaultSettings
+
+  const next = merge ? { ...current } : { ...defaultSettings }
+  for (const key of Object.keys(settings)) {
+    next[key] = { ...(next[key] || {}), ...settings[key] }
+  }
+
+  const saved = await prisma.notificationPreference.upsert({
+    where: { userId },
+    update: { preferences: JSON.stringify(next) },
+    create: { userId, preferences: JSON.stringify(next) }
+  })
+
+  return typeof saved.preferences === 'string'
+    ? JSON.parse(saved.preferences)
+    : saved.preferences
 }
 
 // Get notification settings
@@ -79,17 +103,8 @@ router.get('/notification-settings', async (req, res) => {
 router.patch('/notification-settings', async (req, res) => {
   try {
     const settings = req.body
-    const preference = await req.prisma.notificationPreference.upsert({
-      where: { userId: req.user.id },
-      update: { preferences: JSON.stringify(settings) },
-      create: { userId: req.user.id, preferences: JSON.stringify(settings) }
-    })
-
-    const parsed = typeof preference.preferences === 'string'
-      ? JSON.parse(preference.preferences)
-      : preference.preferences
-
-    res.json({ settings: parsed })
+    const updated = await updateNotificationPreference(req.prisma, req.user.id, settings, false)
+    res.json({ settings: updated })
   } catch (error) {
     console.error('Update notification settings error:', error)
     res.status(500).json({ error: 'Internal server error' })
