@@ -58,20 +58,20 @@ export interface TransactionSummary {
 }
 
 export function useTransactions(initialOptions: UseTransactionsOptions = {}): UseTransactionsResult {
-  const {
-    page = 1,
-    size = 20,
-    cursor,
-    limit,
-    startDate,
-    endDate,
-    type,
-    status,
-    category,
-    minAmount,
-    maxAmount,
-    keyword,
-  } = initialOptions;
+    const {
+      page = 1,
+      size,
+      cursor,
+      limit,
+      startDate,
+      endDate,
+      type,
+      status,
+      category,
+      minAmount,
+      maxAmount,
+      keyword,
+    } = initialOptions;
 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -108,12 +108,14 @@ export function useTransactions(initialOptions: UseTransactionsOptions = {}): Us
       setError(null);
       try {
         const params = new URLSearchParams();
+        const effectiveLimit = current.limit ?? current.size ?? 20;
+        const effectiveSize = current.size ?? current.limit ?? 20;
         if (current.cursor || (!current.page && !current.size)) {
           if (current.cursor) params.append('cursor', current.cursor);
-          params.append('limit', String(current.limit ?? current.size ?? 20));
+          params.append('limit', String(effectiveLimit));
         } else {
           params.append('page', String(current.page ?? 1));
-          params.append('size', String(current.size ?? current.limit ?? 20));
+          params.append('size', String(effectiveSize));
         }
         if (current.startDate) params.append('startDate', current.startDate);
         if (current.endDate) params.append('endDate', current.endDate);
