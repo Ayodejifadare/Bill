@@ -225,6 +225,60 @@ router.get('/requests', authenticateToken, async (req, res) => {
   }
 })
 
+// Get summary of amounts owed between user and friends
+router.get('/summary', authenticateToken, async (req, res) => {
+  try {
+    const friendships = await req.prisma.friendship.findMany({
+      where: {
+        OR: [
+          { user1Id: req.userId },
+          { user2Id: req.userId }
+        ]
+      },
+      select: { user1Id: true, user2Id: true }
+    })
+
+    const friendIds = friendships.map(f =>
+      f.user1Id === req.userId ? f.user2Id : f.user1Id
+    )
+
+    if (friendIds.length === 0) {
+      return res.json({ owedToUser: 0, userOwes: 0 })
+    }
+
+    const pendingStatus = Object.keys(TRANSACTION_STATUS_MAP).find(
+      key => TRANSACTION_STATUS_MAP[key] === 'pending'
+    ) || 'PENDING'
+
+    const [owedAgg, owesAgg] = await req.prisma.$transaction([
+      req.prisma.transaction.aggregate({
+        where: {
+          receiverId: req.userId,
+          senderId: { in: friendIds },
+          status: pendingStatus
+        },
+        _sum: { amount: true }
+      }),
+      req.prisma.transaction.aggregate({
+        where: {
+          senderId: req.userId,
+          receiverId: { in: friendIds },
+          status: pendingStatus
+        },
+        _sum: { amount: true }
+      })
+    ])
+
+    const owedToUser = owedAgg._sum.amount || 0
+    const userOwes = owesAgg._sum.amount || 0
+
+    res.json({ owedToUser, userOwes })
+  } catch (error) {
+    console.error('Get friends summary error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
 // Accept friend request
 router.post('/requests/:id/accept', authenticateToken, async (req, res) => {
   try {
