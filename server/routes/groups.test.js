@@ -78,16 +78,8 @@ describe('Group join/leave routes', () => {
     })
     expect(joinRes.body.group.members).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({
-          id: 'creator',
-          name: 'Creator',
-          role: 'ADMIN'
-        }),
-        expect.objectContaining({
-          id: 'user1',
-          name: 'User 1',
-          role: 'MEMBER'
-        })
+        expect.objectContaining({ name: 'Creator', avatar: 'C' }),
+        expect.objectContaining({ name: 'User 1', avatar: 'U1' })
       ])
     )
 
@@ -144,14 +136,14 @@ describe('Group join/leave routes', () => {
     })
     expect(res.body.group.members).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ id: 'u1', name: 'U1', role: 'MEMBER' }),
-        expect.objectContaining({ id: 'u2', name: 'U2', role: 'MEMBER' }),
-        expect.objectContaining({ id: 'creator', name: 'Creator', role: 'ADMIN' })
+        expect.objectContaining({ name: 'U1', avatar: 'U' }),
+        expect.objectContaining({ name: 'U2', avatar: 'U' }),
+        expect.objectContaining({ name: 'Creator', avatar: 'C' })
       ])
     )
   })
 
-  it('returns members with id instead of userId', async () => {
+  it('returns member previews without ids', async () => {
     const res = await request(app)
       .post('/groups')
       .set('x-user-id', 'creator')
@@ -159,9 +151,11 @@ describe('Group join/leave routes', () => {
 
     expect(res.status).toBe(201)
     const members = res.body.group.members
-    expect(members[0]).toHaveProperty('id', 'creator')
+    expect(members[0]).toHaveProperty('name', 'Creator')
     members.forEach((m) => {
+      expect(m).not.toHaveProperty('id')
       expect(m).not.toHaveProperty('userId')
+      expect(m).toHaveProperty('avatar')
     })
   })
 
@@ -233,9 +227,9 @@ describe('Group join/leave routes', () => {
     expect(group.members).toHaveLength(3)
     expect(group.members).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ id: 'user1', name: 'User 1', role: 'MEMBER' }),
-        expect.objectContaining({ id: 'user2', name: 'User 2', role: 'MEMBER' }),
-        expect.objectContaining({ id: 'creator', name: 'Creator', role: 'ADMIN' })
+        expect.objectContaining({ name: 'User 1', avatar: 'U1' }),
+        expect.objectContaining({ name: 'User 2', avatar: 'U2' }),
+        expect.objectContaining({ name: 'Creator', avatar: 'C' })
       ])
     )
     expect(group).toHaveProperty('description')
