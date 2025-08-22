@@ -174,6 +174,52 @@ describe('Transaction routes', () => {
     expect(missing.status).toBe(404)
   })
 
+  it('returns distinct categories for the user', async () => {
+    await prisma.user.create({ data: { id: 'u1', email: 'u1@example.com', name: 'User 1' } })
+    await prisma.user.create({ data: { id: 'u2', email: 'u2@example.com', name: 'User 2' } })
+
+    await prisma.transaction.createMany({
+      data: [
+        {
+          id: 'c1',
+          amount: 10,
+          senderId: 'u1',
+          receiverId: 'u2',
+          type: 'SEND',
+          status: 'COMPLETED',
+          category: 'FOOD'
+        },
+        {
+          id: 'c2',
+          amount: 15,
+          senderId: 'u2',
+          receiverId: 'u1',
+          type: 'SEND',
+          status: 'COMPLETED',
+          category: 'RENT'
+        },
+        {
+          id: 'c3',
+          amount: 5,
+          senderId: 'u1',
+          receiverId: 'u2',
+          type: 'SEND',
+          status: 'COMPLETED',
+          category: 'FOOD'
+        }
+      ]
+    })
+
+    const res = await request(app)
+      .get('/transactions/categories')
+      .set('Authorization', `Bearer ${sign('u1')}`)
+      .send()
+
+    expect(res.status).toBe(200)
+    expect(res.body.categories).toEqual(expect.arrayContaining(['food', 'rent']))
+    expect(res.body.categories).toHaveLength(2)
+  })
+
   it('calculates transaction summary', async () => {
     await prisma.user.create({ data: { id: 'u1', email: 'u1@example.com', name: 'User 1' } })
     await prisma.user.create({ data: { id: 'u2', email: 'u2@example.com', name: 'User 2' } })
