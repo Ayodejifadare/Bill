@@ -8,7 +8,11 @@ afterEach(() => {
 
 describe('useGroups', () => {
   it('fetches groups successfully', async () => {
-    const mockGroups: Group[] = [
+    const apiGroups = [
+      { id: '1', name: 'Test Group', members: ['u1'], color: 'bg-blue-500' }
+    ];
+
+    const expected: Group[] = [
       {
         id: '1',
         name: 'Test Group',
@@ -16,17 +20,17 @@ describe('useGroups', () => {
         memberCount: 1,
         totalSpent: 0,
         recentActivity: '',
-        members: [],
+        members: ['u1'],
         isAdmin: false,
         lastActive: null,
         pendingBills: 0,
-        color: ''
+        color: 'bg-blue-500'
       }
     ];
 
     vi.spyOn(global, 'fetch').mockResolvedValue({
       ok: true,
-      json: async () => ({ groups: mockGroups })
+      json: async () => ({ groups: apiGroups })
     } as unknown as Response);
 
     const { result } = renderHook(() => useGroups());
@@ -34,7 +38,7 @@ describe('useGroups', () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     expect(result.current.error).toBeNull();
-    expect(result.current.groups).toEqual(mockGroups);
+    expect(result.current.groups).toEqual(expected);
   });
 
   it('handles empty group list', async () => {
@@ -132,7 +136,7 @@ describe('useGroups', () => {
         memberCount: 1,
         totalSpent: 0,
         recentActivity: '',
-        members: [],
+        members: ['a'],
         isAdmin: false,
         lastActive: null,
         pendingBills: 0,
@@ -146,7 +150,7 @@ describe('useGroups', () => {
         memberCount: 1,
         totalSpent: 0,
         recentActivity: '',
-        members: [],
+        members: ['a'],
         isAdmin: false,
         lastActive: null,
         pendingBills: 0,
@@ -179,7 +183,7 @@ describe('useGroups', () => {
       memberCount: 1,
       totalSpent: 0,
       recentActivity: '',
-      members: [],
+      members: ['a'],
       isAdmin: false,
       lastActive: null,
       pendingBills: 0,
@@ -192,7 +196,7 @@ describe('useGroups', () => {
       memberCount: 1,
       totalSpent: 0,
       recentActivity: '',
-      members: [],
+      members: ['a'],
       isAdmin: false,
       lastActive: null,
       pendingBills: 0,

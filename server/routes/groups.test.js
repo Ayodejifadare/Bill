@@ -113,8 +113,8 @@ describe('Group join/leave routes', () => {
   it('creates a group with attributes and members', async () => {
     await prisma.user.createMany({
       data: [
-        { id: 'u1', email: 'u1@example.com', name: 'U1' },
-        { id: 'u2', email: 'u2@example.com', name: 'U2' }
+        { id: 'u1', email: 'u1@example.com', name: 'User 1' },
+        { id: 'u2', email: 'u2@example.com', name: 'User 2' }
       ]
     })
 
@@ -178,7 +178,7 @@ describe('Group join/leave routes', () => {
     )
   })
 
-  it('lists groups with member details and aggregates', async () => {
+  it('lists groups with member ids and color', async () => {
     const createRes = await request(app)
       .post('/groups')
       .set('x-user-id', 'creator')
@@ -199,13 +199,6 @@ describe('Group join/leave routes', () => {
       ]
     })
 
-    await prisma.transaction.createMany({
-      data: [
-        { senderId: 'user1', receiverId: 'user2', amount: 10, type: 'SEND', status: 'COMPLETED' },
-        { senderId: 'user2', receiverId: 'user1', amount: 5, type: 'SEND', status: 'COMPLETED' }
-      ]
-    })
-
     const res = await request(app).get('/groups').set('x-user-id', 'user1')
 
     expect(res.status).toBe(200)
@@ -214,19 +207,39 @@ describe('Group join/leave routes', () => {
     expect(group).toMatchObject({
       id: groupId,
       name: 'Test',
-      memberCount: 3,
-      totalSpent: 15
+      color: 'bg-blue-500'
     })
     expect(group.members).toHaveLength(3)
     expect(group.members).toEqual(
-      expect.arrayContaining(['U1', 'U2', 'C'])
+      expect.arrayContaining(['creator', 'user1', 'user2'])
     )
-    expect(group).toHaveProperty('description')
-    expect(group).toHaveProperty('recentActivity')
-    expect(group).toHaveProperty('isAdmin')
-    expect(group).toHaveProperty('lastActive')
-    expect(group).toHaveProperty('pendingBills')
-    expect(group).toHaveProperty('color')
+  })
+
+  it('paginates group list', async () => {
+    await request(app)
+      .post('/groups')
+      .set('x-user-id', 'creator')
+      .send({ name: 'G1' })
+    await request(app)
+      .post('/groups')
+      .set('x-user-id', 'creator')
+      .send({ name: 'G2' })
+
+    const res1 = await request(app)
+      .get('/groups?pageSize=1')
+      .set('x-user-id', 'creator')
+
+    expect(res1.status).toBe(200)
+    expect(res1.body.groups).toHaveLength(1)
+    expect(res1.body.nextPage).toBe(2)
+
+    const res2 = await request(app)
+      .get('/groups?page=2&pageSize=1')
+      .set('x-user-id', 'creator')
+
+    expect(res2.status).toBe(200)
+    expect(res2.body.groups).toHaveLength(1)
+    expect(res2.body.nextPage).toBe(null)
   })
 
   it('fetches group details with members and transactions', async () => {
@@ -341,6 +354,7 @@ describe('Group join/leave routes', () => {
 
     const delRes = await request(app)
       .delete(`/groups/${groupId}/members/u2`)
+      .set('x-user-id', 'u1')
     expect(delRes.status).toBe(200)
 
     const listRes2 = await request(app)
@@ -366,25 +380,32 @@ describe('Group join/leave routes', () => {
       }
     })
 
-    const invitesRes = await request(app).get(`/groups/${groupId}/invites`)
+    const invitesRes = await request(app)
+      .get(`/groups/${groupId}/invites`)
+      .set('x-user-id', 'u1')
     expect(invitesRes.status).toBe(200)
     expect(invitesRes.body.invites).toHaveLength(1)
 
     const resendRes = await request(app)
       .post(`/groups/${groupId}/invites/${invite.id}/resend`)
+      .set('x-user-id', 'u1')
     expect(resendRes.status).toBe(200)
     expect(resendRes.body.invite.attempts).toBe(2)
 
     const deleteRes = await request(app)
       .delete(`/groups/${groupId}/invites/${invite.id}`)
+      .set('x-user-id', 'u1')
     expect(deleteRes.status).toBe(200)
 
     const linkRes = await request(app)
       .post(`/groups/${groupId}/invite-links`)
+      .set('x-user-id', 'u1')
       .send({ maxUses: 5, expireDays: 1 })
     expect(linkRes.status).toBe(201)
 
-    const getLinks = await request(app).get(`/groups/${groupId}/invite-links`)
+    const getLinks = await request(app)
+      .get(`/groups/${groupId}/invite-links`)
+      .set('x-user-id', 'u1')
     expect(getLinks.status).toBe(200)
     expect(getLinks.body.links).toHaveLength(1)
   })
@@ -417,7 +438,9 @@ describe('Group join/leave routes', () => {
       }
     })
 
-    const txRes = await request(app).get(`/groups/${groupId}/transactions`)
+    const txRes = await request(app)
+      .get(`/groups/${groupId}/transactions`)
+      .set('x-user-id', 'creator')
     expect(txRes.status).toBe(200)
     expect(txRes.body.transactions).toHaveLength(1)
 

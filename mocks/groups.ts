@@ -34,7 +34,7 @@ const accounts: ExternalAccount[] = [
 
 export async function handle(path: string, init: RequestInit = {}) {
   if (path === '/groups' && (!init.method || init.method === 'GET')) {
-    return { groups };
+    return { groups: groups.map(g => ({ id: g.id, name: g.name, members: g.members, color: g.color })) };
   }
   if (path === '/groups' && init.method === 'POST') {
     const body = init.body ? JSON.parse(init.body as string) : {};

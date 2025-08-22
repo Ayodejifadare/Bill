@@ -23,8 +23,9 @@ const COLOR_CLASS_MAP = {
 }
 
 function mapColor(color = '') {
-  if (color.startsWith('bg-')) return color
-  const key = color.toLowerCase()
+  const clr = color || ''
+  if (clr.startsWith('bg-')) return clr
+  const key = clr.toLowerCase()
   return COLOR_CLASS_MAP[key] || COLOR_CLASS_MAP.blue
 }
 
@@ -116,26 +117,34 @@ async function formatGroup(prisma, group, userId) {
 // GET / - list all groups with member details and aggregates
 router.get('/', authenticate, async (req, res) => {
   try {
+    const page = Math.max(parseInt(req.query.page) || 1, 1)
+    const pageSize = Math.min(parseInt(req.query.pageSize) || 20, 100)
+    const skip = (page - 1) * pageSize
+
     const groups = await req.prisma.group.findMany({
       where: {
         members: { some: { userId: req.user.id } }
       },
       include: {
         members: {
-          include: {
-            user: {
-              select: { id: true, name: true, avatar: true }
-            }
-          }
+          select: { userId: true }
         }
-      }
+      },
+      skip,
+      take: pageSize + 1
     })
 
-    const formatted = await Promise.all(
-      groups.map((g) => formatGroup(req.prisma, g, req.user.id))
-    )
+    const hasMore = groups.length > pageSize
+    if (hasMore) groups.pop()
 
-    res.json({ groups: formatted })
+    const formatted = groups.map((g) => ({
+      id: g.id,
+      name: g.name,
+      members: g.members.map((m) => m.userId),
+      color: mapColor(g.color)
+    }))
+
+    res.json({ groups: formatted, nextPage: hasMore ? page + 1 : null })
   } catch (error) {
     console.error('List groups error:', error)
     res.status(500).json({ error: 'Internal server error' })
