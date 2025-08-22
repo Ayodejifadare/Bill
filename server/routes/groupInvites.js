@@ -1,7 +1,33 @@
 import express from 'express'
 import { createNotification } from '../utils/notifications.js'
+import authenticate from '../middleware/auth.js'
 
 const router = express.Router({ mergeParams: true })
+
+// Ensure the requester is a group admin
+const requireGroupAdmin = async (req, res, next) => {
+  try {
+    const membership = await req.prisma.groupMember.findUnique({
+      where: {
+        groupId_userId: {
+          groupId: req.params.groupId,
+          userId: req.user.id
+        }
+      }
+    })
+    if (!membership || membership.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Forbidden' })
+    }
+    next()
+  } catch (err) {
+    console.error('Group admin check error:', err)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// All group invite routes require auth and admin access
+router.use(authenticate)
+router.use(requireGroupAdmin)
 
 // GET / - list invites for a group
 router.get('/', async (req, res) => {
@@ -33,8 +59,15 @@ router.get('/', async (req, res) => {
 // POST /:inviteId/resend - increment attempts and update status
 router.post('/:inviteId/resend', async (req, res) => {
   try {
-    const invite = await req.prisma.groupInvite.update({
+    const existing = await req.prisma.groupInvite.findUnique({
       where: { id: req.params.inviteId },
+      include: { group: true }
+    })
+    if (!existing || existing.groupId !== req.params.groupId) {
+      return res.status(404).json({ error: 'Invite not found' })
+    }
+    const invite = await req.prisma.groupInvite.update({
+      where: { id: existing.id },
       data: {
         attempts: { increment: 1 },
         status: 'delivered',
@@ -81,7 +114,13 @@ router.post('/:inviteId/resend', async (req, res) => {
 // DELETE /:inviteId - remove invite
 router.delete('/:inviteId', async (req, res) => {
   try {
-    await req.prisma.groupInvite.delete({ where: { id: req.params.inviteId } })
+    const existing = await req.prisma.groupInvite.findUnique({
+      where: { id: req.params.inviteId }
+    })
+    if (!existing || existing.groupId !== req.params.groupId) {
+      return res.status(404).json({ error: 'Invite not found' })
+    }
+    await req.prisma.groupInvite.delete({ where: { id: existing.id } })
     res.json({})
   } catch (error) {
     console.error('Delete invite error:', error)
