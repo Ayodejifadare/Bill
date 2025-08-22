@@ -37,66 +37,54 @@ router.get('/', authenticateToken, async (req, res) => {
       minAmount,
       maxAmount,
       keyword,
-      page,
-      size
+      page = 1,
+      size = 20
     } = req.query
 
-    const whereClause = {
+    const amountFilter = {}
+    if (minAmount) amountFilter.gte = parseFloat(minAmount)
+    if (maxAmount) amountFilter.lte = parseFloat(maxAmount)
+
+    const where = {
       OR: [
         { createdBy: req.userId },
-        {
-          participants: {
-            some: { userId: req.userId }
-          }
-        }
+        { participants: { some: { userId: req.userId } } }
       ],
-      ...(groupId ? { groupId } : {})
-    }
-
-    if (category) whereClause.category = category
-
-    if (minAmount || maxAmount) {
-      whereClause.totalAmount = {}
-      if (minAmount) whereClause.totalAmount.gte = parseFloat(minAmount)
-      if (maxAmount) whereClause.totalAmount.lte = parseFloat(maxAmount)
+      ...(groupId && { groupId }),
+      ...(category && { category }),
+      ...(minAmount || maxAmount ? { totalAmount: amountFilter } : {})
     }
 
     if (keyword) {
-      const keywordFilter = {
-        OR: [
-          { title: { contains: keyword, mode: 'insensitive' } },
-          { description: { contains: keyword, mode: 'insensitive' } },
-          {
-            participants: {
-              some: {
-                user: { name: { contains: keyword, mode: 'insensitive' } }
+      where.AND = [
+        ...(where.AND || []),
+        {
+          OR: [
+            { title: { contains: keyword, mode: 'insensitive' } },
+            { description: { contains: keyword, mode: 'insensitive' } },
+            {
+              participants: {
+                some: {
+                  user: { name: { contains: keyword, mode: 'insensitive' } }
+                }
               }
             }
-          }
-        ]
-      }
-      whereClause.AND = Array.isArray(whereClause.AND)
-        ? [...whereClause.AND, keywordFilter]
-        : [keywordFilter]
+          ]
+        }
+      ]
     }
 
-    const pageNum = parseInt(page) || 1
-    const pageSize = parseInt(size) || 20
+    const pageNum = Math.max(parseInt(page), 1)
+    const pageSize = Math.max(parseInt(size), 1)
 
-    const [total, billSplits] = await req.prisma.$transaction([
-      req.prisma.billSplit.count({ where: whereClause }),
+    const [total, splits] = await req.prisma.$transaction([
+      req.prisma.billSplit.count({ where }),
       req.prisma.billSplit.findMany({
-        where: whereClause,
+        where,
         include: {
-          creator: {
-            select: { id: true, name: true }
-          },
+          creator: { select: { id: true, name: true } },
           participants: {
-            include: {
-              user: {
-                select: { id: true, name: true }
-              }
-            }
+            include: { user: { select: { id: true, name: true } } }
           }
         },
         orderBy: { createdAt: 'desc' },
@@ -105,18 +93,16 @@ router.get('/', authenticateToken, async (req, res) => {
       })
     ])
 
-    const pageCount = Math.ceil(total / pageSize)
-
-    const formattedSplits = billSplits.map(split => {
-      const paidCount = split.participants.filter(p => p.isPaid).length
-      const yourParticipant = split.participants.find(p => p.userId === req.userId)
+    const billSplits = splits.map(split => {
+      const your = split.participants.find(p => p.userId === req.userId)
+      const completed = split.participants.every(p => p.isPaid)
 
       return {
         id: split.id,
         title: split.title,
         totalAmount: split.totalAmount,
-        yourShare: yourParticipant ? yourParticipant.amount : 0,
-        status: paidCount === split.participants.length ? 'completed' : 'pending',
+        yourShare: your ? your.amount : 0,
+        status: completed ? 'completed' : 'pending',
         participants: split.participants.map(p => ({
           name: p.userId === req.userId ? 'You' : p.user.name,
           amount: p.amount,
@@ -124,12 +110,16 @@ router.get('/', authenticateToken, async (req, res) => {
         })),
         createdBy: split.creator.id === req.userId ? 'You' : split.creator.name,
         date: split.createdAt.toISOString(),
-        ...(split.groupId ? { groupId: split.groupId } : {}),
-        ...(split.category ? { category: split.category } : {})
+        ...(split.groupId && { groupId: split.groupId }),
+        ...(split.category && { category: split.category })
       }
     })
 
-    res.json({ billSplits: formattedSplits, total, pageCount })
+    res.json({
+      billSplits,
+      total,
+      pageCount: Math.ceil(total / pageSize)
+    })
   } catch (error) {
     console.error('Get bill splits error:', error)
     res.status(500).json({ error: 'Internal server error' })
