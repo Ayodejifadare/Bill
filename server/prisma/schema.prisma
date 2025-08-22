@@ -120,17 +120,21 @@ model BillSplit {
     note        String?
     splitMethod String?
     paymentMethodId String?
+    groupId     String?
+    isRecurring Boolean @default(false)
 
   // Foreign keys
   createdBy String
 
   // Relationships
   creator      User          @relation(fields: [createdBy], references: [id])
+  group        Group?        @relation(fields: [groupId], references: [id])
   transactions Transaction[]
   participants BillSplitParticipant[]
   items        BillItem[]
   receipts     Receipt[]
   invoices     Invoice[]
+  recurring    RecurringBillSplit?
 
   @@map("bill_splits")
 }
@@ -163,6 +167,18 @@ model BillSplitParticipant {
 
   @@unique([billSplitId, userId])
   @@map("bill_split_participants")
+}
+
+model RecurringBillSplit {
+  id          String   @id @default(cuid())
+  billSplitId String   @unique
+  frequency   String
+  day         Int?
+  nextRun     DateTime
+
+  billSplit BillSplit @relation(fields: [billSplitId], references: [id])
+
+  @@map("recurring_bill_splits")
 }
 
 model Friendship {
@@ -211,6 +227,7 @@ model Group {
   accounts GroupAccount[]
   invites  GroupInvite[]
   inviteLinks GroupInviteLink[]
+  billSplits BillSplit[]
 
   @@map("groups")
 }
