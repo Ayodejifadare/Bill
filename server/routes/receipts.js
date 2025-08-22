@@ -1,0 +1,142 @@
+import express from 'express'
+import multer from 'multer'
+import { body, validationResult, param } from 'express-validator'
+import jwt from 'jsonwebtoken'
+import path from 'path'
+import fs from 'fs'
+
+const router = express.Router()
+
+const uploadDir = process.env.RECEIPT_UPLOAD_DIR || 'uploads/receipts'
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dest = path.join(process.cwd(), uploadDir)
+    fs.mkdirSync(dest, { recursive: true })
+    cb(null, dest)
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname)
+    cb(null, `${Date.now()}-${file.originalname}`)
+  }
+})
+const upload = multer({ storage })
+
+// Authentication middleware
+const authenticateToken = async (req, res, next) => {
+  const token = req.headers.authorization?.replace('Bearer ', '')
+
+  if (!token) {
+    return res.status(401).json({ error: 'No token provided' })
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key')
+    const user = await req.prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { tokenVersion: true }
+    })
+    if (!user || user.tokenVersion !== decoded.tokenVersion) {
+      return res.status(401).json({ error: 'Invalid token' })
+    }
+    req.userId = decoded.userId
+    next()
+  } catch (error) {
+    return res.status(401).json({ error: 'Invalid token' })
+  }
+}
+
+// Create receipt
+router.post(
+  '/',
+  authenticateToken,
+  upload.single('file'),
+  [
+    body('metadata').optional().isString(),
+    body('transactionId').optional().isString(),
+    body('billSplitId').optional().isString()
+  ],
+  async (req, res) => {
+    const errors = validationResult(req)
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() })
+    }
+
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded' })
+      }
+
+      const { metadata, transactionId, billSplitId } = req.body
+      const url = `${req.protocol}://${req.get('host')}/${uploadDir}/${req.file.filename}`
+
+      const receipt = await req.prisma.receipt.create({
+        data: {
+          url,
+          metadata,
+          transactionId,
+          billSplitId
+        }
+      })
+
+      res.status(201).json({ receipt })
+    } catch (error) {
+      console.error('Create receipt error:', error)
+      res.status(500).json({ error: 'Internal server error' })
+    }
+  }
+)
+
+// Get receipt by ID
+router.get(
+  '/:id',
+  [authenticateToken, param('id').trim().notEmpty()],
+  async (req, res) => {
+    const errors = validationResult(req)
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() })
+    }
+
+    try {
+      const receipt = await req.prisma.receipt.findUnique({
+        where: { id: req.params.id }
+      })
+
+      if (!receipt) {
+        return res.status(404).json({ error: 'Receipt not found' })
+      }
+
+      if (receipt.transactionId) {
+        const tx = await req.prisma.transaction.findUnique({
+          where: { id: receipt.transactionId },
+          select: { senderId: true, receiverId: true }
+        })
+        if (!tx || (tx.senderId !== req.userId && tx.receiverId !== req.userId)) {
+          return res.status(403).json({ error: 'Unauthorized' })
+        }
+      }
+
+      if (receipt.billSplitId) {
+        const bs = await req.prisma.billSplit.findFirst({
+          where: {
+            id: receipt.billSplitId,
+            OR: [
+              { createdBy: req.userId },
+              { participants: { some: { userId: req.userId } } }
+            ]
+          },
+          select: { id: true }
+        })
+        if (!bs) {
+          return res.status(403).json({ error: 'Unauthorized' })
+        }
+      }
+
+      res.json({ receipt })
+    } catch (error) {
+      console.error('Get receipt error:', error)
+      res.status(500).json({ error: 'Internal server error' })
+    }
+  }
+)
+
+export default router
