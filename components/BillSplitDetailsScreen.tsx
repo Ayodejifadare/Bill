@@ -12,6 +12,7 @@ import { useUserProfile } from './UserProfileContext';
 import { ShareSheet } from './ui/share-sheet';
 import { createDeepLink } from './ShareUtils';
 import { PageLoading } from './ui/loading';
+import { apiClient } from '../utils/apiClient';
 
 interface BillSplitDetailsScreenProps {
   billSplitId: string | null;
@@ -49,21 +50,14 @@ interface BillSplit {
 const billSplitCache = new Map<string, BillSplit>();
 
 async function getBillSplit(id: string): Promise<BillSplit> {
-  const res = await fetch(`/api/bill-splits/${id}`);
-  if (!res.ok) {
-    throw new Error('Failed to fetch bill split');
-  }
-  const data = await res.json();
+  const data = await apiClient(`/api/bill-splits/${id}`);
   return data.billSplit ?? data;
 }
 
 async function deleteBillSplit(id: string): Promise<void> {
-  const res = await fetch(`/api/bill-splits/${id}`, {
+  await apiClient(`/api/bill-splits/${id}`, {
     method: 'DELETE',
   });
-  if (!res.ok) {
-    throw new Error('Failed to delete bill split');
-  }
 }
 
 export function BillSplitDetailsScreen({ billSplitId, onNavigate }: BillSplitDetailsScreenProps) {

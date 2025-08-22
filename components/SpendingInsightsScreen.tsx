@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart as RechartsPieChart, Cell, LineChart, Line } from 'recharts';
 import { useUserProfile } from './UserProfileContext';
+import { apiClient } from '../utils/apiClient';
 
 interface SpendingInsightsScreenProps {
   onNavigate: (tab: string) => void;
@@ -45,21 +46,7 @@ export function SpendingInsightsScreen({ onNavigate }: SpendingInsightsScreenPro
       setLoading(true);
       setError(null);
       try {
-        const storedAuth = localStorage.getItem('biltip_auth');
-        const token = storedAuth ? JSON.parse(storedAuth).token : null;
-        if (!token) {
-          throw new Error('Unauthorized: Please log in.');
-        }
-        const res = await fetch(`/api/spending-insights?period=${encodeURIComponent(selectedPeriod)}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (res.status === 401) {
-          throw new Error('Unauthorized: Please log in.');
-        }
-        if (!res.ok) {
-          throw new Error('Failed to fetch spending insights');
-        }
-        const data = await res.json();
+        const data = await apiClient(`/api/spending-insights?period=${encodeURIComponent(selectedPeriod)}`);
         setSpendingData(data);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch spending insights');

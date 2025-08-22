@@ -12,6 +12,7 @@ import { Separator } from './ui/separator';
 import { TransactionCard } from './TransactionCard';
 import { EmptyState } from './ui/empty-state';
 import { toast } from 'sonner';
+import { apiClient } from '../utils/apiClient';
 
 interface GroupDetailsScreenProps {
   groupId: string | null;
@@ -73,9 +74,7 @@ export function GroupDetailsScreen({ groupId, onNavigate, onGroupNavigation }: G
     const fetchGroup = async () => {
       if (!groupId) return;
       try {
-        const res = await fetch(`/api/groups/${groupId}`);
-        if (!res.ok) throw new Error();
-        const data = await res.json();
+        const data = await apiClient(`/api/groups/${groupId}`);
         setGroup(data.group);
         setTransactions(data.group?.recentTransactions ?? []);
         setHasMoreTransactions(data.group?.hasMoreTransactions ?? false);
@@ -143,9 +142,7 @@ export function GroupDetailsScreen({ groupId, onNavigate, onGroupNavigation }: G
 
   const handleSplitBill = async () => {
     try {
-      const res = await fetch(`/api/groups/${group.id}/split-bill`, { method: 'POST' });
-      if (!res.ok) throw new Error();
-      const data = await res.json();
+      const data = await apiClient(`/api/groups/${group.id}/split-bill`, { method: 'POST' });
       if (data.transaction) {
         setTransactions(prev => [data.transaction, ...prev]);
       }
@@ -157,8 +154,7 @@ export function GroupDetailsScreen({ groupId, onNavigate, onGroupNavigation }: G
 
   const handleLeaveGroup = async () => {
     try {
-      const res = await fetch(`/api/groups/${group.id}/leave`, { method: 'POST' });
-      if (!res.ok) throw new Error();
+      await apiClient(`/api/groups/${group.id}/leave`, { method: 'POST' });
       toast.success('Left group successfully');
       onNavigate('friends');
     } catch {
@@ -168,8 +164,7 @@ export function GroupDetailsScreen({ groupId, onNavigate, onGroupNavigation }: G
 
   const handleRemoveMember = async (memberId: string) => {
     try {
-      const res = await fetch(`/api/groups/${group.id}/members/${memberId}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error();
+      await apiClient(`/api/groups/${group.id}/members/${memberId}`, { method: 'DELETE' });
       setGroup(prev => prev ? { ...prev, members: prev.members.filter(m => m.id !== memberId), totalMembers: prev.totalMembers - 1 } : prev);
       toast.success('Removed member from group');
       setShowRemoveMemberDialog(false);
@@ -183,9 +178,7 @@ export function GroupDetailsScreen({ groupId, onNavigate, onGroupNavigation }: G
 
   const loadMoreTransactions = async () => {
     try {
-      const res = await fetch(`/api/groups/${group.id}/transactions?page=${page + 1}`);
-      if (!res.ok) throw new Error();
-      const data = await res.json();
+      const data = await apiClient(`/api/groups/${group.id}/transactions?page=${page + 1}`);
       const newTx = Array.isArray(data.transactions) ? data.transactions : [];
       setTransactions(prev => [...prev, ...newTx]);
       setPage(p => p + 1);

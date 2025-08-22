@@ -17,6 +17,7 @@ import { useUserProfile } from './UserProfileContext';
 import { createRequest } from '../utils/request-api';
 import { PaymentMethodSelector, PaymentMethod } from './PaymentMethodSelector';
 import { useFriends, Friend } from '../hooks/useFriends';
+import { apiClient } from '../utils/apiClient';
 
 
 interface Group {
@@ -57,24 +58,21 @@ export function RequestMoney({ onNavigate, prefillData }: RequestMoneyProps) {
 
   const loadGroups = useCallback(async () => {
     try {
-      const groupsRes = await fetch('/api/groups');
-      if (groupsRes.ok) {
-        const data = await groupsRes.json();
-        const groupsData: Group[] = (data.groups || []).map((g: {
-          id: string;
-          name: string;
-          members?: string[];
-          color?: string;
-        }) => ({
-          id: g.id,
-          name: g.name,
-          members: (g.members || [])
-            .map((id: string) => friends.find(f => f.id === id))
-            .filter(Boolean) as Friend[],
-          color: g.color || 'bg-blue-500',
-        }));
-        setGroups(groupsData);
-      }
+      const data = await apiClient('/api/groups');
+      const groupsData: Group[] = (data.groups || []).map((g: {
+        id: string;
+        name: string;
+        members?: string[];
+        color?: string;
+      }) => ({
+        id: g.id,
+        name: g.name,
+        members: (g.members || [])
+          .map((id: string) => friends.find(f => f.id === id))
+          .filter(Boolean) as Friend[],
+        color: g.color || 'bg-blue-500',
+      }));
+      setGroups(groupsData);
     } catch (err) {
       console.error('Failed to load groups', err);
     }

@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { useUserProfile } from './UserProfileContext';
 import { ShareSheet } from './ui/share-sheet';
 import { createDeepLink } from './ShareUtils';
+import { apiClient } from '../utils/apiClient';
 
 interface PaymentMethod {
   type: 'bank' | 'mobile_money';
@@ -97,18 +98,7 @@ export function TransactionDetailsScreen({ transactionId, onNavigate }: Transact
       setLoading(true);
       setError(null);
       try {
-        const storedAuth = localStorage.getItem('biltip_auth');
-        const token = storedAuth ? JSON.parse(storedAuth).token : null;
-
-        const res = await fetch(`/api/transactions/${transactionId}`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-        });
-
-        if (!res.ok) {
-          throw new Error('Failed to fetch transaction');
-        }
-
-        const data = await res.json();
+        const data = await apiClient(`/api/transactions/${transactionId}`);
         const tx = mapTransaction(data.transaction || data);
         setTransaction(tx);
       } catch (err) {

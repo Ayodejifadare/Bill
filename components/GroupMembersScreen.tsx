@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { toast } from 'sonner';
+import { apiClient } from '../utils/apiClient';
 
 interface GroupMember {
   id: string;
@@ -64,24 +65,12 @@ export function GroupMembersScreen({ groupId, onNavigate }: GroupMembersScreenPr
     const fetchData = async () => {
       if (!groupId) return;
       try {
-        const [membersRes, invitesRes] = await Promise.all([
-          fetch(`/api/groups/${groupId!}/members`),
-          fetch(`/api/groups/${groupId!}/invites`)
+        const [membersData, invitesData] = await Promise.all([
+          apiClient(`/api/groups/${groupId!}/members`),
+          apiClient(`/api/groups/${groupId!}/invites`)
         ]);
-
-        if (membersRes.ok) {
-          const data = await membersRes.json();
-          setMembers(Array.isArray(data.members) ? data.members : []);
-        } else {
-          setMembers([]);
-        }
-
-        if (invitesRes.ok) {
-          const data = await invitesRes.json();
-          setPendingInvites(Array.isArray(data.invites) ? data.invites : []);
-        } else {
-          setPendingInvites([]);
-        }
+        setMembers(Array.isArray(membersData.members) ? membersData.members : []);
+        setPendingInvites(Array.isArray(invitesData.invites) ? invitesData.invites : []);
       } catch {
         setMembers([]);
         setPendingInvites([]);
@@ -135,8 +124,7 @@ export function GroupMembersScreen({ groupId, onNavigate }: GroupMembersScreenPr
       return;
     }
     try {
-      const res = await fetch(`/api/groups/${groupId!}/members/${memberId}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error();
+      await apiClient(`/api/groups/${groupId!}/members/${memberId}`, { method: 'DELETE' });
       setMembers(prev => prev.filter(m => m.id !== memberId));
       toast.success(`${member?.name} removed from group`);
     } catch {
@@ -146,8 +134,7 @@ export function GroupMembersScreen({ groupId, onNavigate }: GroupMembersScreenPr
 
   const handleMakeAdmin = async (memberId: string) => {
     try {
-      const res = await fetch(`/api/groups/${groupId!}/members/${memberId}/promote`, { method: 'POST' });
-      if (!res.ok) throw new Error();
+      await apiClient(`/api/groups/${groupId!}/members/${memberId}/promote`, { method: 'POST' });
       setMembers(prev => prev.map(m =>
         m.id === memberId
           ? {
@@ -171,8 +158,7 @@ export function GroupMembersScreen({ groupId, onNavigate }: GroupMembersScreenPr
 
   const handleRemoveAdmin = async (memberId: string) => {
     try {
-      const res = await fetch(`/api/groups/${groupId!}/members/${memberId}/demote`, { method: 'POST' });
-      if (!res.ok) throw new Error();
+      await apiClient(`/api/groups/${groupId!}/members/${memberId}/demote`, { method: 'POST' });
       setMembers(prev => prev.map(m =>
         m.id === memberId
           ? {

@@ -6,6 +6,7 @@ import { Checkbox } from './ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Eye, EyeOff, Mail, Lock, User, Phone, ArrowLeft, Globe } from 'lucide-react';
 import { useUserProfile } from './UserProfileContext';
+import { apiClient } from '../utils/apiClient';
 
 interface RegisterScreenProps {
   onRegister: () => void;
@@ -120,7 +121,7 @@ export function RegisterScreen({ onRegister, onShowLogin }: RegisterScreenProps)
     }
     
     try {
-      const response = await fetch('/api/auth/register', {
+      const data = await apiClient('/api/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -135,17 +136,6 @@ export function RegisterScreen({ onRegister, onShowLogin }: RegisterScreenProps)
           acceptMarketing,
         }),
       });
-
-      const data = await response.json().catch(() => null);
-
-      if (!response.ok) {
-        if (data?.errors) {
-          setErrors(data.errors);
-        } else if (data?.message) {
-          setErrors({ api: data.message });
-        }
-        return;
-      }
 
       if (data?.token && data?.user) {
         localStorage.setItem('biltip_auth', JSON.stringify({ token: data.token }));

@@ -1,6 +1,7 @@
 import { render, screen, act, waitFor, cleanup } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { NotificationBell } from './notification-bell';
+import { apiClient } from '../../utils/apiClient';
 import userEvent from '@testing-library/user-event';
 
 describe('NotificationBell', () => {
@@ -59,7 +60,7 @@ describe('NotificationBell', () => {
     expect(await screen.findByText('2')).toBeInTheDocument();
 
     await act(async () => {
-      await fetch('/api/notifications/mark-all-read', { method: 'PATCH' });
+      await apiClient('/api/notifications/mark-all-read', { method: 'PATCH' });
     });
 
     await act(async () => {

@@ -14,6 +14,7 @@ import { Progress } from './ui/progress';
 import { BankSelectionSheet } from './BankSelectionSheet';
 import { PageLoading, LoadingSpinner } from './ui/loading';
 import { toast } from 'sonner';
+import { apiClient } from '../utils/apiClient';
 
 interface SettlementScreenProps {
   onNavigate: (tab: string, data?: unknown) => void;
@@ -40,11 +41,7 @@ interface BillSplit {
 }
 
 async function getBillSplit(id: string): Promise<BillSplit> {
-  const res = await fetch(`/api/bill-splits/${id}`);
-  if (!res.ok) {
-    throw new Error('Failed to fetch bill split');
-  }
-  const data = await res.json();
+  const data = await apiClient(`/api/bill-splits/${id}`);
   return data.billSplit ?? data;
 }
 
@@ -56,15 +53,11 @@ async function initiateTransfer(payload: {
   amount: number;
   narration?: string;
 }): Promise<void> {
-  const res = await fetch('/api/initiate-transfer', {
+  await apiClient('/api/initiate-transfer', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || 'Failed to initiate transfer');
-  }
 }
 
 export function SettlementScreen({ onNavigate, billSplitId }: SettlementScreenProps) {

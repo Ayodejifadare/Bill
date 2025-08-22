@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { apiClient } from '../utils/apiClient';
 
 interface LinkedBankAccount {
   id: string;
@@ -188,15 +189,7 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
       const userId = userProfile.id;
       if (!token || token.startsWith('demo_token_') || !userId) return;
 
-      const response = await fetch(`/api/users/${userId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (!response.ok) {
-        throw new Error('Failed to fetch user profile');
-      }
-      const data = await response.json();
+      const data = await apiClient(`/api/users/${userId}`);
       const fetched = data.user;
       setUserProfile(prev => ({
         ...prev,
@@ -248,11 +241,10 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
       if (bio !== undefined) payload.bio = bio;
       if (preferences !== undefined) payload.preferences = preferences;
 
-      await fetch(`/api/users/${userId}`, {
+      await apiClient(`/api/users/${userId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(payload),
       });
@@ -284,20 +276,13 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
       const userId = userProfile.id;
       if (!token || token.startsWith('demo_token_') || !userId) return;
 
-      const response = await fetch(`/api/users/${userId}/settings`, {
+      const data = await apiClient(`/api/users/${userId}/settings`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(settings),
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to save settings');
-      }
-
-      const data = await response.json();
       return data.settings as UserSettings;
     } catch (error) {
       console.error('Error saving settings:', error);

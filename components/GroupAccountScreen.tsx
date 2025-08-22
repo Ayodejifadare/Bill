@@ -10,6 +10,7 @@ import { EmptyState } from './ui/empty-state';
 import { ArrowLeft, Plus, Building2, Smartphone, Copy, Trash2, Check, Edit2, Crown } from 'lucide-react';
 import { toast } from 'sonner';
 import { useUserProfile } from './UserProfileContext';
+import { apiClient } from '../utils/apiClient';
 
 interface GroupAccount {
   id: string;
@@ -124,11 +125,7 @@ export function GroupAccountScreen({ groupId, onNavigate }: GroupAccountScreenPr
   const fetchAccounts = async () => {
     if (!groupId) return;
     try {
-      const res = await fetch(`/api/groups/${groupId}/accounts`);
-      if (!res.ok) {
-        throw new Error('Failed to load group accounts');
-      }
-      const data = await res.json();
+      const data = await apiClient(`/api/groups/${groupId}/accounts`);
       setGroupAccounts(data.accounts || []);
     } catch (error) {
       toast.error('Failed to load group accounts');
@@ -219,15 +216,11 @@ export function GroupAccountScreen({ groupId, onNavigate }: GroupAccountScreenPr
             })
       };
 
-      const res = await fetch(`/api/groups/${groupId}/accounts`, {
+      await apiClient(`/api/groups/${groupId}/accounts`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || 'Failed to add group account');
-      }
       toast.success('Group account added successfully!');
       setIsAddingMethod(false);
       resetForm();
@@ -242,15 +235,11 @@ export function GroupAccountScreen({ groupId, onNavigate }: GroupAccountScreenPr
   const handleSetDefault = async (accountId: string) => {
     if (!groupId) return;
     try {
-      const res = await fetch(`/api/groups/${groupId}/accounts/${accountId}`, {
+      await apiClient(`/api/groups/${groupId}/accounts/${accountId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isDefault: true })
       });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || 'Failed to update default account');
-      }
       toast.success('Default group account updated');
       await fetchAccounts();
     } catch (error: any) {
@@ -261,13 +250,9 @@ export function GroupAccountScreen({ groupId, onNavigate }: GroupAccountScreenPr
   const handleDeleteMethod = async (accountId: string) => {
     if (!groupId) return;
     try {
-      const res = await fetch(`/api/groups/${groupId}/accounts/${accountId}`, {
+      await apiClient(`/api/groups/${groupId}/accounts/${accountId}`, {
         method: 'DELETE'
       });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || 'Failed to remove group account');
-      }
       setGroupAccounts(prev => prev.filter(account => account.id !== accountId));
       toast.success('Group account removed');
       await fetchAccounts();
