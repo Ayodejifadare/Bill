@@ -171,6 +171,8 @@ router.get('/:id', authenticateToken, async (req, res) => {
         twoFactorEnabled: true,
         biometricEnabled: true,
         preferenceSettings: true,
+        region: true,
+        currency: true,
         onboardingCompleted: true
       }
     })
@@ -231,7 +233,9 @@ router.put(
     body('preferences.emailAlerts').optional().isBoolean(),
     body('preferences.whatsappAlerts').optional().isBoolean(),
     body('preferences.darkMode').optional().isBoolean(),
-    body('preferences.biometrics').optional().isBoolean()
+    body('preferences.biometrics').optional().isBoolean(),
+    body('region').optional().isIn(['US', 'NG']),
+    body('currency').optional().isIn(['USD', 'NGN'])
   ],
   async (req, res) => {
     try {
@@ -244,7 +248,7 @@ router.put(
         return res.status(403).json({ error: 'Unauthorized' })
       }
 
-      const { name, email, phone, avatar, firstName, lastName, dateOfBirth, address, bio, preferences } = req.body
+      const { name, email, phone, avatar, firstName, lastName, dateOfBirth, address, bio, preferences, region, currency } = req.body
       const data = {}
       if (name !== undefined) data.name = name
       if (email !== undefined) data.email = email
@@ -256,6 +260,8 @@ router.put(
       if (address !== undefined) data.address = address
       if (bio !== undefined) data.bio = bio
       if (preferences !== undefined) data.preferenceSettings = preferences
+      if (region !== undefined) data.region = region
+      if (currency !== undefined) data.currency = currency
 
       if (Object.keys(data).length === 0) {
         return res.status(400).json({ error: 'No valid fields provided' })
@@ -276,7 +282,9 @@ router.put(
           address: true,
           bio: true,
           createdAt: true,
-          preferenceSettings: true
+          preferenceSettings: true,
+          region: true,
+          currency: true
         }
       })
       const { preferenceSettings, ...rest } = user
