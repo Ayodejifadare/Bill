@@ -60,7 +60,7 @@ app.use((req, res, next) => {
   next()
 })
 
-// Routes
+// Auth routes (login, register, OTP)
 app.use('/api/auth', authRoutes)
 // Redirect first-time users to onboarding if needed
 app.use('/api', onboardingRedirect)

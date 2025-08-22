@@ -5,6 +5,80 @@ import { body, validationResult } from 'express-validator'
 
 const router = express.Router()
 
+// Temporary store for OTPs
+const otpStore = new Map()
+
+const generateOtp = () => Math.floor(100000 + Math.random() * 900000).toString()
+
+async function sendSms (phone, otp) {
+  // Replace with real SMS provider integration
+  console.log(`Sending OTP ${otp} to ${phone}`)
+}
+
+// Request OTP
+router.post('/request-otp', [
+  body('phone').matches(/^\+?[1-9]\d{7,14}$/)
+], async (req, res) => {
+  try {
+    const errors = validationResult(req)
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() })
+    }
+
+    const { phone } = req.body
+    const otp = generateOtp()
+    otpStore.set(phone, { otp, expiresAt: Date.now() + 5 * 60 * 1000 })
+    await sendSms(phone, otp)
+
+    res.json({ message: 'OTP sent' })
+  } catch (error) {
+    console.error('OTP request error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+// Verify OTP
+router.post('/verify-otp', [
+  body('phone').matches(/^\+?[1-9]\d{7,14}$/),
+  body('otp').isLength({ min: 4, max: 6 })
+], async (req, res) => {
+  try {
+    const errors = validationResult(req)
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() })
+    }
+
+    const { phone, otp } = req.body
+    const entry = otpStore.get(phone)
+    if (!entry || entry.otp !== otp || entry.expiresAt < Date.now()) {
+      return res.status(400).json({ error: 'Invalid or expired OTP' })
+    }
+    otpStore.delete(phone)
+
+    const user = await req.prisma.user.findFirst({ where: { phone } })
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' })
+    }
+
+    const token = jwt.sign(
+      { userId: user.id, tokenVersion: user.tokenVersion },
+      process.env.JWT_SECRET || 'your-secret-key',
+      { expiresIn: '7d' }
+    )
+
+    const { password: _, ...userWithoutPassword } = user
+
+    res.json({
+      message: 'OTP verified',
+      user: userWithoutPassword,
+      token
+    })
+  } catch (error) {
+    console.error('OTP verification error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
 // Register user
 router.post('/register', [
   body('email').isEmail().normalizeEmail(),
