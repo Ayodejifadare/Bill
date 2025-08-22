@@ -7,6 +7,7 @@ import path from 'path'
 import { PrismaClient } from '@prisma/client'
 import { addClient, removeClient } from './utils/notificationStream.js'
 import authenticate from './middleware/auth.js'
+import onboardingRedirect from './middleware/onboarding.js'
 
 // Import routes
 import authRoutes from './routes/auth.js'
@@ -60,6 +61,8 @@ app.use((req, res, next) => {
 
 // Routes
 app.use('/api/auth', authRoutes)
+// Redirect first-time users to onboarding if needed
+app.use('/api', onboardingRedirect)
 app.use('/api/users', userRoutes)
 app.use('/api/transactions', transactionRoutes)
 app.use('/api/bill-splits', billSplitRoutes)
