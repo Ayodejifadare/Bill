@@ -144,4 +144,40 @@ describe('Transaction routes', () => {
       .send()
     expect(missing.status).toBe(404)
   })
+
+  it('calculates transaction summary', async () => {
+    await prisma.user.create({ data: { id: 'u1', email: 'u1@example.com', name: 'User 1' } })
+    await prisma.user.create({ data: { id: 'u2', email: 'u2@example.com', name: 'User 2' } })
+
+    await prisma.transaction.createMany({
+      data: [
+        {
+          id: 's1',
+          amount: 20,
+          senderId: 'u1',
+          receiverId: 'u2',
+          type: 'SEND',
+          status: 'COMPLETED'
+        },
+        {
+          id: 'r1',
+          amount: 50,
+          senderId: 'u2',
+          receiverId: 'u1',
+          type: 'SEND',
+          status: 'COMPLETED'
+        }
+      ]
+    })
+
+    const res = await request(app)
+      .get('/transactions/summary')
+      .set('Authorization', `Bearer ${sign('u1')}`)
+      .send()
+
+    expect(res.status).toBe(200)
+    expect(res.body.totalSent).toBe(20)
+    expect(res.body.totalReceived).toBe(50)
+    expect(res.body.netFlow).toBe(30)
+  })
 })
