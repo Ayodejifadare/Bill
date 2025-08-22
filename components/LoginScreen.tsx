@@ -8,7 +8,7 @@ import { Smartphone, Globe } from 'lucide-react';
 import { useUserProfile } from './UserProfileContext';
 
 interface LoginScreenProps {
-  onLogin: () => void;
+  onLogin: (authData: any) => void;
   onShowRegister: () => void;
 }
 
@@ -70,7 +70,7 @@ export function LoginScreen({ onLogin, onShowRegister }: LoginScreenProps) {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    
+
     // Set user region based on selected country
     if (selectedCountry) {
       updateAppSettings({
@@ -78,18 +78,38 @@ export function LoginScreen({ onLogin, onShowRegister }: LoginScreenProps) {
         currency: selectedCountry.currency
       });
     }
-    
-    // Mock login process
-    setTimeout(() => {
+
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        // Using phone number as identifier with a demo password since the
+        // backend expects email/password credentials
+        body: JSON.stringify({
+          email: phoneNumber,
+          password: 'password'
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Login failed');
+      }
+
+      const data = await response.json();
+      onLogin(data);
+    } catch (error) {
+      console.error('Login error:', error);
+    } finally {
       setIsLoading(false);
-      onLogin();
-    }, 1500);
+    }
   };
 
   const handleBiometricLogin = () => {
     // Mock biometric authentication
     alert('Biometric authentication would be triggered here');
-    onLogin();
+    onLogin({ token: 'demo_token_' + Date.now(), user: {} });
   };
 
   return (

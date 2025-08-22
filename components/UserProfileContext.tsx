@@ -186,7 +186,7 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
       const storedAuth = localStorage.getItem('biltip_auth');
       const token = storedAuth ? JSON.parse(storedAuth).token : null;
       const userId = userProfile.id;
-      if (!token || !userId) return;
+      if (!token || token.startsWith('demo_token_') || !userId) return;
 
       const response = await fetch(`/api/users/${userId}`, {
         headers: {
@@ -222,7 +222,7 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
       const storedAuth = localStorage.getItem('biltip_auth');
       const token = storedAuth ? JSON.parse(storedAuth).token : null;
       const userId = userProfile.id;
-      if (!token || !userId) return;
+      if (!token || token.startsWith('demo_token_') || !userId) return;
 
       const {
         name,
@@ -282,7 +282,7 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
       const storedAuth = localStorage.getItem('biltip_auth');
       const token = storedAuth ? JSON.parse(storedAuth).token : null;
       const userId = userProfile.id;
-      if (!token || !userId) return;
+      if (!token || token.startsWith('demo_token_') || !userId) return;
 
       const response = await fetch(`/api/users/${userId}/settings`, {
         method: 'PUT',
