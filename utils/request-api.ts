@@ -6,6 +6,7 @@ export interface CreateRequestPayload {
     type: 'bank' | 'mobile_money';
     [key: string]: any;
   };
+  message?: string;
 }
 
 import { apiClient } from './apiClient';
