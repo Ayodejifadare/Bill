@@ -8,6 +8,7 @@ import { ErrorBoundary, PageErrorBoundary, CriticalErrorBoundary } from './compo
 import { NetworkErrorHandler, useNetworkStatus } from './components/NetworkErrorHandler';
 import { PageLoading } from './components/ui/loading';
 import { toast } from 'sonner';
+import { saveAuth, loadAuth, clearAuth } from './utils/auth';
 
 // Lazy load components for code splitting
 const HomeScreen = lazy(() => import('./components/HomeScreen').then(m => ({ default: m.HomeScreen })));
@@ -255,29 +256,25 @@ function AppContent() {
     const checkAuthStatus = async () => {
       try {
         // Check for stored authentication token/session
-        const storedAuth = localStorage.getItem('biltip_auth');
-        const storedUser = localStorage.getItem('biltip_user');
-        
-        if (storedAuth && storedUser) {
+        const stored = loadAuth();
+
+        if (stored) {
           // Validate stored session (in real app, this would make an API call)
-          const authData = JSON.parse(storedAuth);
-          const userData = JSON.parse(storedUser);
-          
+          const { auth, user } = stored;
+
           // Simple validation - in production, verify token with backend
-          if (authData.token && authData.expiresAt > Date.now()) {
+          if (auth.token && auth.expiresAt > Date.now()) {
             setIsAuthenticated(true);
-            console.log('Restored user session:', userData.name);
+            console.log('Restored user session:', user.name);
           } else {
             // Clear invalid session
-            localStorage.removeItem('biltip_auth');
-            localStorage.removeItem('biltip_user');
+            clearAuth();
           }
         }
       } catch (error) {
         console.error('Auth check failed:', error);
         // Clear potentially corrupted data
-        localStorage.removeItem('biltip_auth');
-        localStorage.removeItem('biltip_user');
+        clearAuth();
       } finally {
         setIsInitializing(false);
       }
@@ -427,8 +424,7 @@ function AppContent() {
         loginTime: new Date().toISOString(),
       };
 
-      localStorage.setItem('biltip_auth', JSON.stringify(authData));
-      localStorage.setItem('biltip_user', JSON.stringify(user));
+      saveAuth({ auth: authData, user });
 
       setIsAuthenticated(true);
       dispatch({ type: 'SET_TAB', payload: 'home' });
@@ -452,7 +448,7 @@ function AppContent() {
         loginTime: new Date().toISOString(),
         isNewUser: true
       };
-      
+
       const newUserData = {
         id: 'demo_user_' + Date.now(),
         name: userData?.name || 'New User',
@@ -461,9 +457,8 @@ function AppContent() {
         region: userData?.region || 'US',
         createdAt: new Date().toISOString()
       };
-      
-      localStorage.setItem('biltip_auth', JSON.stringify(authData));
-      localStorage.setItem('biltip_user', JSON.stringify(newUserData));
+
+      saveAuth({ auth: authData, user: newUserData });
       
       setIsAuthenticated(true);
       dispatch({ type: 'SET_TAB', payload: 'home' });
@@ -479,8 +474,7 @@ function AppContent() {
   const handleLogout = useCallback(() => {
     try {
       // Clear stored authentication data
-      localStorage.removeItem('biltip_auth');
-      localStorage.removeItem('biltip_user');
+      clearAuth();
       localStorage.removeItem('biltip_contacts_synced');
       
       // Reset app state
