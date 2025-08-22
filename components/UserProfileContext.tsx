@@ -65,8 +65,9 @@ interface AppSettings {
 }
 
 interface UserProfileContextType {
-  userProfile: UserProfile;
+  userProfile: UserProfile | null;
   appSettings: AppSettings;
+  loading: boolean;
   refreshUserProfile: () => Promise<void>;
   updateUserProfile: (profile: Partial<UserProfile>) => Promise<void>;
   updateAppSettings: (settings: Partial<AppSettings>) => void;
@@ -78,78 +79,29 @@ interface UserProfileContextType {
 
 const UserProfileContext = createContext<UserProfileContextType | undefined>(undefined);
 
-const mockUserProfile: UserProfile = {
-  id: 'user-123',
-  name: 'John Doe',
-  firstName: 'John',
-  lastName: 'Doe',
-  email: 'john.doe@example.com',
-  phone: '+2348012345678',
-  dateOfBirth: '1990-01-15',
-  address: '123 Main St, San Francisco, CA 94102',
-  bio: 'Coffee enthusiast and frequent bill splitter',
-  joinDate: 'March 2023',
-  kycStatus: 'verified',
-  stats: {
-    totalSent: 1250.0,
-    totalReceived: 890.5,
-    totalSplits: 15,
-    friends: 23,
-  },
-  preferences: {
-    notifications: true,
-    emailAlerts: false,
-    whatsappAlerts: true,
-    darkMode: false,
-    biometrics: true,
-  },
-  linkedBankAccounts: [
-    {
-      id: 'bank-1',
-      bankId: 'chase',
-      bankName: 'Chase Bank',
-      accountType: 'checking',
-      accountName: 'Chase Total Checking',
-      last4: '2345',
-      routingNumber: '021000021',
-      accountNumber: 'XXXXXX2345',
-      isVerified: true,
-      isDefault: true,
-      backgroundColor: '#0066b2',
-      deepLink: 'chase://payment',
-      addedDate: '2024-01-15'
-    },
-    {
-      id: 'bank-2',
-      bankId: 'bofa',
-      bankName: 'Bank of America',
-      accountType: 'savings',
-      accountName: 'BofA Advantage Savings',
-      last4: '7890',
-      routingNumber: '011401533',
-      accountNumber: 'XXXXXX7890',
-      isVerified: true,
-      isDefault: false,
-      backgroundColor: '#e31837',
-      deepLink: 'bankofamerica://payment',
-      addedDate: '2024-02-20'
-    },
-    {
-      id: 'bank-3',
-      bankId: 'wells',
-      bankName: 'Wells Fargo',
-      accountType: 'checking',
-      accountName: 'Wells Everyday Checking',
-      last4: '1234',
-      routingNumber: '121000248',
-      accountNumber: 'XXXXXX1234',
-      isVerified: false,
-      isDefault: false,
-      backgroundColor: '#d71e2b',
-      deepLink: 'wellsfargo://payment',
-      addedDate: '2024-03-05'
-    }
-  ]
+const defaultStats: UserStats = {
+  totalSent: 0,
+  totalReceived: 0,
+  totalSplits: 0,
+  friends: 0,
+};
+
+const defaultPreferences: UserPreferences = {
+  notifications: true,
+  emailAlerts: false,
+  whatsappAlerts: false,
+  darkMode: false,
+  biometrics: false,
+};
+
+const getStoredUserId = (): string | undefined => {
+  if (typeof window === 'undefined') return undefined;
+  try {
+    const raw = localStorage.getItem('biltip_user');
+    return raw ? JSON.parse(raw).id : undefined;
+  } catch {
+    return undefined;
+  }
 };
 
 // Helper function to get saved settings from localStorage
@@ -180,18 +132,32 @@ export const getSavedSettings = (): AppSettings => {
 };
 
 export function UserProfileProvider({ children }: { children: ReactNode }) {
-  const [userProfile, setUserProfile] = useState<UserProfile>(mockUserProfile);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [appSettings, setAppSettings] = useState<AppSettings>(getSavedSettings());
+  const [loading, setLoading] = useState(true);
+
   const refreshUserProfile = async () => {
     try {
-      const userId = userProfile.id;
+      const userId = getStoredUserId() || userProfile?.id;
       if (!userId) return;
       const data = await apiClient(`/api/users/${userId}`);
       const fetched = data.user;
       setUserProfile(prev => ({
-        ...prev,
-        ...fetched,
-        joinDate: fetched.createdAt ? new Date(fetched.createdAt).toLocaleDateString() : prev.joinDate,
+        id: fetched.id,
+        name: fetched.name,
+        email: fetched.email,
+        phone: fetched.phone,
+        firstName: fetched.firstName,
+        lastName: fetched.lastName,
+        dateOfBirth: fetched.dateOfBirth,
+        address: fetched.address,
+        bio: fetched.bio,
+        avatar: fetched.avatar,
+        joinDate: fetched.createdAt ? new Date(fetched.createdAt).toLocaleDateString() : prev?.joinDate,
+        kycStatus: fetched.kycStatus ?? prev?.kycStatus,
+        stats: prev?.stats ?? defaultStats,
+        preferences: { ...defaultPreferences, ...(fetched.preferences || {}) },
+        linkedBankAccounts: prev?.linkedBankAccounts ?? [],
       }));
     } catch (error) {
       console.error('Error fetching user profile:', error);
@@ -199,17 +165,18 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    refreshUserProfile();
+    (async () => {
+      await refreshUserProfile();
+      setLoading(false);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const updateUserProfile = async (profileUpdate: Partial<UserProfile>) => {
-    setUserProfile(prev => ({
-      ...prev,
-      ...profileUpdate
-    }));
+    setUserProfile(prev => (prev ? { ...prev, ...profileUpdate } : prev));
 
     try {
-      const userId = userProfile.id;
+      const userId = userProfile?.id || getStoredUserId();
       if (!userId) return;
 
       const {
@@ -266,7 +233,7 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
 
   const saveSettings = async (settings: UserSettings) => {
     try {
-      const userId = userProfile.id;
+      const userId = userProfile?.id || getStoredUserId();
       if (!userId) return;
 
       const data = await apiClient(`/api/users/${userId}/settings`, {
@@ -286,44 +253,58 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
     const newAccount: LinkedBankAccount = {
       ...account,
       id: `bank-${Date.now()}`,
-      addedDate: new Date().toISOString().split('T')[0]
+      addedDate: new Date().toISOString().split('T')[0],
     };
 
-    setUserProfile(prev => ({
-      ...prev,
-      linkedBankAccounts: [...prev.linkedBankAccounts, newAccount]
-    }));
+    setUserProfile(prev =>
+      prev ? { ...prev, linkedBankAccounts: [...prev.linkedBankAccounts, newAccount] } : prev,
+    );
   };
 
   const removeBankAccount = (accountId: string) => {
-    setUserProfile(prev => ({
-      ...prev,
-      linkedBankAccounts: prev.linkedBankAccounts.filter(account => account.id !== accountId)
-    }));
+    setUserProfile(prev =>
+      prev
+        ? {
+            ...prev,
+            linkedBankAccounts: prev.linkedBankAccounts.filter(
+              account => account.id !== accountId,
+            ),
+          }
+        : prev,
+    );
   };
 
   const setDefaultBankAccount = (accountId: string) => {
-    setUserProfile(prev => ({
-      ...prev,
-      linkedBankAccounts: prev.linkedBankAccounts.map(account => ({
-        ...account,
-        isDefault: account.id === accountId
-      }))
-    }));
+    setUserProfile(prev =>
+      prev
+        ? {
+            ...prev,
+            linkedBankAccounts: prev.linkedBankAccounts.map(account => ({
+              ...account,
+              isDefault: account.id === accountId,
+            })),
+          }
+        : prev,
+    );
   };
+
+  if (loading) {
+    return <div className="p-4">Loading...</div>;
+  }
 
   return (
     <UserProfileContext.Provider
       value={{
         userProfile,
         appSettings,
+        loading,
         refreshUserProfile,
         updateUserProfile,
         updateAppSettings,
         addBankAccount,
         removeBankAccount,
         setDefaultBankAccount,
-        saveSettings
+        saveSettings,
       }}
     >
       {children}
