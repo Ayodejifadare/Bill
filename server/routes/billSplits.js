@@ -2,6 +2,7 @@ import express from 'express'
 import { body, validationResult, param } from 'express-validator'
 import jwt from 'jsonwebtoken'
 import { computeNextRun } from '../utils/recurringBillSplitScheduler.js'
+import { createNotification } from '../utils/notifications.js'
 
 const router = express.Router()
 
@@ -224,6 +225,109 @@ router.get(
       res.json({ billSplit: formatted })
     } catch (error) {
       console.error('Get bill split error:', error)
+      res.status(500).json({ error: 'Internal server error' })
+    }
+  }
+)
+
+// Send reminders to participants
+router.post(
+  '/:id/reminders',
+  [
+    authenticateToken,
+    param('id').trim().notEmpty(),
+    body('participantIds').isArray({ min: 1 }),
+    body('type').optional().isString(),
+    body('template').optional().isString()
+  ],
+  async (req, res) => {
+    const errors = validationResult(req)
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() })
+    }
+
+    try {
+      const { id } = req.params
+      const { participantIds, type = 'bill_split_reminder', template = '' } = req.body
+
+      const billSplit = await req.prisma.billSplit.findUnique({
+        where: { id },
+        include: { participants: true }
+      })
+
+      if (!billSplit) {
+        return res.status(404).json({ error: 'Bill split not found' })
+      }
+
+      if (
+        billSplit.createdBy !== req.userId &&
+        !billSplit.participants.some(p => p.userId === req.userId)
+      ) {
+        return res.status(403).json({ error: 'Unauthorized' })
+      }
+
+      const targets = billSplit.participants.filter(p =>
+        participantIds.includes(p.userId)
+      )
+
+      if (targets.length === 0) {
+        return res.status(400).json({ error: 'No valid participants provided' })
+      }
+
+      const reminders = []
+      for (const participant of targets) {
+        const channels = []
+        // Check notification preferences
+        const pref = await req.prisma.notificationPreference.findUnique({
+          where: { userId: participant.userId }
+        })
+        let settings
+        if (pref) {
+          settings =
+            typeof pref.preferences === 'string'
+              ? JSON.parse(pref.preferences)
+              : pref.preferences
+        }
+
+        if (!settings || settings.push?.enabled !== false) {
+          await createNotification(req.prisma, {
+            recipientId: participant.userId,
+            actorId: req.userId,
+            type: 'bill_split_reminder',
+            title: 'Payment Reminder',
+            message:
+              template || `Please settle your share for ${billSplit.title}.`
+          })
+          channels.push('push')
+        }
+
+        if (settings?.email?.enabled) {
+          channels.push('email')
+          console.log(
+            `Sending email reminder to user ${participant.userId} for bill split ${id}`
+          )
+        }
+
+        const reminder = await req.prisma.billSplitReminder.create({
+          data: {
+            billSplitId: id,
+            senderId: req.userId,
+            recipientId: participant.userId,
+            type,
+            template,
+            channels: JSON.stringify(channels)
+          }
+        })
+        reminders.push({
+          id: reminder.id,
+          recipientId: participant.userId,
+          channels
+        })
+      }
+
+      res.status(201).json({ reminders })
+    } catch (error) {
+      console.error('Send reminders error:', error)
       res.status(500).json({ error: 'Internal server error' })
     }
   }

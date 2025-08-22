@@ -1,5 +1,3 @@
-import cron from 'node-cron'
-
 // Compute the next run date based on frequency and day
 export function computeNextRun(frequency, day, from = new Date()) {
   const next = new Date(from)
@@ -21,7 +19,8 @@ export function computeNextRun(frequency, day, from = new Date()) {
 }
 
 // Schedule cron job to process recurring bill splits
-export function scheduleRecurringBillSplits(prisma) {
+export async function scheduleRecurringBillSplits(prisma) {
+  const cron = (await import('node-cron')).default
   // Check daily at midnight
   cron.schedule('0 0 * * *', async () => {
     const now = new Date()
