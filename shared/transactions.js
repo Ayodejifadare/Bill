@@ -11,3 +11,11 @@ export const TRANSACTION_STATUS_MAP = {
   PENDING: 'pending',
   FAILED: 'failed',
 };
+
+export const TRANSACTION_CATEGORY_MAP = {
+  FOOD: 'food',
+  RENT: 'rent',
+  UTILITIES: 'utilities',
+  ENTERTAINMENT: 'entertainment',
+  OTHER: 'other',
+};

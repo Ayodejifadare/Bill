@@ -96,7 +96,8 @@ describe('Transaction routes', () => {
         receiverId: 'u2',
         type: 'BILL_SPLIT',
         status: 'COMPLETED',
-        billSplitId: bs.id
+        billSplitId: bs.id,
+        category: 'FOOD'
       }
     })
 
@@ -112,6 +113,7 @@ describe('Transaction routes', () => {
     expect(res.body.transaction.paymentMethod).toMatchObject({ type: 'bank', bankName: 'Bank' })
     expect(res.body.transaction.totalParticipants).toBe(2)
     expect(res.body.transaction.paidParticipants).toBe(1)
+    expect(res.body.transaction.category).toBe('food')
   })
 
   it('returns 404 for missing or unauthorized transaction', async () => {

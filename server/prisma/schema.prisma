@@ -64,6 +64,7 @@ model Transaction {
     description String?
     status      String @default("PENDING")
     type        String
+    category    String?
     createdAt   DateTime          @default(now())
     updatedAt   DateTime          @updatedAt
 
