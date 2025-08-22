@@ -457,16 +457,63 @@ router.get('/:friendId', authenticateToken, async (req, res) => {
         }
       },
       include: {
-        _count: { select: { members: true } }
+        _count: { select: { members: true } },
+        members: { select: { userId: true } }
       }
     })
 
-    const sharedGroups = groups.map(g => ({
-      id: g.id,
-      name: g.name,
-      memberCount: g._count.members,
-      totalSpent: 0,
-      color: g.color || 'bg-blue-500'
+    const sharedGroups = await Promise.all(groups.map(async (g) => {
+      const memberIds = g.members.map(m => m.userId)
+
+      const txAggregate = await req.prisma.transaction.aggregate({
+        where: {
+          OR: [
+            { senderId: req.userId, receiverId: friendId },
+            { senderId: friendId, receiverId: req.userId }
+          ],
+          senderId: { in: memberIds },
+          receiverId: { in: memberIds }
+        },
+        _sum: { amount: true }
+      })
+
+      const billSplits = await req.prisma.billSplit.findMany({
+        where: {
+          participants: {
+            some: { userId: req.userId }
+          },
+          AND: {
+            participants: {
+              some: { userId: friendId }
+            },
+            participants: {
+              every: { userId: { in: memberIds } }
+            }
+          }
+        },
+        include: { participants: true }
+      })
+
+      let billTotal = 0
+      billSplits.forEach(bs => {
+        bs.participants.forEach(p => {
+          if (p.userId === req.userId || p.userId === friendId) {
+            billTotal += p.amount
+          }
+        })
+      })
+
+      const totalSpent = (txAggregate._sum.amount || 0) + billTotal
+      const currency = billSplits[0]?.currency
+
+      return {
+        id: g.id,
+        name: g.name,
+        memberCount: g._count.members,
+        totalSpent,
+        ...(currency ? { currency } : {}),
+        color: g.color || 'bg-blue-500'
+      }
     }))
 
     const method = await req.prisma.paymentMethod.findFirst({
