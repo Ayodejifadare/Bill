@@ -3,7 +3,7 @@
  */
 import express from 'express'
 import request from 'supertest'
-import upcomingPaymentsRouter from './upcomingPayments.js'
+import upcomingPaymentsRouter, { classifyStatus } from './upcomingPayments.js'
 import { PrismaClient } from '@prisma/client'
 import { describe, it, expect, beforeEach, afterAll, beforeAll } from 'vitest'
 import { execSync } from 'child_process'
@@ -12,6 +12,22 @@ import fs from 'fs'
 import jwt from 'jsonwebtoken'
 
 const sign = userId => jwt.sign({ userId, tokenVersion: 0 }, 'your-secret-key')
+
+describe('classifyStatus', () => {
+  const now = new Date()
+
+  it('classifies past dates as overdue', () => {
+    expect(classifyStatus(new Date(now.getTime() - 24 * 60 * 60 * 1000))).toBe('overdue')
+  })
+
+  it('classifies dates within 7 days as due_soon', () => {
+    expect(classifyStatus(new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000))).toBe('due_soon')
+  })
+
+  it('classifies dates beyond 7 days as upcoming', () => {
+    expect(classifyStatus(new Date(now.getTime() + 10 * 24 * 60 * 60 * 1000))).toBe('upcoming')
+  })
+})
 
 describe('Upcoming payments route', () => {
   let app
@@ -134,16 +150,16 @@ describe('Upcoming payments route', () => {
     expect(res.body.upcomingPayments[0].status).toBe('due_soon')
   })
 
-  it('filters pending payments', async () => {
+  it('filters overdue payments', async () => {
     const res = await request(app)
       .get('/api/upcoming-payments')
       .set('Authorization', `Bearer ${sign('u1')}`)
-      .query({ filter: 'pending' })
+      .query({ filter: 'overdue' })
       .expect(200)
 
     expect(res.body.upcomingPayments).toHaveLength(1)
     expect(res.body.upcomingPayments[0].requestId).toBe('t1')
-    expect(res.body.upcomingPayments[0].status).toBe('pending')
+    expect(res.body.upcomingPayments[0].status).toBe('overdue')
   })
 
   it('filters upcoming payments', async () => {
