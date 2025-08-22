@@ -49,27 +49,35 @@ router.get('/', authenticateToken, async (req, res) => {
       }
     })
 
-    const friends = await Promise.all(friendships.map(async (friendship) => {
-      const friendUser = friendship.user1Id === req.userId ? friendship.user2 : friendship.user1
+    const friendIds = friendships.map(f =>
+      f.user1Id === req.userId ? f.user2Id : f.user1Id
+    )
 
-      const lastTransaction = await req.prisma.transaction.findFirst({
-        where: {
-          OR: [
-            { senderId: req.userId, receiverId: friendUser.id },
-            { senderId: friendUser.id, receiverId: req.userId }
-          ]
-        },
-        orderBy: { createdAt: 'desc' },
-        select: { amount: true, senderId: true, receiverId: true }
-      })
+    const lastTransactions = await req.prisma.transaction.findMany({
+      where: {
+        OR: [
+          { senderId: req.userId, receiverId: { in: friendIds } },
+          { receiverId: req.userId, senderId: { in: friendIds } }
+        ]
+      },
+      orderBy: { createdAt: 'desc' },
+      select: { amount: true, senderId: true, receiverId: true }
+    })
 
-      let lastTransactionData
-      if (lastTransaction) {
-        lastTransactionData = {
-          amount: lastTransaction.amount,
-          type: lastTransaction.receiverId === req.userId ? 'owed' : 'owes'
-        }
+    const lastTransactionsMap = new Map()
+    for (const tx of lastTransactions) {
+      const friendId = tx.senderId === req.userId ? tx.receiverId : tx.senderId
+      if (!lastTransactionsMap.has(friendId)) {
+        lastTransactionsMap.set(friendId, {
+          amount: tx.amount,
+          type: tx.receiverId === req.userId ? 'owed' : 'owes'
+        })
       }
+    }
+
+    const friends = friendships.map(friendship => {
+      const friendUser =
+        friendship.user1Id === req.userId ? friendship.user2 : friendship.user1
 
       return {
         id: friendUser.id,
@@ -77,9 +85,9 @@ router.get('/', authenticateToken, async (req, res) => {
         username: friendUser.email,
         avatar: friendUser.avatar,
         status: 'active',
-        lastTransaction: lastTransactionData
+        lastTransaction: lastTransactionsMap.get(friendUser.id)
       }
-    }))
+    })
 
     const pendingRequestsData = await req.prisma.friendRequest.findMany({
       where: {
