@@ -25,6 +25,10 @@ model User {
   balance   Float    @default(0)
   twoFactorEnabled Boolean  @default(false)
   biometricEnabled Boolean  @default(false)
+  phoneVerified     Boolean  @default(false)
+  emailVerified     Boolean  @default(false)
+  idVerified        Boolean  @default(false)
+  documentsSubmitted Boolean @default(false)
   tokenVersion    Int      @default(0)
   privacySettings      String?
   preferenceSettings   String?

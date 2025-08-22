@@ -43,7 +43,11 @@ router.post('/register', [
         email: true,
         name: true,
         balance: true,
-        createdAt: true
+        createdAt: true,
+        phoneVerified: true,
+        emailVerified: true,
+        idVerified: true,
+        documentsSubmitted: true
       }
     })
 
@@ -133,7 +137,11 @@ router.get('/me', async (req, res) => {
         balance: true,
         avatar: true,
         createdAt: true,
-        tokenVersion: true
+        tokenVersion: true,
+        phoneVerified: true,
+        emailVerified: true,
+        idVerified: true,
+        documentsSubmitted: true
       }
     })
 
