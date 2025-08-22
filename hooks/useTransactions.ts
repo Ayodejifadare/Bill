@@ -39,7 +39,7 @@ interface UseTransactionsOptions {
   keyword?: string;
 }
 
-interface UseTransactionsResult {
+export interface UseTransactionsResult {
   transactions: Transaction[];
   loading: boolean;
   error: string | null;
@@ -47,7 +47,14 @@ interface UseTransactionsResult {
   nextCursor: string | null;
   total: number;
   pageCount: number;
+  summary: TransactionSummary;
   refetch: (opts?: UseTransactionsOptions) => void;
+}
+
+export interface TransactionSummary {
+  totalSent: number;
+  totalReceived: number;
+  netFlow: number;
 }
 
 export function useTransactions(initialOptions: UseTransactionsOptions = {}): UseTransactionsResult {
@@ -73,6 +80,11 @@ export function useTransactions(initialOptions: UseTransactionsOptions = {}): Us
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
   const [pageCount, setPageCount] = useState(0);
+  const [summary, setSummary] = useState<TransactionSummary>({
+    totalSent: 0,
+    totalReceived: 0,
+    netFlow: 0,
+  });
 
   const fetchTransactions = useCallback(
     async (opts: UseTransactionsOptions = {}) => {
@@ -112,13 +124,31 @@ export function useTransactions(initialOptions: UseTransactionsOptions = {}): Us
         if (current.maxAmount !== undefined) params.append('maxAmount', String(current.maxAmount));
         if (current.keyword) params.append('keyword', current.keyword);
 
-        const data = await apiClient(`/api/transactions?${params.toString()}`);
+        const summaryParams = new URLSearchParams();
+        if (current.startDate) summaryParams.append('startDate', current.startDate);
+        if (current.endDate) summaryParams.append('endDate', current.endDate);
+        if (current.type) summaryParams.append('type', current.type);
+        if (current.status) summaryParams.append('status', current.status);
+        if (current.category) summaryParams.append('category', current.category);
+        if (current.minAmount !== undefined) summaryParams.append('minAmount', String(current.minAmount));
+        if (current.maxAmount !== undefined) summaryParams.append('maxAmount', String(current.maxAmount));
+        if (current.keyword) summaryParams.append('keyword', current.keyword);
+
+        const [data, summaryData] = await Promise.all([
+          apiClient(`/api/transactions?${params.toString()}`),
+          apiClient(`/api/transactions/summary?${summaryParams.toString()}`),
+        ]);
         const fetched = Array.isArray(data?.transactions) ? data.transactions : [];
         setTransactions(fetched);
         setHasMore(Boolean(data?.hasMore));
         setNextCursor(data?.nextCursor ?? null);
         setTotal(data?.total ?? 0);
         setPageCount(data?.pageCount ?? 0);
+        setSummary({
+          totalSent: summaryData?.totalSent ?? 0,
+          totalReceived: summaryData?.totalReceived ?? 0,
+          netFlow: summaryData?.netFlow ?? 0,
+        });
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch transactions');
         setTransactions([]);
@@ -126,6 +156,7 @@ export function useTransactions(initialOptions: UseTransactionsOptions = {}): Us
         setNextCursor(null);
         setTotal(0);
         setPageCount(0);
+        setSummary({ totalSent: 0, totalReceived: 0, netFlow: 0 });
       } finally {
         setLoading(false);
       }
@@ -150,6 +181,16 @@ export function useTransactions(initialOptions: UseTransactionsOptions = {}): Us
     fetchTransactions();
   }, [fetchTransactions]);
 
-  return { transactions, loading, error, hasMore, nextCursor, total, pageCount, refetch: fetchTransactions };
+  return {
+    transactions,
+    loading,
+    error,
+    hasMore,
+    nextCursor,
+    total,
+    pageCount,
+    summary,
+    refetch: fetchTransactions,
+  };
 }
 

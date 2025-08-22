@@ -30,7 +30,7 @@ export function TransactionHistoryScreen({ onNavigate }: TransactionHistoryScree
   const [showFilters, setShowFilters] = useState(false);
   const [page, setPage] = useState(1);
   const pageSize = 20;
-  const { transactions: fetchedTransactions, loading, hasMore } = useTransactions({ page, limit: pageSize });
+  const { transactions: fetchedTransactions, loading, hasMore, summary } = useTransactions({ page, limit: pageSize });
   const [transactions, setTransactions] = useState<Transaction[]>([]);
 
   useEffect(() => {
@@ -87,15 +87,7 @@ export function TransactionHistoryScreen({ onNavigate }: TransactionHistoryScree
     return matchesSearch && matchesCategory && matchesType && matchesTime;
   });
 
-  const totalSent = transactions
-    .filter(t => t.type === 'sent' && t.status === 'completed')
-    .reduce((sum, t) => sum + t.amount, 0);
-
-  const totalReceived = transactions
-    .filter(t => t.type === 'received' && t.status === 'completed')
-    .reduce((sum, t) => sum + t.amount, 0);
-
-  const netFlow = totalReceived - totalSent;
+  const { totalSent, totalReceived, netFlow } = summary;
 
 
   const handleTransactionClick = (transactionId: string) => {

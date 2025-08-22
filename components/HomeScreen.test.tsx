@@ -19,17 +19,28 @@ import * as TransactionsHook from '../hooks/useTransactions';
 const useUserProfileSpy = useUserProfile as unknown as vi.Mock;
 const useTransactionsSpy = vi.spyOn(TransactionsHook, 'useTransactions');
 
+const mockUseTransactions = (override: Partial<TransactionsHook.UseTransactionsResult> = {}) => {
+  useTransactionsSpy.mockReturnValue({
+    transactions: [],
+    loading: false,
+    error: null,
+    hasMore: false,
+    nextCursor: null,
+    total: 0,
+    pageCount: 0,
+    summary: { totalSent: 0, totalReceived: 0, netFlow: 0 },
+    refetch: vi.fn(),
+    ...override,
+  } as TransactionsHook.UseTransactionsResult);
+};
+
 describe('HomeScreen header', () => {
   beforeEach(() => {
     useUserProfileSpy.mockReturnValue({
       appSettings: { region: 'US' },
       userProfile: { name: 'Test User' },
     });
-    useTransactionsSpy.mockReturnValue({
-      transactions: [],
-      loading: false,
-      error: null,
-    });
+    mockUseTransactions();
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ count: 0 }),
@@ -67,11 +78,7 @@ describe('HomeScreen quick actions', () => {
       appSettings: { region: 'US' },
       userProfile: { name: 'Test User' },
     });
-    useTransactionsSpy.mockReturnValue({
-      transactions: [],
-      loading: false,
-      error: null,
-    });
+    mockUseTransactions();
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ count: 0 }),
@@ -103,11 +110,7 @@ describe('HomeScreen notification badge', () => {
       appSettings: { region: 'US' },
       userProfile: { name: 'Test User' },
     });
-    useTransactionsSpy.mockReturnValue({
-      transactions: [],
-      loading: false,
-      error: null,
-    });
+    mockUseTransactions();
   });
 
   it('reflects unread count and hides during loading', async () => {
@@ -138,7 +141,7 @@ describe('HomeScreen transaction filtering', () => {
       appSettings: { region: 'US' },
       userProfile: { name: 'Alice Example' },
     });
-    useTransactionsSpy.mockReturnValue({
+    mockUseTransactions({
       transactions: [
         {
           id: '1',
@@ -168,8 +171,6 @@ describe('HomeScreen transaction filtering', () => {
           status: 'pending',
         },
       ],
-      loading: false,
-      error: null,
     });
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
@@ -215,7 +216,7 @@ describe('HomeScreen currency symbol', () => {
       appSettings: { region: 'US' },
       userProfile: { name: 'Test User' },
     });
-    useTransactionsSpy.mockReturnValue({
+    mockUseTransactions({
       transactions: [
         {
           id: '1',
@@ -227,8 +228,6 @@ describe('HomeScreen currency symbol', () => {
           status: 'completed',
         },
       ],
-      loading: false,
-      error: null,
     });
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
