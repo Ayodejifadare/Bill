@@ -3,7 +3,7 @@ import { TRANSACTION_TYPE_MAP, TRANSACTION_STATUS_MAP } from '../../shared/trans
 
 const router = express.Router({ mergeParams: true })
 
-// GET /transactions - list transactions for group
+// GET /transactions?page=1 - list transactions for group
 router.get('/transactions', async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1
@@ -26,10 +26,12 @@ router.get('/transactions', async (req, res) => {
       },
       orderBy: { createdAt: 'desc' },
       skip: (page - 1) * pageSize,
-      take: pageSize
+      take: pageSize + 1
     })
+    const hasMore = transactions.length > pageSize
+    const slice = transactions.slice(0, pageSize)
 
-    const formatted = transactions.map((t) => ({
+    const formatted = slice.map((t) => ({
       id: t.id,
       type: TRANSACTION_TYPE_MAP[t.type] || t.type,
       amount: t.amount,
@@ -39,8 +41,8 @@ router.get('/transactions', async (req, res) => {
       paidBy: t.sender?.name || t.senderId,
       participants: [t.sender?.name || t.senderId, t.receiver?.name || t.receiverId]
     }))
-
-    res.json({ transactions: formatted })
+    // Response: { transactions: Transaction[], page, pageSize, hasMore }
+    res.json({ page, pageSize, hasMore, transactions: formatted })
   } catch (error) {
     console.error('List group transactions error:', error)
     res.status(500).json({ error: 'Internal server error' })
