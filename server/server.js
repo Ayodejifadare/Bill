@@ -23,6 +23,7 @@ import requestRoutes from './routes/requests.js'
 import contactRoutes from './routes/contacts.js'
 import verificationRoutes from './routes/verification.js'
 import receiptRoutes from './routes/receipts.js'
+import spendingInsightsRoutes from './routes/spendingInsights.js'
 
 // Load environment variables
 dotenv.config()
@@ -75,6 +76,7 @@ app.use('/api', notificationRoutes)
 app.use('/api/contacts', contactRoutes)
 app.use('/api/verification', verificationRoutes)
 app.use('/api/receipts', receiptRoutes)
+app.use('/api', spendingInsightsRoutes)
 
 app.get('/api/notifications/stream', authenticate, (req, res) => {
   res.set({
