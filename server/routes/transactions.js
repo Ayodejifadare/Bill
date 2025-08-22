@@ -49,7 +49,11 @@ router.get('/', authenticateToken, async (req, res) => {
       startDate,
       endDate,
       type,
-      status
+      status,
+      category,
+      minAmount,
+      maxAmount,
+      keyword
     } = req.query
 
     const where = {
@@ -75,6 +79,29 @@ router.get('/', authenticateToken, async (req, res) => {
       where.status = mappedStatus
     }
 
+    if (category) {
+      where.category = category
+    }
+
+    if (minAmount || maxAmount) {
+      where.amount = {}
+      if (minAmount) where.amount.gte = parseFloat(minAmount)
+      if (maxAmount) where.amount.lte = parseFloat(maxAmount)
+    }
+
+    if (keyword) {
+      const keywordFilter = {
+        OR: [
+          { description: { contains: keyword, mode: 'insensitive' } },
+          { billSplit: { title: { contains: keyword, mode: 'insensitive' } } },
+          { billSplit: { description: { contains: keyword, mode: 'insensitive' } } },
+          { sender: { name: { contains: keyword, mode: 'insensitive' } } },
+          { receiver: { name: { contains: keyword, mode: 'insensitive' } } }
+        ]
+      }
+      where.AND = Array.isArray(where.AND) ? [...where.AND, keywordFilter] : [keywordFilter]
+    }
+
     const baseQuery = {
       where,
       include: {
@@ -91,13 +118,15 @@ router.get('/', authenticateToken, async (req, res) => {
     let transactions
     let nextCursor = null
     let hasMore = false
+    let total = 0
+    let pageCount = 0
 
     const isPageBased = page !== undefined || size !== undefined
     if (isPageBased) {
       const pageNum = parseInt(page) || 1
       const pageSize = parseInt(size) || parseInt(limit) || 20
 
-      const [total, result] = await req.prisma.$transaction([
+      const [totalCount, result] = await req.prisma.$transaction([
         req.prisma.transaction.count({ where }),
         req.prisma.transaction.findMany({
           ...baseQuery,
@@ -107,30 +136,44 @@ router.get('/', authenticateToken, async (req, res) => {
       ])
 
       transactions = result
-      hasMore = pageNum * pageSize < total
+      total = totalCount
+      pageCount = Math.ceil(total / pageSize)
+      hasMore = pageNum < pageCount
     } else {
       const pageSize = parseInt(limit) || parseInt(size) || 20
 
-      transactions = await req.prisma.transaction.findMany({
+      const result = await req.prisma.transaction.findMany({
         ...baseQuery,
         take: pageSize + 1,
         ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {})
       })
+
+      transactions = result
 
       if (transactions.length > pageSize) {
         const nextItem = transactions.pop()
         nextCursor = nextItem.id
         hasMore = true
       }
+
+      total = await req.prisma.transaction.count({ where })
+      pageCount = Math.ceil(total / pageSize)
     }
 
     const formatted = transactions.map(t => ({
       ...t,
       type: TRANSACTION_TYPE_MAP[t.type] || t.type,
-      status: TRANSACTION_STATUS_MAP[t.status] || t.status
+      status: TRANSACTION_STATUS_MAP[t.status] || t.status,
+      ...(t.category ? { category: t.category } : {})
     }))
 
-    res.json({ transactions: formatted, nextCursor, hasMore })
+    res.json({
+      transactions: formatted,
+      nextCursor,
+      hasMore,
+      total,
+      pageCount
+    })
   } catch (error) {
     console.error('Get transactions error:', error)
     res.status(500).json({ error: 'Internal server error' })
