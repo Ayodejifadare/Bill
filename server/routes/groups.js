@@ -218,6 +218,8 @@ router.post('/:groupId/join', authenticate, async (req, res) => {
     })
 
     const formatted = await formatGroup(req.prisma, updated, userId)
+    // ensure member count reflects new membership
+    formatted.memberCount = updated.members.length
 
     res.json({ group: formatted })
   } catch (error) {
@@ -229,31 +231,45 @@ router.post('/:groupId/join', authenticate, async (req, res) => {
 // POST /:groupId/leave - remove current user from group
 router.post('/:groupId/leave', authenticate, async (req, res) => {
   try {
-    const group = await req.prisma.group.findUnique({
-      where: { id: req.params.groupId },
-      include: { members: true }
-    })
-    if (!group) {
-      return res.status(404).json({ error: 'Group not found' })
-    }
+    const { groupId } = req.params
     const userId = req.user.id
 
-    await req.prisma.groupMember.deleteMany({
-      where: { groupId: group.id, userId }
+    // Ensure group exists and user is a member
+    const membership = await req.prisma.groupMember.findUnique({
+      where: { groupId_userId: { groupId, userId } }
+    })
+    if (!membership) {
+      return res.status(404).json({ error: 'Group not found' })
+    }
+
+    // Remove the member
+    await req.prisma.groupMember.delete({
+      where: { groupId_userId: { groupId, userId } }
     })
 
-    const updated = await req.prisma.group.findUnique({
-      where: { id: group.id },
-      include: { members: true }
+    // Check remaining members for admin role
+    const remainingMembers = await req.prisma.groupMember.findMany({
+      where: { groupId },
+      orderBy: { joinedAt: 'asc' }
     })
 
-    res.json({
-      group: {
-        id: updated.id,
-        name: updated.name,
-        members: updated.members.map((m) => m.userId)
+    if (remainingMembers.length > 0) {
+      const hasAdmin = remainingMembers.some((m) => m.role === 'ADMIN')
+      if (!hasAdmin) {
+        // Promote earliest remaining member to admin
+        await req.prisma.groupMember.update({
+          where: {
+            groupId_userId: {
+              groupId,
+              userId: remainingMembers[0].userId
+            }
+          },
+          data: { role: 'ADMIN' }
+        })
       }
-    })
+    }
+
+    res.json({ success: true })
   } catch (error) {
     console.error('Leave group error:', error)
     res.status(500).json({ error: 'Internal server error' })
