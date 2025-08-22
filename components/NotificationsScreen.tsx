@@ -28,59 +28,6 @@ interface Notification {
   amount?: number;
 }
 
-const mockNotifications: Notification[] = [
-  {
-    id: '1',
-    type: 'payment',
-    title: 'Payment Received',
-    message: 'Sarah Johnson sent you $25.50 for coffee',
-    time: '2 minutes ago',
-    read: false,
-    user: { name: 'Sarah Johnson' },
-    amount: 25.50,
-  },
-  {
-    id: '2',
-    type: 'request',
-    title: 'Payment Request',
-    message: 'Mike Chen is requesting $15.00 for lunch',
-    time: '1 hour ago',
-    read: false,
-    actionable: true,
-    user: { name: 'Mike Chen' },
-    amount: 15.00,
-  },
-  {
-    id: '3',
-    type: 'split',
-    title: 'Bill Split Created',
-    message: 'Emily Davis split dinner bill of $75.00 with you',
-    time: '3 hours ago',
-    read: true,
-    user: { name: 'Emily Davis' },
-    amount: 18.75,
-  },
-  {
-    id: '4',
-    type: 'friend',
-    title: 'New Friend Request',
-    message: 'Alex Rodriguez wants to be your friend',
-    time: '1 day ago',
-    read: false,
-    actionable: true,
-    user: { name: 'Alex Rodriguez' },
-  },
-  {
-    id: '5',
-    type: 'reminder',
-    title: 'Payment Reminder',
-    message: 'You have a pending payment of $18.75 to Sarah Johnson',
-    time: '2 days ago',
-    read: true,
-    amount: 18.75,
-  },
-];
-
 interface NotificationsScreenProps {
   onNavigate: (tab: string) => void;
 }
@@ -142,7 +89,7 @@ const defaultNotificationSettings: NotificationSettings = {
 };
 
 export function NotificationsScreen({ onNavigate }: NotificationsScreenProps) {
-  const [notifications, setNotifications] = useState(mockNotifications);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
   const [activeTab, setActiveTab] = useState<'notifications' | 'settings'>('notifications');
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>(defaultNotificationSettings);
@@ -166,10 +113,14 @@ export function NotificationsScreen({ onNavigate }: NotificationsScreenProps) {
     }
   };
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = async (currentFilter = filter) => {
     setLoadingNotifications(true);
     try {
-      const data = await fetchWithRetry('/api/notifications');
+      const endpoint =
+        currentFilter === 'unread'
+          ? '/api/notifications?filter=unread'
+          : '/api/notifications';
+      const data = await fetchWithRetry(endpoint);
       if (Array.isArray(data?.notifications)) {
         const formatted = data.notifications.map((n: Notification) => ({
           ...n,
@@ -186,6 +137,10 @@ export function NotificationsScreen({ onNavigate }: NotificationsScreenProps) {
   };
 
   useEffect(() => {
+    fetchNotifications(filter);
+  }, [filter]);
+
+  useEffect(() => {
     const fetchSettings = async () => {
       try {
         const data = await fetchWithRetry('/api/notification-settings');
@@ -196,7 +151,6 @@ export function NotificationsScreen({ onNavigate }: NotificationsScreenProps) {
         console.error('Error fetching notification settings:', error);
       }
     };
-    fetchNotifications();
     fetchSettings();
   }, []);
 
@@ -213,11 +167,6 @@ export function NotificationsScreen({ onNavigate }: NotificationsScreenProps) {
       console.error('Error updating notification settings:', error);
     }
   };
-
-  const filteredNotifications = notifications.filter(notification => {
-    if (filter === 'unread') return !notification.read;
-    return true;
-  });
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -273,13 +222,7 @@ export function NotificationsScreen({ onNavigate }: NotificationsScreenProps) {
       await fetchWithRetry(`/api/notifications/${id}/read`, {
         method: 'PATCH',
       });
-      setNotifications(prev =>
-        prev.map(notification =>
-          notification.id === id
-            ? { ...notification, read: true }
-            : notification
-        )
-      );
+      await fetchNotifications(filter);
     } catch (error) {
       toast.error('Failed to mark notification as read');
     }
@@ -290,9 +233,7 @@ export function NotificationsScreen({ onNavigate }: NotificationsScreenProps) {
       await fetchWithRetry('/api/notifications/mark-all-read', {
         method: 'PATCH',
       });
-      setNotifications(prev =>
-        prev.map(notification => ({ ...notification, read: true }))
-      );
+      await fetchNotifications(filter);
     } catch (error) {
       toast.error('Failed to mark all notifications as read');
     }
@@ -416,9 +357,9 @@ export function NotificationsScreen({ onNavigate }: NotificationsScreenProps) {
 
           {/* Notifications List */}
           <div className="space-y-3">
-            {filteredNotifications.map((notification) => (
-              <Card 
-                key={notification.id} 
+            {notifications.map((notification) => (
+              <Card
+                key={notification.id}
                 className={`p-4 ${!notification.read ? 'bg-blue-50 border-blue-200' : ''}`}
               >
                 <div className="space-y-3">
@@ -498,7 +439,7 @@ export function NotificationsScreen({ onNavigate }: NotificationsScreenProps) {
             ))}
           </div>
 
-          {filteredNotifications.length === 0 && (
+          {notifications.length === 0 && (
             <EmptyState
               icon={Bell}
               title={filter === 'unread' ? 'No unread notifications' : 'No notifications yet'}
