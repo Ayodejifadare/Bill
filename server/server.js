@@ -19,6 +19,7 @@ import notificationRoutes from './routes/notifications.js'
 import paymentMethodRoutes from './routes/paymentMethods.js'
 import upcomingPaymentRoutes from './routes/upcomingPayments.js'
 import requestRoutes from './routes/requests.js'
+import contactRoutes from './routes/contacts.js'
 
 // Load environment variables
 dotenv.config()
@@ -66,6 +67,7 @@ app.use('/api/payment-methods', paymentMethodRoutes)
 app.use('/api/requests', requestRoutes)
 app.use('/api', upcomingPaymentRoutes)
 app.use('/api', notificationRoutes)
+app.use('/api/contacts', contactRoutes)
 
 app.get('/api/notifications/stream', authenticate, (req, res) => {
   res.set({
