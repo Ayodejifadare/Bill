@@ -56,6 +56,17 @@ describe('Bill split routes', () => {
     if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath)
   })
 
+  it('requires a valid JWT token', async () => {
+    const res = await request(app).get('/bill-splits').send()
+    expect(res.status).toBe(401)
+
+    const invalid = await request(app)
+      .get('/bill-splits')
+      .set('Authorization', 'Bearer invalidtoken')
+      .send()
+    expect(invalid.status).toBe(401)
+  })
+
   it('retrieves a bill split by id with details', async () => {
     await prisma.user.create({ data: { id: 'u1', email: 'u1@example.com', name: 'User 1' } })
     await prisma.user.create({ data: { id: 'u2', email: 'u2@example.com', name: 'User 2' } })

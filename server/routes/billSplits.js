@@ -1,34 +1,13 @@
 import express from 'express'
 import { body, validationResult, param } from 'express-validator'
-import jwt from 'jsonwebtoken'
+import authenticate from '../middleware/auth.js'
 import { computeNextRun } from '../utils/recurringBillSplitScheduler.js'
 import { createNotification } from '../utils/notifications.js'
 
 const router = express.Router()
 
 // Authentication middleware
-const authenticateToken = async (req, res, next) => {
-  const token = req.headers.authorization?.replace('Bearer ', '')
-
-  if (!token) {
-    return res.status(401).json({ error: 'No token provided' })
-  }
-
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key')
-    const user = await req.prisma.user.findUnique({
-      where: { id: decoded.userId },
-      select: { tokenVersion: true }
-    })
-    if (!user || user.tokenVersion !== decoded.tokenVersion) {
-      return res.status(401).json({ error: 'Invalid token' })
-    }
-    req.userId = decoded.userId
-    next()
-  } catch (error) {
-    return res.status(401).json({ error: 'Invalid token' })
-  }
-}
+const authenticateToken = authenticate
 
 // Get user's bill splits
 router.get('/', authenticateToken, async (req, res) => {
