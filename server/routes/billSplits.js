@@ -416,7 +416,11 @@ router.post(
 // Settle bill split
 router.post(
   '/:id/settle',
-  [authenticateToken, param('id').trim().notEmpty()],
+  [
+    authenticateToken,
+    param('id').trim().notEmpty(),
+    body('receiptId').optional().isString()
+  ],
   async (req, res) => {
     const errors = validationResult(req)
     if (!errors.isEmpty()) {
@@ -425,6 +429,7 @@ router.post(
 
     try {
       const { id } = req.params
+      const { receiptId } = req.body
 
       const billSplit = await req.prisma.billSplit.findUnique({
         where: { id },
@@ -470,6 +475,13 @@ router.post(
               }
             })
           }
+        }
+
+        if (receiptId) {
+          await prisma.receipt.update({
+            where: { id: receiptId },
+            data: { billSplitId: id }
+          })
         }
 
         // Update bill split status
