@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Bell } from 'lucide-react';
+import { EventSourcePolyfill } from 'event-source-polyfill';
 import { Button } from './button';
 import { Alert, AlertDescription } from './alert';
 
@@ -57,8 +58,10 @@ export function NotificationBell({ onClick }: NotificationBellProps) {
     const storedAuth = localStorage.getItem('auth');
     const token = storedAuth ? JSON.parse(storedAuth).token : null;
     let es: EventSource | null = null;
-    if (token && typeof window !== 'undefined' && 'EventSource' in window) {
-      es = new EventSource(`/api/notifications/stream?token=${token}`);
+    if (token && typeof window !== 'undefined') {
+      es = new EventSourcePolyfill('/api/notifications/stream', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       es.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
