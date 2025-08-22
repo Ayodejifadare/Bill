@@ -122,11 +122,11 @@ router.get('/', authenticateToken, async (req, res) => {
     if (keyword) {
       const keywordFilter = {
         OR: [
-          { description: { contains: keyword, mode: 'insensitive' } },
-          { billSplit: { title: { contains: keyword, mode: 'insensitive' } } },
-          { billSplit: { description: { contains: keyword, mode: 'insensitive' } } },
-          { sender: { name: { contains: keyword, mode: 'insensitive' } } },
-          { receiver: { name: { contains: keyword, mode: 'insensitive' } } }
+          { description: { contains: keyword } },
+          { billSplit: { title: { contains: keyword } } },
+          { billSplit: { description: { contains: keyword } } },
+          { sender: { name: { contains: keyword } } },
+          { receiver: { name: { contains: keyword } } }
         ]
       }
       where.AND = Array.isArray(where.AND) ? [...where.AND, keywordFilter] : [keywordFilter]
@@ -271,11 +271,11 @@ router.get('/summary', authenticateToken, async (req, res) => {
     if (keyword) {
       const keywordFilter = {
         OR: [
-          { description: { contains: keyword, mode: 'insensitive' } },
-          { billSplit: { title: { contains: keyword, mode: 'insensitive' } } },
-          { billSplit: { description: { contains: keyword, mode: 'insensitive' } } },
-          { sender: { name: { contains: keyword, mode: 'insensitive' } } },
-          { receiver: { name: { contains: keyword, mode: 'insensitive' } } }
+          { description: { contains: keyword } },
+          { billSplit: { title: { contains: keyword } } },
+          { billSplit: { description: { contains: keyword } } },
+          { sender: { name: { contains: keyword } } },
+          { receiver: { name: { contains: keyword } } }
         ]
       }
       baseWhere.AND = Array.isArray(baseWhere.AND)
