@@ -173,7 +173,8 @@ router.get('/:id', authenticateToken, async (req, res) => {
         preferenceSettings: true,
         region: true,
         currency: true,
-        onboardingCompleted: true
+        onboardingCompleted: true,
+        kycStatus: true
       }
     })
 
@@ -284,7 +285,8 @@ router.put(
           createdAt: true,
           preferenceSettings: true,
           region: true,
-          currency: true
+          currency: true,
+          kycStatus: true
         }
       })
       const { preferenceSettings, ...rest } = user
