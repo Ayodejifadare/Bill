@@ -118,21 +118,30 @@ export function SetupRecurringPaymentScreen({
   // Load existing payment data if editing
   useEffect(() => {
     if (editMode && paymentId) {
-      // In a real app, this would fetch the payment data
-      const mockPayment = {
-        title: 'Monthly Rent Split',
-        recipient: '4',
-        amount: '375.00',
-        frequency: 'monthly',
-        category: 'Housing',
-        paymentMethod: '1',
-        type: 'bill_split' as const
+      const fetchPayment = async () => {
+        try {
+          const data = await apiClient(`/api/recurring-payments/${paymentId}`);
+          setFormData(prev => ({
+            ...prev,
+            title: data.title ?? '',
+            recipient: data.recipient ?? '',
+            amount: data.amount != null ? data.amount.toString() : '',
+            frequency: data.frequency ?? 'monthly',
+            startDate: data.startDate ? new Date(data.startDate) : new Date(),
+            endDate: data.endDate ? new Date(data.endDate) : null,
+            hasEndDate: Boolean(data.endDate || data.totalPayments),
+            totalPayments: data.totalPayments != null ? data.totalPayments.toString() : '',
+            category: data.category ?? '',
+            paymentMethod: data.paymentMethod ?? '',
+            notes: data.notes ?? '',
+            type: (data.type ?? 'direct_payment') as 'direct_payment' | 'bill_split' | 'subscription',
+          }));
+        } catch (err) {
+          console.error('Failed to load recurring payment', err);
+          toast.error('Failed to load recurring payment');
+        }
       };
-      
-      setFormData(prev => ({
-        ...prev,
-        ...mockPayment
-      }));
+      fetchPayment();
     }
   }, [editMode, paymentId]);
 
