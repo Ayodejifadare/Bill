@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { contactsAPI, showContactError } from '../utils/contacts-api';
+import { contactsAPI, showContactError, Contact } from '../utils/contacts-api';
 import { PermissionRequestScreen } from './contact-sync/PermissionRequestScreen';
 import { SyncingProgressScreen } from './contact-sync/SyncingProgressScreen';
 import { ContactResultsScreen } from './contact-sync/ContactResultsScreen';
 import { MatchedContact, ContactSyncScreenProps, SyncStep } from './contact-sync/types';
-import { mockMatchedContacts } from './contact-sync/constants';
 
 export function ContactSyncScreen({ onNavigate }: ContactSyncScreenProps) {
   const [syncStep, setSyncStep] = useState<SyncStep>('permission');
@@ -212,34 +211,43 @@ export function ContactSyncScreen({ onNavigate }: ContactSyncScreenProps) {
     }
   };
 
-  // Enhanced demo mode with realistic data
+  // Demo mode now calls the backend to fetch sample matches
   const handleDemoMode = async () => {
     setSyncStep('syncing');
     setSyncProgress(0);
     setSyncStartTime(Date.now());
-    setContactCount(50); // Simulate realistic contact count
-    
+
+    // Minimal set of demo contacts
+    const demoContacts: Contact[] = [
+      {
+        id: 'demo1',
+        name: 'Demo User 1',
+        displayName: 'Demo User 1',
+        phoneNumbers: ['+15555550100'],
+        emails: []
+      },
+      {
+        id: 'demo2',
+        name: 'Demo User 2',
+        displayName: 'Demo User 2',
+        phoneNumbers: ['+15555550101'],
+        emails: []
+      }
+    ];
+
+    setContactCount(demoContacts.length);
+
     try {
-      updateSyncProgress(15, 'Loading demo contacts...');
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      updateSyncProgress(45, 'Matching with Biltip users...');
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      updateSyncProgress(75, 'Preparing results...');
-      await new Promise(resolve => setTimeout(resolve, 600));
-      
+      updateSyncProgress(40, 'Matching with Biltip users...');
+      const matched = await contactsAPI.matchContacts(demoContacts);
       updateSyncProgress(100);
-      
-      setTimeout(() => {
-        setMatchedContacts(mockMatchedContacts);
-        setSyncStep('results');
-        setHasPermission(true);
-        
-        const existingUsers = mockMatchedContacts.filter(c => c.status === 'existing_user').length;
-        toast.success(`Demo complete! Found ${existingUsers} friends on Biltip.`);
-      }, 300);
-      
+
+      setMatchedContacts(matched);
+      setSyncStep('results');
+      setHasPermission(true);
+
+      const existingUsers = matched.filter(c => c.status === 'existing_user').length;
+      toast.success(`Demo complete! Found ${existingUsers} friend${existingUsers !== 1 ? 's' : ''} on Biltip.`);
     } catch (error) {
       console.error('Demo mode failed:', error);
       setSyncStep('permission');

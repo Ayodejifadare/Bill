@@ -531,7 +531,8 @@ class ContactsAPI {
       });
 
       if (!res.ok) {
-        throw new Error('Failed to match contacts');
+        const text = await res.text().catch(() => '');
+        throw new Error(`Network error: ${text || res.statusText}`);
       }
 
       const data = await res.json();
@@ -554,14 +555,7 @@ class ContactsAPI {
       }));
     } catch (error) {
       console.error('Failed to match contacts:', error);
-      // Fallback: mark all contacts as not on the app so invites can still be sent
-      return contacts.map((contact): MatchedContact => ({
-        id: contact.id,
-        name: contact.name,
-        phone: contact.phoneNumbers[0] || '',
-        email: contact.emails[0],
-        status: 'not_on_app'
-      }));
+      throw error instanceof Error ? error : new Error('Network error');
     }
   }
 }
