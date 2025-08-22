@@ -2,7 +2,7 @@ import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Avatar, AvatarFallback } from './ui/avatar';
-import { Clock, AlertTriangle, Calendar, Users, CreditCard } from 'lucide-react';
+import { Clock, AlertTriangle, Calendar, Users, CreditCard, AlertCircle } from 'lucide-react';
 import { useUserProfile } from './UserProfileContext';
 import { ListSkeleton } from './ui/loading';
 import { Alert, AlertDescription } from './ui/alert';
@@ -21,6 +21,8 @@ export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
     switch (status) {
       case 'due_soon':
         return <AlertTriangle className="h-3 w-3" />;
+      case 'overdue':
+        return <AlertCircle className="h-3 w-3" />;
       case 'pending':
         return <Clock className="h-3 w-3" />;
       case 'upcoming':
@@ -34,6 +36,8 @@ export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
     switch (status) {
       case 'due_soon':
         return 'bg-warning text-warning-foreground';
+      case 'overdue':
+        return 'bg-destructive text-destructive-foreground';
       case 'pending':
         return 'bg-primary text-primary-foreground';
       case 'upcoming':
@@ -123,9 +127,9 @@ export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
                   {getStatusIcon(payment.status)}
                   Due {payment.dueDate}
                 </Badge>
-                <Button 
-                  size="sm" 
-                  variant={payment.status === 'due_soon' ? 'default' : 'outline'}
+                <Button
+                  size="sm"
+                  variant={payment.status === 'overdue' || payment.status === 'due_soon' ? 'default' : 'outline'}
                   className="w-full"
                   onClick={(e) => {
                     e.stopPropagation();
@@ -145,7 +149,7 @@ export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
                     }
                   }}
                 >
-                  {payment.status === 'due_soon' ? 'Pay Now' : 'Pay'}
+                  {payment.status === 'overdue' ? 'Pay Overdue' : payment.status === 'due_soon' ? 'Pay Now' : 'Pay'}
                 </Button>
               </div>
             </div>
