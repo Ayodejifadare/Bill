@@ -290,14 +290,19 @@ describe('Group join/leave routes', () => {
       ]
     })
 
-    const listRes = await request(app).get(`/groups/${groupId}/members`)
+    const listRes = await request(app)
+      .get(`/groups/${groupId}/members`)
+      .set('x-user-id', 'u1')
     expect(listRes.status).toBe(200)
     expect(listRes.body.members).toHaveLength(3)
 
-    const delRes = await request(app).delete(`/groups/${groupId}/members/u2`)
+    const delRes = await request(app)
+      .delete(`/groups/${groupId}/members/u2`)
     expect(delRes.status).toBe(200)
 
-    const listRes2 = await request(app).get(`/groups/${groupId}/members`)
+    const listRes2 = await request(app)
+      .get(`/groups/${groupId}/members`)
+      .set('x-user-id', 'u1')
     expect(listRes2.body.members).toHaveLength(2)
   })
 

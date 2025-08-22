@@ -1,17 +1,18 @@
 import express from 'express'
+import authenticate from '../middleware/auth.js'
 
 // Use mergeParams to access groupId from parent router
 const router = express.Router({ mergeParams: true })
 
 // GET / - list members of a group
-router.get('/', async (req, res) => {
+router.get('/', authenticate, async (req, res) => {
   try {
     const members = await req.prisma.groupMember.findMany({
       where: { groupId: req.params.groupId },
       include: { user: true }
     })
 
-    const formatted = members.map((m) => ({
+    const formattedMembers = members.map((m) => ({
       id: m.user.id,
       name: m.user.name,
       username: `@${m.user.email.split('@')[0]}`,
@@ -21,7 +22,7 @@ router.get('/', async (req, res) => {
       lastActive: 'now',
       totalSpent: 0,
       totalOwed: 0,
-      isYou: false,
+      isYou: m.user.id === req.user.id,
       status: 'active',
       permissions: {
         canAddMembers: m.role === 'ADMIN',
@@ -31,7 +32,33 @@ router.get('/', async (req, res) => {
       }
     }))
 
-    res.json({ members: formatted })
+    const invites = await req.prisma.groupInvite.findMany({
+      where: { groupId: req.params.groupId, status: 'sent' }
+    })
+
+    const formattedInvites = invites.map((i) => ({
+      id: i.id,
+      name: i.name || '',
+      username: i.contact.includes('@') ? `@${i.contact.split('@')[0]}` : i.contact,
+      invitedBy: i.invitedBy,
+      invitedAt: i.invitedAt.toISOString(),
+      method: i.method,
+      role: 'member',
+      joinedAt: i.invitedAt.toISOString(),
+      lastActive: '',
+      totalSpent: 0,
+      totalOwed: 0,
+      isYou: false,
+      status: 'pending',
+      permissions: {
+        canAddMembers: false,
+        canRemoveMembers: false,
+        canCreateSplits: false,
+        canEditGroup: false
+      }
+    }))
+
+    res.json({ members: [...formattedMembers, ...formattedInvites] })
   } catch (error) {
     console.error('List group members error:', error)
     res.status(500).json({ error: 'Internal server error' })
