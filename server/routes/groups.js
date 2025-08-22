@@ -12,6 +12,16 @@ import authenticate from '../middleware/auth.js'
 
 const router = express.Router()
 
+function getInitials(name = '') {
+  return name
+    .split(/\s+/)
+    .map((n) => n[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join('')
+    .toUpperCase()
+}
+
 // Helper to format group information with aggregates
 async function formatGroup(prisma, group, userId) {
   const memberIds = group.members.map((m) => m.userId)
@@ -35,6 +45,21 @@ async function formatGroup(prisma, group, userId) {
     lastActive = aggregates._max.createdAt
   }
 
+  const pendingBills = userId
+    ? await prisma.billSplitParticipant.count({
+        where: {
+          userId,
+          isPaid: false,
+          billSplit: { groupId: group.id }
+        }
+      })
+    : 0
+
+  const memberPreview = group.members.slice(0, 3).map((m) => ({
+    name: m.user.name,
+    avatar: getInitials(m.user.name)
+  }))
+
   return {
     id: group.id,
     name: group.name,
@@ -42,17 +67,12 @@ async function formatGroup(prisma, group, userId) {
     memberCount: group.members.length,
     totalSpent,
     recentActivity: lastActive ? `Last activity on ${lastActive.toISOString()}` : '',
-    members: group.members.map((m) => ({
-      id: m.userId,
-      name: m.user.name,
-      avatar: m.user.avatar || '',
-      role: m.role
-    })),
+    members: memberPreview,
     isAdmin: userId
       ? group.members.some((m) => m.userId === userId && m.role === 'ADMIN')
       : false,
     lastActive: lastActive ? lastActive.toISOString() : '',
-    pendingBills: 0,
+    pendingBills,
     color: group.color || ''
   }
 }
