@@ -1,27 +1,8 @@
 import express from 'express'
 import authenticate from '../middleware/auth.js'
+import { requireGroupAdmin } from '../utils/permissions.js'
 
 const router = express.Router({ mergeParams: true })
-
-const requireGroupAdmin = async (req, res, next) => {
-  try {
-    const membership = await req.prisma.groupMember.findUnique({
-      where: {
-        groupId_userId: {
-          groupId: req.params.groupId,
-          userId: req.user.id
-        }
-      }
-    })
-    if (!membership || membership.role !== 'ADMIN') {
-      return res.status(403).json({ error: 'Forbidden' })
-    }
-    next()
-  } catch (err) {
-    console.error('Group admin check error:', err)
-    res.status(500).json({ error: 'Internal server error' })
-  }
-}
 
 router.use(authenticate)
 router.use(requireGroupAdmin)

@@ -1,29 +1,9 @@
 import express from 'express'
 import { createNotification } from '../utils/notifications.js'
 import authenticate from '../middleware/auth.js'
+import { requireGroupAdmin } from '../utils/permissions.js'
 
 const router = express.Router({ mergeParams: true })
-
-// Ensure the requester is a group admin
-const requireGroupAdmin = async (req, res, next) => {
-  try {
-    const membership = await req.prisma.groupMember.findUnique({
-      where: {
-        groupId_userId: {
-          groupId: req.params.groupId,
-          userId: req.user.id
-        }
-      }
-    })
-    if (!membership || membership.role !== 'ADMIN') {
-      return res.status(403).json({ error: 'Forbidden' })
-    }
-    next()
-  } catch (err) {
-    console.error('Group admin check error:', err)
-    res.status(500).json({ error: 'Internal server error' })
-  }
-}
 
 // All group invite routes require auth and admin access
 router.use(authenticate)

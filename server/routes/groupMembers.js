@@ -1,11 +1,14 @@
 import express from 'express'
 import authenticate from '../middleware/auth.js'
+import { requireGroupMember, requireGroupAdmin } from '../utils/permissions.js'
 
 // Use mergeParams to access groupId from parent router
 const router = express.Router({ mergeParams: true })
 
+router.use(authenticate)
+
 // GET / - list members of a group
-router.get('/', authenticate, async (req, res) => {
+router.get('/', requireGroupMember, async (req, res) => {
   try {
     const members = await req.prisma.groupMember.findMany({
       where: { groupId: req.params.groupId },
@@ -66,7 +69,7 @@ router.get('/', authenticate, async (req, res) => {
 })
 
 // DELETE /:memberId - remove member from group
-router.delete('/:memberId', async (req, res) => {
+router.delete('/:memberId', requireGroupAdmin, async (req, res) => {
   try {
     await req.prisma.groupMember.delete({
       where: { groupId_userId: { groupId: req.params.groupId, userId: req.params.memberId } }
@@ -79,7 +82,7 @@ router.delete('/:memberId', async (req, res) => {
 })
 
 // POST /:memberId/promote - make member admin
-router.post('/:memberId/promote', async (req, res) => {
+router.post('/:memberId/promote', requireGroupAdmin, async (req, res) => {
   try {
     const member = await req.prisma.groupMember.update({
       where: { groupId_userId: { groupId: req.params.groupId, userId: req.params.memberId } },
@@ -93,7 +96,7 @@ router.post('/:memberId/promote', async (req, res) => {
 })
 
 // POST /:memberId/demote - make admin a regular member
-router.post('/:memberId/demote', async (req, res) => {
+router.post('/:memberId/demote', requireGroupAdmin, async (req, res) => {
   try {
     const member = await req.prisma.groupMember.update({
       where: { groupId_userId: { groupId: req.params.groupId, userId: req.params.memberId } },
