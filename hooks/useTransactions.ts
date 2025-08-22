@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import type { TransactionType, TransactionStatus } from '../shared/transactions';
+import { apiClient } from '../utils/apiClient';
 
 export interface TransactionUser {
   name: string;
@@ -94,13 +95,6 @@ export function useTransactions(initialOptions: UseTransactionsOptions = {}): Us
       setLoading(true);
       setError(null);
       try {
-        const storedAuth = localStorage.getItem('biltip_auth');
-        const token = storedAuth ? JSON.parse(storedAuth).token : null;
-
-        if (!token) {
-          throw new Error('Unauthorized: Please log in.');
-        }
-
         const params = new URLSearchParams();
         if (current.cursor || (!current.page && !current.size)) {
           if (current.cursor) params.append('cursor', current.cursor);
@@ -118,27 +112,13 @@ export function useTransactions(initialOptions: UseTransactionsOptions = {}): Us
         if (current.maxAmount !== undefined) params.append('maxAmount', String(current.maxAmount));
         if (current.keyword) params.append('keyword', current.keyword);
 
-        const res = await fetch(`/api/transactions?${params.toString()}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (res.status === 401) {
-          throw new Error('Unauthorized: Please log in.');
-        }
-
-        if (!res.ok) {
-          throw new Error('Failed to fetch transactions');
-        }
-
-        const data = await res.json();
-        const fetched = Array.isArray(data.transactions) ? data.transactions : [];
+        const data = await apiClient(`/api/transactions?${params.toString()}`);
+        const fetched = Array.isArray(data?.transactions) ? data.transactions : [];
         setTransactions(fetched);
-        setHasMore(Boolean(data.hasMore));
-        setNextCursor(data.nextCursor ?? null);
-        setTotal(data.total ?? 0);
-        setPageCount(data.pageCount ?? 0);
+        setHasMore(Boolean(data?.hasMore));
+        setNextCursor(data?.nextCursor ?? null);
+        setTotal(data?.total ?? 0);
+        setPageCount(data?.pageCount ?? 0);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch transactions');
         setTransactions([]);

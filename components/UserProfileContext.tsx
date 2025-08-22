@@ -184,11 +184,8 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
   const [appSettings, setAppSettings] = useState<AppSettings>(getSavedSettings());
   const refreshUserProfile = async () => {
     try {
-      const storedAuth = localStorage.getItem('biltip_auth');
-      const token = storedAuth ? JSON.parse(storedAuth).token : null;
       const userId = userProfile.id;
-      if (!token || token.startsWith('demo_token_') || !userId) return;
-
+      if (!userId) return;
       const data = await apiClient(`/api/users/${userId}`);
       const fetched = data.user;
       setUserProfile(prev => ({
@@ -212,10 +209,8 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
     }));
 
     try {
-      const storedAuth = localStorage.getItem('biltip_auth');
-      const token = storedAuth ? JSON.parse(storedAuth).token : null;
       const userId = userProfile.id;
-      if (!token || token.startsWith('demo_token_') || !userId) return;
+      if (!userId) return;
 
       const {
         name,
@@ -271,10 +266,8 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
 
   const saveSettings = async (settings: UserSettings) => {
     try {
-      const storedAuth = localStorage.getItem('biltip_auth');
-      const token = storedAuth ? JSON.parse(storedAuth).token : null;
       const userId = userProfile.id;
-      if (!token || token.startsWith('demo_token_') || !userId) return;
+      if (!userId) return;
 
       const data = await apiClient(`/api/users/${userId}/settings`, {
         method: 'PUT',

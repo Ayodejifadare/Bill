@@ -11,6 +11,7 @@ import { EmptyState } from './ui/empty-state';
 import { Alert, AlertDescription } from './ui/alert';
 import { ArrowLeft, Bell, Check, X, Users, DollarSign, AlertTriangle, MessageCircle, Mail, Smartphone, Settings } from 'lucide-react';
 import { toast } from 'sonner';
+import { apiClient } from '../utils/apiClient';
 
 interface Notification {
   id: string;
@@ -149,40 +150,27 @@ export function NotificationsScreen({ onNavigate }: NotificationsScreenProps) {
   const [notificationsError, setNotificationsError] = useState<string | null>(null);
 
   const fetchWithRetry = async (
-    url: string,
-    options?: RequestInit,
+    input: RequestInfo | URL,
+    init?: RequestInit,
     retries = 3,
     delay = 1000,
-  ): Promise<Response> => {
+  ): Promise<any> => {
     try {
-      const res = await fetch(url, options);
-      if (!res.ok) {
-        throw new Error('Request failed');
-      }
-      return res;
+      return await apiClient(input, init);
     } catch (err) {
       if (retries <= 1) {
         throw err;
       }
       await new Promise((resolve) => setTimeout(resolve, delay));
-      return fetchWithRetry(url, options, retries - 1, delay * 2);
+      return fetchWithRetry(input, init, retries - 1, delay * 2);
     }
   };
 
   const fetchNotifications = async () => {
     setLoadingNotifications(true);
     try {
-      const storedAuth = localStorage.getItem('biltip_auth');
-      const token = storedAuth ? JSON.parse(storedAuth).token : null;
-      if (!token) {
-        setLoadingNotifications(false);
-        return;
-      }
-      const res = await fetchWithRetry('/api/notifications', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (Array.isArray(data.notifications)) {
+      const data = await fetchWithRetry('/api/notifications');
+      if (Array.isArray(data?.notifications)) {
         const formatted = data.notifications.map((n: Notification) => ({
           ...n,
           time: formatDistanceToNow(new Date(n.time), { addSuffix: true })
@@ -200,16 +188,8 @@ export function NotificationsScreen({ onNavigate }: NotificationsScreenProps) {
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const storedAuth = localStorage.getItem('biltip_auth');
-        const token = storedAuth ? JSON.parse(storedAuth).token : null;
-        if (!token) return;
-        const res = await fetchWithRetry('/api/notification-settings', {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        const data = await res.json();
-        if (data.settings) {
+        const data = await fetchWithRetry('/api/notification-settings');
+        if (data?.settings) {
           setNotificationSettings(data.settings);
         }
       } catch (error) {
@@ -222,14 +202,10 @@ export function NotificationsScreen({ onNavigate }: NotificationsScreenProps) {
 
   const saveSettings = async (settings: NotificationSettings) => {
     try {
-      const storedAuth = localStorage.getItem('biltip_auth');
-      const token = storedAuth ? JSON.parse(storedAuth).token : null;
-      if (!token) return;
       await fetchWithRetry('/api/notification-settings', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(settings),
       });
@@ -294,12 +270,8 @@ export function NotificationsScreen({ onNavigate }: NotificationsScreenProps) {
 
   const markAsRead = async (id: string) => {
     try {
-      const storedAuth = localStorage.getItem('biltip_auth');
-      const token = storedAuth ? JSON.parse(storedAuth).token : null;
-      if (!token) return;
       await fetchWithRetry(`/api/notifications/${id}/read`, {
         method: 'PATCH',
-        headers: { Authorization: `Bearer ${token}` },
       });
       setNotifications(prev =>
         prev.map(notification =>
@@ -315,12 +287,8 @@ export function NotificationsScreen({ onNavigate }: NotificationsScreenProps) {
 
   const markAllAsRead = async () => {
     try {
-      const storedAuth = localStorage.getItem('biltip_auth');
-      const token = storedAuth ? JSON.parse(storedAuth).token : null;
-      if (!token) return;
       await fetchWithRetry('/api/notifications/mark-all-read', {
         method: 'PATCH',
-        headers: { Authorization: `Bearer ${token}` },
       });
       setNotifications(prev =>
         prev.map(notification => ({ ...notification, read: true }))
