@@ -17,9 +17,9 @@ interface GroupAccount {
   name: string;
   type: 'bank' | 'mobile_money';
   // Bank fields
-  bank?: string;
+  bankName?: string;
   accountNumber?: string;
-  accountName?: string;
+  accountHolderName?: string;
   sortCode?: string;
   routingNumber?: string;
   accountType?: 'checking' | 'savings';
@@ -304,9 +304,9 @@ export function GroupAccountScreen({ groupId, onNavigate }: GroupAccountScreenPr
 
   const copyFullAccountInfo = (account: GroupAccount) => {
     if (account.type === 'bank') {
-      const accountInfo = isNigeria 
-        ? `${account.bank}\nAccount Name: ${account.accountName}\nAccount Number: ${account.accountNumber}\nSort Code: ${account.sortCode}`
-        : `${account.bank}\nAccount Holder: ${account.accountName}\nRouting Number: ${account.routingNumber}\nAccount Number: ${account.accountNumber}`;
+      const accountInfo = isNigeria
+        ? `${account.bankName}\nAccount Name: ${account.accountHolderName}\nAccount Number: ${account.accountNumber}\nSort Code: ${account.sortCode}`
+        : `${account.bankName}\nAccount Holder: ${account.accountHolderName}\nRouting Number: ${account.routingNumber}\nAccount Number: ${account.accountNumber}`;
       copyToClipboard(accountInfo);
     } else {
       copyToClipboard(`${account.provider}\nPhone: ${account.phoneNumber}`);
@@ -562,7 +562,7 @@ export function GroupAccountScreen({ groupId, onNavigate }: GroupAccountScreenPr
                       <div className="min-w-0 flex-1">
                         <h4 className="text-sm sm:text-base truncate">{account.name}</h4>
                         <p className="text-xs sm:text-sm text-muted-foreground truncate">
-                          {account.type === 'bank' ? account.bank : account.provider} • Added by {account.createdBy}
+                          {account.type === 'bank' ? account.bankName : account.provider} • Added by {account.createdBy}
                         </p>
                         <p className="text-xs text-muted-foreground">
                           {formatDate(account.createdDate)}
@@ -585,12 +585,12 @@ export function GroupAccountScreen({ groupId, onNavigate }: GroupAccountScreenPr
                             {isNigeria ? 'Account Name:' : 'Account Holder:'}
                           </span>
                           <div className="flex items-center gap-1 sm:gap-2 min-w-0">
-                            <span className="text-xs sm:text-sm truncate max-w-[120px] sm:max-w-none">{account.accountName}</span>
+                            <span className="text-xs sm:text-sm truncate max-w-[120px] sm:max-w-none">{account.accountHolderName}</span>
                             <Button
                               variant="ghost"
                               size="sm"
                               className="h-5 w-5 sm:h-6 sm:w-6 p-0 flex-shrink-0"
-                              onClick={() => copyToClipboard(account.accountName!, 'Account name')}
+                              onClick={() => copyToClipboard(account.accountHolderName!, 'Account name')}
                             >
                               <Copy className="h-3 w-3" />
                             </Button>
