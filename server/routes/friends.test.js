@@ -75,6 +75,62 @@ describe('Friend routes', () => {
     expect(pending.requestId).toBe(fr.id)
   })
 
+
+  it('returns summary of amounts owed with friends', async () => {
+    await prisma.user.create({ data: { id: 'u1', email: 'u1@example.com', name: 'User 1' } })
+    await prisma.user.create({ data: { id: 'u2', email: 'u2@example.com', name: 'User 2' } })
+    await prisma.user.create({ data: { id: 'u3', email: 'u3@example.com', name: 'User 3' } })
+    await prisma.user.create({ data: { id: 'u4', email: 'u4@example.com', name: 'User 4' } })
+
+    await prisma.friendship.create({ data: { user1Id: 'u1', user2Id: 'u2' } })
+    await prisma.friendship.create({ data: { user1Id: 'u1', user2Id: 'u3' } })
+
+    await prisma.transaction.create({
+      data: {
+        amount: 30,
+        senderId: 'u2',
+        receiverId: 'u1',
+        type: 'SEND',
+        status: 'PENDING'
+      }
+    })
+    await prisma.transaction.create({
+      data: {
+        amount: 10,
+        senderId: 'u1',
+        receiverId: 'u3',
+        type: 'SEND',
+        status: 'PENDING'
+      }
+    })
+    await prisma.transaction.create({
+      data: {
+        amount: 40,
+        senderId: 'u4',
+        receiverId: 'u1',
+        type: 'SEND',
+        status: 'PENDING'
+      }
+    })
+    await prisma.transaction.create({
+      data: {
+        amount: 5,
+        senderId: 'u2',
+        receiverId: 'u1',
+        type: 'SEND',
+        status: 'COMPLETED'
+      }
+    })
+
+    const res = await request(app)
+      .get('/friends/summary')
+      .set('Authorization', `Bearer ${sign('u1')}`)
+      .send()
+
+    expect(res.status).toBe(200)
+    expect(res.body.owedToUser).toBe(30)
+    expect(res.body.userOwes).toBe(10)
+
   it('returns incoming and outgoing friend requests with metadata', async () => {
     await prisma.user.create({ data: { id: 'a1', email: 'a1@example.com', name: 'A1' } })
     await prisma.user.create({ data: { id: 'a2', email: 'a2@example.com', name: 'A2' } })
