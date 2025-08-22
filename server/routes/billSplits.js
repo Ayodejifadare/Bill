@@ -129,7 +129,7 @@ router.get('/', authenticateToken, async (req, res) => {
 // Get bill split by ID
 router.get(
   '/:id',
-  [authenticateToken, param('id').trim().notEmpty()],
+  [authenticateToken, param('id').trim().notEmpty().isString()],
   async (req, res) => {
     const errors = validationResult(req)
     if (!errors.isEmpty()) {
@@ -180,7 +180,8 @@ router.get(
             routingNumber: pm.routingNumber,
             accountType: pm.accountType,
             provider: pm.provider,
-            phoneNumber: pm.phoneNumber
+            phoneNumber: pm.phoneNumber,
+            isDefault: pm.isDefault
           }
         }
       }
@@ -194,16 +195,29 @@ router.get(
         totalAmount: billSplit.totalAmount,
         yourShare: yourParticipant ? yourParticipant.amount : 0,
         status: paidCount === billSplit.participants.length ? 'completed' : 'pending',
-        participants: billSplit.participants.map(p => ({
-          name: p.userId === req.userId ? 'You' : p.user.name,
-          amount: p.amount,
-          paid: p.isPaid
-        })),
-        createdBy: billSplit.creator.id === req.userId ? 'You' : billSplit.creator.name,
         date: billSplit.createdAt.toISOString(),
         ...(billSplit.location ? { location: billSplit.location } : {}),
         ...(billSplit.note ? { note: billSplit.note } : {}),
-        paymentMethod
+        ...(billSplit.splitMethod ? { splitMethod: billSplit.splitMethod } : {}),
+        organizer: {
+          name: billSplit.creator.id === req.userId ? 'You' : billSplit.creator.name,
+          avatar: billSplit.creator.avatar || ''
+        },
+        creatorId: billSplit.creator.id,
+        paymentMethod,
+        participants: billSplit.participants.map(p => ({
+          id: p.user.id,
+          name: p.userId === req.userId ? 'You' : p.user.name,
+          avatar: p.user.avatar || '',
+          amount: p.amount,
+          status: p.isPaid ? 'paid' : 'pending'
+        })),
+        items: billSplit.items.map(item => ({
+          id: item.id,
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity
+        }))
       }
 
       res.json({ billSplit: formatted })
