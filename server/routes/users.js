@@ -190,6 +190,56 @@ router.get('/:id', authenticateToken, async (req, res) => {
   }
 })
 
+// Get user stats
+router.get('/:id/stats', authenticateToken, async (req, res) => {
+  try {
+    if (req.userId !== req.params.id) {
+      return res.status(403).json({ error: 'Unauthorized' })
+    }
+
+    const userId = req.params.id
+
+    const [sentAgg, receivedAgg, splitsCount, friendsCount] = await req.prisma.$transaction([
+      req.prisma.transaction.aggregate({
+        where: { senderId: userId, status: 'COMPLETED' },
+        _sum: { amount: true }
+      }),
+      req.prisma.transaction.aggregate({
+        where: { receiverId: userId, status: 'COMPLETED' },
+        _sum: { amount: true }
+      }),
+      req.prisma.billSplit.count({
+        where: {
+          OR: [
+            { createdBy: userId },
+            { participants: { some: { userId } } }
+          ]
+        }
+      }),
+      req.prisma.friendship.count({
+        where: {
+          OR: [{ user1Id: userId }, { user2Id: userId }]
+        }
+      })
+    ])
+
+    const totalSent = sentAgg._sum.amount || 0
+    const totalReceived = receivedAgg._sum.amount || 0
+
+    res.json({
+      stats: {
+        totalSent,
+        totalReceived,
+        totalSplits: splitsCount,
+        friends: friendsCount
+      }
+    })
+  } catch (error) {
+    console.error('Get user stats error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
 // Upload user avatar
 router.post('/:id/avatar', authenticateToken, upload.single('avatar'), async (req, res) => {
   try {
