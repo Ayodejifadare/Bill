@@ -49,27 +49,35 @@ router.get('/', authenticateToken, async (req, res) => {
       }
     })
 
-    const friends = await Promise.all(friendships.map(async (friendship) => {
-      const friendUser = friendship.user1Id === req.userId ? friendship.user2 : friendship.user1
+    const friendIds = friendships.map(f =>
+      f.user1Id === req.userId ? f.user2Id : f.user1Id
+    )
 
-      const lastTransaction = await req.prisma.transaction.findFirst({
-        where: {
-          OR: [
-            { senderId: req.userId, receiverId: friendUser.id },
-            { senderId: friendUser.id, receiverId: req.userId }
-          ]
-        },
-        orderBy: { createdAt: 'desc' },
-        select: { amount: true, senderId: true, receiverId: true }
-      })
+    const lastTransactions = await req.prisma.transaction.findMany({
+      where: {
+        OR: [
+          { senderId: req.userId, receiverId: { in: friendIds } },
+          { receiverId: req.userId, senderId: { in: friendIds } }
+        ]
+      },
+      orderBy: { createdAt: 'desc' },
+      select: { amount: true, senderId: true, receiverId: true }
+    })
 
-      let lastTransactionData
-      if (lastTransaction) {
-        lastTransactionData = {
-          amount: lastTransaction.amount,
-          type: lastTransaction.receiverId === req.userId ? 'owed' : 'owes'
-        }
+    const lastTransactionsMap = new Map()
+    for (const tx of lastTransactions) {
+      const friendId = tx.senderId === req.userId ? tx.receiverId : tx.senderId
+      if (!lastTransactionsMap.has(friendId)) {
+        lastTransactionsMap.set(friendId, {
+          amount: tx.amount,
+          type: tx.receiverId === req.userId ? 'owed' : 'owes'
+        })
       }
+    }
+
+    const friends = friendships.map(friendship => {
+      const friendUser =
+        friendship.user1Id === req.userId ? friendship.user2 : friendship.user1
 
       return {
         id: friendUser.id,
@@ -77,9 +85,9 @@ router.get('/', authenticateToken, async (req, res) => {
         username: friendUser.email,
         avatar: friendUser.avatar,
         status: 'active',
-        lastTransaction: lastTransactionData
+        lastTransaction: lastTransactionsMap.get(friendUser.id)
       }
-    }))
+    })
 
     const pendingRequestsData = await req.prisma.friendRequest.findMany({
       where: {
@@ -194,7 +202,7 @@ router.post('/request', [
 // Get pending friend requests
 router.get('/requests', authenticateToken, async (req, res) => {
   try {
-    const incoming = await req.prisma.friendRequest.findMany({
+    const incomingRaw = await req.prisma.friendRequest.findMany({
       where: { receiverId: req.userId, status: 'PENDING' },
       include: {
         sender: {
@@ -206,7 +214,7 @@ router.get('/requests', authenticateToken, async (req, res) => {
       }
     })
 
-    const outgoing = await req.prisma.friendRequest.findMany({
+    const outgoingRaw = await req.prisma.friendRequest.findMany({
       where: { senderId: req.userId, status: 'PENDING' },
       include: {
         sender: {
@@ -218,9 +226,87 @@ router.get('/requests', authenticateToken, async (req, res) => {
       }
     })
 
+    const formatRequest = (r, incoming = false) => ({
+      id: incoming ? r.sender.id : r.receiver.id,
+      name: incoming ? r.sender.name : r.receiver.name,
+      username: incoming ? r.sender.email : r.receiver.email,
+      avatar: incoming ? r.sender.avatar : r.receiver.avatar,
+      status: r.status.toLowerCase(),
+      requestId: r.id,
+      sender: {
+        id: r.sender.id,
+        name: r.sender.name,
+        username: r.sender.email,
+        avatar: r.sender.avatar
+      },
+      receiver: {
+        id: r.receiver.id,
+        name: r.receiver.name,
+        username: r.receiver.email,
+        avatar: r.receiver.avatar
+      }
+    })
+
+    const incoming = incomingRaw.map(r => formatRequest(r, true))
+    const outgoing = outgoingRaw.map(r => formatRequest(r, false))
+
     res.json({ incoming, outgoing })
   } catch (error) {
     console.error('Get friend requests error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+// Get summary of amounts owed between user and friends
+router.get('/summary', authenticateToken, async (req, res) => {
+  try {
+    const friendships = await req.prisma.friendship.findMany({
+      where: {
+        OR: [
+          { user1Id: req.userId },
+          { user2Id: req.userId }
+        ]
+      },
+      select: { user1Id: true, user2Id: true }
+    })
+
+    const friendIds = friendships.map(f =>
+      f.user1Id === req.userId ? f.user2Id : f.user1Id
+    )
+
+    if (friendIds.length === 0) {
+      return res.json({ owedToUser: 0, userOwes: 0 })
+    }
+
+    const pendingStatus = Object.keys(TRANSACTION_STATUS_MAP).find(
+      key => TRANSACTION_STATUS_MAP[key] === 'pending'
+    ) || 'PENDING'
+
+    const [owedAgg, owesAgg] = await req.prisma.$transaction([
+      req.prisma.transaction.aggregate({
+        where: {
+          receiverId: req.userId,
+          senderId: { in: friendIds },
+          status: pendingStatus
+        },
+        _sum: { amount: true }
+      }),
+      req.prisma.transaction.aggregate({
+        where: {
+          senderId: req.userId,
+          receiverId: { in: friendIds },
+          status: pendingStatus
+        },
+        _sum: { amount: true }
+      })
+    ])
+
+    const owedToUser = owedAgg._sum.amount || 0
+    const userOwes = owesAgg._sum.amount || 0
+
+    res.json({ owedToUser, userOwes })
+  } catch (error) {
+    console.error('Get friends summary error:', error)
     res.status(500).json({ error: 'Internal server error' })
   }
 })
@@ -269,11 +355,7 @@ router.post('/requests/:id/accept', authenticateToken, async (req, res) => {
       message: `${friendRequest.receiver.name} accepted your friend request`
     })
 
-    res.json({
-      message: 'Friend request accepted',
-      friendRequest,
-      friendship
-    })
+    res.json({ friendRequest, friendship })
   } catch (error) {
     console.error('Accept friend request error:', error)
     res.status(500).json({ error: 'Internal server error' })
@@ -316,10 +398,7 @@ router.post('/requests/:id/decline', authenticateToken, async (req, res) => {
       message: `${friendRequest.receiver.name} declined your friend request`
     })
 
-    res.json({
-      message: 'Friend request declined',
-      friendRequest
-    })
+    res.json({ friendRequest })
   } catch (error) {
     console.error('Decline friend request error:', error)
     res.status(500).json({ error: 'Internal server error' })
@@ -370,10 +449,7 @@ router.delete('/requests/:id', authenticateToken, async (req, res) => {
       message: `${friendRequest.sender.name} cancelled the friend request`
     })
 
-    res.json({
-      message: 'Friend request cancelled',
-      friendRequest
-    })
+    res.json({ friendRequest })
   } catch (error) {
     console.error('Cancel friend request error:', error)
     res.status(500).json({ error: 'Internal server error' })

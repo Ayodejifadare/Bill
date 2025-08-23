@@ -6,6 +6,11 @@ export interface CreateRequestPayload {
     type: 'bank' | 'mobile_money';
     [key: string]: any;
   };
+  isRecurring?: boolean;
+  recurringFrequency?: string;
+  recurringDay?: number;
+  recurringDayOfWeek?: number;
+  message?: string;
 }
 
 import { apiClient } from './apiClient';

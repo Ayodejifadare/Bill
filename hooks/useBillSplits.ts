@@ -16,6 +16,7 @@ export interface BillSplit {
   createdBy: string;
   date: string;
   groupId?: string;
+  groupName?: string;
 }
 
 interface UseBillSplitsOptions {

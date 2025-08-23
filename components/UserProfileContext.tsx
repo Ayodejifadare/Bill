@@ -31,6 +31,7 @@ interface UserPreferences {
   whatsappAlerts: boolean;
   darkMode: boolean;
   biometrics: boolean;
+  notificationSettings: Record<string, unknown>;
 }
 
 interface UserSettings {
@@ -92,6 +93,7 @@ const defaultPreferences: UserPreferences = {
   whatsappAlerts: false,
   darkMode: false,
   biometrics: false,
+  notificationSettings: {},
 };
 
 const getStoredUserId = (): string | undefined => {
@@ -140,8 +142,12 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
     try {
       const userId = getStoredUserId() || userProfile?.id;
       if (!userId) return;
-      const data = await apiClient(`/api/users/${userId}`);
-      const fetched = data.user;
+      const [profileData, statsData] = await Promise.all([
+        apiClient(`/api/users/${userId}`),
+        apiClient(`/api/users/${userId}/stats`).catch(() => ({ stats: defaultStats }))
+      ]);
+      const fetched = profileData.user;
+      const stats = statsData?.stats ?? defaultStats;
       setUserProfile(prev => ({
         id: fetched.id,
         name: fetched.name,
@@ -154,11 +160,32 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
         bio: fetched.bio,
         avatar: fetched.avatar,
         joinDate: fetched.createdAt ? new Date(fetched.createdAt).toLocaleDateString() : prev?.joinDate,
-        kycStatus: fetched.kycStatus ?? prev?.kycStatus,
+        kycStatus: fetched.kycStatus ?? 'pending',
+
         stats: prev?.stats ?? defaultStats,
+        preferences: {
+          ...defaultPreferences,
+          ...(fetched.preferences || {}),
+          notificationSettings: {
+            ...defaultPreferences.notificationSettings,
+            ...(fetched.preferences?.notificationSettings || {})
+          }
+        },
+
+        stats,
         preferences: { ...defaultPreferences, ...(fetched.preferences || {}) },
+
         linkedBankAccounts: prev?.linkedBankAccounts ?? [],
       }));
+      if (fetched.region && fetched.currency) {
+        const settings = { region: fetched.region, currency: fetched.currency };
+        setAppSettings(settings);
+        try {
+          localStorage.setItem('biltip-app-settings', JSON.stringify(settings));
+        } catch (error) {
+          console.warn('Error saving app settings:', error);
+        }
+      }
     } catch (error) {
       console.error('Error fetching user profile:', error);
     }
@@ -220,15 +247,33 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
       ...appSettings,
       ...settingsUpdate
     };
-    
+
     setAppSettings(newSettings);
-    
-    // Persist to localStorage
+
     try {
       localStorage.setItem('biltip-app-settings', JSON.stringify(newSettings));
     } catch (error) {
       console.warn('Error saving app settings:', error);
     }
+
+    void (async () => {
+      try {
+        const userId = userProfile?.id || getStoredUserId();
+        if (!userId) return;
+        await apiClient(`/api/users/${userId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            region: newSettings.region,
+            currency: newSettings.currency,
+          }),
+        });
+      } catch (error) {
+        console.warn('Error updating app settings:', error);
+      }
+    })();
   };
 
   const saveSettings = async (settings: UserSettings) => {

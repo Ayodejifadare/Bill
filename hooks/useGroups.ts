@@ -8,12 +8,9 @@ export interface Group {
   memberCount: number;
   totalSpent: number;
   recentActivity: string;
-  members: Array<{
-    name: string;
-    avatar: string;
-  }>;
+  members: string[];
   isAdmin: boolean;
-  lastActive: string;
+  lastActive: string | null;
   pendingBills: number;
   color: string;
 }
@@ -45,7 +42,21 @@ export function useGroups(): UseGroupsResult {
     setError(null);
     try {
       const data = await apiClient('/groups');
-      setGroups(Array.isArray(data.groups) ? data.groups : []);
+      const rawGroups = Array.isArray(data.groups) ? data.groups : [];
+      const mapped = rawGroups.map((g: any) => ({
+        id: g.id,
+        name: g.name,
+        members: Array.isArray(g.members) ? g.members : [],
+        color: g.color || '',
+        description: '',
+        memberCount: Array.isArray(g.members) ? g.members.length : 0,
+        totalSpent: 0,
+        recentActivity: '',
+        isAdmin: false,
+        lastActive: null,
+        pendingBills: 0
+      }));
+      setGroups(mapped);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch groups');
       setGroups([]);

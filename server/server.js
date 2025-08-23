@@ -5,7 +5,6 @@ import rateLimit from 'express-rate-limit'
 import dotenv from 'dotenv'
 import path from 'path'
 import { PrismaClient } from '@prisma/client'
-import { addClient, removeClient } from './utils/notificationStream.js'
 import authenticate from './middleware/auth.js'
 import onboardingRedirect from './middleware/onboarding.js'
 
@@ -26,6 +25,8 @@ import receiptRoutes from './routes/receipts.js'
 import spendingInsightsRoutes from './routes/spendingInsights.js'
 import recurringPaymentRoutes from './routes/recurringPayments.js'
 import { cleanupExpiredCodes } from './utils/verificationCodes.js'
+import { scheduleRecurringBillSplits } from './utils/recurringBillSplitScheduler.js'
+import { scheduleRecurringRequests } from './utils/recurringRequestScheduler.js'
 
 // Load environment variables
 dotenv.config()
@@ -36,6 +37,10 @@ const UPLOAD_DIR = process.env.AVATAR_UPLOAD_DIR || 'uploads'
 
 // Initialize Prisma Client
 const prisma = new PrismaClient()
+
+// Setup recurring bill split scheduler
+scheduleRecurringBillSplits(prisma)
+scheduleRecurringRequests(prisma)
 
 // Periodically remove expired verification codes
 setInterval(() => cleanupExpiredCodes(prisma), 60 * 60 * 1000)
@@ -67,6 +72,8 @@ app.use((req, res, next) => {
 
 // Auth routes (login, register, OTP)
 app.use('/api/auth', authRoutes)
+// Protect all other API routes with authentication
+app.use('/api', authenticate)
 // Redirect first-time users to onboarding if needed
 app.use('/api', onboardingRedirect)
 app.use('/api/users', userRoutes)
@@ -84,20 +91,6 @@ app.use('/api/verification', verificationRoutes)
 app.use('/api/receipts', receiptRoutes)
 app.use('/api', spendingInsightsRoutes)
 
-app.get('/api/notifications/stream', authenticate, (req, res) => {
-  res.set({
-    'Content-Type': 'text/event-stream',
-    'Cache-Control': 'no-cache',
-    Connection: 'keep-alive'
-  })
-  res.flushHeaders()
-
-  addClient(req.user.id, res)
-
-  req.on('close', () => {
-    removeClient(req.user.id)
-  })
-})
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

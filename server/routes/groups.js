@@ -1,4 +1,5 @@
 import express from 'express'
+import { formatDistanceToNow } from 'date-fns'
 import groupAccountRouter from './groupAccounts.js'
 import groupMemberRouter from './groupMembers.js'
 import groupInviteRouter from './groupInvites.js'
@@ -10,7 +11,35 @@ import {
 } from '../../shared/transactions.js'
 import authenticate from '../middleware/auth.js'
 
+const COLOR_CLASS_MAP = {
+  blue: 'bg-blue-500',
+  green: 'bg-green-500',
+  purple: 'bg-purple-500',
+  orange: 'bg-orange-500',
+  red: 'bg-red-500',
+  teal: 'bg-teal-500',
+  pink: 'bg-pink-500',
+  indigo: 'bg-indigo-500'
+}
+
+function mapColor(color = '') {
+  const clr = color || ''
+  if (clr.startsWith('bg-')) return clr
+  const key = clr.toLowerCase()
+  return COLOR_CLASS_MAP[key] || COLOR_CLASS_MAP.blue
+}
+
 const router = express.Router()
+
+function getInitials(name = '') {
+  return name
+    .split(/\s+/)
+    .map((n) => n[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join('')
+    .toUpperCase()
+}
 
 // Helper to format group information with aggregates
 async function formatGroup(prisma, group, userId) {
@@ -20,7 +49,7 @@ async function formatGroup(prisma, group, userId) {
   let lastActive = null
 
   if (memberIds.length > 0) {
-    const aggregates = await prisma.transaction.aggregate({
+    const txAgg = await prisma.transaction.aggregate({
       where: {
         OR: [
           { senderId: { in: memberIds } },
@@ -31,9 +60,40 @@ async function formatGroup(prisma, group, userId) {
       _max: { createdAt: true }
     })
 
-    totalSpent = aggregates._sum.amount || 0
-    lastActive = aggregates._max.createdAt
+    totalSpent += txAgg._sum.amount || 0
+    lastActive = txAgg._max.createdAt
+
+    const billSplits = await prisma.billSplit.findMany({
+      where: { groupId: group.id },
+      select: {
+        createdAt: true,
+        participants: { select: { amount: true } }
+      }
+    })
+
+    billSplits.forEach((bs) => {
+      bs.participants.forEach((p) => {
+        totalSpent += p.amount
+      })
+      if (!lastActive || bs.createdAt > lastActive) {
+        lastActive = bs.createdAt
+      }
+    })
   }
+
+  const pendingBills = userId
+    ? await prisma.billSplitParticipant.count({
+        where: {
+          userId,
+          isPaid: false,
+          billSplit: { groupId: group.id }
+        }
+      })
+    : 0
+
+  const memberPreview = group.members
+    .slice(0, 3)
+    .map((m) => getInitials(m.user.name))
 
   return {
     id: group.id,
@@ -41,45 +101,50 @@ async function formatGroup(prisma, group, userId) {
     description: group.description || '',
     memberCount: group.members.length,
     totalSpent,
-    recentActivity: lastActive ? `Last activity on ${lastActive.toISOString()}` : '',
-    members: group.members.map((m) => ({
-      userId: m.userId,
-      name: m.user.name,
-      avatar: m.user.avatar || '',
-      role: m.role
-    })),
+    recentActivity: lastActive
+      ? formatDistanceToNow(lastActive, { addSuffix: true })
+      : '',
+    members: memberPreview,
     isAdmin: userId
       ? group.members.some((m) => m.userId === userId && m.role === 'ADMIN')
       : false,
-    lastActive: lastActive ? lastActive.toISOString() : '',
-    pendingBills: 0,
-    color: group.color || ''
+    lastActive: lastActive ? lastActive.toISOString() : null,
+    pendingBills,
+    color: mapColor(group.color)
   }
 }
 
 // GET / - list all groups with member details and aggregates
 router.get('/', authenticate, async (req, res) => {
   try {
+    const page = Math.max(parseInt(req.query.page) || 1, 1)
+    const pageSize = Math.min(parseInt(req.query.pageSize) || 20, 100)
+    const skip = (page - 1) * pageSize
+
     const groups = await req.prisma.group.findMany({
       where: {
         members: { some: { userId: req.user.id } }
       },
       include: {
         members: {
-          include: {
-            user: {
-              select: { id: true, name: true, avatar: true }
-            }
-          }
+          select: { userId: true }
         }
-      }
+      },
+      skip,
+      take: pageSize + 1
     })
 
-    const formatted = await Promise.all(
-      groups.map((g) => formatGroup(req.prisma, g, req.user.id))
-    )
+    const hasMore = groups.length > pageSize
+    if (hasMore) groups.pop()
 
-    res.json({ groups: formatted })
+    const formatted = groups.map((g) => ({
+      id: g.id,
+      name: g.name,
+      members: g.members.map((m) => m.userId),
+      color: mapColor(g.color)
+    }))
+
+    res.json({ groups: formatted, nextPage: hasMore ? page + 1 : null })
   } catch (error) {
     console.error('List groups error:', error)
     res.status(500).json({ error: 'Internal server error' })
@@ -198,6 +263,8 @@ router.post('/:groupId/join', authenticate, async (req, res) => {
     })
 
     const formatted = await formatGroup(req.prisma, updated, userId)
+    // ensure member count reflects new membership
+    formatted.memberCount = updated.members.length
 
     res.json({ group: formatted })
   } catch (error) {
@@ -209,31 +276,45 @@ router.post('/:groupId/join', authenticate, async (req, res) => {
 // POST /:groupId/leave - remove current user from group
 router.post('/:groupId/leave', authenticate, async (req, res) => {
   try {
-    const group = await req.prisma.group.findUnique({
-      where: { id: req.params.groupId },
-      include: { members: true }
-    })
-    if (!group) {
-      return res.status(404).json({ error: 'Group not found' })
-    }
+    const { groupId } = req.params
     const userId = req.user.id
 
-    await req.prisma.groupMember.deleteMany({
-      where: { groupId: group.id, userId }
+    // Ensure group exists and user is a member
+    const membership = await req.prisma.groupMember.findUnique({
+      where: { groupId_userId: { groupId, userId } }
+    })
+    if (!membership) {
+      return res.status(404).json({ error: 'Group not found' })
+    }
+
+    // Remove the member
+    await req.prisma.groupMember.delete({
+      where: { groupId_userId: { groupId, userId } }
     })
 
-    const updated = await req.prisma.group.findUnique({
-      where: { id: group.id },
-      include: { members: true }
+    // Check remaining members for admin role
+    const remainingMembers = await req.prisma.groupMember.findMany({
+      where: { groupId },
+      orderBy: { joinedAt: 'asc' }
     })
 
-    res.json({
-      group: {
-        id: updated.id,
-        name: updated.name,
-        members: updated.members.map((m) => m.userId)
+    if (remainingMembers.length > 0) {
+      const hasAdmin = remainingMembers.some((m) => m.role === 'ADMIN')
+      if (!hasAdmin) {
+        // Promote earliest remaining member to admin
+        await req.prisma.groupMember.update({
+          where: {
+            groupId_userId: {
+              groupId,
+              userId: remainingMembers[0].userId
+            }
+          },
+          data: { role: 'ADMIN' }
+        })
       }
-    })
+    }
+
+    res.json({ success: true })
   } catch (error) {
     console.error('Leave group error:', error)
     res.status(500).json({ error: 'Internal server error' })
@@ -331,7 +412,7 @@ router.get('/:groupId', authenticate, async (req, res) => {
       members: group.members.map((m) => ({
         id: m.user.id,
         name: m.user.name,
-        avatar: m.user.avatar || '',
+        avatar: m.user.avatar || getInitials(m.user.name),
         email: m.user.email,
         isAdmin: m.role === 'ADMIN',
         balance: stats[m.userId]?.balance || 0,

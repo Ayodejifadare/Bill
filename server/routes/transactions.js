@@ -41,6 +41,32 @@ const authenticateToken = async (req, res, next) => {
   }
 }
 
+// Get distinct transaction categories for the current user
+router.get('/categories', authenticateToken, async (req, res) => {
+  try {
+    const categories = await req.prisma.transaction.findMany({
+      where: {
+        OR: [
+          { senderId: req.userId },
+          { receiverId: req.userId }
+        ],
+        category: { not: null }
+      },
+      distinct: ['category'],
+      select: { category: true }
+    })
+
+    const mapped = categories
+      .map(c => TRANSACTION_CATEGORY_MAP[c.category] || c.category)
+      .filter(Boolean)
+
+    res.json({ categories: mapped })
+  } catch (error) {
+    console.error('Get transaction categories error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
 // Get user's transactions
 router.get('/', authenticateToken, async (req, res) => {
   try {
@@ -56,59 +82,76 @@ router.get('/', authenticateToken, async (req, res) => {
       category,
       minAmount,
       maxAmount,
-      keyword
+      keyword,
+      includeSummary
     } = req.query
 
+    const baseWhere = {}
+
+    if (startDate || endDate) {
+      baseWhere.createdAt = {}
+      if (startDate) baseWhere.createdAt.gte = new Date(startDate)
+      if (endDate) baseWhere.createdAt.lte = new Date(endDate)
+    }
+
+    if (type) {
+      const mappedType = REVERSE_TRANSACTION_TYPE_MAP[type] || type
+      baseWhere.type = mappedType
+    }
+
+    if (status) {
+      const mappedStatus = REVERSE_TRANSACTION_STATUS_MAP[status] || status
+      baseWhere.status = mappedStatus
+    }
+
+    if (category) {
+      const mappedCategory = REVERSE_TRANSACTION_CATEGORY_MAP[category] || category
+      baseWhere.category = mappedCategory
+    }
+
+    if (minAmount || maxAmount) {
+      baseWhere.amount = {}
+      if (minAmount) baseWhere.amount.gte = parseFloat(minAmount)
+      if (maxAmount) baseWhere.amount.lte = parseFloat(maxAmount)
+    }
+
+    if (keyword) {
+      const keywordFilter = {
+        OR: [
+          { description: { contains: keyword } },
+          { billSplit: { title: { contains: keyword } } },
+          { billSplit: { description: { contains: keyword } } },
+          { sender: { name: { contains: keyword } } },
+          { receiver: { name: { contains: keyword } } }
+        ]
+      }
+      baseWhere.AND = Array.isArray(baseWhere.AND)
+        ? [...baseWhere.AND, keywordFilter]
+        : [keywordFilter]
+    }
+
     const where = {
+      ...baseWhere,
       OR: [
         { senderId: req.userId },
         { receiverId: req.userId }
       ]
     }
 
-    if (startDate || endDate) {
-      where.createdAt = {}
-      if (startDate) where.createdAt.gte = new Date(startDate)
-      if (endDate) where.createdAt.lte = new Date(endDate)
-    }
-
-    if (type) {
-      const mappedType = REVERSE_TRANSACTION_TYPE_MAP[type] || type
-      where.type = mappedType
-    }
-
-    if (status) {
-      const mappedStatus = REVERSE_TRANSACTION_STATUS_MAP[status] || status
-      where.status = mappedStatus
-    }
-
-    if (category) {
-      const mappedCategory = REVERSE_TRANSACTION_CATEGORY_MAP[category] || category
-      where.category = mappedCategory
-    }
-
-    if (minAmount || maxAmount) {
-      where.amount = {}
-      if (minAmount) where.amount.gte = parseFloat(minAmount)
-      if (maxAmount) where.amount.lte = parseFloat(maxAmount)
-    }
-
-    if (keyword) {
-      const keywordFilter = {
-        OR: [
-          { description: { contains: keyword, mode: 'insensitive' } },
-          { billSplit: { title: { contains: keyword, mode: 'insensitive' } } },
-          { billSplit: { description: { contains: keyword, mode: 'insensitive' } } },
-          { sender: { name: { contains: keyword, mode: 'insensitive' } } },
-          { receiver: { name: { contains: keyword, mode: 'insensitive' } } }
-        ]
-      }
-      where.AND = Array.isArray(where.AND) ? [...where.AND, keywordFilter] : [keywordFilter]
-    }
-
     const baseQuery = {
       where,
-      include: {
+      select: {
+        id: true,
+        amount: true,
+        description: true,
+        status: true,
+        type: true,
+        category: true,
+        createdAt: true,
+        updatedAt: true,
+        senderId: true,
+        receiverId: true,
+        billSplitId: true,
         sender: {
           select: { id: true, name: true, email: true, avatar: true }
         },
@@ -164,24 +207,161 @@ router.get('/', authenticateToken, async (req, res) => {
       pageCount = Math.ceil(total / pageSize)
     }
 
-    const formatted = transactions.map(t => ({
+    const formatted = transactions.map(({ createdAt, receiver, ...t }) => ({
       ...t,
+      date: createdAt.toISOString(),
+      recipient: receiver,
       type: TRANSACTION_TYPE_MAP[t.type] || t.type,
       status: TRANSACTION_STATUS_MAP[t.status] || t.status,
       ...(t.category
         ? { category: TRANSACTION_CATEGORY_MAP[t.category] || t.category }
         : {})
     }))
+    let summaryData = {}
+    if (includeSummary === 'true' || includeSummary === '1') {
+      const completedStatus =
+        REVERSE_TRANSACTION_STATUS_MAP['completed'] || 'COMPLETED'
+
+      const sentWhere = {
+        ...baseWhere,
+        senderId: req.userId,
+        ...(status ? {} : { status: completedStatus })
+      }
+
+      const receivedWhere = {
+        ...baseWhere,
+        receiverId: req.userId,
+        ...(status ? {} : { status: completedStatus })
+      }
+
+      const [sentAgg, receivedAgg] = await req.prisma.$transaction([
+        req.prisma.transaction.aggregate({
+          where: sentWhere,
+          _sum: { amount: true }
+        }),
+        req.prisma.transaction.aggregate({
+          where: receivedWhere,
+          _sum: { amount: true }
+        })
+      ])
+
+      const totalSent = sentAgg._sum.amount || 0
+      const totalReceived = receivedAgg._sum.amount || 0
+
+      summaryData = {
+        totalSent,
+        totalReceived,
+        netFlow: totalReceived - totalSent
+      }
+    }
 
     res.json({
       transactions: formatted,
       nextCursor,
       hasMore,
       total,
-      pageCount
+      pageCount,
+      ...summaryData
     })
   } catch (error) {
     console.error('Get transactions error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+// Get transaction summary
+router.get('/summary', authenticateToken, async (req, res) => {
+  try {
+    const {
+      startDate,
+      endDate,
+      type,
+      status,
+      category,
+      minAmount,
+      maxAmount,
+      keyword
+    } = req.query
+
+    const baseWhere = {}
+
+    if (startDate || endDate) {
+      baseWhere.createdAt = {}
+      if (startDate) baseWhere.createdAt.gte = new Date(startDate)
+      if (endDate) baseWhere.createdAt.lte = new Date(endDate)
+    }
+
+    if (type) {
+      const mappedType = REVERSE_TRANSACTION_TYPE_MAP[type] || type
+      baseWhere.type = mappedType
+    }
+
+    if (status) {
+      const mappedStatus = REVERSE_TRANSACTION_STATUS_MAP[status] || status
+      baseWhere.status = mappedStatus
+    }
+
+    if (category) {
+      const mappedCategory = REVERSE_TRANSACTION_CATEGORY_MAP[category] || category
+      baseWhere.category = mappedCategory
+    }
+
+    if (minAmount || maxAmount) {
+      baseWhere.amount = {}
+      if (minAmount) baseWhere.amount.gte = parseFloat(minAmount)
+      if (maxAmount) baseWhere.amount.lte = parseFloat(maxAmount)
+    }
+
+    if (keyword) {
+      const keywordFilter = {
+        OR: [
+          { description: { contains: keyword } },
+          { billSplit: { title: { contains: keyword } } },
+          { billSplit: { description: { contains: keyword } } },
+          { sender: { name: { contains: keyword } } },
+          { receiver: { name: { contains: keyword } } }
+        ]
+      }
+      baseWhere.AND = Array.isArray(baseWhere.AND)
+        ? [...baseWhere.AND, keywordFilter]
+        : [keywordFilter]
+    }
+
+    const completedStatus = REVERSE_TRANSACTION_STATUS_MAP['completed'] || 'COMPLETED'
+
+    const sentWhere = {
+      ...baseWhere,
+      senderId: req.userId,
+      ...(status ? {} : { status: completedStatus })
+    }
+
+    const receivedWhere = {
+      ...baseWhere,
+      receiverId: req.userId,
+      ...(status ? {} : { status: completedStatus })
+    }
+
+    const [sentAgg, receivedAgg] = await req.prisma.$transaction([
+      req.prisma.transaction.aggregate({
+        where: sentWhere,
+        _sum: { amount: true }
+      }),
+      req.prisma.transaction.aggregate({
+        where: receivedWhere,
+        _sum: { amount: true }
+      })
+    ])
+
+    const totalSent = sentAgg._sum.amount || 0
+    const totalReceived = receivedAgg._sum.amount || 0
+
+    res.json({
+      totalSent,
+      totalReceived,
+      netFlow: totalReceived - totalSent
+    })
+  } catch (error) {
+    console.error('Get transactions summary error:', error)
     res.status(500).json({ error: 'Internal server error' })
   }
 })
@@ -243,32 +423,32 @@ router.get('/:id', authenticateToken, async (req, res) => {
         ? transaction.receiver
         : transaction.sender
 
-    const formatted = {
-      id: transaction.id,
-      amount: transaction.amount,
-      description: transaction.description || '',
-      date: transaction.createdAt.toISOString(),
-      type,
-      status: TRANSACTION_STATUS_MAP[transaction.status] || transaction.status,
-      sender: transaction.sender,
-      receiver: transaction.receiver,
-      user: otherUser,
-      ...(transaction.category
-        ? { category: TRANSACTION_CATEGORY_MAP[transaction.category] || transaction.category }
-        : {}),
-      ...(transaction.billSplit?.location
-        ? { location: transaction.billSplit.location }
-        : {}),
-      ...(transaction.billSplit?.note ? { note: transaction.billSplit.note } : {}),
-      ...(transaction.billSplit
-        ? {
-            totalParticipants: transaction.billSplit.participants.length,
-            paidParticipants: transaction.billSplit.participants.filter((p) => p.isPaid).length
-          }
-        : {}),
-      ...(paymentMethod ? { paymentMethod } : {}),
-      transactionId: transaction.id
-    }
+      const formatted = {
+        id: transaction.id,
+        amount: transaction.amount,
+        description: transaction.description || '',
+        date: transaction.createdAt.toISOString(),
+        type,
+        status: TRANSACTION_STATUS_MAP[transaction.status] || transaction.status,
+        sender: transaction.sender,
+        recipient: transaction.receiver,
+        user: otherUser,
+        ...(transaction.category
+          ? { category: TRANSACTION_CATEGORY_MAP[transaction.category] || transaction.category }
+          : {}),
+        ...(transaction.billSplit?.location
+          ? { location: transaction.billSplit.location }
+          : {}),
+        ...(transaction.billSplit?.note ? { note: transaction.billSplit.note } : {}),
+        ...(transaction.billSplit
+          ? {
+              totalParticipants: transaction.billSplit.participants.length,
+              paidParticipants: transaction.billSplit.participants.filter((p) => p.isPaid).length
+            }
+          : {}),
+        ...(paymentMethod ? { paymentMethod } : {}),
+        transactionId: transaction.id
+      }
 
     res.json({ transaction: formatted })
   } catch (error) {

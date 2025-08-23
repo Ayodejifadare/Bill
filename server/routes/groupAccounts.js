@@ -60,13 +60,30 @@ const isValidProvider = (provider) => {
   return MOBILE_MONEY_PROVIDERS.some((p) => p.name === provider)
 }
 
+const formatAccount = (account) => ({
+  id: account.id,
+  groupId: account.groupId,
+  createdById: account.createdById,
+  name: account.name,
+  type: account.type === 'BANK' ? 'bank' : 'mobile_money',
+  bankName: account.bank,
+  accountNumber: account.accountNumber,
+  accountHolderName: account.accountName,
+  sortCode: account.sortCode,
+  routingNumber: account.routingNumber,
+  provider: account.provider,
+  phoneNumber: account.phoneNumber,
+  isDefault: account.isDefault,
+  createdAt: account.createdAt
+})
+
 // List all accounts for a specific group
 router.get('/', async (req, res) => {
   try {
     const accounts = await req.prisma.groupAccount.findMany({
       where: { groupId: req.params.groupId }
     })
-    res.json({ accounts })
+    res.json({ accounts: accounts.map(formatAccount) })
   } catch (error) {
     console.error('List group accounts error:', error)
     res.status(500).json({ error: 'Internal server error' })
@@ -103,6 +120,8 @@ router.post('/', requireGroupAdmin, async (req, res) => {
         bank: req.body.bank,
         accountNumber: req.body.accountNumber,
         accountName: req.body.accountName,
+        sortCode: req.body.sortCode,
+        routingNumber: req.body.routingNumber,
         provider: req.body.provider,
         phoneNumber: req.body.phoneNumber,
         isDefault: count === 0,
@@ -113,7 +132,7 @@ router.post('/', requireGroupAdmin, async (req, res) => {
       }
     })
 
-    res.status(201).json({ account })
+    res.status(201).json({ account: formatAccount(account) })
   } catch (error) {
     console.error('Create group account error:', error)
     res.status(500).json({ error: 'Internal server error' })
@@ -142,7 +161,7 @@ router.put('/:accountId', requireGroupAdmin, async (req, res) => {
       data: { ...req.body }
     })
 
-    res.json({ account: updated })
+    res.json({ account: formatAccount(updated) })
   } catch (error) {
     console.error('Update group account error:', error)
     res.status(500).json({ error: 'Internal server error' })

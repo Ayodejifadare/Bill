@@ -241,4 +241,30 @@ router.get('/me', async (req, res) => {
   }
 })
 
+// Logout user by invalidating existing tokens
+router.post('/logout', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '')
+
+    if (!token) {
+      return res.status(401).json({ error: 'No token provided' })
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key')
+    await req.prisma.user.update({
+      where: { id: decoded.userId },
+      data: { tokenVersion: { increment: 1 } }
+    })
+
+    res.json({ message: 'Logged out' })
+  } catch (error) {
+    console.error('Logout error:', error)
+    if (error.name === 'TokenExpiredError' || error.name === 'JsonWebTokenError') {
+      res.status(401).json({ error: 'Invalid token' })
+    } else {
+      res.status(500).json({ error: 'Internal server error' })
+    }
+  }
+})
+
 export default router

@@ -3,11 +3,11 @@ import authenticate from '../middleware/auth.js'
 
 const router = express.Router()
 
-function classifyStatus(dueDate) {
+export function classifyStatus(dueDate) {
   const now = new Date()
   const soonThreshold = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
   const date = new Date(dueDate)
-  if (date < now) return 'pending'
+  if (date < now) return 'overdue'
   if (date <= soonThreshold) return 'due_soon'
   return 'upcoming'
 }

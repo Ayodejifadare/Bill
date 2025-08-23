@@ -29,9 +29,12 @@ model User {
   emailVerified     Boolean  @default(false)
   idVerified        Boolean  @default(false)
   documentsSubmitted Boolean @default(false)
+  kycStatus String   @default("pending")
   tokenVersion    Int      @default(0)
   privacySettings      String?
   preferenceSettings   String?
+  region    String   @default("US")
+  currency  String   @default("USD")
   onboardingCompleted  Boolean @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -55,6 +58,8 @@ model User {
   paymentRequestsReceived PaymentRequest[] @relation("PaymentRequestReceiver")
   securityLogs        SecurityLog[]
   verificationCodes   VerificationCode[]
+  remindersSent     BillSplitReminder[] @relation("BillSplitReminderSender")
+  remindersReceived BillSplitReminder[] @relation("BillSplitReminderRecipient")
 
   @@map("users")
 }
@@ -89,9 +94,12 @@ model PaymentRequest {
   id          String   @id @default(cuid())
   amount      Float
   description String?
+  message     String?
   status      String   @default("PENDING")
   isRecurring Boolean  @default(false)
-  frequency   String?
+  recurringFrequency String?
+  recurringDay Int?
+  recurringDayOfWeek Int?
   nextDueDate DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -120,17 +128,22 @@ model BillSplit {
     note        String?
     splitMethod String?
     paymentMethodId String?
+    groupId     String?
+    isRecurring Boolean @default(false)
 
   // Foreign keys
   createdBy String
 
   // Relationships
   creator      User          @relation(fields: [createdBy], references: [id])
+  group        Group?        @relation(fields: [groupId], references: [id])
   transactions Transaction[]
   participants BillSplitParticipant[]
   items        BillItem[]
   receipts     Receipt[]
   invoices     Invoice[]
+  reminders   BillSplitReminder[]
+  recurring    RecurringBillSplit?
 
   @@map("bill_splits")
 }
@@ -163,6 +176,35 @@ model BillSplitParticipant {
 
   @@unique([billSplitId, userId])
   @@map("bill_split_participants")
+}
+
+model BillSplitReminder {
+  id          String   @id @default(cuid())
+  billSplitId String
+  senderId    String
+  recipientId String
+  type        String
+  template    String?
+  channels    String
+  createdAt   DateTime @default(now())
+
+  billSplit BillSplit @relation(fields: [billSplitId], references: [id], onDelete: Cascade)
+  sender    User      @relation("BillSplitReminderSender", fields: [senderId], references: [id], onDelete: Cascade)
+  recipient User      @relation("BillSplitReminderRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@map("bill_split_reminders")
+}
+
+model RecurringBillSplit {
+  id          String   @id @default(cuid())
+  billSplitId String   @unique
+  frequency   String
+  day         Int?
+  nextRun     DateTime
+
+  billSplit BillSplit @relation(fields: [billSplitId], references: [id])
+
+  @@map("recurring_bill_splits")
 }
 
 model Friendship {
@@ -211,6 +253,7 @@ model Group {
   accounts GroupAccount[]
   invites  GroupInvite[]
   inviteLinks GroupInviteLink[]
+  billSplits BillSplit[]
 
   @@map("groups")
 }
@@ -271,6 +314,8 @@ model GroupAccount {
   bank        String?
   accountNumber String?
   accountName String?
+  sortCode      String?
+  routingNumber String?
   provider    String?
   phoneNumber String?
   isDefault   Boolean @default(false)

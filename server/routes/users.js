@@ -5,6 +5,7 @@ import { body, validationResult } from 'express-validator'
 import multer from 'multer'
 import path from 'path'
 import fs from 'fs'
+import { updateNotificationPreference, defaultSettings } from './notifications.js'
 
 const router = express.Router()
 
@@ -171,7 +172,10 @@ router.get('/:id', authenticateToken, async (req, res) => {
         twoFactorEnabled: true,
         biometricEnabled: true,
         preferenceSettings: true,
-        onboardingCompleted: true
+        region: true,
+        currency: true,
+        onboardingCompleted: true,
+        kycStatus: true
       }
     })
 
@@ -179,10 +183,67 @@ router.get('/:id', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'User not found' })
     }
 
+    const notif = await req.prisma.notificationPreference.findUnique({ where: { userId: req.params.id } })
+    const notificationSettings = notif
+      ? typeof notif.preferences === 'string'
+        ? JSON.parse(notif.preferences)
+        : notif.preferences
+      : defaultSettings
+
     const { preferenceSettings, ...rest } = user
-    res.json({ user: { ...rest, preferences: preferenceSettings || {} } })
+    res.json({ user: { ...rest, preferences: { ...(preferenceSettings || {}), notificationSettings } } })
   } catch (error) {
     console.error('Get user error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+// Get user stats
+router.get('/:id/stats', authenticateToken, async (req, res) => {
+  try {
+    if (req.userId !== req.params.id) {
+      return res.status(403).json({ error: 'Unauthorized' })
+    }
+
+    const userId = req.params.id
+
+    const [sentAgg, receivedAgg, splitsCount, friendsCount] = await req.prisma.$transaction([
+      req.prisma.transaction.aggregate({
+        where: { senderId: userId, status: 'COMPLETED' },
+        _sum: { amount: true }
+      }),
+      req.prisma.transaction.aggregate({
+        where: { receiverId: userId, status: 'COMPLETED' },
+        _sum: { amount: true }
+      }),
+      req.prisma.billSplit.count({
+        where: {
+          OR: [
+            { createdBy: userId },
+            { participants: { some: { userId } } }
+          ]
+        }
+      }),
+      req.prisma.friendship.count({
+        where: {
+          OR: [{ user1Id: userId }, { user2Id: userId }]
+        }
+      })
+    ])
+
+    const totalSent = sentAgg._sum.amount || 0
+    const totalReceived = receivedAgg._sum.amount || 0
+
+    res.json({
+      stats: {
+        totalSent,
+        totalReceived,
+        totalSplits: splitsCount,
+        friends: friendsCount
+      }
+    })
+  } catch (error) {
+    console.error('Get user stats error:', error)
     res.status(500).json({ error: 'Internal server error' })
   }
 })
@@ -231,7 +292,9 @@ router.put(
     body('preferences.emailAlerts').optional().isBoolean(),
     body('preferences.whatsappAlerts').optional().isBoolean(),
     body('preferences.darkMode').optional().isBoolean(),
-    body('preferences.biometrics').optional().isBoolean()
+    body('preferences.biometrics').optional().isBoolean(),
+    body('region').optional().isIn(['US', 'NG']),
+    body('currency').optional().isIn(['USD', 'NGN'])
   ],
   async (req, res) => {
     try {
@@ -244,7 +307,7 @@ router.put(
         return res.status(403).json({ error: 'Unauthorized' })
       }
 
-      const { name, email, phone, avatar, firstName, lastName, dateOfBirth, address, bio, preferences } = req.body
+      const { name, email, phone, avatar, firstName, lastName, dateOfBirth, address, bio, preferences, region, currency } = req.body
       const data = {}
       if (name !== undefined) data.name = name
       if (email !== undefined) data.email = email
@@ -256,9 +319,23 @@ router.put(
       if (address !== undefined) data.address = address
       if (bio !== undefined) data.bio = bio
       if (preferences !== undefined) data.preferenceSettings = preferences
+      if (preferences?.biometrics !== undefined) data.biometricEnabled = preferences.biometrics
+      if (region !== undefined) data.region = region
+      if (currency !== undefined) data.currency = currency
 
       if (Object.keys(data).length === 0) {
         return res.status(400).json({ error: 'No valid fields provided' })
+      }
+
+      let notificationSettings
+      if (preferences !== undefined) {
+        const updates = {}
+        if (preferences.notifications !== undefined) updates.push = { enabled: preferences.notifications }
+        if (preferences.emailAlerts !== undefined) updates.email = { enabled: preferences.emailAlerts }
+        if (preferences.whatsappAlerts !== undefined) updates.whatsapp = { enabled: preferences.whatsappAlerts }
+        if (Object.keys(updates).length > 0) {
+          notificationSettings = await updateNotificationPreference(req.prisma, req.params.id, updates)
+        }
       }
 
       const user = await req.prisma.user.update({
@@ -276,11 +353,25 @@ router.put(
           address: true,
           bio: true,
           createdAt: true,
-          preferenceSettings: true
+          preferenceSettings: true,
+          biometricEnabled: true,
+          region: true,
+          currency: true,
+          kycStatus: true
         }
       })
+
+      if (!notificationSettings) {
+        const pref = await req.prisma.notificationPreference.findUnique({ where: { userId: req.params.id } })
+        notificationSettings = pref
+          ? typeof pref.preferences === 'string'
+            ? JSON.parse(pref.preferences)
+            : pref.preferences
+          : defaultSettings
+      }
+
       const { preferenceSettings, ...rest } = user
-      res.json({ user: { ...rest, preferences: preferenceSettings || {} } })
+      res.json({ user: { ...rest, preferences: { ...(preferenceSettings || {}), notificationSettings } } })
     } catch (error) {
       console.error('Update user error:', error)
       res.status(500).json({ error: 'Internal server error' })

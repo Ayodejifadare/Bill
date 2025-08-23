@@ -11,8 +11,10 @@ interface BaseAccount {
   type: 'bank' | 'mobile_money';
   // Bank fields
   bank?: string;
+  bankName?: string;
   accountNumber?: string;
   accountName?: string;
+  accountHolderName?: string;
   sortCode?: string;
   routingNumber?: string;
   accountType?: 'checking' | 'savings';
@@ -52,6 +54,8 @@ export function AccountCard({
   const { appSettings } = useUserProfile();
   const isNigeria = appSettings.region === 'NG';
   const isGroupAccount = variant === 'group' && 'name' in account;
+  const bank = account.bankName || account.bank;
+  const accountName = account.accountHolderName || account.accountName;
 
   const copyToClipboard = (text: string, label?: string) => {
     navigator.clipboard.writeText(text);
@@ -60,9 +64,9 @@ export function AccountCard({
 
   const copyFullAccountInfo = () => {
     if (account.type === 'bank') {
-      const accountInfo = isNigeria 
-        ? `${account.bank}\nAccount Name: ${account.accountName}\nAccount Number: ${account.accountNumber}\nSort Code: ${account.sortCode}`
-        : `${account.bank}\nAccount Holder: ${account.accountName}\nRouting Number: ${account.routingNumber}\nAccount Number: ${account.accountNumber}`;
+      const accountInfo = isNigeria
+        ? `${bank}\nAccount Name: ${accountName}\nAccount Number: ${account.accountNumber}\nSort Code: ${account.sortCode}`
+        : `${bank}\nAccount Holder: ${accountName}\nRouting Number: ${account.routingNumber}\nAccount Number: ${account.accountNumber}`;
       copyToClipboard(accountInfo);
     } else {
       copyToClipboard(`${account.provider}\nPhone: ${account.phoneNumber}`);
@@ -105,7 +109,7 @@ export function AccountCard({
                 <>
                   <h4 className="text-sm sm:text-base truncate">{(account as GroupAccount).name}</h4>
                   <p className="text-xs sm:text-sm text-muted-foreground truncate">
-                    {account.type === 'bank' ? account.bank : account.provider} • Added by {(account as GroupAccount).createdBy}
+                    {account.type === 'bank' ? bank : account.provider} • Added by {(account as GroupAccount).createdBy}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {formatDate((account as GroupAccount).createdDate)}
@@ -113,7 +117,7 @@ export function AccountCard({
                 </>
               ) : (
                 <>
-                  <h4 className="text-sm sm:text-base">{account.type === 'bank' ? account.bank : account.provider}</h4>
+                  <h4 className="text-sm sm:text-base">{account.type === 'bank' ? bank : account.provider}</h4>
                   <p className="text-xs sm:text-sm text-muted-foreground">
                     {account.type === 'bank' 
                       ? (isNigeria ? 'Bank Account' : `${account.accountType?.charAt(0).toUpperCase()}${account.accountType?.slice(1)} Account`)
@@ -140,12 +144,12 @@ export function AccountCard({
                   {isNigeria ? 'Account Name:' : 'Account Holder:'}
                 </span>
                 <div className="flex items-center gap-1 sm:gap-2 min-w-0">
-                  <span className="text-xs sm:text-sm truncate max-w-[120px] sm:max-w-none">{account.accountName}</span>
+                  <span className="text-xs sm:text-sm truncate max-w-[120px] sm:max-w-none">{accountName}</span>
                   <Button
                     variant="ghost"
                     size="sm"
                     className="h-5 w-5 sm:h-6 sm:w-6 p-0 flex-shrink-0"
-                    onClick={() => copyToClipboard(account.accountName!, 'Account name')}
+                    onClick={() => copyToClipboard(accountName!, 'Account name')}
                   >
                     <Copy className="h-3 w-3" />
                   </Button>
