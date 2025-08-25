@@ -1,5 +1,10 @@
 import jwt from 'jsonwebtoken'
 
+const { JWT_SECRET } = process.env
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable is not defined')
+}
+
 export default async function authenticate(req, res, next) {
   // Simple header-based auth for tests
   const testUserId = req.headers['x-user-id']
@@ -16,7 +21,7 @@ export default async function authenticate(req, res, next) {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key')
+    const decoded = jwt.verify(token, JWT_SECRET)
     const user = await req.prisma.user.findUnique({
       where: { id: decoded.userId },
       select: { tokenVersion: true }
