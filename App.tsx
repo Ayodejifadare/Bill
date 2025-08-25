@@ -438,35 +438,40 @@ function AppContent() {
     }
   }, []);
 
-  const handleRegister = useCallback((userData?: any) => {
+  const handleRegister = useCallback(async (userData?: any) => {
     try {
       setIsInitializing(true);
-      
-      // Store authentication data for new user
+
+      const data = await apiClient('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(userData),
+      });
+
+      const token = data?.token;
+      const user = data?.user;
+      if (!token || !user) {
+        throw new Error('Invalid registration response');
+      }
+
       const authData = {
-        token: 'demo_token_' + Date.now(),
+        token,
         expiresAt: Date.now() + (7 * 24 * 60 * 60 * 1000), // 7 days
         loginTime: new Date().toISOString(),
-        isNewUser: true
+        isNewUser: true,
       };
 
-      const newUserData = {
-        id: 'demo_user_' + Date.now(),
-        name: userData?.name || 'New User',
-        email: userData?.email || 'newuser@biltip.com',
-        phone: userData?.phone || '+1234567890',
-        region: userData?.region || 'US',
-        createdAt: new Date().toISOString()
-      };
+      saveAuth({ auth: authData, user });
 
-      saveAuth({ auth: authData, user: newUserData });
-      
       setIsAuthenticated(true);
       dispatch({ type: 'SET_TAB', payload: 'home' });
-      toast.success(`Welcome to Biltip, ${newUserData.name}! Account created successfully.`);
+      toast.success(`Welcome to Biltip, ${user.name}! Account created successfully.`);
     } catch (error) {
       console.error('Registration error:', error);
       toast.error('Registration failed. Please try again.');
+      throw error;
     } finally {
       setIsInitializing(false);
     }

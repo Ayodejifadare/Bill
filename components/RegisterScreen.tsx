@@ -6,11 +6,9 @@ import { Checkbox } from './ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Eye, EyeOff, Mail, Lock, User, Phone, ArrowLeft, Globe } from 'lucide-react';
 import { useUserProfile } from './UserProfileContext';
-import { apiClient } from '../utils/apiClient';
-import { saveAuth } from '../utils/auth';
 
 interface RegisterScreenProps {
-  onRegister: () => void;
+  onRegister: (data: any) => Promise<void> | void;
   onShowLogin: () => void;
 }
 
@@ -122,27 +120,15 @@ export function RegisterScreen({ onRegister, onShowLogin }: RegisterScreenProps)
     }
     
     try {
-      const data = await apiClient('/api/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          email: formData.email,
-          phone: formData.phone,
-          password: formData.password,
-          country: formData.country,
-          acceptMarketing,
-        }),
+      await onRegister({
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        phone: formData.phone,
+        password: formData.password,
+        country: formData.country,
+        acceptMarketing,
       });
-
-      if (data?.token && data?.user) {
-        saveAuth({ auth: { token: data.token }, user: data.user });
-      }
-
-      onRegister();
     } catch (error: any) {
       setErrors({ api: error.message || 'Registration failed' });
     } finally {
