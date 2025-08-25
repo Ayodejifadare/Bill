@@ -162,18 +162,15 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
         joinDate: fetched.createdAt ? new Date(fetched.createdAt).toLocaleDateString() : prev?.joinDate,
         kycStatus: fetched.kycStatus ?? 'pending',
 
-        stats: prev?.stats ?? defaultStats,
+        stats,
         preferences: {
           ...defaultPreferences,
           ...(fetched.preferences || {}),
           notificationSettings: {
             ...defaultPreferences.notificationSettings,
-            ...(fetched.preferences?.notificationSettings || {})
-          }
+            ...(fetched.preferences?.notificationSettings || {}),
+          },
         },
-
-        stats,
-        preferences: { ...defaultPreferences, ...(fetched.preferences || {}) },
 
         linkedBankAccounts: prev?.linkedBankAccounts ?? [],
       }));
