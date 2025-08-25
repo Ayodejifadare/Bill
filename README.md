@@ -36,3 +36,7 @@ VITE_USE_MOCK_API=false VITE_API_BASE_URL=https://api.example.com npm run dev
 ```
 
 The `apiClient` utility reads these variables to determine whether to use mock modules or prepend the configured base URL for network requests.
+
+## User Registration
+
+When calling the `/api/auth/register` endpoint, clients should provide `firstName` and `lastName` fields. The server automatically combines these into a single `name` value, so there is no need to send a separate `name` field in the request body.

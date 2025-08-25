@@ -3,7 +3,8 @@
  */
 import express from 'express'
 import request from 'supertest'
-import { describe, it, expect, beforeEach, beforeAll } from 'vitest'
+import { describe, it, expect, beforeEach, beforeAll, vi } from 'vitest'
+import bcrypt from 'bcryptjs'
 
 let authRouter
 
@@ -47,6 +48,48 @@ describe('Auth routes - OTP validation', () => {
       path: 'otp',
       msg: 'OTP must contain only numbers'
     })
+  })
+})
+
+describe('Auth routes - register', () => {
+  let app
+
+  beforeEach(() => {
+    app = express()
+    app.use(express.json())
+    app.use((req, res, next) => {
+      req.prisma = {
+        user: {
+          findUnique: async () => null,
+          create: async ({ data }) => ({ ...data, id: 'u1' })
+        }
+      }
+      next()
+    })
+    app.use('/auth', authRouter)
+  })
+
+  it('creates a user and combines first and last name', async () => {
+    vi.spyOn(bcrypt, 'hash').mockResolvedValue('hashed')
+
+    const res = await request(app)
+      .post('/auth/register')
+      .send({
+        firstName: 'John',
+        lastName: 'Doe',
+        email: 'john@example.com',
+        phone: '+12345678901',
+        password: 'secret123'
+      })
+
+    expect(res.status).toBe(201)
+    expect(res.body.user).toMatchObject({
+      firstName: 'John',
+      lastName: 'Doe',
+      name: 'John Doe'
+    })
+
+    vi.restoreAllMocks()
   })
 })
 
