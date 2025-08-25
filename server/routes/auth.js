@@ -46,7 +46,11 @@ router.post('/request-otp', [
 // Verify OTP
 router.post('/verify-otp', [
   body('phone').matches(/^\+?[1-9]\d{7,14}$/),
-  body('otp').isLength({ min: 4, max: 6 })
+  body('otp')
+    .isLength({ min: 6, max: 6 })
+    .withMessage('OTP must be exactly 6 digits')
+    .isNumeric()
+    .withMessage('OTP must contain only numbers')
 ], async (req, res) => {
   try {
     const errors = validationResult(req)
