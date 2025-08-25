@@ -29,11 +29,26 @@ export async function apiClient(
   const headers: Record<string, string> = {
     ...(init.headers as Record<string, string> | undefined),
   };
-  const tokenIsValid = typeof token === 'string' && token.length > 0 && token.split('.').length === 3;
+  // token is expected to be a JWT (three base64url segments)
+  const tokenIsValid = typeof token === 'string'
+    && /^[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+$/.test(token);
+
+  if (process.env.NODE_ENV === 'development') {
+    console.debug('apiClient token:', token, 'valid JWT:', tokenIsValid);
+  }
+
   if (tokenIsValid) {
     headers['Authorization'] = `Bearer ${token}`;
-  } else if (process.env.NODE_ENV === 'development' && token) {
-    console.warn('Invalid auth token, Authorization header omitted');
+    if (process.env.NODE_ENV === 'development') {
+      console.debug('apiClient Authorization header appended');
+    }
+  } else {
+    if (process.env.NODE_ENV === 'development') {
+      console.debug('apiClient Authorization header omitted');
+    }
+    if (token) {
+      console.warn('Invalid auth token, Authorization header omitted');
+    }
   }
 
   const resource = typeof input === 'string'
