@@ -7,6 +7,7 @@ import path from 'path'
 import { PrismaClient } from '@prisma/client'
 import authenticate from './middleware/auth.js'
 import onboardingRedirect from './middleware/onboarding.js'
+import { DEV_JWT_SECRET } from './dev-jwt-secret.js'
 
 // Import routes
 import authRoutes from './routes/auth.js'
@@ -30,6 +31,10 @@ import { scheduleRecurringRequests } from './utils/recurringRequestScheduler.js'
 
 // Load environment variables
 dotenv.config()
+
+if (!process.env.JWT_SECRET) {
+  process.env.JWT_SECRET = DEV_JWT_SECRET
+}
 
 if (!process.env.JWT_SECRET) {
   throw new Error('JWT_SECRET environment variable is not defined')

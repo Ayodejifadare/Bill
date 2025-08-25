@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken'
+import { DEV_JWT_SECRET } from '../dev-jwt-secret.js'
 
-const { JWT_SECRET } = process.env
+const JWT_SECRET = process.env.JWT_SECRET || DEV_JWT_SECRET
 if (!JWT_SECRET) {
   throw new Error('JWT_SECRET environment variable is not defined')
 }

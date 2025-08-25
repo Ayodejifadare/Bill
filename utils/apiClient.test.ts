@@ -1,4 +1,6 @@
 import { describe, beforeEach, it, expect, vi } from 'vitest';
+import { sign, verify } from 'jsonwebtoken';
+import { DEV_JWT_SECRET } from '../server/dev-jwt-secret.js';
 
 let mockUseMockApi = false;
 vi.mock('./config', () => ({
@@ -46,7 +48,7 @@ describe('apiClient', () => {
 
   it('appends Authorization header for any token when using mock API', async () => {
     mockUseMockApi = true;
-    const token = 'mock-token';
+    const token = sign({ userId: 'demo-user' }, DEV_JWT_SECRET, { expiresIn: '1h' });
     localStorage.setItem('biltip_auth', JSON.stringify({ token }));
 
     await apiClient('/test');
@@ -67,13 +69,12 @@ describe('apiClient', () => {
       body: JSON.stringify({ phone: '+123', otp: '000000' }),
     });
 
-    expect(result).toMatchObject({
-      token: 'mock-token',
-      user: {
-        id: 'demo-user',
-        name: 'Demo User',
-        phone: '+123',
-      },
+    expect(result.user).toMatchObject({
+      id: 'demo-user',
+      name: 'Demo User',
+      phone: '+123',
     });
+    expect(typeof result.token).toBe('string');
+    expect(verify(result.token, DEV_JWT_SECRET)).toMatchObject({ userId: 'demo-user' });
   });
 });
