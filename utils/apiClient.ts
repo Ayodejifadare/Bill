@@ -44,7 +44,11 @@ export async function apiClient(
     }
   } else {
     if (process.env.NODE_ENV === 'development') {
-      console.debug('apiClient Authorization header omitted');
+      console.debug(
+        'apiClient Authorization header omitted',
+        'storedAuth:', storedAuth,
+        'tokenIsValid:', tokenIsValid,
+      );
     }
     if (token) {
       console.warn('Invalid auth token, Authorization header omitted');
