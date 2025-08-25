@@ -1,5 +1,10 @@
 import jwt from 'jsonwebtoken'
 
+const { JWT_SECRET } = process.env
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable is not defined')
+}
+
 // Middleware to redirect users who haven't completed onboarding
 export default async function onboardingRedirect(req, res, next) {
   // Allow auth routes and onboarding endpoints to proceed
@@ -13,7 +18,7 @@ export default async function onboardingRedirect(req, res, next) {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key')
+    const decoded = jwt.verify(token, JWT_SECRET)
     const user = await req.prisma.user.findUnique({
       where: { id: decoded.userId },
       select: { onboardingCompleted: true }
