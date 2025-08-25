@@ -122,7 +122,12 @@ export function LoginScreen({ onLogin, onShowRegister }: LoginScreenProps) {
           otp
         })
       });
-      saveAuth({ auth: { token: data.token }, user: data.user });
+      const authData = {
+        token: data.token,
+        expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
+        loginTime: new Date().toISOString(),
+      };
+      saveAuth({ auth: authData, user: data.user });
       onLogin({ token: data.token, user: data.user });
     } catch (error: any) {
       console.error('OTP verification error:', error);
