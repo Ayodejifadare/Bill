@@ -8,6 +8,11 @@ import fs from 'fs'
 import { updateNotificationPreference, defaultSettings } from './notifications.js'
 import authenticate from '../middleware/auth.js'
 
+const { JWT_SECRET } = process.env
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable is not defined')
+}
+
 const router = express.Router()
 
 const uploadDir = process.env.AVATAR_UPLOAD_DIR || 'uploads'
@@ -535,7 +540,7 @@ router.post('/:id/logout-others', async (req, res) => {
     })
     const token = jwt.sign(
       { userId: user.id, tokenVersion: user.tokenVersion },
-      process.env.JWT_SECRET || 'your-secret-key',
+      JWT_SECRET,
       { expiresIn: '7d' }
     )
     await logSecurityEvent(req.prisma, req.params.id, 'Logged out other sessions', req)

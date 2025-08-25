@@ -11,7 +11,7 @@ import path from 'path'
 import fs from 'fs'
 import jwt from 'jsonwebtoken'
 
-const sign = userId => jwt.sign({ userId, tokenVersion: 0 }, 'your-secret-key')
+const sign = userId => jwt.sign({ userId, tokenVersion: 0 }, process.env.JWT_SECRET)
 
 describe('classifyStatus', () => {
   const now = new Date()

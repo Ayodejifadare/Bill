@@ -35,7 +35,7 @@ describe('Verification routes', () => {
     await prisma.user.create({
       data: { id: 'u1', email: 'u1@example.com', name: 'User 1', tokenVersion: 0 }
     })
-    token = jwt.sign({ userId: 'u1', tokenVersion: 0 }, process.env.JWT_SECRET || 'your-secret-key')
+    token = jwt.sign({ userId: 'u1', tokenVersion: 0 }, process.env.JWT_SECRET)
 
     app = express()
     app.use(express.json())
