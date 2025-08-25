@@ -87,7 +87,7 @@ export function LoginScreen({ onLogin, onShowRegister }: LoginScreenProps) {
     }
 
     try {
-      const response = await fetch('/auth/request-otp', {
+      const response = await fetch('/api/auth/request-otp', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -114,7 +114,7 @@ export function LoginScreen({ onLogin, onShowRegister }: LoginScreenProps) {
     setIsVerifying(true);
     setError('');
     try {
-      const response = await fetch('/auth/verify-otp', {
+      const response = await fetch('/api/auth/verify-otp', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
