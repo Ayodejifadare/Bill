@@ -34,6 +34,10 @@ export default async function authenticate(req, res, next) {
 
   const token = parts[1]
 
+  if (token.split('.').length !== 3) {
+    return res.status(401).json({ error: 'Malformed token' })
+  }
+
   try {
     const decoded = jwt.verify(token, JWT_SECRET)
     const user = await req.prisma.user.findUnique({
