@@ -15,10 +15,12 @@ export default async function authenticate(req, res, next) {
   }
 
   const authHeader = req.headers.authorization
-  console.debug(
-    'Authorization header:',
-    authHeader ? authHeader.replace(/^Bearer\s+.*/, 'Bearer [REDACTED]') : undefined
-  )
+  if (process.env.LOG_AUTH_HEADERS === 'true') {
+    console.debug(
+      'Authorization header:',
+      authHeader ? authHeader.replace(/^Bearer\s+.*/, 'Bearer [REDACTED]') : undefined
+    )
+  }
 
   if (!authHeader) {
     return res.status(401).json({ error: 'No token provided' })
