@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Bell } from 'lucide-react';
 import { EventSourcePolyfill } from 'event-source-polyfill';
 import { Button } from './button';
@@ -13,6 +13,11 @@ export function NotificationBell({ onClick }: NotificationBellProps) {
   const [unread, setUnread] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [errorCount, setErrorCount] = useState(0);
+
+  const pollTimeout = useRef<NodeJS.Timeout | null>(null);
+  const esRef = useRef<EventSource | null>(null);
+  const baseInterval = 60000;
 
   const fetchWithRetry = async (
     input: RequestInfo | URL,
@@ -31,27 +36,31 @@ export function NotificationBell({ onClick }: NotificationBellProps) {
     }
   };
 
-  const fetchUnread = async () => {
-    setLoading(true);
-    try {
-      const data = await fetchWithRetry('/api/notifications/unread');
-      setUnread(data?.count || 0);
-      setError(null);
-    } catch (err) {
-      setUnread(0);
-      setError((err as Error).message);
-    } finally {
-      setLoading(false);
+  const scheduleFetch = (delay: number) => {
+    if (pollTimeout.current) {
+      clearTimeout(pollTimeout.current);
     }
+    pollTimeout.current = setTimeout(() => fetchUnread(), delay);
   };
 
-  useEffect(() => {
-    fetchUnread();
+  const handleFailure = (manual = false) => {
+    setErrorCount((prev) => {
+      const next = manual ? 1 : prev + 1;
+      if (next >= 3) {
+        esRef.current?.close();
+        esRef.current = null;
+      }
+      const delay = manual ? baseInterval : baseInterval * Math.pow(2, next);
+      scheduleFetch(delay);
+      return next;
+    });
+  };
+
+  const connectSSE = () => {
     const storedAuth = localStorage.getItem('biltip_auth');
     const token = storedAuth ? JSON.parse(storedAuth).token : null;
-    let es: EventSource | null = null;
     if (token && typeof window !== 'undefined') {
-      es = new EventSourcePolyfill('/api/notifications/stream', {
+      const es = new EventSourcePolyfill('/api/notifications/stream', {
         headers: { Authorization: `Bearer ${token}` },
       });
       es.onmessage = (event) => {
@@ -64,11 +73,45 @@ export function NotificationBell({ onClick }: NotificationBellProps) {
           // ignore parse errors
         }
       };
+      es.onerror = () => {
+        setError('Connection error');
+        handleFailure();
+      };
+      esRef.current = es;
     }
-    const interval = setInterval(fetchUnread, 60000);
+  };
+
+  const fetchUnread = async (manual = false) => {
+    setLoading(true);
+    if (manual) {
+      setErrorCount(0);
+    }
+    try {
+      const data = await fetchWithRetry('/api/notifications/unread');
+      setUnread(data?.count || 0);
+      setError(null);
+      setErrorCount(0);
+      if (!esRef.current) {
+        connectSSE();
+      }
+      scheduleFetch(baseInterval);
+    } catch (err) {
+      setUnread(0);
+      setError((err as Error).message);
+      handleFailure(manual);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUnread();
+    connectSSE();
     return () => {
-      clearInterval(interval);
-      es?.close();
+      if (pollTimeout.current) {
+        clearTimeout(pollTimeout.current);
+      }
+      esRef.current?.close();
     };
   }, []);
 
@@ -93,10 +136,10 @@ export function NotificationBell({ onClick }: NotificationBellProps) {
       {error && (
         <Alert variant="destructive" className="absolute right-0 top-full mt-2 w-64">
           <AlertDescription className="space-y-2">
-            <span>{error}</span>
-            <Button size="sm" variant="outline" onClick={fetchUnread}>
-              Retry
-            </Button>
+              <span>{error}</span>
+              <Button size="sm" variant="outline" onClick={() => fetchUnread(true)}>
+                Retry
+              </Button>
           </AlertDescription>
         </Alert>
       )}
