@@ -5,6 +5,7 @@ import express from 'express'
 import request from 'supertest'
 import { describe, it, expect, beforeEach, beforeAll, vi } from 'vitest'
 import bcrypt from 'bcryptjs'
+import jwt from 'jsonwebtoken'
 
 let authRouter
 
@@ -90,6 +91,85 @@ describe('Auth routes - register', () => {
     })
 
     vi.restoreAllMocks()
+  })
+})
+
+describe('Auth routes - me and logout', () => {
+  let app
+  let findUnique
+  let update
+  let token
+
+  const user = {
+    id: 'u1',
+    email: 'john@example.com',
+    name: 'John Doe',
+    balance: 0,
+    avatar: null,
+    createdAt: new Date('2023-01-01'),
+    tokenVersion: 1,
+    phoneVerified: true,
+    emailVerified: true,
+    idVerified: false,
+    documentsSubmitted: false,
+    onboardingCompleted: false
+  }
+
+  beforeEach(() => {
+    findUnique = vi.fn(async () => ({ ...user }))
+    update = vi.fn(async () => ({}))
+
+    token = jwt.sign({ userId: user.id, tokenVersion: user.tokenVersion }, process.env.JWT_SECRET)
+
+    app = express()
+    app.use(express.json())
+    app.use((req, res, next) => {
+      req.prisma = {
+        user: {
+          findUnique,
+          update
+        }
+      }
+      next()
+    })
+    app.use('/auth', authRouter)
+  })
+
+  it('returns current user with valid token', async () => {
+    const res = await request(app)
+      .get('/auth/me')
+      .set('Authorization', `Bearer ${token}`)
+
+    expect(res.status).toBe(200)
+    expect(res.body.user).toMatchObject({ id: user.id })
+    expect(findUnique).toHaveBeenCalled()
+  })
+
+  it('responds with 401 when no token provided for /me', async () => {
+    const res = await request(app).get('/auth/me')
+
+    expect(res.status).toBe(401)
+    expect(res.body).toEqual({ error: 'No token provided' })
+  })
+
+  it('logs out user with valid token', async () => {
+    const res = await request(app)
+      .post('/auth/logout')
+      .set('Authorization', `Bearer ${token}`)
+
+    expect(res.status).toBe(200)
+    expect(res.body).toEqual({ message: 'Logged out' })
+    expect(update).toHaveBeenCalledWith({
+      where: { id: user.id },
+      data: { tokenVersion: { increment: 1 } }
+    })
+  })
+
+  it('responds with 401 when no token provided for /logout', async () => {
+    const res = await request(app).post('/auth/logout')
+
+    expect(res.status).toBe(401)
+    expect(res.body).toEqual({ error: 'No token provided' })
   })
 })
 
