@@ -9,6 +9,7 @@ import { useUserProfile } from './UserProfileContext';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from './ui/input-otp';
 import { toast } from 'sonner';
 import { saveAuth } from '../utils/auth';
+import { apiClient } from '../utils/apiClient';
 
 interface LoginScreenProps {
   onLogin: (authData: any) => void;
@@ -88,7 +89,7 @@ export function LoginScreen({ onLogin, onShowRegister }: LoginScreenProps) {
     }
 
     try {
-      const response = await fetch('/api/auth/request-otp', {
+      await apiClient('/auth/request-otp', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -97,10 +98,6 @@ export function LoginScreen({ onLogin, onShowRegister }: LoginScreenProps) {
           phone: `${selectedCountry?.phonePrefix}${phoneNumber}`
         })
       });
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to send code');
-      }
       setCodeSent(true);
     } catch (error: any) {
       console.error('OTP request error:', error);
@@ -115,7 +112,7 @@ export function LoginScreen({ onLogin, onShowRegister }: LoginScreenProps) {
     setIsVerifying(true);
     setError('');
     try {
-      const response = await fetch('/api/auth/verify-otp', {
+      const data = await apiClient('/auth/verify-otp', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -125,10 +122,6 @@ export function LoginScreen({ onLogin, onShowRegister }: LoginScreenProps) {
           otp
         })
       });
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || 'OTP verification failed');
-      }
       saveAuth({ auth: { token: data.token }, user: data.user });
       onLogin({ token: data.token, user: data.user });
     } catch (error: any) {
