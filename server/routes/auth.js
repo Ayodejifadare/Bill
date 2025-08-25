@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { body, validationResult } from 'express-validator'
 import { randomInt } from 'crypto'
+import authenticate from '../middleware/auth.js'
 
 const { JWT_SECRET } = process.env
 if (!JWT_SECRET) {
@@ -214,17 +215,10 @@ router.post('/login', [
 })
 
 // Get current user
-router.get('/me', async (req, res) => {
+router.get('/me', authenticate, async (req, res) => {
   try {
-    const token = req.headers.authorization?.replace('Bearer ', '')
-    
-    if (!token) {
-      return res.status(401).json({ error: 'No token provided' })
-    }
-
-    const decoded = jwt.verify(token, JWT_SECRET)
     const user = await req.prisma.user.findUnique({
-      where: { id: decoded.userId },
+      where: { id: req.userId },
       select: {
         id: true,
         email: true,
@@ -241,40 +235,29 @@ router.get('/me', async (req, res) => {
       }
     })
 
-    if (!user || user.tokenVersion !== decoded.tokenVersion) {
-      return res.status(401).json({ error: 'User not found' })
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' })
     }
 
     res.json({ user })
   } catch (error) {
     console.error('Auth error:', error)
-    res.status(401).json({ error: 'Invalid token' })
+    res.status(500).json({ error: 'Internal server error' })
   }
 })
 
 // Logout user by invalidating existing tokens
-router.post('/logout', async (req, res) => {
+router.post('/logout', authenticate, async (req, res) => {
   try {
-    const token = req.headers.authorization?.replace('Bearer ', '')
-
-    if (!token) {
-      return res.status(401).json({ error: 'No token provided' })
-    }
-
-    const decoded = jwt.verify(token, JWT_SECRET)
     await req.prisma.user.update({
-      where: { id: decoded.userId },
+      where: { id: req.userId },
       data: { tokenVersion: { increment: 1 } }
     })
 
     res.json({ message: 'Logged out' })
   } catch (error) {
     console.error('Logout error:', error)
-    if (error.name === 'TokenExpiredError' || error.name === 'JsonWebTokenError') {
-      res.status(401).json({ error: 'Invalid token' })
-    } else {
-      res.status(500).json({ error: 'Internal server error' })
-    }
+    res.status(500).json({ error: 'Internal server error' })
   }
 })
 
