@@ -4,7 +4,7 @@ import { Input } from './ui/input';
 import { Button } from './ui/button';
 import { Checkbox } from './ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Eye, EyeOff, Mail, Lock, User, Phone, ArrowLeft, Globe } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, ArrowLeft } from 'lucide-react';
 import { useUserProfile } from './UserProfileContext';
 
 interface RegisterScreenProps {
@@ -79,6 +79,11 @@ export function RegisterScreen({ onRegister, onShowLogin }: RegisterScreenProps)
 
   const selectedCountry = countryOptions.find(c => c.code === formData.country);
 
+  const formatPhone = () => {
+    const digits = formData.phone.replace(/\D/g, '').replace(/^0+/, '');
+    return selectedCountry ? `${selectedCountry.phonePrefix}${digits}` : `+${digits}`;
+  };
+
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
@@ -88,6 +93,12 @@ export function RegisterScreen({ onRegister, onShowLogin }: RegisterScreenProps)
     else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Email is invalid';
     if (!formData.country) newErrors.country = 'Please select your country';
     if (!formData.phone.trim()) newErrors.phone = 'Phone number is required';
+    else {
+      const formatted = formatPhone();
+      if (!/^\+?[1-9]\d{7,14}$/.test(formatted)) {
+        newErrors.phone = 'Enter a valid phone number in international format';
+      }
+    }
     if (!formData.password) newErrors.password = 'Password is required';
     else if (formData.password.length < 8) newErrors.password = 'Password must be at least 8 characters';
     if (formData.password !== formData.confirmPassword) {
@@ -101,7 +112,7 @@ export function RegisterScreen({ onRegister, onShowLogin }: RegisterScreenProps)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) return;
 
     setIsLoading(true);
@@ -124,7 +135,7 @@ export function RegisterScreen({ onRegister, onShowLogin }: RegisterScreenProps)
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: formData.email,
-        phone: formData.phone,
+        phone: formatPhone(),
         password: formData.password,
         country: formData.country,
         acceptMarketing,
@@ -252,11 +263,16 @@ export function RegisterScreen({ onRegister, onShowLogin }: RegisterScreenProps)
                 <Input
                   id="phone"
                   type="tel"
-                  placeholder={selectedCountry?.code === 'NG' ? '08000000000' : '(555) 123-4567'}
+                  placeholder={selectedCountry ? `${selectedCountry.phonePrefix}8012345678` : '+15551234567'}
                   value={formData.phone}
                   onChange={(e) => updateFormData('phone', e.target.value)}
                   className="h-10"
                 />
+                {selectedCountry && (
+                  <p className="text-xs text-muted-foreground">
+                    Enter number in international format, e.g. {selectedCountry.phonePrefix}8012345678
+                  </p>
+                )}
                 {errors.phone && <p className="text-xs text-destructive">{errors.phone}</p>}
               </div>
             </div>
