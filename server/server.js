@@ -52,7 +52,7 @@ setInterval(() => cleanupExpiredCodes(prisma), 60 * 60 * 1000)
 // Middleware
 app.use(helmet())
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: process.env.FRONTEND_URL || 'http://localhost:4000',
   credentials: true
 }))
 
