@@ -85,7 +85,7 @@ describe('apiClient', () => {
     });
 
     expect(result).toMatchObject({
-      token: 'mock-token',
+      token: expect.stringMatching(/^[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+$/),
       user: {
         id: 'demo-user',
         name: 'Demo User',

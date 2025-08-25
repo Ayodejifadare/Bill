@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { generateMockToken } from '../mocks/auth';
 
 vi.mock('../utils/config', () => ({
   apiBaseUrl: '/api',
@@ -14,7 +15,7 @@ describe('ProfileScreen with mock API', () => {
   beforeEach(() => {
     localStorage.clear();
     localStorage.setItem('biltip_user', JSON.stringify({ id: 'demo-user' }));
-    localStorage.setItem('biltip_auth', JSON.stringify({ token: 'mock-token' }));
+    localStorage.setItem('biltip_auth', JSON.stringify({ token: generateMockToken('+123') }));
     global.fetch = vi.fn();
   });
 
