@@ -1,3 +1,5 @@
+import { apiClient } from '../../utils/apiClient';
+
 export interface PaymentMethod {
   id: string;
   type: 'bank' | 'mobile_money';
@@ -14,37 +16,15 @@ export interface PaymentMethod {
 
 const API_BASE = '/api/payment-methods';
 
-async function handleResponse<T>(response: Response): Promise<T> {
-  if (!response.ok) {
-    let message = 'Payment method request failed';
-    try {
-      const data = await response.json();
-      if (data?.error) {
-        message = data.error;
-      }
-    } catch {
-      // ignore
-    }
-    throw new Error(message);
-  }
-  return response.json();
-}
-
 export async function fetchPaymentMethods(): Promise<PaymentMethod[]> {
-  const res = await fetch(API_BASE);
-  const data = await handleResponse<
-    PaymentMethod[] | { paymentMethods: PaymentMethod[] }
-  >(res);
+  const data = await apiClient(API_BASE);
   return Array.isArray(data) ? data : data.paymentMethods;
 }
 
 export async function fetchUserPaymentMethods(
   userId: string
 ): Promise<PaymentMethod[]> {
-  const res = await fetch(`/api/users/${userId}/payment-methods`);
-  const data = await handleResponse<
-    PaymentMethod[] | { paymentMethods: PaymentMethod[] }
-  >(res);
+  const data = await apiClient(`/api/users/${userId}/payment-methods`);
   return Array.isArray(data) ? data : data.paymentMethods;
 }
 
@@ -53,29 +33,26 @@ export type CreatePaymentMethodPayload = Omit<PaymentMethod, 'id'>;
 export async function createPaymentMethod(
   payload: CreatePaymentMethodPayload
 ): Promise<PaymentMethod> {
-  const res = await fetch(API_BASE, {
+  return apiClient(API_BASE, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
   });
-  return handleResponse<PaymentMethod>(res);
 }
 
 export async function updatePaymentMethod(
   id: string,
   payload: Partial<PaymentMethod>
 ): Promise<PaymentMethod> {
-  const res = await fetch(`${API_BASE}/${id}`, {
+  return apiClient(`${API_BASE}/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
   });
-  return handleResponse<PaymentMethod>(res);
 }
 
 export async function deletePaymentMethod(id: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/${id}`, {
+  await apiClient(`${API_BASE}/${id}`, {
     method: 'DELETE'
   });
-  await handleResponse(res);
 }

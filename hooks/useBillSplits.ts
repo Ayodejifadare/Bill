@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { apiClient } from '../utils/apiClient';
 
 export interface BillParticipant {
   name: string;
@@ -87,11 +88,7 @@ export function useBillSplits(initialOptions: UseBillSplitsOptions = {}): UseBil
         if (current.size) params.append('size', String(current.size));
 
         const endpoint = `/api/bill-splits?${params.toString()}`;
-        const res = await fetch(endpoint);
-        if (!res.ok) {
-          throw new Error('Failed to fetch bill splits');
-        }
-        const data = await res.json();
+        const data = await apiClient(endpoint);
         setBillSplits(Array.isArray(data.billSplits) ? data.billSplits : []);
         setTotal(data.total ?? 0);
         setPageCount(data.pageCount ?? 0);
