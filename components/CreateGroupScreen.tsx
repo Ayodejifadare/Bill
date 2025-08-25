@@ -10,6 +10,7 @@ import { Checkbox } from './ui/checkbox';
 import { Badge } from './ui/badge';
 import { toast } from 'sonner';
 import { useGroups } from '../hooks/useGroups';
+import { apiClient } from '../utils/apiClient';
 
 interface CreateGroupScreenProps {
   onNavigate: (tab: string, data?: any) => void;
@@ -64,9 +65,7 @@ export function CreateGroupScreen({ onNavigate, initialSelectedFriendIds = [] }:
         const endpoint = searchQuery.trim()
           ? `/api/friends/search?q=${encodeURIComponent(searchQuery)}`
           : '/api/friends';
-        const res = await fetch(endpoint);
-        if (!res.ok) throw new Error('Failed to fetch friends');
-        const data = await res.json();
+        const data = await apiClient(endpoint);
         const list: Friend[] = data.friends || data.users || [];
         if (!isCancelled) {
           setFriends(list);
