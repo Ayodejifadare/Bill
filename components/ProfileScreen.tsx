@@ -33,12 +33,24 @@ interface ProfileScreenProps {
 
 export function ProfileScreen({ onNavigate, onLogout }: ProfileScreenProps) {
   const { userProfile, updateUserProfile, refreshUserProfile } = useUserProfile();
-  const [preferences, setPreferences] = useState(userProfile.preferences);
+  const defaultPreferences = {
+    notifications: false,
+    emailAlerts: false,
+    whatsappAlerts: false,
+    darkMode: false,
+    biometrics: false,
+    notificationSettings: {},
+  };
+  const [preferences, setPreferences] = useState(
+    userProfile?.preferences ?? defaultPreferences,
+  );
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    setPreferences(userProfile.preferences);
-  }, [userProfile.preferences]);
+    if (userProfile?.preferences) {
+      setPreferences(userProfile.preferences);
+    }
+  }, [userProfile]);
 
   const hasLoaded = useRef(false);
 
@@ -91,6 +103,10 @@ export function ProfileScreen({ onNavigate, onLogout }: ProfileScreenProps) {
       ],
     },
   ];
+
+  if (!userProfile) {
+    return isLoading ? <ProfileSkeleton /> : <div>Error loading profile</div>;
+  }
 
   return (
     <div className="pb-20">
