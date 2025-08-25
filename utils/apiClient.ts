@@ -40,22 +40,20 @@ export async function apiClient(
     console.debug('apiClient token:', token, 'valid JWT:', tokenIsValid);
   }
 
-  if (tokenIsValid) {
+  if (token) {
     headers['Authorization'] = `Bearer ${token}`;
     if (process.env.NODE_ENV === 'development') {
       console.debug('apiClient Authorization header appended');
     }
-  } else {
-    if (process.env.NODE_ENV === 'development') {
-      console.debug(
-        'apiClient Authorization header omitted',
-        'storedAuth:', storedAuth,
-        'tokenIsValid:', tokenIsValid,
-      );
+    if (!tokenIsValid) {
+      console.warn('Invalid auth token format, Authorization header sent anyway');
     }
-    if (token) {
-      console.warn('Invalid auth token, Authorization header omitted');
-    }
+  } else if (process.env.NODE_ENV === 'development') {
+    console.debug(
+      'apiClient Authorization header omitted',
+      'storedAuth:', storedAuth,
+      'tokenIsValid:', tokenIsValid,
+    );
   }
 
   const resource = typeof input === 'string'
