@@ -14,11 +14,25 @@ export default async function authenticate(req, res, next) {
     return next()
   }
 
-  const token = req.headers.authorization?.replace('Bearer ', '')
+  const authHeader = req.headers.authorization
 
-  if (!token) {
+  if (!authHeader) {
     return res.status(401).json({ error: 'No token provided' })
   }
+
+  console.debug(
+    'Authorization header:',
+    authHeader.replace(/^Bearer\s+.*/, 'Bearer [REDACTED]')
+  )
+
+  const parts = authHeader.split(' ')
+  if (parts.length !== 2 || parts[0] !== 'Bearer') {
+    return res
+      .status(401)
+      .json({ error: 'Malformed authorization header' })
+  }
+
+  const token = parts[1]
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET)
