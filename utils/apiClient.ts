@@ -5,6 +5,7 @@ import { handle as mockUpcomingPayments } from '../mocks/upcoming-payments';
 import { handle as mockContacts } from '../mocks/contacts';
 import { handle as mockRequests } from '../mocks/requests';
 import { handle as mockAuth } from '../mocks/auth';
+import { handle as mockUsers } from '../mocks/users';
 
 type MockHandler = (path: string, init?: RequestInit) => Promise<any>;
 
@@ -15,6 +16,7 @@ const mockRoutes: Array<{ test: RegExp; handler: MockHandler }> = [
   { test: /^\/contacts\/match/, handler: mockContacts },
   { test: /^\/requests/, handler: mockRequests },
   { test: /^\/auth/, handler: mockAuth },
+  { test: /^\/users/, handler: mockUsers },
 ];
 
 export async function apiClient(
