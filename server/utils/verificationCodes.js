@@ -1,5 +1,7 @@
+import { randomInt } from 'crypto'
+
 export function generateCode() {
-  return Math.floor(100000 + Math.random() * 900000).toString()
+  return randomInt(0, 1_000_000).toString().padStart(6, '0')
 }
 
 export async function cleanupExpiredCodes(prisma) {

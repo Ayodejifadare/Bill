@@ -2,6 +2,7 @@ import express from 'express'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { body, validationResult } from 'express-validator'
+import { randomInt } from 'crypto'
 
 const { JWT_SECRET } = process.env
 if (!JWT_SECRET) {
@@ -13,7 +14,7 @@ const router = express.Router()
 // Temporary store for OTPs
 const otpStore = new Map()
 
-const generateOtp = () => Math.floor(100000 + Math.random() * 900000).toString()
+const generateOtp = () => randomInt(0, 1_000_000).toString().padStart(6, '0')
 
 async function sendSms (phone, otp) {
   // Replace with real SMS provider integration
