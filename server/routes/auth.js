@@ -3,6 +3,11 @@ import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { body, validationResult } from 'express-validator'
 
+const { JWT_SECRET } = process.env
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable is not defined')
+}
+
 const router = express.Router()
 
 // Temporary store for OTPs
@@ -62,7 +67,7 @@ router.post('/verify-otp', [
 
     const token = jwt.sign(
       { userId: user.id, tokenVersion: user.tokenVersion },
-      process.env.JWT_SECRET || 'your-secret-key',
+      JWT_SECRET,
       { expiresIn: '7d' }
     )
 
@@ -138,7 +143,7 @@ router.post('/register', [
     // Generate JWT token including token version
     const token = jwt.sign(
       { userId: user.id, tokenVersion: 0 },
-      process.env.JWT_SECRET || 'your-secret-key',
+      JWT_SECRET,
       { expiresIn: '7d' }
     )
 
@@ -184,7 +189,7 @@ router.post('/login', [
     // Generate JWT token including token version
     const token = jwt.sign(
       { userId: user.id, tokenVersion: user.tokenVersion },
-      process.env.JWT_SECRET || 'your-secret-key',
+      JWT_SECRET,
       { expiresIn: '7d' }
     )
 
@@ -211,7 +216,7 @@ router.get('/me', async (req, res) => {
       return res.status(401).json({ error: 'No token provided' })
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key')
+    const decoded = jwt.verify(token, JWT_SECRET)
     const user = await req.prisma.user.findUnique({
       where: { id: decoded.userId },
       select: {
@@ -250,7 +255,7 @@ router.post('/logout', async (req, res) => {
       return res.status(401).json({ error: 'No token provided' })
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key')
+    const decoded = jwt.verify(token, JWT_SECRET)
     await req.prisma.user.update({
       where: { id: decoded.userId },
       data: { tokenVersion: { increment: 1 } }
