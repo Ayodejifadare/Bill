@@ -59,6 +59,23 @@ describe('apiClient', () => {
     );
   });
 
+  it('appends Authorization header even when token is malformed', async () => {
+    const token = 'invalidtoken';
+    localStorage.setItem('biltip_auth', JSON.stringify({ token }));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    await apiClient('/test');
+
+    expect(fetch).toHaveBeenCalledWith(
+      'http://example.com/test',
+      expect.objectContaining({
+        headers: expect.objectContaining({ Authorization: `Bearer ${token}` }),
+      }),
+    );
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
   it('returns mock profile data when using mock API', async () => {
     mockUseMockApi = true;
 
