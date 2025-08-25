@@ -18,11 +18,13 @@ interface AuthStorageData {
 }
 
 export function saveAuth(data: AuthStorageData) {
+  if (typeof window === 'undefined') return;
   localStorage.setItem(AUTH_KEY, JSON.stringify(data.auth));
   localStorage.setItem(USER_KEY, JSON.stringify(data.user));
 }
 
 export function loadAuth(): AuthStorageData | null {
+  if (typeof window === 'undefined') return null;
   try {
     const authRaw = localStorage.getItem(AUTH_KEY);
     const userRaw = localStorage.getItem(USER_KEY);
@@ -37,6 +39,7 @@ export function loadAuth(): AuthStorageData | null {
 }
 
 export function clearAuth() {
+  if (typeof window === 'undefined') return;
   localStorage.removeItem(AUTH_KEY);
   localStorage.removeItem(USER_KEY);
 }
