@@ -1,34 +1,13 @@
 import express from 'express'
 import { body, validationResult } from 'express-validator'
-import jwt from 'jsonwebtoken'
+import authenticate from '../middleware/auth.js'
 
 const router = express.Router()
 
-const authenticateToken = async (req, res, next) => {
-  const token = req.headers.authorization?.replace('Bearer ', '')
-
-  if (!token) {
-    return res.status(401).json({ error: 'No token provided' })
-  }
-
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key')
-    const user = await req.prisma.user.findUnique({
-      where: { id: decoded.userId },
-      select: { tokenVersion: true }
-    })
-    if (!user || user.tokenVersion !== decoded.tokenVersion) {
-      return res.status(401).json({ error: 'Invalid token' })
-    }
-    req.userId = decoded.userId
-    next()
-  } catch (error) {
-    return res.status(401).json({ error: 'Invalid token' })
-  }
-}
+router.use(authenticate)
 
 // Get all payment methods for current user
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const methods = await req.prisma.paymentMethod.findMany({
       where: { userId: req.userId }
@@ -44,7 +23,6 @@ router.get('/', authenticateToken, async (req, res) => {
 router.post(
   '/',
   [
-    authenticateToken,
     body('type').trim().notEmpty()
   ],
   async (req, res) => {
@@ -99,7 +77,7 @@ router.post(
 )
 
 // Update payment method
-router.put('/:id', authenticateToken, async (req, res) => {
+router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params
     const existing = await req.prisma.paymentMethod.findFirst({
@@ -144,7 +122,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
 })
 
 // Delete payment method
-router.delete('/:id', authenticateToken, async (req, res) => {
+router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params
     const existing = await req.prisma.paymentMethod.findFirst({

@@ -6,6 +6,7 @@ import multer from 'multer'
 import path from 'path'
 import fs from 'fs'
 import { updateNotificationPreference, defaultSettings } from './notifications.js'
+import authenticate from '../middleware/auth.js'
 
 const router = express.Router()
 
@@ -23,29 +24,7 @@ const storage = multer.diskStorage({
 })
 const upload = multer({ storage })
 
-// Authentication middleware
-const authenticateToken = async (req, res, next) => {
-  const token = req.headers.authorization?.replace('Bearer ', '')
-
-  if (!token) {
-    return res.status(401).json({ error: 'No token provided' })
-  }
-
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key')
-    const user = await req.prisma.user.findUnique({
-      where: { id: decoded.userId },
-      select: { tokenVersion: true }
-    })
-    if (!user || user.tokenVersion !== decoded.tokenVersion) {
-      return res.status(401).json({ error: 'Invalid token' })
-    }
-    req.userId = decoded.userId
-    next()
-  } catch (error) {
-    return res.status(401).json({ error: 'Invalid token' })
-  }
-}
+router.use(authenticate)
 
 async function logSecurityEvent(prisma, userId, action, req) {
   try {
@@ -64,7 +43,7 @@ async function logSecurityEvent(prisma, userId, action, req) {
 }
 
 // Search users
-router.get('/search', authenticateToken, async (req, res) => {
+router.get('/search', async (req, res) => {
   try {
     const { q } = req.query
     
@@ -101,7 +80,7 @@ router.get('/search', authenticateToken, async (req, res) => {
 })
 
 // Get payment methods for a specific user
-router.get('/:id/payment-methods', authenticateToken, async (req, res) => {
+router.get('/:id/payment-methods', async (req, res) => {
   try {
     const methods = await req.prisma.paymentMethod.findMany({
       where: { userId: req.params.id }
@@ -114,7 +93,7 @@ router.get('/:id/payment-methods', authenticateToken, async (req, res) => {
 })
 
 // Get onboarding state
-router.get('/:id/onboarding', authenticateToken, async (req, res) => {
+router.get('/:id/onboarding', async (req, res) => {
   try {
     if (req.userId !== req.params.id) {
       return res.status(403).json({ error: 'Unauthorized' })
@@ -134,7 +113,7 @@ router.get('/:id/onboarding', authenticateToken, async (req, res) => {
 })
 
 // Update onboarding state
-router.post('/:id/onboarding', authenticateToken, async (req, res) => {
+router.post('/:id/onboarding', async (req, res) => {
   try {
     if (req.userId !== req.params.id) {
       return res.status(403).json({ error: 'Unauthorized' })
@@ -153,7 +132,7 @@ router.post('/:id/onboarding', authenticateToken, async (req, res) => {
 })
 
 // Get user profile
-router.get('/:id', authenticateToken, async (req, res) => {
+router.get('/:id', async (req, res) => {
   try {
     const user = await req.prisma.user.findUnique({
       where: { id: req.params.id },
@@ -199,7 +178,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
 })
 
 // Get user stats
-router.get('/:id/stats', authenticateToken, async (req, res) => {
+router.get('/:id/stats', async (req, res) => {
   try {
     if (req.userId !== req.params.id) {
       return res.status(403).json({ error: 'Unauthorized' })
@@ -249,7 +228,7 @@ router.get('/:id/stats', authenticateToken, async (req, res) => {
 })
 
 // Upload user avatar
-router.post('/:id/avatar', authenticateToken, upload.single('avatar'), async (req, res) => {
+router.post('/:id/avatar', upload.single('avatar'), async (req, res) => {
   try {
     if (req.userId !== req.params.id) {
       return res.status(403).json({ error: 'Unauthorized' })
@@ -277,7 +256,6 @@ router.post('/:id/avatar', authenticateToken, upload.single('avatar'), async (re
 router.put(
   '/:id',
   [
-    authenticateToken,
     body('name').optional().isString().trim().notEmpty(),
     body('email').optional().isEmail(),
     body('phone').optional().isString().trim().notEmpty(),
@@ -380,7 +358,7 @@ router.put(
 )
 
 // Get user settings
-router.get('/:id/settings', authenticateToken, async (req, res) => {
+router.get('/:id/settings', async (req, res) => {
   try {
     if (req.userId !== req.params.id) {
       return res.status(403).json({ error: 'Unauthorized' })
@@ -413,7 +391,7 @@ router.get('/:id/settings', authenticateToken, async (req, res) => {
 })
 
 // Update user settings
-router.put('/:id/settings', authenticateToken, async (req, res) => {
+router.put('/:id/settings', async (req, res) => {
   try {
     if (req.userId !== req.params.id) {
       return res.status(403).json({ error: 'Unauthorized' })
@@ -451,7 +429,7 @@ router.put('/:id/settings', authenticateToken, async (req, res) => {
 // Change password
 router.post(
   '/:id/change-password',
-  [authenticateToken, body('currentPassword').isString(), body('newPassword').isLength({ min: 6 })],
+  [body('currentPassword').isString(), body('newPassword').isLength({ min: 6 })],
   async (req, res) => {
     try {
       if (req.userId !== req.params.id) {
@@ -485,7 +463,7 @@ router.post(
 )
 
 // Toggle two-factor authentication
-router.post('/:id/two-factor', authenticateToken, async (req, res) => {
+router.post('/:id/two-factor', async (req, res) => {
   try {
     if (req.userId !== req.params.id) {
       return res.status(403).json({ error: 'Unauthorized' })
@@ -506,7 +484,7 @@ router.post('/:id/two-factor', authenticateToken, async (req, res) => {
 })
 
 // Toggle biometric authentication
-router.post('/:id/biometric', authenticateToken, async (req, res) => {
+router.post('/:id/biometric', async (req, res) => {
   try {
     if (req.userId !== req.params.id) {
       return res.status(403).json({ error: 'Unauthorized' })
@@ -527,7 +505,7 @@ router.post('/:id/biometric', authenticateToken, async (req, res) => {
 })
 
 // Get security logs
-router.get('/:id/security-logs', authenticateToken, async (req, res) => {
+router.get('/:id/security-logs', async (req, res) => {
   try {
     if (req.userId !== req.params.id) {
       return res.status(403).json({ error: 'Unauthorized' })
@@ -545,7 +523,7 @@ router.get('/:id/security-logs', authenticateToken, async (req, res) => {
 })
 
 // Log out other sessions
-router.post('/:id/logout-others', authenticateToken, async (req, res) => {
+router.post('/:id/logout-others', async (req, res) => {
   try {
     if (req.userId !== req.params.id) {
       return res.status(403).json({ error: 'Unauthorized' })

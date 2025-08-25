@@ -1,9 +1,9 @@
 import express from 'express'
 import multer from 'multer'
 import { body, validationResult, param } from 'express-validator'
-import jwt from 'jsonwebtoken'
 import path from 'path'
 import fs from 'fs'
+import authenticate from '../middleware/auth.js'
 
 const router = express.Router()
 
@@ -21,34 +21,11 @@ const storage = multer.diskStorage({
 })
 const upload = multer({ storage })
 
-// Authentication middleware
-const authenticateToken = async (req, res, next) => {
-  const token = req.headers.authorization?.replace('Bearer ', '')
-
-  if (!token) {
-    return res.status(401).json({ error: 'No token provided' })
-  }
-
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key')
-    const user = await req.prisma.user.findUnique({
-      where: { id: decoded.userId },
-      select: { tokenVersion: true }
-    })
-    if (!user || user.tokenVersion !== decoded.tokenVersion) {
-      return res.status(401).json({ error: 'Invalid token' })
-    }
-    req.userId = decoded.userId
-    next()
-  } catch (error) {
-    return res.status(401).json({ error: 'Invalid token' })
-  }
-}
+router.use(authenticate)
 
 // Create receipt
 router.post(
   '/',
-  authenticateToken,
   upload.single('file'),
   [
     body('metadata').optional().isString(),
@@ -89,7 +66,7 @@ router.post(
 // Get receipt by ID
 router.get(
   '/:id',
-  [authenticateToken, param('id').trim().notEmpty()],
+  [param('id').trim().notEmpty()],
   async (req, res) => {
     const errors = validationResult(req)
     if (!errors.isEmpty()) {

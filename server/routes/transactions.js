@@ -1,8 +1,8 @@
 import express from 'express'
 import { body, validationResult } from 'express-validator'
-import jwt from 'jsonwebtoken'
 import { TRANSACTION_TYPE_MAP, TRANSACTION_STATUS_MAP, TRANSACTION_CATEGORY_MAP } from '../../shared/transactions.js'
 import { createNotification } from '../utils/notifications.js'
+import authenticate from '../middleware/auth.js'
 
 // Build reverse lookup maps for filters
 const REVERSE_TRANSACTION_TYPE_MAP = Object.fromEntries(
@@ -17,32 +17,10 @@ const REVERSE_TRANSACTION_CATEGORY_MAP = Object.fromEntries(
 
 const router = express.Router()
 
-// Authentication middleware
-const authenticateToken = async (req, res, next) => {
-  const token = req.headers.authorization?.replace('Bearer ', '')
-
-  if (!token) {
-    return res.status(401).json({ error: 'No token provided' })
-  }
-
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key')
-    const user = await req.prisma.user.findUnique({
-      where: { id: decoded.userId },
-      select: { tokenVersion: true }
-    })
-    if (!user || user.tokenVersion !== decoded.tokenVersion) {
-      return res.status(401).json({ error: 'Invalid token' })
-    }
-    req.userId = decoded.userId
-    next()
-  } catch (error) {
-    return res.status(401).json({ error: 'Invalid token' })
-  }
-}
+router.use(authenticate)
 
 // Get distinct transaction categories for the current user
-router.get('/categories', authenticateToken, async (req, res) => {
+router.get('/categories', async (req, res) => {
   try {
     const categories = await req.prisma.transaction.findMany({
       where: {
@@ -68,7 +46,7 @@ router.get('/categories', authenticateToken, async (req, res) => {
 })
 
 // Get user's transactions
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const {
       cursor,
@@ -270,7 +248,7 @@ router.get('/', authenticateToken, async (req, res) => {
 })
 
 // Get transaction summary
-router.get('/summary', authenticateToken, async (req, res) => {
+router.get('/summary', async (req, res) => {
   try {
     const {
       startDate,
@@ -367,7 +345,7 @@ router.get('/summary', authenticateToken, async (req, res) => {
 })
 
 // Get single transaction
-router.get('/:id', authenticateToken, async (req, res) => {
+router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params
 
@@ -459,7 +437,6 @@ router.get('/:id', authenticateToken, async (req, res) => {
 
 // Send money
 router.post('/send', [
-  authenticateToken,
   body('receiverId').notEmpty(),
   body('amount').isFloat({ min: 0.01 }),
   body('description').optional().trim(),
