@@ -33,6 +33,13 @@ export default async function authenticate(req, res, next) {
     req.userId = decoded.userId
     next()
   } catch (err) {
+    console.error('JWT verification error:', err.name, err.message)
+    if (err.name === 'TokenExpiredError') {
+      return res.status(401).json({ error: 'Token expired' })
+    }
+    if (err.name === 'JsonWebTokenError' && err.message === 'invalid signature') {
+      return res.status(401).json({ error: 'Invalid signature' })
+    }
     return res.status(401).json({ error: 'Invalid token' })
   }
 }
