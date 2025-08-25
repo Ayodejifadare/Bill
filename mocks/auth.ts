@@ -24,7 +24,14 @@ function sign(payload: Record<string, unknown>) {
 }
 
 export function generateMockToken(phone: string) {
-  return sign({ sub: 'demo-user', name: 'Demo User', phone });
+  const now = Math.floor(Date.now() / 1000);
+  return sign({
+    sub: 'demo-user',
+    name: 'Demo User',
+    phone,
+    iat: now,
+    exp: now + 7 * 24 * 60 * 60,
+  });
 }
 
 export async function handle(path: string, init?: RequestInit) {
