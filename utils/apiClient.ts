@@ -29,8 +29,11 @@ export async function apiClient(
   const headers: Record<string, string> = {
     ...(init.headers as Record<string, string> | undefined),
   };
-  if (token) {
+  const tokenIsValid = typeof token === 'string' && token.length > 0 && token.split('.').length === 3;
+  if (tokenIsValid) {
     headers['Authorization'] = `Bearer ${token}`;
+  } else if (process.env.NODE_ENV === 'development' && token) {
+    console.warn('Invalid auth token, Authorization header omitted');
   }
 
   const resource = typeof input === 'string'
