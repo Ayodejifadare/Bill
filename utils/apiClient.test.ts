@@ -1,14 +1,18 @@
 import { describe, beforeEach, it, expect, vi } from 'vitest';
 
+let mockUseMockApi = false;
 vi.mock('./config', () => ({
   apiBaseUrl: 'http://example.com',
-  useMockApi: false,
+  get useMockApi() {
+    return mockUseMockApi;
+  },
 }));
 
 import { apiClient } from './apiClient';
 
 describe('apiClient', () => {
   beforeEach(() => {
+    mockUseMockApi = false;
     const store: Record<string, string> = {};
     // simple in-memory localStorage mock
     globalThis.localStorage = {
@@ -38,5 +42,38 @@ describe('apiClient', () => {
         headers: expect.objectContaining({ Authorization: `Bearer ${token}` }),
       }),
     );
+  });
+
+  it('appends Authorization header for any token when using mock API', async () => {
+    mockUseMockApi = true;
+    const token = 'mock-token';
+    localStorage.setItem('biltip_auth', JSON.stringify({ token }));
+
+    await apiClient('/test');
+
+    expect(fetch).toHaveBeenCalledWith(
+      'http://example.com/test',
+      expect.objectContaining({
+        headers: expect.objectContaining({ Authorization: `Bearer ${token}` }),
+      }),
+    );
+  });
+
+  it('returns mock profile data when using mock API', async () => {
+    mockUseMockApi = true;
+
+    const result = await apiClient('/auth/verify-otp', {
+      method: 'POST',
+      body: JSON.stringify({ phone: '+123', otp: '000000' }),
+    });
+
+    expect(result).toMatchObject({
+      token: 'mock-token',
+      user: {
+        id: 'demo-user',
+        name: 'Demo User',
+        phone: '+123',
+      },
+    });
   });
 });
