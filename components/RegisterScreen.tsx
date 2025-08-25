@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Eye, EyeOff, Mail, Lock, User, Phone, ArrowLeft, Globe } from 'lucide-react';
 import { useUserProfile } from './UserProfileContext';
 import { apiClient } from '../utils/apiClient';
+import { saveAuth } from '../utils/auth';
 
 interface RegisterScreenProps {
   onRegister: () => void;
@@ -138,8 +139,7 @@ export function RegisterScreen({ onRegister, onShowLogin }: RegisterScreenProps)
       });
 
       if (data?.token && data?.user) {
-        localStorage.setItem('biltip_auth', JSON.stringify({ token: data.token }));
-        localStorage.setItem('biltip_user', JSON.stringify(data.user));
+        saveAuth({ auth: { token: data.token }, user: data.user });
       }
 
       onRegister();
