@@ -8,6 +8,7 @@ import { Smartphone } from 'lucide-react';
 import { useUserProfile } from './UserProfileContext';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from './ui/input-otp';
 import { toast } from 'sonner';
+import { saveAuth } from '../utils/auth';
 
 interface LoginScreenProps {
   onLogin: (authData: any) => void;
@@ -128,8 +129,7 @@ export function LoginScreen({ onLogin, onShowRegister }: LoginScreenProps) {
       if (!response.ok) {
         throw new Error(data.error || 'OTP verification failed');
       }
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
+      saveAuth({ auth: { token: data.token }, user: data.user });
       onLogin({ token: data.token, user: data.user });
     } catch (error: any) {
       console.error('OTP verification error:', error);
