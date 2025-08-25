@@ -1,39 +1,16 @@
 import express from 'express'
 import { body, validationResult } from 'express-validator'
-import jwt from 'jsonwebtoken'
 import { computeNextDueDate } from '../utils/recurringRequestScheduler.js'
+import authenticate from '../middleware/auth.js'
 
 const router = express.Router()
 
-// Authentication middleware
-const authenticateToken = async (req, res, next) => {
-  const token = req.headers.authorization?.replace('Bearer ', '')
-
-  if (!token) {
-    return res.status(401).json({ error: 'No token provided' })
-  }
-
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key')
-    const user = await req.prisma.user.findUnique({
-      where: { id: decoded.userId },
-      select: { tokenVersion: true }
-    })
-    if (!user || user.tokenVersion !== decoded.tokenVersion) {
-      return res.status(401).json({ error: 'Invalid token' })
-    }
-    req.userId = decoded.userId
-    next()
-  } catch (error) {
-    return res.status(401).json({ error: 'Invalid token' })
-  }
-}
+router.use(authenticate)
 
 // Create payment request
 router.post(
   '/',
   [
-    authenticateToken,
     body('amount').isFloat({ gt: 0 }),
     body('recipients').isArray({ min: 1 }),
     body('recipients.*').isString().notEmpty(),
@@ -118,7 +95,7 @@ router.post(
 )
 
 // Get requests for the user
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const requests = await req.prisma.paymentRequest.findMany({
       where: {
@@ -142,7 +119,7 @@ router.get('/', authenticateToken, async (req, res) => {
 })
 
 // Accept payment request
-router.post('/:id/accept', authenticateToken, async (req, res) => {
+router.post('/:id/accept', async (req, res) => {
   try {
     const { id } = req.params
     const request = await req.prisma.paymentRequest.findUnique({ where: { id } })
@@ -179,7 +156,7 @@ router.post('/:id/accept', authenticateToken, async (req, res) => {
 })
 
 // Decline payment request
-router.post('/:id/decline', authenticateToken, async (req, res) => {
+router.post('/:id/decline', async (req, res) => {
   try {
     const { id } = req.params
     const request = await req.prisma.paymentRequest.findUnique({ where: { id } })

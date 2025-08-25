@@ -1,40 +1,18 @@
 import express from 'express'
 import { body, validationResult } from 'express-validator'
-import jwt from 'jsonwebtoken'
 
 import { TRANSACTION_TYPE_MAP, TRANSACTION_STATUS_MAP } from '../../shared/transactions.js'
 
 import { createNotification } from '../utils/notifications.js'
+import authenticate from '../middleware/auth.js'
 
 
 const router = express.Router()
 
-// Authentication middleware
-const authenticateToken = async (req, res, next) => {
-  const token = req.headers.authorization?.replace('Bearer ', '')
-
-  if (!token) {
-    return res.status(401).json({ error: 'No token provided' })
-  }
-
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key')
-    const user = await req.prisma.user.findUnique({
-      where: { id: decoded.userId },
-      select: { tokenVersion: true }
-    })
-    if (!user || user.tokenVersion !== decoded.tokenVersion) {
-      return res.status(401).json({ error: 'Invalid token' })
-    }
-    req.userId = decoded.userId
-    next()
-  } catch (error) {
-    return res.status(401).json({ error: 'Invalid token' })
-  }
-}
+router.use(authenticate)
 
 // Get user's friends
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const friendships = await req.prisma.friendship.findMany({
       where: {
@@ -117,7 +95,6 @@ router.get('/', authenticateToken, async (req, res) => {
 
 // Send friend request
 router.post('/request', [
-  authenticateToken,
   body('receiverId').notEmpty()
 ], async (req, res) => {
   try {
@@ -200,7 +177,7 @@ router.post('/request', [
 })
 
 // Get pending friend requests
-router.get('/requests', authenticateToken, async (req, res) => {
+router.get('/requests', async (req, res) => {
   try {
     const incomingRaw = await req.prisma.friendRequest.findMany({
       where: { receiverId: req.userId, status: 'PENDING' },
@@ -258,7 +235,7 @@ router.get('/requests', authenticateToken, async (req, res) => {
 })
 
 // Get summary of amounts owed between user and friends
-router.get('/summary', authenticateToken, async (req, res) => {
+router.get('/summary', async (req, res) => {
   try {
     const friendships = await req.prisma.friendship.findMany({
       where: {
@@ -312,7 +289,7 @@ router.get('/summary', authenticateToken, async (req, res) => {
 })
 
 // Accept friend request
-router.post('/requests/:id/accept', authenticateToken, async (req, res) => {
+router.post('/requests/:id/accept', async (req, res) => {
   try {
     const request = await req.prisma.friendRequest.findUnique({
       where: { id: req.params.id }
@@ -363,7 +340,7 @@ router.post('/requests/:id/accept', authenticateToken, async (req, res) => {
 })
 
 // Decline friend request
-router.post('/requests/:id/decline', authenticateToken, async (req, res) => {
+router.post('/requests/:id/decline', async (req, res) => {
   try {
     const request = await req.prisma.friendRequest.findUnique({
       where: { id: req.params.id }
@@ -406,7 +383,7 @@ router.post('/requests/:id/decline', authenticateToken, async (req, res) => {
 })
 
 // Cancel friend request
-router.delete('/requests/:id', authenticateToken, async (req, res) => {
+router.delete('/requests/:id', async (req, res) => {
   try {
     const request = await req.prisma.friendRequest.findUnique({
       where: { id: req.params.id },
@@ -457,7 +434,7 @@ router.delete('/requests/:id', authenticateToken, async (req, res) => {
 })
 
 // Get friend details
-router.get('/:friendId', authenticateToken, async (req, res) => {
+router.get('/:friendId', async (req, res) => {
   try {
     const { friendId } = req.params
 
@@ -618,7 +595,7 @@ router.get('/:friendId', authenticateToken, async (req, res) => {
 })
 
 // Remove a friend
-router.delete('/:friendId', authenticateToken, async (req, res) => {
+router.delete('/:friendId', async (req, res) => {
   try {
     const { friendId } = req.params
 
