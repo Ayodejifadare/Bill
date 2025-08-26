@@ -28,6 +28,9 @@ describe('apiClient', () => {
       ok: true,
       json: () => Promise.resolve({}),
     })) as unknown as typeof fetch;
+
+    // ensure tests start from a non-development environment unless overridden
+    process.env.NODE_ENV = 'test';
   });
 
   it('appends Authorization header when token is a valid JWT', async () => {
@@ -57,6 +60,48 @@ describe('apiClient', () => {
         headers: expect.objectContaining({ Authorization: `Bearer ${token}` }),
       }),
     );
+  });
+
+  it('appends Authorization header for any token in development mode', async () => {
+    const token = 'mock-token';
+    localStorage.setItem('biltip_auth', JSON.stringify({ token }));
+    const prev = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'development';
+
+    await apiClient('/test');
+
+    expect(fetch).toHaveBeenCalledWith(
+      'http://example.com/test',
+      expect.objectContaining({
+        headers: expect.objectContaining({ Authorization: `Bearer ${token}` }),
+      }),
+    );
+
+    process.env.NODE_ENV = prev;
+  });
+
+  it('includes Authorization header for profile requests and returns user data', async () => {
+    const token = 'mock-token';
+    localStorage.setItem('biltip_auth', JSON.stringify({ token }));
+    const prev = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'development';
+
+    (fetch as vi.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ user: { id: '123', name: 'Tester' } }),
+    });
+
+    const result = await apiClient('/users/123');
+
+    expect(fetch).toHaveBeenCalledWith(
+      'http://example.com/users/123',
+      expect.objectContaining({
+        headers: expect.objectContaining({ Authorization: `Bearer ${token}` }),
+      }),
+    );
+    expect(result).toEqual({ user: { id: '123', name: 'Tester' } });
+
+    process.env.NODE_ENV = prev;
   });
 
   it('returns mock profile data when using mock API', async () => {
