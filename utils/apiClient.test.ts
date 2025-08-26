@@ -76,4 +76,23 @@ describe('apiClient', () => {
       },
     });
   });
+
+  it('clears stored auth and dispatches session-expired for invalid tokens', async () => {
+    const token = 'invalid';
+    localStorage.setItem('biltip_auth', JSON.stringify({ token }));
+    localStorage.setItem('biltip_user', JSON.stringify({ name: 'Tester' }));
+    const listener = vi.fn();
+    window.addEventListener('session-expired', listener);
+
+    await apiClient('/test');
+
+    expect(localStorage.getItem('biltip_auth')).toBeNull();
+    expect(localStorage.getItem('biltip_user')).toBeNull();
+    expect(listener).toHaveBeenCalledTimes(1);
+
+    const [, options] = (fetch as any).mock.calls[0];
+    expect(options.headers.Authorization).toBeUndefined();
+
+    window.removeEventListener('session-expired', listener);
+  });
 });
