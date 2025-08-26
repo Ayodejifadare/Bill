@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { apiClient } from '../utils/apiClient';
+import { apiClient, ApiRedirectError } from '../utils/apiClient';
 
 interface LinkedBankAccount {
   id: string;
@@ -184,7 +184,11 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
         }
       }
     } catch (error) {
-      console.error('Error fetching user profile:', error);
+      if (error instanceof ApiRedirectError) {
+        window.dispatchEvent(new CustomEvent('onboarding-required', { detail: error.redirect }));
+      } else {
+        console.error('Error fetching user profile:', error);
+      }
     }
   };
 
@@ -235,7 +239,11 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify(payload),
       });
     } catch (error) {
-      console.error('Error updating user profile:', error);
+      if (error instanceof ApiRedirectError) {
+        window.dispatchEvent(new CustomEvent('onboarding-required', { detail: error.redirect }));
+      } else {
+        console.error('Error updating user profile:', error);
+      }
     }
   };
 
@@ -268,7 +276,11 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
           }),
         });
       } catch (error) {
-        console.warn('Error updating app settings:', error);
+        if (error instanceof ApiRedirectError) {
+          window.dispatchEvent(new CustomEvent('onboarding-required', { detail: error.redirect }));
+        } else {
+          console.warn('Error updating app settings:', error);
+        }
       }
     })();
   };
@@ -287,7 +299,11 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
       });
       return data.settings as UserSettings;
     } catch (error) {
-      console.error('Error saving settings:', error);
+      if (error instanceof ApiRedirectError) {
+        window.dispatchEvent(new CustomEvent('onboarding-required', { detail: error.redirect }));
+      } else {
+        console.error('Error saving settings:', error);
+      }
     }
   };
 

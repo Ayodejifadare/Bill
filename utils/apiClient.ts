@@ -8,6 +8,15 @@ import { handle as mockAuth } from '../mocks/auth';
 import { handle as mockUsers } from '../mocks/users';
 import { clearAuth } from './auth';
 
+export class ApiRedirectError extends Error {
+  redirect: string;
+  constructor(path: string) {
+    super(`Redirect to ${path}`);
+    this.redirect = path;
+    this.name = 'ApiRedirectError';
+  }
+}
+
 type MockHandler = (path: string, init?: RequestInit) => Promise<any>;
 
 const mockRoutes: Array<{ test: RegExp; handler: MockHandler }> = [
@@ -86,6 +95,18 @@ export async function apiClient(
   }
 
   const response = await fetch(url, { ...init, headers });
+
+  if (response.status === 307) {
+    let redirectPath = '/onboarding';
+    try {
+      const data = await response.json();
+      redirectPath = data?.redirect || redirectPath;
+    } catch {
+      /* ignore */
+    }
+    throw new ApiRedirectError(redirectPath);
+  }
+
   if (!response.ok) {
     let message = `Request failed with status ${response.status}`;
     try {

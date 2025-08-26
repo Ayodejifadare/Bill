@@ -8,7 +8,7 @@ vi.mock('./config', () => ({
   },
 }));
 
-import { apiClient } from './apiClient';
+import { apiClient, ApiRedirectError } from './apiClient';
 
 describe('apiClient', () => {
   beforeEach(() => {
@@ -94,5 +94,15 @@ describe('apiClient', () => {
     expect(options.headers.Authorization).toBeUndefined();
 
     window.removeEventListener('session-expired', listener);
+  });
+
+  it('throws ApiRedirectError on 307 redirect', async () => {
+    (fetch as any).mockResolvedValueOnce({
+      status: 307,
+      ok: false,
+      json: () => Promise.resolve({ redirect: '/onboarding' }),
+    });
+
+    await expect(apiClient('/test')).rejects.toBeInstanceOf(ApiRedirectError);
   });
 });

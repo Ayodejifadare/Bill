@@ -59,6 +59,7 @@ const VirtualAccountScreen = lazy(() => import('./components/VirtualAccountScree
 const BankingRedirectScreen = lazy(() => import('./components/BankingRedirectScreen').then(m => ({ default: m.BankingRedirectScreen })));
 const PaymentConfirmationScreen = lazy(() => import('./components/PaymentConfirmationScreen').then(m => ({ default: m.PaymentConfirmationScreen })));
 const SettlementScreen = lazy(() => import('./components/SettlementScreen').then(m => ({ default: m.SettlementScreen })));
+const OnboardingScreen = lazy(() => import('./components/OnboardingScreen').then(m => ({ default: m.OnboardingScreen })));
 
 // Navigation state management using useReducer
 interface NavigationState {
@@ -409,6 +410,17 @@ function AppContent() {
     }
   }, [navState.currentGroupId, handleNavigate]);
 
+  useEffect(() => {
+    const redirectListener = (e: Event) => {
+      const detail = (e as CustomEvent<string>).detail;
+      if (detail) {
+        handleNavigate('onboarding');
+      }
+    };
+    window.addEventListener('onboarding-required', redirectListener);
+    return () => window.removeEventListener('onboarding-required', redirectListener);
+  }, [handleNavigate]);
+
   const handleLogin = useCallback((authResponse?: any) => {
     try {
       setIsInitializing(true);
@@ -558,6 +570,8 @@ function AppContent() {
           return <SettingsScreen onNavigate={handleNavigate} />;
         case 'notifications':
           return <NotificationsScreen onNavigate={handleNavigate} />;
+        case 'onboarding':
+          return <OnboardingScreen onNavigate={handleNavigate} />;
         case 'account-settings':
           return <AccountSettingsScreen onNavigate={handleNavigate} />;
         case 'payment-methods':

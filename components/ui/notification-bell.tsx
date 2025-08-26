@@ -3,7 +3,7 @@ import { Bell } from 'lucide-react';
 import { EventSourcePolyfill } from 'event-source-polyfill';
 import { Button } from './button';
 import { Alert, AlertDescription } from './alert';
-import { apiClient } from '../../utils/apiClient';
+import { apiClient, ApiRedirectError } from '../../utils/apiClient';
 
 interface NotificationBellProps {
   onClick: () => void;
@@ -28,6 +28,9 @@ export function NotificationBell({ onClick }: NotificationBellProps) {
     try {
       return await apiClient(input, init);
     } catch (err) {
+      if (err instanceof ApiRedirectError) {
+        throw err;
+      }
       if (retries <= 1) {
         throw err;
       }
@@ -96,9 +99,13 @@ export function NotificationBell({ onClick }: NotificationBellProps) {
       }
       scheduleFetch(baseInterval);
     } catch (err) {
-      setUnread(0);
-      setError((err as Error).message);
-      handleFailure(manual);
+      if (err instanceof ApiRedirectError) {
+        window.dispatchEvent(new CustomEvent('onboarding-required', { detail: err.redirect }));
+      } else {
+        setUnread(0);
+        setError((err as Error).message);
+        handleFailure(manual);
+      }
     } finally {
       setLoading(false);
     }
