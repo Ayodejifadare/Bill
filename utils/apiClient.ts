@@ -33,9 +33,14 @@ export async function apiClient(
     ...(init.headers as Record<string, string> | undefined),
   };
   // token is expected to be a JWT (three base64url segments)
-  // When using the mock API, accept any token to allow development flows
+  // Accept any token when using the mock API or in development to allow
+  // local development flows without requiring a real JWT.
   const tokenIsValid = typeof token === 'string'
-    && (useMockApi || /^[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+$/.test(token));
+    && (
+      useMockApi
+      || process.env.NODE_ENV === 'development'
+      || /^[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+$/.test(token)
+    );
 
   if (process.env.NODE_ENV === 'development') {
     console.debug('apiClient token:', token, 'valid JWT:', tokenIsValid);
