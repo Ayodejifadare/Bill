@@ -6,6 +6,7 @@ import { handle as mockContacts } from '../mocks/contacts';
 import { handle as mockRequests } from '../mocks/requests';
 import { handle as mockAuth } from '../mocks/auth';
 import { handle as mockUsers } from '../mocks/users';
+import { clearAuth } from './auth';
 
 type MockHandler = (path: string, init?: RequestInit) => Promise<any>;
 
@@ -55,6 +56,10 @@ export async function apiClient(
     }
     if (token) {
       console.warn('Invalid auth token, Authorization header omitted');
+      clearAuth();
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('session-expired'));
+      }
     }
   }
 
