@@ -25,6 +25,11 @@ interface Friend {
   direction?: 'incoming' | 'outgoing';
 }
 
+interface FriendsSummary {
+  owedToUser: number;
+  userOwes: number;
+}
+
 interface FriendsListProps {
   onNavigate: (tab: string, data?: unknown) => void;
 }
@@ -33,6 +38,8 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [friends, setFriends] = useState<Friend[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [summary, setSummary] = useState<FriendsSummary>({ owedToUser: 0, userOwes: 0 });
+  const [summaryError, setSummaryError] = useState<string | null>(null);
 
   async function loadFriends() {
     try {
@@ -41,6 +48,19 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
         apiClient('/api/friends'),
         apiClient('/api/friends/requests')
       ]);
+
+      try {
+        setSummaryError(null);
+        const summaryRes = await apiClient('/api/friends/summary');
+        setSummary({
+          owedToUser: summaryRes?.owedToUser ?? 0,
+          userOwes: summaryRes?.userOwes ?? 0,
+        });
+      } catch (err) {
+        console.error('Failed to load summary', err);
+        setSummary({ owedToUser: 0, userOwes: 0 });
+        setSummaryError('Failed to load summary. Showing defaults.');
+      }
 
       const friendsData: Friend[] = (friendRes.friends || []).map((f: {
         id: string;
@@ -157,14 +177,17 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
         {/* Quick Stats */}
         <div className="grid grid-cols-2 gap-4">
           <Card className="p-4 text-center">
-            <p className="text-2xl text-success">$48.25</p>
+            <p className="text-2xl text-success">${summary.owedToUser.toFixed(2)}</p>
             <p className="text-sm text-muted-foreground">You're owed</p>
           </Card>
           <Card className="p-4 text-center">
-            <p className="text-2xl text-destructive">$15.00</p>
+            <p className="text-2xl text-destructive">${summary.userOwes.toFixed(2)}</p>
             <p className="text-sm text-muted-foreground">You owe</p>
           </Card>
         </div>
+        {summaryError && (
+          <p className="text-sm text-destructive text-center">{summaryError}</p>
+        )}
 
         {error ? (
           <EmptyState
