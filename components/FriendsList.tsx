@@ -10,6 +10,7 @@ import { SearchInput } from './ui/search-input';
 import { UserPlus, Send, Users, AlertCircle } from 'lucide-react';
 import { GroupSection } from './GroupSection';
 import { apiClient } from '../utils/apiClient';
+import { toast } from 'sonner';
 
 interface Friend {
   id: string;
@@ -120,9 +121,11 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
       await apiClient(`/api/friends/requests/${requestId}/accept`, {
         method: 'POST'
       });
+      toast.success('Friend request accepted');
       window.dispatchEvent(new Event('friendsUpdated'));
     } catch (error) {
       console.error('Failed to accept friend request', error);
+      toast.error('Failed to accept friend request');
     }
   }
 
@@ -131,9 +134,11 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
       await apiClient(`/api/friends/requests/${requestId}/decline`, {
         method: 'POST'
       });
+      toast.success('Friend request declined');
       window.dispatchEvent(new Event('friendsUpdated'));
     } catch (error) {
       console.error('Failed to decline friend request', error);
+      toast.error('Failed to decline friend request');
     }
   }
 
@@ -142,9 +147,11 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
       await apiClient(`/api/friends/requests/${requestId}`, {
         method: 'DELETE'
       });
+      toast.success('Friend request cancelled');
       window.dispatchEvent(new Event('friendsUpdated'));
     } catch (error) {
       console.error('Failed to cancel friend request', error);
+      toast.error('Failed to cancel friend request');
     }
   }
 
