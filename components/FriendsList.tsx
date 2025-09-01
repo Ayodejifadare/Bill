@@ -43,27 +43,19 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
   const [summaryError, setSummaryError] = useState<string | null>(null);
 
   async function loadFriends() {
+    setError(null);
+
+    let friendsData: Friend[] = [];
+    let outgoingRequests: Friend[] = [];
+    let friendsFailed = false;
+    let requestsFailed = false;
+
+    const friendsPromise = apiClient('/api/friends');
+    const requestsPromise = apiClient('/api/friends/requests');
+
     try {
-      setError(null);
-      const [friendRes, requestsRes] = await Promise.all([
-        apiClient('/api/friends'),
-        apiClient('/api/friends/requests')
-      ]);
-
-      try {
-        setSummaryError(null);
-        const summaryRes = await apiClient('/api/friends/summary');
-        setSummary({
-          owedToUser: summaryRes?.owedToUser ?? 0,
-          userOwes: summaryRes?.userOwes ?? 0,
-        });
-      } catch (err) {
-        console.error('Failed to load summary', err);
-        setSummary({ owedToUser: 0, userOwes: 0 });
-        setSummaryError('Failed to load summary. Showing defaults.');
-      }
-
-      const friendsData: Friend[] = (friendRes.friends || []).map((f: {
+      const friendRes = await friendsPromise;
+      friendsData = (friendRes.friends || []).map((f: {
         id: string;
         name: string;
         username?: string;
@@ -82,8 +74,14 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
         requestId: f.requestId,
         direction: f.status === 'pending' ? 'incoming' : undefined,
       }));
+    } catch (err) {
+      console.error('Failed to load friends', err);
+      friendsFailed = true;
+    }
 
-      const outgoingRequests: Friend[] = (requestsRes.outgoing || []).map((r: any) => ({
+    try {
+      const requestsRes = await requestsPromise;
+      outgoingRequests = (requestsRes.outgoing || []).map((r: any) => ({
         id: r.receiver.id,
         name: r.receiver.name,
         username: r.receiver.email || '',
@@ -92,12 +90,29 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
         requestId: r.id,
         direction: 'outgoing',
       }));
+    } catch (err) {
+      console.error('Failed to load friend requests', err);
+      requestsFailed = true;
+    }
 
-      setFriends([...friendsData, ...outgoingRequests]);
-    } catch (error) {
-      console.error('Failed to load friends', error);
-      setFriends([]);
+    setFriends([...friendsData, ...outgoingRequests]);
+
+    if (friendsFailed && requestsFailed) {
       setError('Failed to load friends. Please try again.');
+      return;
+    }
+
+    try {
+      setSummaryError(null);
+      const summaryRes = await apiClient('/api/friends/summary');
+      setSummary({
+        owedToUser: summaryRes?.owedToUser ?? 0,
+        userOwes: summaryRes?.userOwes ?? 0,
+      });
+    } catch (err) {
+      console.error('Failed to load summary', err);
+      setSummary({ owedToUser: 0, userOwes: 0 });
+      setSummaryError('Failed to load summary. Showing defaults.');
     }
   }
 
