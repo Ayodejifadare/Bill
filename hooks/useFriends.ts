@@ -6,6 +6,7 @@ export interface Friend {
   name: string;
   avatar?: string;
   phoneNumber?: string;
+  status: 'active' | 'pending' | 'blocked';
 }
 
 let friendsCache: Friend[] | null = null;
@@ -16,7 +17,9 @@ export async function fetchFriends(): Promise<Friend[]> {
   if (inflight) return inflight;
   inflight = apiClient('/friends')
     .then((data) => {
-      friendsCache = Array.isArray(data.friends) ? data.friends : [];
+      friendsCache = Array.isArray(data.friends)
+        ? data.friends.filter((f: Friend) => f.status === 'active')
+        : [];
       return friendsCache;
     })
     .finally(() => {
