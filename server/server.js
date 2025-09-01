@@ -51,18 +51,37 @@ setInterval(() => cleanupExpiredCodes(prisma), 60 * 60 * 1000)
 
 // Middleware
 app.use(helmet())
+// CORS: allow multiple local dev origins for smoother DX
+const defaultFrontend = 'http://localhost:4000'
+const configuredFrontend = process.env.FRONTEND_URL || defaultFrontend
+const devOrigins = [configuredFrontend, 'http://localhost:4000', 'http://localhost:3000']
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:4000',
+  origin: (origin, callback) => {
+    // Allow no-origin requests (same-origin, curl, tests)
+    if (!origin) return callback(null, true)
+    const allowed = process.env.NODE_ENV === 'development'
+      ? devOrigins.includes(origin)
+      : origin === configuredFrontend
+    callback(null, allowed)
+  },
   credentials: true
 }))
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.'
-})
-app.use('/api/', limiter)
+// Rate limiting (tunable/disabled in development)
+const rateLimitEnabled = (process.env.RATE_LIMIT_ENABLED ?? (process.env.NODE_ENV !== 'development' ? 'true' : 'false')) !== 'false'
+if (rateLimitEnabled) {
+  const windowMs = Number(process.env.RATE_LIMIT_WINDOW_MS ?? (15 * 60 * 1000))
+  const max = Number(process.env.RATE_LIMIT_MAX ?? 300)
+  const limiter = rateLimit({
+    windowMs,
+    max,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: 'Too many requests from this IP, please try again later.',
+    skip: (req) => req.method === 'OPTIONS' || req.path === '/notifications/stream'
+  })
+  app.use('/api', limiter)
+}
 
 app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true, limit: '10mb' }))

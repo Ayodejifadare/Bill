@@ -1,4 +1,4 @@
-import { apiBaseUrl, useMockApi } from './config';
+import { apiBaseUrl, useMockApi, useDevAuth, devUserId } from './config';
 import { handle as mockFriends } from '../mocks/friends';
 import { handle as mockGroups } from '../mocks/groups';
 import { handle as mockUpcomingPayments } from '../mocks/upcoming-payments';
@@ -68,6 +68,27 @@ export async function apiClient(
     }
   }
 
+  // Dev-mode auth bypass using backend's x-user-id hook
+  if (!headers['Authorization'] && useDevAuth) {
+    // Prefer explicit env user id, else fall back to stored user id
+    let xUserId = devUserId;
+    if (!xUserId && typeof window !== 'undefined') {
+      try {
+        const rawUser = localStorage.getItem('biltip_user');
+        if (rawUser) {
+          const parsed = JSON.parse(rawUser);
+          if (parsed?.id) xUserId = String(parsed.id);
+        }
+      } catch {/* ignore */}
+    }
+    if (xUserId) {
+      headers['x-user-id'] = xUserId;
+    }
+    if (process.env.NODE_ENV === 'development') {
+      console.debug('apiClient x-user-id header appended for dev auth');
+    }
+  }
+
   const resource = typeof input === 'string'
     ? input
     : input instanceof URL
@@ -95,6 +116,12 @@ export async function apiClient(
     let message = `Request failed with status ${response.status}`;
     try {
       const data = await response.json();
+      // Special-case onboarding requirement to enable client handling
+      if (response.status === 403 && (data?.error === 'onboarding_required')) {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('onboarding-required', { detail: data }));
+        }
+      }
       message = data?.message || data?.error || message;
     } catch {
       /* ignore */
