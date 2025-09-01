@@ -100,7 +100,8 @@ export function SendMoney({ onNavigate, prefillData }: SendMoneyProps) {
           const tempFriend: Friend = {
             id: prefillData.recipientId,
             name: prefillData.recipientName,
-            phoneNumber: 'Not available'
+            phoneNumber: 'Not available',
+            status: 'active'
           };
           setSelectedFriend(tempFriend);
           setSelectedPaymentMethod(null);

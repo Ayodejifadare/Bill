@@ -83,7 +83,8 @@ export function SplitBill({ onNavigate, groupId }: SplitBillProps) {
     id: 'me',
     name: 'You',
     avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
-    phoneNumber: isNigeria ? '+234 800 000 0000' : '+1 (555) 000-0000'
+    phoneNumber: isNigeria ? '+234 800 000 0000' : '+1 (555) 000-0000',
+    status: 'active'
   };
 
 
