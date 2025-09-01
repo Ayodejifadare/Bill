@@ -14,7 +14,8 @@ describe('FriendsList error handling', () => {
       .mockRejectedValueOnce(new Error('network error'))
       .mockRejectedValueOnce(new Error('network error'))
       .mockResolvedValueOnce({ friends: [{ id: '1', name: 'Alice', username: 'alice', status: 'active' }] })
-      .mockResolvedValueOnce({ outgoing: [] });
+      .mockResolvedValueOnce({ outgoing: [] })
+      .mockResolvedValueOnce({ owedToUser: 48.25, userOwes: 15 });
 
     render(<FriendsList onNavigate={() => {}} />);
 
@@ -22,9 +23,11 @@ describe('FriendsList error handling', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /retry/i }));
 
-    await waitFor(() => expect(apiMock).toHaveBeenCalledTimes(4));
+    await waitFor(() => expect(apiMock).toHaveBeenCalledTimes(5));
     expect(screen.queryByRole('heading', { name: /failed to load friends/i })).not.toBeInTheDocument();
     expect(await screen.findByText('Alice')).toBeInTheDocument();
+    expect(screen.getByText('$48.25')).toBeInTheDocument();
+    expect(screen.getByText('$15.00')).toBeInTheDocument();
   });
 });
 
