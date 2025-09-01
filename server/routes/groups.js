@@ -127,7 +127,9 @@ router.get('/', authenticate, async (req, res) => {
       },
       include: {
         members: {
-          select: { userId: true }
+          include: {
+            user: { select: { id: true, name: true, avatar: true, phone: true } }
+          }
         }
       },
       skip,
@@ -140,7 +142,13 @@ router.get('/', authenticate, async (req, res) => {
     const formatted = groups.map((g) => ({
       id: g.id,
       name: g.name,
-      members: g.members.map((m) => m.userId),
+      // Return minimal friend objects for UI participant lists
+      members: g.members.map((m) => ({
+        id: m.user.id,
+        name: m.user.name,
+        avatar: m.user.avatar || '',
+        phoneNumber: m.user.phone || ''
+      })),
       color: mapColor(g.color)
     }))
 
@@ -588,4 +596,3 @@ router.use('/:groupId/accounts', groupAccountRouter)
 router.use('/:groupId', groupTransactionRouter)
 
 export default router
-

@@ -23,6 +23,7 @@ import { Switch } from './ui/switch';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible';
 import { toast } from 'sonner';
+import { apiClient } from '../utils/apiClient';
 import { useUserProfile } from './UserProfileContext';
 import {
   fetchFriends,
@@ -46,7 +47,7 @@ interface SplitBillProps {
 }
 
 export function SplitBill({ onNavigate, groupId }: SplitBillProps) {
-  const { appSettings } = useUserProfile();
+  const { appSettings, userProfile } = useUserProfile();
   const isNigeria = appSettings.region === 'NG';
   const currencySymbol = isNigeria ? '₦' : '$';
   
@@ -86,6 +87,8 @@ export function SplitBill({ onNavigate, groupId }: SplitBillProps) {
     phoneNumber: isNigeria ? '+234 800 000 0000' : '+1 (555) 000-0000',
     status: 'active'
   };
+
+  const [submitting, setSubmitting] = useState(false);
 
 
   // Personal payment methods based on region
@@ -426,7 +429,7 @@ export function SplitBill({ onNavigate, groupId }: SplitBillProps) {
   };
 
 
-  const handleCreateSplit = () => {
+  const handleCreateSplit = async () => {
     if (!billName.trim()) {
       toast.error('Please enter a bill name');
       return;
@@ -464,29 +467,61 @@ export function SplitBill({ onNavigate, groupId }: SplitBillProps) {
       return;
     }
 
-    // Create the split bill
+    // Create the split bill (backend)
     const hasMe = participants.some(p => p.friend.id === 'me');
     const myShare = hasMe ? participants.find(p => p.friend.id === 'me')?.amount || 0 : 0;
-    
-    if (isRecurring) {
-      if (hasMe && myShare > 0) {
-        toast.success(`Recurring split bill created! You owe ${currencySymbol}${myShare.toFixed(2)} ${recurringFrequency}. Payment details shared with all participants.`);
+
+    try {
+      setSubmitting(true);
+      const currentUserId = userProfile?.id;
+      const payload: any = {
+        title: billName.trim(),
+        totalAmount: parseFloat(totalAmount),
+        description: description || undefined,
+        splitMethod,
+        groupId: groupId || undefined,
+        paymentMethodId: selectedPaymentMethod?.isExternal ? String(selectedPaymentMethod.id).replace(/^external-/, '') : undefined,
+        isRecurring,
+        frequency: isRecurring ? recurringFrequency : undefined,
+        day: isRecurring ? parseInt(recurringDay || '1', 10) : undefined,
+        participants: participants
+          .filter(p => !isNaN(p.amount) && p.amount > 0)
+          .map(p => ({
+            id: p.friend.id === 'me' ? (currentUserId || 'me') : p.friend.id,
+            amount: Number(p.amount)
+          })),
+      };
+
+      await apiClient('/api/bill-splits', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (isRecurring) {
+        if (hasMe && myShare > 0) {
+          toast.success(`Recurring split bill created! You owe ${currencySymbol}${myShare.toFixed(2)} ${recurringFrequency}.`);
+        } else {
+          toast.success(`Recurring split bill created! This will repeat ${recurringFrequency}.`);
+        }
       } else {
-        toast.success(`Recurring split bill created! This will repeat ${recurringFrequency}. Payment details have been shared with participants.`);
+        if (hasMe && myShare > 0) {
+          toast.success(`Split bill created! You owe ${currencySymbol}${myShare.toFixed(2)}.`);
+        } else {
+          toast.success('Split bill created successfully.');
+        }
       }
-    } else {
-      if (hasMe && myShare > 0) {
-        toast.success(`Split bill created! You owe ${currencySymbol}${myShare.toFixed(2)}. Payment details shared with all participants.`);
+
+      // Navigate back after success
+      if (groupId) {
+        onNavigate('group-details', { groupId });
       } else {
-        toast.success('Split bill created successfully! Payment details have been shared with participants.');
+        onNavigate('bills');
       }
-    }
-    
-    // Navigate back to appropriate screen after creating split
-    if (groupId) {
-      onNavigate('group-details', { groupId });
-    } else {
-      onNavigate('bills');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to create split bill');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -1112,16 +1147,16 @@ ${myShare > 0 ? `👥 Your Share: ${currencySymbol}${myShare.toFixed(2)}\n` : ''
         <Button 
           onClick={handleCreateSplit}
           className="w-full min-h-[52px] text-base"
-          disabled={!billName || !totalAmount || participants.length === 0 || !selectedPaymentMethod}
+          disabled={submitting || !billName || !totalAmount || participants.length === 0 || !selectedPaymentMethod}
         >
-          {isRecurring ? (
+          {submitting ? 'Creating…' : (isRecurring ? (
             <>
               <Repeat className="h-5 w-5 mr-2" />
               Create Recurring Split
             </>
           ) : (
             'Create Split Bill'
-          )}
+          ))}
         </Button>
 
         {/* Split Summary */}

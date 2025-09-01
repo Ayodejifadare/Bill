@@ -89,13 +89,17 @@ export function LoginScreen({ onLogin, onShowRegister }: LoginScreenProps) {
     }
 
     try {
+      // Normalize phone to E.164-style: remove non-digits and leading zeros
+      const raw = phoneNumber.replace(/\D/g, '');
+      const national = raw.replace(/^0+/, '');
+      const normalizedPhone = `${selectedCountry?.phonePrefix}${national}`;
       await apiClient('/auth/request-otp', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          phone: `${selectedCountry?.phonePrefix}${phoneNumber}`
+          phone: normalizedPhone
         })
       });
       setCodeSent(true);
@@ -112,13 +116,17 @@ export function LoginScreen({ onLogin, onShowRegister }: LoginScreenProps) {
     setIsVerifying(true);
     setError('');
     try {
+      // Normalize phone to E.164-style: remove non-digits and leading zeros
+      const raw = phoneNumber.replace(/\D/g, '');
+      const national = raw.replace(/^0+/, '');
+      const normalizedPhone = `${selectedCountry?.phonePrefix}${national}`;
       const data = await apiClient('/auth/verify-otp', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          phone: `${selectedCountry?.phonePrefix}${phoneNumber}`,
+          phone: normalizedPhone,
           otp
         })
       });

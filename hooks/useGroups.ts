@@ -43,19 +43,36 @@ export function useGroups(): UseGroupsResult {
     try {
       const data = await apiClient('/groups');
       const rawGroups = Array.isArray(data.groups) ? data.groups : [];
-      const mapped = rawGroups.map((g: any) => ({
-        id: g.id,
-        name: g.name,
-        members: Array.isArray(g.members) ? g.members : [],
-        color: g.color || '',
-        description: '',
-        memberCount: Array.isArray(g.members) ? g.members.length : 0,
-        totalSpent: 0,
-        recentActivity: '',
-        isAdmin: false,
-        lastActive: null,
-        pendingBills: 0
-      }));
+
+      const getInitials = (name: string | undefined): string => {
+        return (name || '')
+          .split(/\s+/)
+          .map(n => n[0])
+          .filter(Boolean)
+          .slice(0, 2)
+          .join('')
+          .toUpperCase();
+      };
+
+      const mapped = rawGroups.map((g: any) => {
+        const membersRaw = Array.isArray(g.members) ? g.members : [];
+        const members: string[] = membersRaw.map((m: any) =>
+          typeof m === 'string' ? m : getInitials(m?.name)
+        );
+        return {
+          id: g.id,
+          name: g.name,
+          members,
+          color: g.color || '',
+          description: '',
+          memberCount: members.length,
+          totalSpent: 0,
+          recentActivity: '',
+          isAdmin: false,
+          lastActive: null,
+          pendingBills: 0
+        } as Group;
+      });
       setGroups(mapped);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch groups');

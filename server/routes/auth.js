@@ -187,7 +187,10 @@ router.post('/login', [
       return res.status(400).json({ error: 'Invalid credentials' })
     }
 
-    // Check password
+    // Check password (handle invalid/legacy hashes gracefully)
+    if (typeof user.password !== 'string' || !user.password.startsWith('$2')) {
+      return res.status(400).json({ error: 'Invalid credentials' })
+    }
     const isPasswordValid = await bcrypt.compare(password, user.password)
     if (!isPasswordValid) {
       return res.status(400).json({ error: 'Invalid credentials' })
