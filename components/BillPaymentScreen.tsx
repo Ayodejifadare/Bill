@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback } from './ui/avatar';
 import { Separator } from './ui/separator';
 import { toast } from 'sonner';
 import { useUserProfile } from './UserProfileContext';
-import { getCurrencySymbol, requiresRoutingNumber, getBankIdentifierLabel, formatBankAccountForRegion } from '../utils/regions';
+import { getCurrencySymbol, requiresRoutingNumber, getBankIdentifierLabel, formatBankAccountForRegion, formatCurrencyForRegion } from '../utils/regions';
 import { apiClient } from '../utils/apiClient';
 
 interface BillPaymentScreenProps {
@@ -155,9 +155,7 @@ export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps
     const { paymentMethod } = bill;
     
     if (paymentMethod.type === 'bank') {
-      return isNigeria 
-        ? 'Use your mobile banking app or visit any bank branch to make this transfer.'
-        : 'Use your online banking, mobile app, or visit a branch to send this payment.';
+      return 'Use your banking app (mobile or web), or visit a branch to send this payment.';
     } else {
       return `Open your ${paymentMethod.provider} app and send money to the phone number above.`;
     }
@@ -211,7 +209,7 @@ export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps
           </CardHeader>
           <CardContent className="text-center pb-6">
             <div className="text-3xl sm:text-4xl font-bold text-primary mb-2">
-              {currencySymbol}{bill.yourShare.toFixed(2)}
+              {formatCurrencyForRegion(appSettings.region, bill.yourShare)}
             </div>
             <p className="text-sm text-muted-foreground mb-4">
               Your share of {currencySymbol}{bill.totalAmount.toFixed(2)} total
@@ -382,7 +380,7 @@ export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps
                       <span className="text-sm truncate">{participant.name}</span>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      <span className="text-sm font-medium">{currencySymbol}{participant.amount.toFixed(2)}</span>
+                      <span className="text-sm font-medium">{formatCurrencyForRegion(appSettings.region, participant.amount)}</span>
                       {participant.paid ? (
                         <Badge variant="secondary" className="bg-success/10 text-success text-xs">
                           <CheckCircle className="h-3 w-3 mr-1" />

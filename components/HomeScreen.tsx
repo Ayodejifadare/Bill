@@ -8,7 +8,7 @@ import { EmptyState } from './ui/empty-state';
 import { Send, Users, Receipt, Plus, DollarSign } from 'lucide-react';
 import { Alert, AlertDescription } from './ui/alert';
 import { useUserProfile } from './UserProfileContext';
-import { getCurrencySymbol } from '../utils/regions';
+import { getCurrencySymbol, formatCurrencyForRegion } from '../utils/regions';
 import { TransactionSkeleton } from './ui/loading';
 import { useTransactions } from '../hooks/useTransactions';
 import { NotificationBell } from './ui/notification-bell';
@@ -91,13 +91,13 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
           <div className="grid grid-cols-2 gap-4">
             <div className="text-center">
               <p className="text-2xl font-medium text-success">
-                {currencySymbol}{summary.totalReceived.toFixed(2)}
+                {formatCurrencyForRegion(appSettings.region, summary.totalReceived)}
               </p>
               <p className="text-sm text-muted-foreground">You are owed</p>
             </div>
             <div className="text-center">
               <p className="text-2xl font-medium text-destructive">
-                {currencySymbol}{summary.totalSent.toFixed(2)}
+                {formatCurrencyForRegion(appSettings.region, summary.totalSent)}
               </p>
               <p className="text-sm text-muted-foreground">You owe</p>
             </div>

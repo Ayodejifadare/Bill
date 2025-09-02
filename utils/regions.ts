@@ -127,3 +127,23 @@ export function getBankAccountLength(region: RegionCode | undefined | null): num
   if (r.code === 'NG') return 10;
   return undefined;
 }
+
+// Locale + currency formatting
+export function getLocaleForRegion(region: RegionCode | undefined | null): string {
+  const r = getRegionConfig(region);
+  if (r.code === 'NG') return 'en-NG';
+  if (r.code === 'US') return 'en-US';
+  if (typeof navigator !== 'undefined' && navigator.language) return navigator.language;
+  return 'en-US';
+}
+
+export function formatCurrencyForRegion(region: RegionCode | undefined | null, amount: number): string {
+  const locale = getLocaleForRegion(region);
+  const currency = getCurrencyCode(region);
+  try {
+    return new Intl.NumberFormat(locale, { style: 'currency', currency, currencyDisplay: 'symbol', maximumFractionDigits: 2 }).format(amount);
+  } catch {
+    const symbol = getRegionConfig(region).currencySymbol;
+    return `${symbol}${amount.toFixed(2)}`;
+  }
+}

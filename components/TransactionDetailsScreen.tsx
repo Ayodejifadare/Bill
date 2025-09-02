@@ -7,7 +7,7 @@ import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
 import { toast } from 'sonner';
 import { useUserProfile } from './UserProfileContext';
-import { getCurrencySymbol } from '../utils/regions';
+import { getCurrencySymbol, requiresRoutingNumber, getBankIdentifierLabel, formatBankAccountForRegion, formatCurrencyForRegion } from '../utils/regions';
 import { ShareSheet } from './ui/share-sheet';
 import { createDeepLink } from './ShareUtils';
 import { apiClient } from '../utils/apiClient';
@@ -334,7 +334,7 @@ export function TransactionDetailsScreen({ transactionId, onNavigate }: Transact
             <div className="space-y-2">
               <p className={`text-3xl font-bold ${getTypeColor(transaction.type)}`}>
                 {transaction.type === 'coordination_sent' ? '' : '+'}
-                {currencySymbol}{transaction.amount.toFixed(2)}
+                {formatCurrencyForRegion(appSettings.region, transaction.amount)}
               </p>
               <Badge className={getStatusColor(transaction.status)}>
                 {getStatusLabel(transaction.status)}
@@ -392,30 +392,26 @@ export function TransactionDetailsScreen({ transactionId, onNavigate }: Transact
                           <p className="text-sm text-muted-foreground">
                             Account Holder: {transaction.paymentMethod.accountHolderName}
                           </p>
-                          {!isNigeria && transaction.paymentMethod.accountType && (
+                          {requiresRoutingNumber(appSettings.region) && transaction.paymentMethod.accountType && (
                             <p className="text-sm text-muted-foreground">
                               Account Type: {transaction.paymentMethod.accountType.charAt(0).toUpperCase() + transaction.paymentMethod.accountType.slice(1)}
                             </p>
                           )}
-                          {isNigeria ? (
-                            <>
-                              <p className="text-sm text-muted-foreground">
-                                Sort Code: {transaction.paymentMethod.sortCode}
-                              </p>
-                              <p className="text-sm text-muted-foreground">
-                                Account Number: {formatAccountNumber(transaction.paymentMethod.accountNumber!)}
-                              </p>
-                            </>
-                          ) : (
-                            <>
-                              <p className="text-sm text-muted-foreground">
-                                Routing Number: {transaction.paymentMethod.routingNumber}
-                              </p>
-                              <p className="text-sm text-muted-foreground">
-                                Account Number: {formatAccountNumber(transaction.paymentMethod.accountNumber!)}
-                              </p>
-                            </>
-                          )}
+                          {(() => {
+                            const label = getBankIdentifierLabel(appSettings.region);
+                            const usesRouting = requiresRoutingNumber(appSettings.region);
+                            const value = usesRouting ? transaction.paymentMethod.routingNumber : transaction.paymentMethod.sortCode;
+                            return (
+                              <>
+                                <p className="text-sm text-muted-foreground">
+                                  {label}: {value}
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                  Account Number: {formatBankAccountForRegion(appSettings.region, transaction.paymentMethod.accountNumber!)}
+                                </p>
+                              </>
+                            );
+                          })()}
                         </>
                       ) : (
                         <p className="text-sm text-muted-foreground">

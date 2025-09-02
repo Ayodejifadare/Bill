@@ -222,7 +222,7 @@ export function PaymentMethodsScreen({ onNavigate }: PaymentMethodsScreenProps) 
             <div className="min-w-0 flex-1">
               <h1 className="text-lg sm:text-xl font-semibold">Payment Methods</h1>
               <p className="text-xs sm:text-sm text-muted-foreground">
-                {isNigeria ? 'Manage your payment options' : 'Manage your bank accounts'}
+                {providers.length > 0 ? 'Manage your payment options' : 'Manage your bank accounts'}
               </p>
             </div>
           </div>
@@ -262,14 +262,14 @@ export function PaymentMethodsScreen({ onNavigate }: PaymentMethodsScreenProps) 
                   <DialogDescription className="text-sm leading-relaxed">
                     {editingMethod
                       ? 'Update your payment method details.'
-                      : isNigeria
+                      : providers.length > 0
                           ? 'Add a bank account or mobile money provider to receive payments from friends.'
                           : 'Add a bank account to receive payments from friends when splitting bills or money requests.'}
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4">
-                  {/* Method Type Selection - Only show for Nigeria */}
-                  {isNigeria && !editingMethod && (
+                  {/* Method Type Selection - Only show when mobile money is supported */}
+                  {providers.length > 0 && !editingMethod && (
                     <div className="grid grid-cols-2 gap-3">
                       <Button
                         variant={methodType === 'bank' ? 'default' : 'outline'}
@@ -290,7 +290,7 @@ export function PaymentMethodsScreen({ onNavigate }: PaymentMethodsScreenProps) 
                     </div>
                   )}
 
-                  {(!isNigeria || methodType === 'bank') ? (
+                  {(providers.length === 0 || methodType === 'bank') ? (
                     <>
                       <div className="space-y-2">
                         <Label>Bank</Label>
@@ -309,12 +309,12 @@ export function PaymentMethodsScreen({ onNavigate }: PaymentMethodsScreenProps) 
                       </div>
 
                       <div className="space-y-2">
-                        <Label>{isNigeria ? 'Account Name' : 'Account Holder Name'}</Label>
+                        <Label>Account Holder Name</Label>
                         <Input
                           className="h-12"
                           value={formData.accountName}
                           onChange={(e) => setFormData(prev => ({ ...prev, accountName: e.target.value }))}
-                          placeholder={isNigeria ? "Account holder name" : "Full name as it appears on account"}
+                          placeholder={"Full name as it appears on account"}
                         />
                       </div>
 
@@ -413,7 +413,7 @@ export function PaymentMethodsScreen({ onNavigate }: PaymentMethodsScreenProps) 
           {paymentMethods.length === 0 ? (
             <Card>
               <CardContent className="p-6 sm:p-8 text-center">
-                {isNigeria ? (
+                {providers.length > 0 ? (
                   <div className="flex items-center justify-center gap-4 mb-4">
                     <Building2 className="h-12 w-12 text-muted-foreground" />
                     <Smartphone className="h-12 w-12 text-muted-foreground" />
@@ -423,18 +423,17 @@ export function PaymentMethodsScreen({ onNavigate }: PaymentMethodsScreenProps) 
                 )}
                 <h3 className="mb-2 text-lg">No payment methods</h3>
                 <p className="text-muted-foreground mb-4 text-sm leading-relaxed">
-                  {isNigeria 
+                  {providers.length > 0
                     ? "Add a payment method to receive money from friends"
-                    : "Add a bank account to receive money from friends"
-                  }
+                    : "Add a bank account to receive money from friends"}
                 </p>
                 <Button 
                   onClick={() => setIsAddingMethod(true)} 
                   className="h-12"
-                  aria-label={`Add your first ${isNigeria ? 'payment method' : 'bank account'}`}
+                  aria-label={`Add your first ${providers.length > 0 ? 'payment method' : 'bank account'}`}
                 >
                   <Plus className="h-4 w-4 mr-2" />
-                  Add Your First {isNigeria ? 'Payment Method' : 'Bank Account'}
+                  Add Your First {providers.length > 0 ? 'Payment Method' : 'Bank Account'}
                 </Button>
               </CardContent>
             </Card>
@@ -469,10 +468,9 @@ export function PaymentMethodsScreen({ onNavigate }: PaymentMethodsScreenProps) 
             <div className="bg-blue-50 p-4 rounded-lg">
               <p className="text-sm text-blue-800 leading-relaxed">
                 <strong>Secure Payments:</strong> Your payment information is encrypted and secure. 
-                {isNigeria 
+                {providers.length > 0
                   ? " We use these details to help friends send you money via bank transfers or mobile money."
-                  : " We share these details with friends to help them send you money via direct bank transfers when you split bills or request payments."
-                }
+                  : " We share these details with friends to help them send you money via direct bank transfers when you split bills or request payments."}
               </p>
             </div>
           </CardContent>
@@ -487,7 +485,7 @@ export function PaymentMethodsScreen({ onNavigate }: PaymentMethodsScreenProps) 
             <div className="space-y-4 text-sm text-muted-foreground">
               <div className="flex gap-3">
                 <div className="bg-primary text-primary-foreground rounded-full min-w-[24px] h-6 flex items-center justify-center flex-shrink-0 text-xs">1</div>
-                <p>Add your {isNigeria ? 'bank account or mobile money' : 'bank account'} details to receive payments</p>
+                <p>Add your {providers.length > 0 ? 'bank account or mobile money' : 'bank account'} details to receive payments</p>
               </div>
               <div className="flex gap-3">
                 <div className="bg-primary text-primary-foreground rounded-full min-w-[24px] h-6 flex items-center justify-center flex-shrink-0 text-xs">2</div>
@@ -495,7 +493,7 @@ export function PaymentMethodsScreen({ onNavigate }: PaymentMethodsScreenProps) 
               </div>
               <div className="flex gap-3">
                 <div className="bg-primary text-primary-foreground rounded-full min-w-[24px] h-6 flex items-center justify-center flex-shrink-0 text-xs">3</div>
-                <p>Friends can send payments directly using {isNigeria ? 'their banking or mobile money app' : 'their banking app'}</p>
+                <p>Friends can send payments directly using {providers.length > 0 ? 'their banking or mobile money app' : 'their banking app'}</p>
               </div>
             </div>
           </CardContent>

@@ -9,7 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from './ui/alert-dialog';
 import { toast } from 'sonner';
 import { useUserProfile } from './UserProfileContext';
-import { getCurrencySymbol, requiresRoutingNumber, getBankIdentifierLabel } from '../utils/regions';
+import { getCurrencySymbol, requiresRoutingNumber, getBankIdentifierLabel, formatCurrencyForRegion, formatBankAccountForRegion } from '../utils/regions';
 import { ShareSheet } from './ui/share-sheet';
 import { createDeepLink } from './ShareUtils';
 import { PageLoading } from './ui/loading';
@@ -217,13 +217,8 @@ export function BillSplitDetailsScreen({ billSplitId, onNavigate }: BillSplitDet
     }
   };
 
-  const formatAccountNumber = (accountNumber: string) => {
-    if (isNigeria) {
-      return accountNumber.replace(/(\d{4})(\d{4})(\d{2})/, '$1 $2 $3');
-    } else {
-      return accountNumber.replace(/(\*{4})(\d{4})/, '$1 $2');
-    }
-  };
+  const formatAccountNumber = (accountNumber: string) =>
+    formatBankAccountForRegion(appSettings.region, accountNumber);
 
   // Create share data for this bill split
   const shareData = billSplit ? {
@@ -336,7 +331,7 @@ export function BillSplitDetailsScreen({ billSplitId, onNavigate }: BillSplitDet
             </div>
             
             <div className="text-center space-y-2">
-              <p className="text-2xl sm:text-3xl font-bold">{currencySymbol}{billSplit.totalAmount.toFixed(2)}</p>
+              <p className="text-2xl sm:text-3xl font-bold">{formatCurrencyForRegion(appSettings.region, billSplit.totalAmount)}</p>
               <p className="text-sm text-muted-foreground">Total Amount</p>
             </div>
 
@@ -347,8 +342,8 @@ export function BillSplitDetailsScreen({ billSplitId, onNavigate }: BillSplitDet
               </div>
               <Progress value={progressPercentage} className="h-2" />
               <div className="flex items-center justify-between text-sm text-muted-foreground">
-                <span>{currencySymbol}{totalPaid.toFixed(2)} collected</span>
-                <span>{currencySymbol}{(billSplit.totalAmount - totalPaid).toFixed(2)} remaining</span>
+                <span>{formatCurrencyForRegion(appSettings.region, totalPaid)} collected</span>
+                <span>{formatCurrencyForRegion(appSettings.region, billSplit.totalAmount - totalPaid)} remaining</span>
               </div>
             </div>
           </div>
@@ -362,7 +357,7 @@ export function BillSplitDetailsScreen({ billSplitId, onNavigate }: BillSplitDet
               <p className="text-sm text-muted-foreground">You owe</p>
             </div>
             <div className="text-right space-y-2">
-              <p className="text-xl font-bold text-destructive">{currencySymbol}{billSplit.yourShare.toFixed(2)}</p>
+              <p className="text-xl font-bold text-destructive">{formatCurrencyForRegion(appSettings.region, billSplit.yourShare)}</p>
               <Badge variant="outline" className="text-warning">
                 <Clock className="h-3 w-3 mr-1" />
                 Pending

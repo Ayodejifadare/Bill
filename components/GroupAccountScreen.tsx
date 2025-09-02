@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 import { useUserProfile } from './UserProfileContext';
 import { getBankDirectoryForRegion } from '../utils/banks';
 import { getMobileMoneyProviders } from '../utils/providers';
-import { getRegionConfig, requiresRoutingNumber, validateBankAccountNumber, getBankAccountLength } from '../utils/regions';
+import { getRegionConfig, requiresRoutingNumber, validateBankAccountNumber, getBankAccountLength, getBankIdentifierLabel, formatBankAccountForRegion } from '../utils/regions';
 import { apiClient } from '../utils/apiClient';
 
 interface GroupAccount {
@@ -262,22 +262,18 @@ export function GroupAccountScreen({ groupId, onNavigate }: GroupAccountScreenPr
 
   const copyFullAccountInfo = (account: GroupAccount) => {
     if (account.type === 'bank') {
-      const accountInfo = isNigeria
-        ? `${account.bankName}\nAccount Name: ${account.accountHolderName}\nAccount Number: ${account.accountNumber}\nSort Code: ${account.sortCode}`
-        : `${account.bankName}\nAccount Holder: ${account.accountHolderName}\nRouting Number: ${account.routingNumber}\nAccount Number: ${account.accountNumber}`;
+      const usesRouting = requiresRoutingNumber(appSettings.region);
+      const label = getBankIdentifierLabel(appSettings.region);
+      const idValue = usesRouting ? account.routingNumber : account.sortCode;
+      const accountInfo = `${account.bankName}\nAccount Name: ${account.accountHolderName}\n${label}: ${idValue ?? ''}\nAccount Number: ${account.accountNumber}`;
       copyToClipboard(accountInfo);
     } else {
       copyToClipboard(`${account.provider}\nPhone: ${account.phoneNumber}`);
     }
   };
 
-  const formatAccountNumber = (accountNumber: string) => {
-    if (isNigeria) {
-      return accountNumber.replace(/(\d{4})(\d{4})(\d{2})/, '$1 $2 $3');
-    } else {
-      return accountNumber.replace(/(\*{4})(\d{4})/, '$1 $2');
-    }
-  };
+  const formatAccountNumber = (accountNumber: string) =>
+    formatBankAccountForRegion(appSettings.region, accountNumber);
 
   const handleBankChange = (bankName: string) => {
     setFormData(prev => ({ ...prev, bank: bankName }));
@@ -334,8 +330,8 @@ export function GroupAccountScreen({ groupId, onNavigate }: GroupAccountScreenPr
                     </DialogHeader>
                     <div className="space-y-3 sm:space-y-4 max-h-[70vh] overflow-y-auto">
 
-                      {/* Method Type Selection - Only show for Nigeria */}
-                      {isNigeria && (
+                      {/* Method Type Selection - Only show when mobile money is supported */}
+                      {providers.length > 0 && (
                         <div className="grid grid-cols-2 gap-2 sm:gap-3">
                           <Button
                             variant={methodType === 'bank' ? 'default' : 'outline'}
@@ -356,7 +352,7 @@ export function GroupAccountScreen({ groupId, onNavigate }: GroupAccountScreenPr
                         </div>
                       )}
 
-                      {(!isNigeria || methodType === 'bank') ? (
+                      {(providers.length === 0 || methodType === 'bank') ? (
                         <>
                           <div className="space-y-1 sm:space-y-2">
                             <Label className="text-sm">Bank</Label>
@@ -375,16 +371,16 @@ export function GroupAccountScreen({ groupId, onNavigate }: GroupAccountScreenPr
                           </div>
 
                           <div className="space-y-1 sm:space-y-2">
-                            <Label className="text-sm">{isNigeria ? 'Account Name' : 'Account Holder Name'}</Label>
+                            <Label className="text-sm">Account Holder Name</Label>
                             <Input
                               value={formData.accountName}
                               onChange={(e) => setFormData(prev => ({ ...prev, accountName: e.target.value }))}
-                              placeholder={isNigeria ? "Account holder name" : "Full name as it appears on account"}
+                              placeholder={"Full name as it appears on account"}
                               className="h-10 text-sm"
                             />
                           </div>
 
-                          {!isNigeria && (
+                          {requiresRoutingNumber(appSettings.region) && (
                             <div className="space-y-1 sm:space-y-2">
                               <Label className="text-sm">Account Type</Label>
                               <Select value={formData.accountType} onValueChange={(value: 'checking' | 'savings') => setFormData(prev => ({ ...prev, accountType: value }))}>
@@ -402,11 +398,11 @@ export function GroupAccountScreen({ groupId, onNavigate }: GroupAccountScreenPr
                           <div className="space-y-1 sm:space-y-2">
                             <Label className="text-sm">Account Number</Label>
                             <Input
-                              type={isNigeria ? "number" : "password"}
+                              type={getBankAccountLength(appSettings.region) ? "number" : "password"}
                               value={formData.accountNumber}
                               onChange={(e) => setFormData(prev => ({ 
                                 ...prev, 
-                                accountNumber: isNigeria ? e.target.value.slice(0, 10) : e.target.value 
+                                accountNumber: getBankAccountLength(appSettings.region) ? e.target.value.slice(0, getBankAccountLength(appSettings.region)) : e.target.value 
                               }))}
                               placeholder={getBankAccountLength(appSettings.region) ? '1234567890' : 'Account number'}
                               maxLength={getBankAccountLength(appSettings.region)}
@@ -539,9 +535,7 @@ export function GroupAccountScreen({ groupId, onNavigate }: GroupAccountScreenPr
                     {account.type === 'bank' ? (
                       <>
                         <div className="flex items-center justify-between">
-                          <span className="text-xs sm:text-sm text-muted-foreground">
-                            {isNigeria ? 'Account Name:' : 'Account Holder:'}
-                          </span>
+                          <span className="text-xs sm:text-sm text-muted-foreground">Account Holder:</span>
                           <div className="flex items-center gap-1 sm:gap-2 min-w-0">
                             <span className="text-xs sm:text-sm truncate max-w-[120px] sm:max-w-none">{account.accountHolderName}</span>
                             <Button

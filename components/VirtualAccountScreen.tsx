@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 import { useUserProfile } from './UserProfileContext';
 import { getBankDirectoryForRegion } from '../utils/banks';
 import { getMobileMoneyProviders } from '../utils/providers';
-import { getRegionConfig, validateBankAccountNumber, getBankAccountLength } from '../utils/regions';
+import { getRegionConfig, validateBankAccountNumber, getBankAccountLength, requiresRoutingNumber, getBankIdentifierLabel, formatBankAccountForRegion } from '../utils/regions';
 import { apiClient } from '../utils/apiClient';
 
 interface ExternalAccount {
@@ -198,9 +198,11 @@ export function VirtualAccountScreen({ groupId, onNavigate }: VirtualAccountScre
               accountNumber: formData.accountNumber,
               accountName: formData.accountName,
               accountType: formData.accountType,
-              ...(isNigeria
-                ? { sortCode: selectedBank?.code }
-                : { routingNumber: selectedBank?.code })
+              ...(
+                requiresRoutingNumber(appSettings.region)
+                  ? { routingNumber: selectedBank?.code }
+                  : { sortCode: selectedBank?.code }
+              )
             }
           : {
               provider: formData.provider,
@@ -259,22 +261,18 @@ export function VirtualAccountScreen({ groupId, onNavigate }: VirtualAccountScre
 
   const copyFullAccountInfo = (account: ExternalAccount) => {
     if (account.type === 'bank') {
-      const accountInfo = isNigeria
-        ? `${account.bankName}\nAccount Name: ${account.accountHolderName}\nAccount Number: ${account.accountNumber}\nSort Code: ${account.sortCode}`
-        : `${account.bankName}\nAccount Holder: ${account.accountHolderName}\nRouting Number: ${account.routingNumber}\nAccount Number: ${account.accountNumber}`;
+      const usesRouting = requiresRoutingNumber(appSettings.region);
+      const label = getBankIdentifierLabel(appSettings.region);
+      const idValue = usesRouting ? account.routingNumber : account.sortCode;
+      const accountInfo = `${account.bankName}\nAccount Name: ${account.accountHolderName}\n${label}: ${idValue ?? ''}\nAccount Number: ${account.accountNumber}`;
       copyToClipboard(accountInfo);
     } else {
       copyToClipboard(`${account.provider}\nPhone: ${account.phoneNumber}`);
     }
   };
 
-  const formatAccountNumber = (accountNumber: string) => {
-    if (isNigeria) {
-      return accountNumber.replace(/(\d{4})(\d{4})(\d{2})/, '$1 $2 $3');
-    } else {
-      return accountNumber.replace(/(\*{4})(\d{4})/, '$1 $2');
-    }
-  };
+  const formatAccountNumber = (accountNumber: string) =>
+    formatBankAccountForRegion(appSettings.region, accountNumber);
 
   const handleBankChange = (bankName: string) => {
     setFormData(prev => ({ ...prev, bank: bankName }));
@@ -371,15 +369,15 @@ export function VirtualAccountScreen({ groupId, onNavigate }: VirtualAccountScre
                       </div>
 
                       <div className="space-y-2">
-                        <Label>{isNigeria ? 'Account Name' : 'Account Holder Name'}</Label>
+                        <Label>Account Holder Name</Label>
                         <Input
                           value={formData.accountName}
                           onChange={(e) => setFormData(prev => ({ ...prev, accountName: e.target.value }))}
-                          placeholder={isNigeria ? "Account holder name" : "Full name as it appears on account"}
+                          placeholder={"Full name as it appears on account"}
                         />
                       </div>
 
-                      {!isNigeria && (
+                      {requiresRoutingNumber(appSettings.region) && (
                         <div className="space-y-2">
                           <Label>Account Type</Label>
                           <Select value={formData.accountType} onValueChange={(value: 'checking' | 'savings') => setFormData(prev => ({ ...prev, accountType: value }))}>
@@ -542,9 +540,7 @@ export function VirtualAccountScreen({ groupId, onNavigate }: VirtualAccountScre
                   {account.type === 'bank' ? (
                     <>
                       <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">
-                          {isNigeria ? 'Account Name:' : 'Account Holder:'}
-                        </span>
+                        <span className="text-sm text-muted-foreground">Account Holder:</span>
                         <div className="flex items-center gap-2">
                           <span>{account.accountHolderName}</span>
                           <Button
@@ -571,31 +567,28 @@ export function VirtualAccountScreen({ groupId, onNavigate }: VirtualAccountScre
                           </Button>
                         </div>
                       </div>
-                      {isNigeria ? (
-                        account.sortCode && (
+                      {(() => {
+                        const usesRouting = requiresRoutingNumber(appSettings.region);
+                        const label = getBankIdentifierLabel(appSettings.region);
+                        const value = usesRouting ? account.routingNumber : account.sortCode;
+                        if (!value) return null;
+                        return (
                           <div className="flex items-center justify-between">
-                            <span className="text-sm text-muted-foreground">Sort Code:</span>
-                            <span className="font-mono">{account.sortCode}</span>
-                          </div>
-                        )
-                      ) : (
-                        account.routingNumber && (
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm text-muted-foreground">Routing Number:</span>
+                            <span className="text-sm text-muted-foreground">{label}:</span>
                             <div className="flex items-center gap-2">
-                              <span className="font-mono">{account.routingNumber}</span>
+                              <span className="font-mono">{value}</span>
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 className="h-6 w-6 p-0"
-                                onClick={() => copyToClipboard(account.routingNumber!, 'Routing number')}
+                                onClick={() => copyToClipboard(value!, label)}
                               >
                                 <Copy className="h-3 w-3" />
                               </Button>
                             </div>
                           </div>
-                        )
-                      )}
+                        );
+                      })()}
                     </>
                   ) : (
                     <div className="flex items-center justify-between">

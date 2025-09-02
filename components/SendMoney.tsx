@@ -10,7 +10,7 @@ import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
 import { toast } from 'sonner';
 import { useUserProfile } from './UserProfileContext';
-import { getCurrencySymbol } from '../utils/regions';
+import { getCurrencySymbol, formatCurrencyForRegion } from '../utils/regions';
 
 import { PaymentMethodSelector, PaymentMethod } from './PaymentMethodSelector';
 import { useFriends, Friend as BaseFriend } from '../hooks/useFriends';
@@ -507,7 +507,7 @@ export function SendMoney({ onNavigate, prefillData }: SendMoneyProps) {
               
               <div className="bg-muted p-3 rounded-lg">
                 <p className="text-sm text-muted-foreground">
-                  <strong>Next steps:</strong> Use your {selectedPaymentMethod.type === 'bank' ? 'bank' : 'mobile money'} app to transfer {currencySymbol}{parseFloat(amount).toFixed(2)} to {selectedFriend.name}'s account using the details above.
+                  <strong>Next steps:</strong> Use your {selectedPaymentMethod.type === 'bank' ? 'bank' : 'mobile money'} app to transfer {formatCurrencyForRegion(appSettings.region, parseFloat(amount))} to {selectedFriend.name}'s account using the details above.
                 </p>
               </div>
             </CardContent>

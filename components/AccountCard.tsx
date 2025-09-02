@@ -136,9 +136,7 @@ export function AccountCard({
           {account.type === 'bank' ? (
             <>
               <div className="flex items-center justify-between">
-                <span className="text-xs sm:text-sm text-muted-foreground">
-                  {isNigeria ? 'Account Name:' : 'Account Holder:'}
-                </span>
+                <span className="text-xs sm:text-sm text-muted-foreground">Account Holder:</span>
                 <div className="flex items-center gap-1 sm:gap-2 min-w-0">
                   <span className="text-xs sm:text-sm truncate max-w-[120px] sm:max-w-none">{accountName}</span>
                   <Button

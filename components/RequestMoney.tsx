@@ -477,7 +477,7 @@ Recipients: ${selectedFriends.map(f => f.name).join(', ')}`;
                     </span>
                     {amount && (
                       <Badge variant="secondary">
-                        {currencySymbol}{parseFloat(amount).toFixed(2)} each
+                        {formatCurrencyForRegion(appSettings.region, parseFloat(amount))} each
                       </Badge>
                     )}
                   </div>
@@ -549,11 +549,11 @@ Recipients: ${selectedFriends.map(f => f.name).join(', ')}`;
           <CardContent className="space-y-3">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Amount per person:</span>
-              <span className="font-medium">{currencySymbol}{parseFloat(amount).toFixed(2)}</span>
+              <span className="font-medium">{formatCurrencyForRegion(appSettings.region, parseFloat(amount))}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Total expected:</span>
-              <span className="font-medium">{currencySymbol}{(parseFloat(amount) * selectedFriends.length).toFixed(2)}</span>
+              <span className="font-medium">{formatCurrencyForRegion(appSettings.region, parseFloat(amount) * selectedFriends.length)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Recipients:</span>

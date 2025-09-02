@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback } from './ui/avatar';
 import { Separator } from './ui/separator';
 import { toast } from 'sonner';
 import { useUserProfile } from './UserProfileContext';
-import { getCurrencySymbol } from '../utils/regions';
+import { getCurrencySymbol, formatCurrencyForRegion, requiresRoutingNumber, getBankIdentifierLabel, formatBankAccountForRegion } from '../utils/regions';
 import { type PaymentMethod, fetchUserPaymentMethods } from '@/api/payment-methods';
 
 interface PaymentFlowScreenProps {
@@ -96,9 +96,10 @@ export function PaymentFlowScreen({ paymentRequest, onNavigate }: PaymentFlowScr
 
     try {
       if (recipientPaymentMethod.type === 'bank') {
-        const bankInfo = isNigeria
-          ? `${recipientPaymentMethod.bank}\nAccount Name: ${recipientPaymentMethod.accountName}\nAccount Number: ${recipientPaymentMethod.accountNumber}\nSort Code: ${recipientPaymentMethod.sortCode}`
-          : `${recipientPaymentMethod.bank}\nAccount Name: ${recipientPaymentMethod.accountName}\nRouting Number: ${recipientPaymentMethod.routingNumber}\nAccount Number: ${recipientPaymentMethod.accountNumber}`;
+        const usesRouting = requiresRoutingNumber(appSettings.region);
+        const label = getBankIdentifierLabel(appSettings.region);
+        const idValue = usesRouting ? recipientPaymentMethod.routingNumber : recipientPaymentMethod.sortCode;
+        const bankInfo = `${recipientPaymentMethod.bank}\nAccount Name: ${recipientPaymentMethod.accountName}\n${label}: ${idValue ?? ''}\nAccount Number: ${recipientPaymentMethod.accountNumber}`;
         await navigator.clipboard.writeText(bankInfo);
         toast.success('Bank account details copied to clipboard');
       } else {
@@ -132,21 +133,14 @@ export function PaymentFlowScreen({ paymentRequest, onNavigate }: PaymentFlowScr
     }, 2000);
   };
 
-  const formatAccountNumber = (accountNumber: string) => {
-    if (isNigeria) {
-      return accountNumber.replace(/(\d{4})(\d{4})(\d{2})/, '$1 $2 $3');
-    } else {
-      return accountNumber.replace(/(\*{4})(\d{4})/, '$1 $2');
-    }
-  };
+  const formatAccountNumber = (accountNumber: string) =>
+    formatBankAccountForRegion(appSettings.region, accountNumber);
 
   const getPaymentInstructions = () => {
     if (!recipientPaymentMethod) return 'Payment method information not available.';
     
     if (recipientPaymentMethod.type === 'bank') {
-      return isNigeria 
-        ? 'Use your mobile banking app or visit any bank branch to make this transfer.'
-        : 'Use your online banking, mobile app, or visit a branch to send this payment.';
+      return 'Use your banking app (mobile or web), or visit a branch to send this payment.';
     } else {
       return `Open your ${recipientPaymentMethod.provider} app and send money to the phone number above.`;
     }
@@ -232,7 +226,7 @@ export function PaymentFlowScreen({ paymentRequest, onNavigate }: PaymentFlowScr
               {/* Amount - Prominent display */}
               <div className="text-center py-4 bg-background/50 rounded-lg">
                 <div className="text-2xl sm:text-3xl font-bold text-primary mb-2">
-                  {currencySymbol}{paymentRequest.amount.toFixed(2)}
+                  {formatCurrencyForRegion(appSettings.region, paymentRequest.amount)}
                 </div>
                 <Button 
                   variant="outline" 
@@ -294,29 +288,23 @@ export function PaymentFlowScreen({ paymentRequest, onNavigate }: PaymentFlowScr
                               <span className="text-muted-foreground">Account Name:</span>
                               <span className="font-medium">{recipientPaymentMethod.accountName}</span>
                             </div>
-                            {isNigeria ? (
-                              <>
-                                <div className="flex justify-between">
-                                  <span className="text-muted-foreground">Sort Code:</span>
-                                  <span className="font-mono">{recipientPaymentMethod.sortCode}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span className="text-muted-foreground">Account Number:</span>
-                                  <span className="font-mono">{formatAccountNumber(recipientPaymentMethod.accountNumber!)}</span>
-                                </div>
-                              </>
-                            ) : (
-                              <>
-                                <div className="flex justify-between">
-                                  <span className="text-muted-foreground">Routing Number:</span>
-                                  <span className="font-mono">{recipientPaymentMethod.routingNumber}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span className="text-muted-foreground">Account Number:</span>
-                                  <span className="font-mono">{formatAccountNumber(recipientPaymentMethod.accountNumber!)}</span>
-                                </div>
-                              </>
-                            )}
+                            {(() => {
+                              const label = getBankIdentifierLabel(appSettings.region);
+                              const usesRouting = requiresRoutingNumber(appSettings.region);
+                              const value = usesRouting ? recipientPaymentMethod.routingNumber : recipientPaymentMethod.sortCode;
+                              return (
+                                <>
+                                  <div className="flex justify-between">
+                                    <span className="text-muted-foreground">{label}:</span>
+                                    <span className="font-mono">{value}</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Account Number:</span>
+                                    <span className="font-mono">{formatAccountNumber(recipientPaymentMethod.accountNumber!)}</span>
+                                  </div>
+                                </>
+                              );
+                            })()}
                           </div>
                         ) : (
                           <div className="text-sm">
