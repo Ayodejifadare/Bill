@@ -207,6 +207,30 @@ describe('Bill split routes', () => {
     expect(list.body.billSplits[0].schedule.frequency).toBe('weekly')
   })
 
+  it('creates a weekly recurring bill split using dayOfWeek', async () => {
+    await prisma.user.create({ data: { id: 'u1', email: 'u1@example.com', name: 'User 1' } })
+    await prisma.user.create({ data: { id: 'u2', email: 'u2@example.com', name: 'User 2' } })
+
+    const res = await request(app)
+      .post('/bill-splits')
+      .set('Authorization', `Bearer ${sign('u1')}`)
+      .send({
+        title: 'Gym',
+        totalAmount: 20,
+        participants: [
+          { id: 'u1', amount: 10 },
+          { id: 'u2', amount: 10 }
+        ],
+        isRecurring: true,
+        frequency: 'weekly',
+        dayOfWeek: 'monday'
+      })
+
+    expect(res.status).toBe(201)
+    expect(res.body.billSplit.schedule.frequency).toBe('weekly')
+    expect(res.body.billSplit.schedule.day).toBe(1)
+  })
+
   it('returns 404 for missing or unauthorized bill split', async () => {
     await prisma.user.create({ data: { id: 'u1', email: 'u1@example.com', name: 'User 1' } })
     await prisma.user.create({ data: { id: 'u2', email: 'u2@example.com', name: 'User 2' } })

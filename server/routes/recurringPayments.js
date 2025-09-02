@@ -4,6 +4,16 @@ import { computeNextRun } from '../utils/recurringBillSplitScheduler.js'
 
 const router = express.Router()
 
+const dayOfWeekMap = {
+  sunday: 0,
+  monday: 1,
+  tuesday: 2,
+  wednesday: 3,
+  thursday: 4,
+  friday: 5,
+  saturday: 6
+}
+
 // List recurring bill split schedules for the authenticated user
 router.get('/', authenticate, async (req, res) => {
   try {
@@ -21,7 +31,12 @@ router.get('/', authenticate, async (req, res) => {
 // Create a recurring schedule for an existing bill split
 router.post('/', authenticate, async (req, res) => {
   try {
-    const { billSplitId, frequency, day } = req.body
+    const { billSplitId, frequency, day, dayOfWeek } = req.body
+
+    const dayValue =
+      frequency === 'weekly'
+        ? dayOfWeekMap[dayOfWeek?.toLowerCase?.()] ?? 0
+        : day
 
     const billSplit = await req.prisma.billSplit.findUnique({
       where: { id: billSplitId },
@@ -31,9 +46,9 @@ router.post('/', authenticate, async (req, res) => {
       return res.status(404).json({ error: 'Bill split not found' })
     }
 
-    const nextRun = computeNextRun(frequency, day)
+    const nextRun = computeNextRun(frequency, dayValue)
     const schedule = await req.prisma.recurringBillSplit.create({
-      data: { billSplitId, frequency, day, nextRun }
+      data: { billSplitId, frequency, day: dayValue, nextRun }
     })
 
     await req.prisma.billSplit.update({
@@ -60,11 +75,19 @@ router.put('/:id', authenticate, async (req, res) => {
       return res.status(404).json({ error: 'Recurring bill split not found' })
     }
 
-    const { frequency = existing.frequency, day = existing.day } = req.body
-    const nextRun = computeNextRun(frequency, day)
+    const {
+      frequency = existing.frequency,
+      day = existing.day,
+      dayOfWeek
+    } = req.body
+    const dayValue =
+      frequency === 'weekly'
+        ? dayOfWeekMap[dayOfWeek?.toLowerCase?.()] ?? day
+        : day
+    const nextRun = computeNextRun(frequency, dayValue)
     const schedule = await req.prisma.recurringBillSplit.update({
       where: { id },
-      data: { frequency, day, nextRun }
+      data: { frequency, day: dayValue, nextRun }
     })
     res.json(schedule)
   } catch (error) {
