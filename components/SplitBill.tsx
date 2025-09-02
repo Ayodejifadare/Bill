@@ -468,7 +468,12 @@ export function SplitBill({ onNavigate, groupId }: SplitBillProps) {
         paymentMethodId: selectedPaymentMethod?.isExternal ? String(selectedPaymentMethod.id).replace(/^external-/, '') : undefined,
         isRecurring,
         frequency: isRecurring ? recurringFrequency : undefined,
-        day: isRecurring ? parseInt(recurringDay || '1', 10) : undefined,
+        day: isRecurring && recurringFrequency === 'monthly'
+          ? parseInt(recurringDay || '1', 10)
+          : undefined,
+        dayOfWeek: isRecurring && recurringFrequency === 'weekly'
+          ? recurringDayOfWeek
+          : undefined,
         participants: participants
           .filter(p => !isNaN(p.amount) && p.amount > 0)
           .map(p => ({

@@ -6,6 +6,16 @@ import { createNotification } from '../utils/notifications.js'
 
 const router = express.Router()
 
+const dayOfWeekMap = {
+  sunday: 0,
+  monday: 1,
+  tuesday: 2,
+  wednesday: 3,
+  thursday: 4,
+  friday: 5,
+  saturday: 6
+}
+
 // Authentication middleware
 const authenticateToken = authenticate
 
@@ -345,6 +355,9 @@ router.post(
     body('isRecurring').optional().isBoolean(),
     body('frequency').optional().isString(),
     body('day').optional().isInt(),
+    body('dayOfWeek')
+      .optional()
+      .isIn(['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']),
     body('description').optional().trim()
   ],
   async (req, res) => {
@@ -364,8 +377,16 @@ router.post(
         paymentMethodId,
         isRecurring = false,
         frequency,
-        day
+        day,
+        dayOfWeek
       } = req.body
+
+      const dayValue =
+        frequency === 'weekly'
+          ? dayOfWeekMap[dayOfWeek?.toLowerCase?.()] ?? 0
+          : typeof day === 'string'
+            ? parseInt(day, 10)
+            : day
 
       const billSplit = await req.prisma.$transaction(async prisma => {
         const newBillSplit = await prisma.billSplit.create({
@@ -390,12 +411,12 @@ router.post(
         })
 
         if (isRecurring && frequency) {
-          const nextRun = computeNextRun(frequency, day)
+          const nextRun = computeNextRun(frequency, dayValue)
           await prisma.recurringBillSplit.create({
             data: {
               billSplitId: newBillSplit.id,
               frequency,
-              day,
+              day: dayValue,
               nextRun
             }
           })
