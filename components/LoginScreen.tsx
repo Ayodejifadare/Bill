@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Smartphone } from 'lucide-react';
 import { useUserProfile } from './UserProfileContext';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from './ui/input-otp';
+import OTPVerificationScreen from './OTPVerificationScreen';
 import { toast } from 'sonner';
 import { saveAuth } from '../utils/auth';
 import { apiClient } from '../utils/apiClient';
@@ -71,6 +72,8 @@ export function LoginScreen({ onLogin, onShowRegister }: LoginScreenProps) {
   const [codeSent, setCodeSent] = useState(false);
   const [otp, setOtp] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
+  const [showOtpScreen, setShowOtpScreen] = useState(false);
+  const [otpContext, setOtpContext] = useState<{ phone: string; region: string; demoOTP?: string } | null>(null);
   const [error, setError] = useState('');
 
   const selectedCountry = countryOptions.find(c => c.code === country);
@@ -93,7 +96,7 @@ export function LoginScreen({ onLogin, onShowRegister }: LoginScreenProps) {
       const raw = phoneNumber.replace(/\D/g, '');
       const national = raw.replace(/^0+/, '');
       const normalizedPhone = `${selectedCountry?.phonePrefix}${national}`;
-      await apiClient('/auth/request-otp', {
+      const res = await apiClient('/auth/request-otp', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -103,6 +106,8 @@ export function LoginScreen({ onLogin, onShowRegister }: LoginScreenProps) {
         })
       });
       setCodeSent(true);
+      setOtpContext({ phone: normalizedPhone, region: selectedCountry?.region || 'US', demoOTP: (res && res.otp) || undefined });
+      setShowOtpScreen(true);
     } catch (error: any) {
       console.error('OTP request error:', error);
       setError(error.message || 'Failed to send code');
@@ -148,6 +153,19 @@ export function LoginScreen({ onLogin, onShowRegister }: LoginScreenProps) {
   const handleBiometricLogin = () => {
     toast.info('Not implemented');
   };
+
+  if (showOtpScreen && otpContext) {
+    return (
+      <OTPVerificationScreen
+        phone={otpContext.phone}
+        region={otpContext.region}
+        isNewUser={false}
+        onSuccess={(data) => onLogin(data)}
+        onBack={() => setShowOtpScreen(false)}
+        demoOTP={otpContext.demoOTP}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/5 to-purple-50">

@@ -12,7 +12,7 @@ interface OTPVerificationScreenProps {
   region: string;
   isNewUser: boolean;
   name?: string;
-  onSuccess: (user: any) => void;
+  onSuccess: (data: { token: string; user: any }) => void;
   onBack: () => void;
   demoOTP?: string; // For demo purposes
 }
@@ -142,9 +142,9 @@ export function OTPVerificationScreen({
       
       devAuthConfig.log('OTP verification result', { success: result.success, error: result.error });
       
-      if (result.success && result.user) {
+      if (result.success && result.user && result.token) {
         toast.success(isNewUser ? 'Account created successfully!' : 'Welcome back!');
-        onSuccess(result.user);
+        onSuccess({ token: result.token, user: result.user });
       } else {
         devAuthConfig.logError('Verification failed', result);
         toast.error(result.error || 'Verification failed');

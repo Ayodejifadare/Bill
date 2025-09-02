@@ -84,9 +84,6 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
 
       {/* Content Container */}
       <div className="px-4 space-y-6">
-
-        {/* Content Container */}
-      <div className="px-4 space-y-6">
         {/* Balance Card - always visible */}
         <Card className="p-4">
           <h3 className="font-medium mb-3">Your Balance</h3>
@@ -220,7 +217,7 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
           </div>
         )}
       </div>
-      </div>
     </div>
+  </div>
   );
 }

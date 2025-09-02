@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken'
 import { body, validationResult } from 'express-validator'
 import { randomInt } from 'crypto'
 import authenticate from '../middleware/auth.js'
+import { defaultSettings as defaultNotificationSettings } from './notifications.js'
 
 const { JWT_SECRET } = process.env
 if (!JWT_SECRET) {
@@ -11,6 +12,14 @@ if (!JWT_SECRET) {
 }
 
 const router = express.Router()
+
+// Normalize phone to a consistent E.164-like key for OTP store and DB lookup
+function normalizePhone (input = '') {
+  const digits = String(input).replace(/\D/g, '')
+  // We assume the client includes country code; we only strip formatting/leading zeros
+  const national = digits.replace(/^0+/, '')
+  return `+${national}`
+}
 
 // Temporary store for OTPs
 const otpStore = new Map()
@@ -33,8 +42,9 @@ router.post('/request-otp', [
     }
 
     const { phone } = req.body
+    const key = normalizePhone(phone)
     const otp = generateOtp()
-    otpStore.set(phone, { otp, expiresAt: Date.now() + 5 * 60 * 1000 })
+    otpStore.set(key, { otp, expiresAt: Date.now() + 5 * 60 * 1000 })
     await sendSms(phone, otp)
 
     // In development, include OTP in response to simplify local testing
@@ -65,15 +75,46 @@ router.post('/verify-otp', [
     }
 
     const { phone, otp } = req.body
-    const entry = otpStore.get(phone)
+    const key = normalizePhone(phone)
+    const entry = otpStore.get(key)
     if (!entry || entry.otp !== otp || entry.expiresAt < Date.now()) {
       return res.status(400).json({ error: 'Invalid or expired OTP' })
     }
-    otpStore.delete(phone)
+    otpStore.delete(key)
 
-    const user = await req.prisma.user.findFirst({ where: { phone } })
+    let user = await req.prisma.user.findFirst({ where: { phone: key } })
     if (!user) {
-      return res.status(404).json({ error: 'User not found' })
+      if (process.env.NODE_ENV === 'development' || process.env.AUTO_CREATE_USER_ON_OTP === 'true') {
+        const isNG = key.startsWith('+234')
+        const region = isNG ? 'NG' : 'US'
+        const currency = isNG ? 'NGN' : 'USD'
+        const email = `otp_${key.replace(/\D/g, '')}@demo.local`
+        try {
+          user = await req.prisma.user.create({
+            data: {
+              email,
+              name: 'Demo User',
+              phone: key,
+              region,
+              currency,
+              onboardingCompleted: true,
+              password: '',
+              tokenVersion: 0,
+            }
+          })
+          // Ensure default notification preferences
+          await req.prisma.notificationPreference.upsert({
+            where: { userId: user.id },
+            update: {},
+            create: { userId: user.id, preferences: JSON.stringify(defaultNotificationSettings) }
+          })
+        } catch (e) {
+          console.error('Auto-create user on OTP failed:', e)
+          return res.status(404).json({ error: 'User not found' })
+        }
+      } else {
+        return res.status(404).json({ error: 'User not found' })
+      }
     }
 
     const token = jwt.sign(
