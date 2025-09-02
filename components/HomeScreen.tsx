@@ -3,7 +3,7 @@ import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { TransactionCard } from './TransactionCard';
 import { UpcomingPayments } from './UpcomingPayments';
-import { Avatar, AvatarFallback } from './ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { EmptyState } from './ui/empty-state';
 import { Send, Users, Receipt, Plus, DollarSign } from 'lucide-react';
 import { Alert, AlertDescription } from './ui/alert';
@@ -68,6 +68,7 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
         <div className="flex items-center justify-between max-w-md mx-auto">
             <div className="flex items-center space-x-3">
               <Avatar className="h-10 w-10">
+                <AvatarImage src={userProfile?.avatar} />
                 <AvatarFallback className="bg-primary text-primary-foreground">
                   {initials}
                 </AvatarFallback>

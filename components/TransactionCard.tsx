@@ -1,6 +1,6 @@
 import { ArrowUpRight, ArrowDownLeft, Users, Clock } from "lucide-react";
 import { Card } from "./ui/card";
-import { Avatar, AvatarFallback } from "./ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Badge } from "./ui/badge";
 import { formatDate } from "../utils/formatDate";
 import type { TransactionType, TransactionStatus } from "../shared/transactions";
@@ -121,15 +121,21 @@ export function TransactionCard({ transaction, onNavigate, onClick, currencySymb
     
     // Fallback
     return {
-      name: transaction.type === 'bill_split' ? 'Bill Split' : 'Unknown',
-      avatar: transaction.avatarFallback || 'UN'
+      name: transaction.type === 'bill_split' ? 'Bill Split' : 'Unknown'
     };
   };
 
+  const getInitials = (name: string) =>
+    name
+      .split(' ')
+      .filter(Boolean)
+      .map(n => n[0])
+      .join('')
+      .slice(0, 2)
+      .toUpperCase();
+
   const userInfo = getUserInfo();
-  const avatarFallback = transaction.avatarFallback || 
-                        userInfo.avatar || 
-                        userInfo.name.split(' ').map(n => n[0]).join('').toUpperCase();
+  const avatarFallback = transaction.avatarFallback || getInitials(userInfo.name);
 
 
   const handleClick = () => {
@@ -146,6 +152,7 @@ export function TransactionCard({ transaction, onNavigate, onClick, currencySymb
         <div className="flex items-center space-x-3 min-w-0 flex-1">
           <div className="relative flex-shrink-0">
             <Avatar className="h-12 w-12">
+              <AvatarImage src={userInfo.avatar} />
               <AvatarFallback className="bg-muted text-xs">
                 {avatarFallback}
               </AvatarFallback>

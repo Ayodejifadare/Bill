@@ -1,7 +1,7 @@
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-import { Avatar, AvatarFallback } from './ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Clock, AlertTriangle, Calendar, Users, CreditCard, AlertCircle } from 'lucide-react';
 import { useUserProfile } from './UserProfileContext';
 import { ListSkeleton } from './ui/loading';
@@ -16,6 +16,14 @@ export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
   const { appSettings } = useUserProfile();
   const currencySymbol = appSettings.region === 'NG' ? '₦' : '$';
   const { upcomingPayments, loading, error } = useUpcomingPayments();
+  const getInitials = (name: string) =>
+    name
+      .split(' ')
+      .filter(Boolean)
+      .map(n => n[0])
+      .join('')
+      .slice(0, 2)
+      .toUpperCase();
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -96,8 +104,9 @@ export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <Avatar className="h-10 w-10">
+                  <AvatarImage src={payment.organizer.avatar} />
                   <AvatarFallback className="bg-primary text-primary-foreground">
-                    {payment.organizer.avatar}
+                    {getInitials(payment.organizer.name)}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
