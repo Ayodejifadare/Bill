@@ -136,50 +136,119 @@ describe('HomeScreen notification badge', () => {
 });
 
 describe('HomeScreen transaction filtering', () => {
+  let refetch: vi.Mock;
   beforeEach(() => {
     useUserProfileSpy.mockReturnValue({
       appSettings: { region: 'US' },
       userProfile: { name: 'Alice Example' },
     });
-    mockUseTransactions({
-      transactions: [
-        {
-          id: '1',
-          type: 'sent',
-          amount: 10,
-          description: 'Paid Bob',
-          recipient: { name: 'Bob' },
-          date: '2023-01-01',
-          status: 'completed',
-        },
-        {
-          id: '2',
-          type: 'received',
-          amount: 20,
-          description: 'Received from Carol',
-          sender: { name: 'Carol' },
-          date: '2023-01-02',
-          status: 'completed',
-        },
-        {
-          id: '3',
-          type: 'split',
-          amount: 30,
-          description: 'Dinner with Dan',
-          recipient: { name: 'Dan' },
-          date: '2023-01-03',
-          status: 'pending',
-        },
-      ],
+
+    const transactions = [
+      {
+        id: '1',
+        type: 'sent',
+        amount: 10,
+        description: 'Paid Bob',
+        recipient: { name: 'Bob' },
+        date: '2023-01-01',
+        status: 'completed',
+      },
+      {
+        id: '2',
+        type: 'received',
+        amount: 20,
+        description: 'Received from Carol',
+        sender: { name: 'Carol' },
+        date: '2023-01-02',
+        status: 'completed',
+      },
+      {
+        id: '3',
+        type: 'split',
+        amount: 30,
+        description: 'Dinner with Dan',
+        recipient: { name: 'Dan' },
+        date: '2023-01-03',
+        status: 'pending',
+      },
+    ];
+    refetch = vi.fn();
+    useTransactionsSpy.mockImplementation((opts: any = {}) => {
+      if (opts.status === 'pending') {
+        return {
+          transactions: [],
+          loading: false,
+          error: null,
+          hasMore: false,
+          nextCursor: null,
+          total: 0,
+          pageCount: 0,
+          summary: { totalSent: 0, totalReceived: 0, netFlow: 0 },
+          refetch: vi.fn(),
+        } as TransactionsHook.UseTransactionsResult;
+      }
+      if (opts.limit === 0 && !opts.type) {
+        return {
+          transactions: [],
+          loading: false,
+          error: null,
+          hasMore: false,
+          nextCursor: null,
+          total: 3,
+          pageCount: 0,
+          summary: { totalSent: 0, totalReceived: 0, netFlow: 0 },
+          refetch: vi.fn(),
+        } as TransactionsHook.UseTransactionsResult;
+      }
+      if (opts.limit === 0 && opts.type === 'sent') {
+        return {
+          transactions: [],
+          loading: false,
+          error: null,
+          hasMore: false,
+          nextCursor: null,
+          total: 1,
+          pageCount: 0,
+          summary: { totalSent: 0, totalReceived: 0, netFlow: 0 },
+          refetch: vi.fn(),
+        } as TransactionsHook.UseTransactionsResult;
+      }
+      if (opts.limit === 0 && (opts.type === 'received')) {
+        return {
+          transactions: [],
+          loading: false,
+          error: null,
+          hasMore: false,
+          nextCursor: null,
+          total: 2,
+          pageCount: 0,
+          summary: { totalSent: 0, totalReceived: 0, netFlow: 0 },
+          refetch: vi.fn(),
+        } as TransactionsHook.UseTransactionsResult;
+      }
+      return {
+        transactions,
+        loading: false,
+        error: null,
+        hasMore: false,
+        nextCursor: null,
+        total: 3,
+        pageCount: 0,
+        summary: { totalSent: 0, totalReceived: 0, netFlow: 0 },
+        refetch,
+      } as TransactionsHook.UseTransactionsResult;
     });
+
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ count: 0 }),
     }) as any;
   });
 
-  it('filters transactions based on selected filter and shows counts', () => {
+  it('calls refetch with correct type and shows counts from API', () => {
     render(<HomeScreen onNavigate={() => {}} />);
+
+    refetch.mockClear();
 
     const allButton = screen.getAllByRole('button', { name: /^All/ }).pop()!;
     const sentButton = screen.getAllByRole('button', { name: /^Sent/ }).pop()!;
@@ -189,24 +258,14 @@ describe('HomeScreen transaction filtering', () => {
     expect(sentButton).toHaveTextContent('(1)');
     expect(receivedButton).toHaveTextContent('(2)');
 
-    expect(screen.getByText('Paid Bob')).toBeInTheDocument();
-    expect(screen.getByText('Received from Carol')).toBeInTheDocument();
-    expect(screen.getByText('Dinner with Dan')).toBeInTheDocument();
-
     fireEvent.click(sentButton);
-    expect(screen.getByText('Paid Bob')).toBeInTheDocument();
-    expect(screen.queryByText('Received from Carol')).not.toBeInTheDocument();
-    expect(screen.queryByText('Dinner with Dan')).not.toBeInTheDocument();
+    expect(refetch).toHaveBeenLastCalledWith({ type: 'sent' });
 
     fireEvent.click(receivedButton);
-    expect(screen.queryByText('Paid Bob')).not.toBeInTheDocument();
-    expect(screen.getByText('Received from Carol')).toBeInTheDocument();
-    expect(screen.getByText('Dinner with Dan')).toBeInTheDocument();
+    expect(refetch).toHaveBeenLastCalledWith({ type: 'received' });
 
     fireEvent.click(allButton);
-    expect(screen.getByText('Paid Bob')).toBeInTheDocument();
-    expect(screen.getByText('Received from Carol')).toBeInTheDocument();
-    expect(screen.getByText('Dinner with Dan')).toBeInTheDocument();
+    expect(refetch).toHaveBeenLastCalledWith({ type: undefined });
   });
 });
 
