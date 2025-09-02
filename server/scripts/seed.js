@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client'
 import dotenv from 'dotenv'
+import { defaultSettings as defaultNotificationSettings } from '../routes/notifications.js'
 import bcrypt from 'bcryptjs'
 
 dotenv.config()
@@ -29,7 +30,7 @@ async function upsertUser({ email, name, phone, region = 'US', currency = 'USD' 
   await prisma.notificationPreference.upsert({
     where: { userId: user.id },
     update: {},
-    create: { userId: user.id, preferences: JSON.stringify({}) }
+    create: { userId: user.id, preferences: JSON.stringify(defaultNotificationSettings) }
   })
   return user
 }
