@@ -64,12 +64,12 @@ interface BillSplit {
 const billSplitCache = new Map<string, BillSplit>();
 
 async function getBillSplit(id: string): Promise<BillSplit> {
-  const data = await apiClient(`/api/bill-splits/${id}`);
+  const data = await apiClient(`/bill-splits/${id}`);
   return data.billSplit ?? data;
 }
 
 async function deleteBillSplit(id: string): Promise<void> {
-  await apiClient(`/api/bill-splits/${id}`, {
+  await apiClient(`/bill-splits/${id}`, {
     method: 'DELETE',
   });
 }

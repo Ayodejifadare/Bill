@@ -57,7 +57,7 @@ export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps
     if (!billId) return;
     const loadBill = async () => {
       try {
-        const data = await apiClient(`/api/bill-splits/${billId}`);
+        const data = await apiClient(`/bill-splits/${billId}`);
         if (data?.billSplit) {
           setBill(data.billSplit);
         }
@@ -128,7 +128,7 @@ export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps
   const markAsSent = async () => {
     if (!bill) return;
     try {
-      await apiClient(`/api/bill-splits/${bill.id}/payments`, {
+      await apiClient(`/bill-splits/${bill.id}/payments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'SENT' })
