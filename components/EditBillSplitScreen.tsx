@@ -65,17 +65,17 @@ interface BillSplit {
 }
 
 async function fetchBillSplit(id: string): Promise<BillSplit> {
-  const data = await apiClient(`/api/bill-splits/${id}`);
+  const data = await apiClient(`/bill-splits/${id}`);
   return data.billSplit ?? data;
 }
 
 async function fetchPaymentMethods(): Promise<PaymentMethod[]> {
-  const data = await apiClient('/api/payment-methods');
+  const data = await apiClient('/payment-methods');
   return data.paymentMethods ?? data;
 }
 
 async function updateBillSplit(id: string, payload: any): Promise<void> {
-  await apiClient(`/api/bill-splits/${id}`, {
+  await apiClient(`/bill-splits/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)

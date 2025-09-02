@@ -41,7 +41,7 @@ interface BillSplit {
 }
 
 async function getBillSplit(id: string): Promise<BillSplit> {
-  const data = await apiClient(`/api/bill-splits/${id}`);
+  const data = await apiClient(`/bill-splits/${id}`);
   return data.billSplit ?? data;
 }
 
@@ -53,7 +53,7 @@ async function initiateTransfer(payload: {
   amount: number;
   narration?: string;
 }): Promise<void> {
-  await apiClient('/api/initiate-transfer', {
+  await apiClient('/initiate-transfer', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)

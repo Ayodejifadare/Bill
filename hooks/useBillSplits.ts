@@ -87,7 +87,7 @@ export function useBillSplits(initialOptions: UseBillSplitsOptions = {}): UseBil
         if (current.page) params.append('page', String(current.page));
         if (current.size) params.append('size', String(current.size));
 
-        const endpoint = `/api/bill-splits?${params.toString()}`;
+        const endpoint = `/bill-splits?${params.toString()}`;
         const data = await apiClient(endpoint);
         setBillSplits(Array.isArray(data.billSplits) ? data.billSplits : []);
         setTotal(data.total ?? 0);

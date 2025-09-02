@@ -477,7 +477,7 @@ export function SplitBill({ onNavigate, groupId }: SplitBillProps) {
           })),
       };
 
-      await apiClient('/api/bill-splits', {
+      await apiClient('/bill-splits', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
