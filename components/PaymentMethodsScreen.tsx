@@ -8,6 +8,9 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { ArrowLeft, Plus, Building2, Smartphone } from 'lucide-react';
 import { toast } from 'sonner';
 import { useUserProfile } from './UserProfileContext';
+import { getBankDirectoryForRegion } from '../utils/banks';
+import { getMobileMoneyProviders } from '../utils/providers';
+import { getCurrencyCode, getRegionConfig, requiresRoutingNumber, validateBankAccountNumber, getBankAccountLength } from '../utils/regions';
 import { BankAccountCard } from './BankAccountCard';
 import { MobileMoneyCard } from './MobileMoneyCard';
 import {
@@ -23,61 +26,14 @@ interface PaymentMethodsScreenProps {
   onNavigate: (screen: string) => void;
 }
 
-const NIGERIAN_BANKS = [
-  { code: '044', name: 'Access Bank' },
-  { code: '063', name: 'Access Bank (Diamond)' },
-  { code: '023', name: 'Citi Bank' },
-  { code: '050', name: 'Ecobank Nigeria' },
-  { code: '070', name: 'Fidelity Bank' },
-  { code: '011', name: 'First Bank of Nigeria' },
-  { code: '214', name: 'First City Monument Bank' },
-  { code: '058', name: 'GTBank' },
-  { code: '030', name: 'Heritage Bank' },
-  { code: '301', name: 'Jaiz Bank' },
-  { code: '082', name: 'Keystone Bank' },
-  { code: '221', name: 'Stanbic IBTC Bank' },
-  { code: '068', name: 'Standard Chartered Bank' },
-  { code: '232', name: 'Sterling Bank' },
-  { code: '032', name: 'Union Bank of Nigeria' },
-  { code: '033', name: 'United Bank for Africa' },
-  { code: '215', name: 'Unity Bank' },
-  { code: '035', name: 'Wema Bank' },
-  { code: '057', name: 'Zenith Bank' }
-];
-
-const US_BANKS = [
-  { code: '021000021', name: 'Chase Bank' },
-  { code: '026009593', name: 'Bank of America' },
-  { code: '121000248', name: 'Wells Fargo' },
-  { code: '031176110', name: 'Capital One' },
-  { code: '021000089', name: 'Citibank' },
-  { code: '091000019', name: 'US Bank' },
-  { code: '221000113', name: 'TD Bank' },
-  { code: '031101279', name: 'PNC Bank' },
-  { code: '061000052', name: 'Bank of the West' },
-  { code: '122000661', name: 'Ally Bank' },
-  { code: '124003116', name: 'Discover Bank' },
-  { code: '031201360', name: 'Regions Bank' },
-  { code: '063100277', name: 'Fifth Third Bank' },
-  { code: '044000024', name: 'KeyBank' },
-  { code: '053100300', name: 'BB&T (Truist)' }
-];
-
-const MOBILE_MONEY_PROVIDERS = [
-  { code: 'opay', name: 'Opay' },
-  { code: 'palmpay', name: 'PalmPay' },
-  { code: 'kuda', name: 'Kuda Bank' },
-  { code: 'moniepoint', name: 'Moniepoint' },
-  { code: 'carbon', name: 'Carbon' },
-  { code: 'fairmoney', name: 'FairMoney' },
-  { code: 'cowrywise', name: 'Cowrywise' },
-  { code: 'piggyvest', name: 'PiggyVest' }
-];
+// Bank directory is centralized in utils/banks; providers in utils/providers
 
 export function PaymentMethodsScreen({ onNavigate }: PaymentMethodsScreenProps) {
   const { appSettings, updateAppSettings } = useUserProfile();
   const isNigeria = appSettings.region === 'NG';
-  const banks = isNigeria ? NIGERIAN_BANKS : US_BANKS;
+  const banks = getBankDirectoryForRegion(appSettings.region);
+  const providers = getMobileMoneyProviders(appSettings.region);
+  const phoneCountryCode = getRegionConfig(appSettings.region).phoneCountryCode;
 
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
 
@@ -125,8 +81,8 @@ export function PaymentMethodsScreen({ onNavigate }: PaymentMethodsScreenProps) 
         toast.error('Please fill in all bank details');
         return;
       }
-      if (isNigeria && formData.accountNumber.length !== 10) {
-        toast.error('Account number must be 10 digits');
+      if (!validateBankAccountNumber(appSettings.region, formData.accountNumber)) {
+        toast.error('Please enter a valid account number');
         return;
       }
     } else {
@@ -134,8 +90,8 @@ export function PaymentMethodsScreen({ onNavigate }: PaymentMethodsScreenProps) 
         toast.error('Please fill in all mobile money details');
         return;
       }
-      if (isNigeria && !formData.phoneNumber.startsWith('+234')) {
-        toast.error('Please enter a valid Nigerian phone number');
+      if (phoneCountryCode && !formData.phoneNumber.startsWith(phoneCountryCode)) {
+        toast.error(`Please enter a valid phone number starting with ${phoneCountryCode}`);
         return;
       }
     }
@@ -152,9 +108,11 @@ export function PaymentMethodsScreen({ onNavigate }: PaymentMethodsScreenProps) 
               accountNumber: formData.accountNumber,
               accountName: formData.accountName,
               accountType: formData.accountType,
-              ...(isNigeria
-                ? { sortCode: selectedBank?.code }
-                : { routingNumber: selectedBank?.code })
+              ...(
+                requiresRoutingNumber(appSettings.region)
+                  ? { routingNumber: selectedBank?.code }
+                  : { sortCode: selectedBank?.code }
+              )
             }
           : {
               provider: formData.provider,
@@ -237,10 +195,10 @@ export function PaymentMethodsScreen({ onNavigate }: PaymentMethodsScreenProps) 
     setFormData(prev => ({ ...prev, bank: bankName }));
   };
 
-  const handleRegionChange = (region: 'US' | 'NG') => {
+  const handleRegionChange = (region: string) => {
     updateAppSettings({ 
       region, 
-      currency: region === 'NG' ? 'NGN' : 'USD' 
+      currency: getCurrencyCode(region)
     });
     // Clear current payment methods when switching regions
     setPaymentMethods([]);
@@ -360,7 +318,7 @@ export function PaymentMethodsScreen({ onNavigate }: PaymentMethodsScreenProps) 
                         />
                       </div>
 
-                      {!isNigeria && (
+                      {requiresRoutingNumber(appSettings.region) && (
                         <div className="space-y-2">
                           <Label>Account Type</Label>
                           <Select value={formData.accountType} onValueChange={(value: 'checking' | 'savings') => setFormData(prev => ({ ...prev, accountType: value }))}>
@@ -379,14 +337,14 @@ export function PaymentMethodsScreen({ onNavigate }: PaymentMethodsScreenProps) 
                         <Label>Account Number</Label>
                         <Input
                           className="h-12"
-                          type={isNigeria ? "number" : "password"}
+                          type={getBankAccountLength(appSettings.region) ? 'number' : 'password'}
                           value={formData.accountNumber}
                           onChange={(e) => setFormData(prev => ({ 
                             ...prev, 
-                            accountNumber: isNigeria ? e.target.value.slice(0, 10) : e.target.value 
+                            accountNumber: getBankAccountLength(appSettings.region) ? e.target.value.slice(0, getBankAccountLength(appSettings.region)) : e.target.value 
                           }))}
-                          placeholder={isNigeria ? "1234567890" : "Account number"}
-                          maxLength={isNigeria ? 10 : undefined}
+                          placeholder={getBankAccountLength(appSettings.region) ? '1234567890' : 'Account number'}
+                          maxLength={getBankAccountLength(appSettings.region)}
                         />
                       </div>
                     </>
@@ -399,7 +357,7 @@ export function PaymentMethodsScreen({ onNavigate }: PaymentMethodsScreenProps) 
                             <SelectValue placeholder="Select provider" />
                           </SelectTrigger>
                           <SelectContent>
-                            {MOBILE_MONEY_PROVIDERS.map((provider) => (
+                            {providers.map((provider) => (
                               <SelectItem key={provider.code} value={provider.name}>
                                 {provider.name}
                               </SelectItem>
@@ -415,7 +373,7 @@ export function PaymentMethodsScreen({ onNavigate }: PaymentMethodsScreenProps) 
                           type="tel"
                           value={formData.phoneNumber}
                           onChange={(e) => setFormData(prev => ({ ...prev, phoneNumber: e.target.value }))}
-                          placeholder="+234 801 234 5678"
+                          placeholder={`${phoneCountryCode || '+Country'} 801 234 5678`}
                         />
                       </div>
                     </>

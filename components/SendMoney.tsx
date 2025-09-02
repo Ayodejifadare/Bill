@@ -10,6 +10,7 @@ import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
 import { toast } from 'sonner';
 import { useUserProfile } from './UserProfileContext';
+import { getCurrencySymbol } from '../utils/regions';
 
 import { PaymentMethodSelector, PaymentMethod } from './PaymentMethodSelector';
 import { useFriends, Friend as BaseFriend } from '../hooks/useFriends';
@@ -39,7 +40,7 @@ interface SendMoneyProps {
 export function SendMoney({ onNavigate, prefillData }: SendMoneyProps) {
   const { appSettings } = useUserProfile();
   const isNigeria = appSettings.region === 'NG';
-  const currencySymbol = isNigeria ? '₦' : '$';
+  const currencySymbol = getCurrencySymbol(appSettings.region);
   
   const [selectedFriend, setSelectedFriend] = useState<Friend | null>(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod | null>(null);
@@ -425,7 +426,6 @@ export function SendMoney({ onNavigate, prefillData }: SendMoneyProps) {
                 methods={selectedFriend.paymentMethods}
                 selectedId={selectedPaymentMethod.id}
                 onSelect={(m) => setSelectedPaymentMethod(m)}
-                isNigeria={isNigeria}
               />
 
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">

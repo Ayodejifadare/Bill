@@ -25,6 +25,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collap
 import { toast } from 'sonner';
 import { apiClient } from '../utils/apiClient';
 import { useUserProfile } from './UserProfileContext';
+import { getCurrencySymbol } from '../utils/regions';
 import {
   fetchFriends,
   fetchGroups,
@@ -49,7 +50,7 @@ interface SplitBillProps {
 export function SplitBill({ onNavigate, groupId }: SplitBillProps) {
   const { appSettings, userProfile } = useUserProfile();
   const isNigeria = appSettings.region === 'NG';
-  const currencySymbol = isNigeria ? '₦' : '$';
+  const currencySymbol = getCurrencySymbol(appSettings.region);
   
   const [billName, setBillName] = useState('');
   const [totalAmount, setTotalAmount] = useState('');
@@ -742,7 +743,6 @@ ${myShare > 0 ? `👥 Your Share: ${currencySymbol}${myShare.toFixed(2)}\n` : ''
             methods={paymentMethods}
             selectedId={selectedPaymentMethod?.id || null}
             onSelect={setSelectedPaymentMethod}
-            isNigeria={isNigeria}
             loading={accountsLoading}
           />
         </CardContent>

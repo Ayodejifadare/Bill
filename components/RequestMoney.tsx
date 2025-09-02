@@ -12,6 +12,8 @@ import { Checkbox } from './ui/checkbox';
 import { Switch } from './ui/switch';
 import { toast } from 'sonner';
 import { useUserProfile } from './UserProfileContext';
+import { getCurrencySymbol, requiresRoutingNumber } from '../utils/regions';
+import { requiresRoutingNumber } from '../utils/regions';
 // Removed unused Share2-related imports as sharing is handled via copy-to-clipboard
 // utilities rather than a dedicated share action.
 import { createRequest } from '../utils/request-api';
@@ -39,7 +41,7 @@ interface RequestMoneyProps {
 export function RequestMoney({ onNavigate, prefillData }: RequestMoneyProps) {
   const { appSettings, userProfile } = useUserProfile();
   const isNigeria = appSettings.region === 'NG';
-  const currencySymbol = isNigeria ? '₦' : '$';
+  const currencySymbol = getCurrencySymbol(appSettings.region);
   
   const [selectedFriends, setSelectedFriends] = useState<Friend[]>([]);
   const [amount, setAmount] = useState('');
@@ -88,14 +90,15 @@ export function RequestMoney({ onNavigate, prefillData }: RequestMoneyProps) {
   }, [loadGroups]);
 
   useEffect(() => {
+    const needsRouting = requiresRoutingNumber(appSettings.region);
     const methods: PaymentMethod[] = (userProfile.linkedBankAccounts || []).map(acc => ({
       id: acc.id,
       type: 'bank',
       bankName: acc.bankName,
       accountNumber: acc.accountNumber,
       accountHolderName: acc.accountName,
-      routingNumber: !isNigeria ? acc.routingNumber : undefined,
-      sortCode: isNigeria ? acc.routingNumber : undefined,
+      routingNumber: needsRouting ? acc.routingNumber : undefined,
+      sortCode: !needsRouting ? acc.routingNumber : undefined,
       accountType: acc.accountType,
       isDefault: acc.isDefault,
     }));
@@ -387,7 +390,6 @@ Recipients: ${selectedFriends.map(f => f.name).join(', ')}`;
             methods={paymentMethods}
             selectedId={selectedPaymentMethod?.id || null}
             onSelect={setSelectedPaymentMethod}
-            isNigeria={isNigeria}
             onManage={() => onNavigate('payment-methods')}
           />
         </CardContent>

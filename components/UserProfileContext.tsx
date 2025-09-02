@@ -60,9 +60,11 @@ interface UserProfile {
   linkedBankAccounts: LinkedBankAccount[];
 }
 
+import { getCurrencyCode, resolveRegionFromLocale } from '../utils/regions';
+
 interface AppSettings {
-  region: 'US' | 'NG';
-  currency: 'USD' | 'NGN';
+  region: string; // ISO country code preferred (e.g., 'US', 'NG', 'GB')
+  currency: string; // ISO 4217 code (e.g., 'USD', 'NGN', 'GBP')
 }
 
 interface UserProfileContextType {
@@ -112,11 +114,9 @@ export const getSavedSettings = (): AppSettings => {
     const saved = localStorage.getItem('biltip-app-settings');
     if (saved) {
       const settings = JSON.parse(saved);
-      // Validate the saved settings
-      if (settings.region && settings.currency && 
-          ['US', 'NG'].includes(settings.region) &&
-          ['USD', 'NGN'].includes(settings.currency)) {
-        return settings;
+      // Basic validation: ensure strings exist; allow any region/currency for extensibility
+      if (settings.region && settings.currency && typeof settings.region === 'string' && typeof settings.currency === 'string') {
+        return settings as AppSettings;
       }
     }
   } catch (error) {
@@ -124,12 +124,10 @@ export const getSavedSettings = (): AppSettings => {
   }
   
   // Default settings - detect region from browser locale if possible
-  const locale = navigator.language.toLowerCase();
-  const isNigerianLocale = locale.includes('ng') || locale.includes('nigeria');
-  
+  const detectedRegion = resolveRegionFromLocale(typeof navigator !== 'undefined' ? navigator.language : '');
   return {
-    region: isNigerianLocale ? 'NG' : 'US',
-    currency: isNigerianLocale ? 'NGN' : 'USD'
+    region: detectedRegion,
+    currency: getCurrencyCode(detectedRegion),
   };
 };
 

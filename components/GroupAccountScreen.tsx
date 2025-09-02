@@ -10,6 +10,9 @@ import { EmptyState } from './ui/empty-state';
 import { ArrowLeft, Plus, Building2, Smartphone, Copy, Trash2, Check, Edit2, Crown } from 'lucide-react';
 import { toast } from 'sonner';
 import { useUserProfile } from './UserProfileContext';
+import { getBankDirectoryForRegion } from '../utils/banks';
+import { getMobileMoneyProviders } from '../utils/providers';
+import { getRegionConfig, requiresRoutingNumber, validateBankAccountNumber, getBankAccountLength } from '../utils/regions';
 import { apiClient } from '../utils/apiClient';
 
 interface GroupAccount {
@@ -43,61 +46,14 @@ interface GroupAccountScreenProps {
   onNavigate: (tab: string, data?: any) => void;
 }
 
-const NIGERIAN_BANKS = [
-  { code: '044', name: 'Access Bank' },
-  { code: '063', name: 'Access Bank (Diamond)' },
-  { code: '023', name: 'Citi Bank' },
-  { code: '050', name: 'Ecobank Nigeria' },
-  { code: '070', name: 'Fidelity Bank' },
-  { code: '011', name: 'First Bank of Nigeria' },
-  { code: '214', name: 'First City Monument Bank' },
-  { code: '058', name: 'GTBank' },
-  { code: '030', name: 'Heritage Bank' },
-  { code: '301', name: 'Jaiz Bank' },
-  { code: '082', name: 'Keystone Bank' },
-  { code: '221', name: 'Stanbic IBTC Bank' },
-  { code: '068', name: 'Standard Chartered Bank' },
-  { code: '232', name: 'Sterling Bank' },
-  { code: '032', name: 'Union Bank of Nigeria' },
-  { code: '033', name: 'United Bank for Africa' },
-  { code: '215', name: 'Unity Bank' },
-  { code: '035', name: 'Wema Bank' },
-  { code: '057', name: 'Zenith Bank' }
-];
-
-const US_BANKS = [
-  { code: '021000021', name: 'Chase Bank' },
-  { code: '026009593', name: 'Bank of America' },
-  { code: '121000248', name: 'Wells Fargo' },
-  { code: '031176110', name: 'Capital One' },
-  { code: '021000089', name: 'Citibank' },
-  { code: '091000019', name: 'US Bank' },
-  { code: '221000113', name: 'TD Bank' },
-  { code: '031101279', name: 'PNC Bank' },
-  { code: '061000052', name: 'Bank of the West' },
-  { code: '122000661', name: 'Ally Bank' },
-  { code: '124003116', name: 'Discover Bank' },
-  { code: '031201360', name: 'Regions Bank' },
-  { code: '063100277', name: 'Fifth Third Bank' },
-  { code: '044000024', name: 'KeyBank' },
-  { code: '053100300', name: 'BB&T (Truist)' }
-];
-
-const MOBILE_MONEY_PROVIDERS = [
-  { code: 'opay', name: 'Opay' },
-  { code: 'palmpay', name: 'PalmPay' },
-  { code: 'kuda', name: 'Kuda Bank' },
-  { code: 'moniepoint', name: 'Moniepoint' },
-  { code: 'carbon', name: 'Carbon' },
-  { code: 'fairmoney', name: 'FairMoney' },
-  { code: 'cowrywise', name: 'Cowrywise' },
-  { code: 'piggyvest', name: 'PiggyVest' }
-];
+// Bank directory is centralized in utils/banks; providers in utils/providers
 
 export function GroupAccountScreen({ groupId, onNavigate }: GroupAccountScreenProps) {
   const { appSettings } = useUserProfile();
   const isNigeria = appSettings.region === 'NG';
-  const banks = isNigeria ? NIGERIAN_BANKS : US_BANKS;
+  const banks = getBankDirectoryForRegion(appSettings.region);
+  const providers = getMobileMoneyProviders(appSettings.region);
+  const phoneCountryCode = getRegionConfig(appSettings.region).phoneCountryCode;
 
   const [group, setGroup] = useState<Group | null>(null);
   const [groupAccounts, setGroupAccounts] = useState<GroupAccount[]>([]);
@@ -210,8 +166,8 @@ export function GroupAccountScreen({ groupId, onNavigate }: GroupAccountScreenPr
         toast.error('Please select a valid bank');
         return;
       }
-      if (isNigeria && formData.accountNumber.length !== 10) {
-        toast.error('Account number must be 10 digits');
+      if (!validateBankAccountNumber(appSettings.region, formData.accountNumber)) {
+        toast.error('Please enter a valid account number');
         return;
       }
     } else {
@@ -219,13 +175,13 @@ export function GroupAccountScreen({ groupId, onNavigate }: GroupAccountScreenPr
         toast.error('Please fill in all mobile money details');
         return;
       }
-      const provider = MOBILE_MONEY_PROVIDERS.find(p => p.name === formData.provider);
+      const provider = providers.find(p => p.name === formData.provider);
       if (!provider) {
         toast.error('Please select a valid provider');
         return;
       }
-      if (isNigeria && !formData.phoneNumber.startsWith('+234')) {
-        toast.error('Please enter a valid Nigerian phone number');
+      if (phoneCountryCode && !formData.phoneNumber.startsWith(phoneCountryCode)) {
+        toast.error(`Please enter a valid phone number starting with ${phoneCountryCode}`);
         return;
       }
     }
@@ -242,9 +198,11 @@ export function GroupAccountScreen({ groupId, onNavigate }: GroupAccountScreenPr
               accountNumber: formData.accountNumber,
               accountName: formData.accountName,
               accountType: formData.accountType,
-              ...(isNigeria
-                ? { sortCode: selectedBank?.code }
-                : { routingNumber: selectedBank?.code })
+              ...(
+                requiresRoutingNumber(appSettings.region)
+                  ? { routingNumber: selectedBank?.code }
+                  : { sortCode: selectedBank?.code }
+              )
             }
           : {
               provider: formData.provider,
@@ -450,8 +408,8 @@ export function GroupAccountScreen({ groupId, onNavigate }: GroupAccountScreenPr
                                 ...prev, 
                                 accountNumber: isNigeria ? e.target.value.slice(0, 10) : e.target.value 
                               }))}
-                              placeholder={isNigeria ? "1234567890" : "Account number"}
-                              maxLength={isNigeria ? 10 : undefined}
+                              placeholder={getBankAccountLength(appSettings.region) ? '1234567890' : 'Account number'}
+                              maxLength={getBankAccountLength(appSettings.region)}
                               className="h-10 text-sm"
                             />
                           </div>
@@ -465,7 +423,7 @@ export function GroupAccountScreen({ groupId, onNavigate }: GroupAccountScreenPr
                                 <SelectValue placeholder="Select provider" />
                               </SelectTrigger>
                               <SelectContent>
-                                {MOBILE_MONEY_PROVIDERS.map((provider) => (
+                                {providers.map((provider) => (
                                   <SelectItem key={provider.code} value={provider.name} className="text-sm">
                                     {provider.name}
                                   </SelectItem>
@@ -480,7 +438,7 @@ export function GroupAccountScreen({ groupId, onNavigate }: GroupAccountScreenPr
                               type="tel"
                               value={formData.phoneNumber}
                               onChange={(e) => setFormData(prev => ({ ...prev, phoneNumber: e.target.value }))}
-                              placeholder="+234 801 234 5678"
+                              placeholder={`${phoneCountryCode || '+Country'} 801 234 5678`}
                               className="h-10 text-sm"
                             />
                           </div>
@@ -610,31 +568,28 @@ export function GroupAccountScreen({ groupId, onNavigate }: GroupAccountScreenPr
                             </Button>
                           </div>
                         </div>
-                        {isNigeria ? (
-                          account.sortCode && (
+                        {(() => {
+                          const usesRouting = requiresRoutingNumber(appSettings.region);
+                          const label = getBankIdentifierLabel(appSettings.region);
+                          const value = usesRouting ? account.routingNumber : account.sortCode;
+                          if (!value) return null;
+                          return (
                             <div className="flex items-center justify-between">
-                              <span className="text-xs sm:text-sm text-muted-foreground">Sort Code:</span>
-                              <span className="font-mono text-xs sm:text-sm">{account.sortCode}</span>
-                            </div>
-                          )
-                        ) : (
-                          account.routingNumber && (
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs sm:text-sm text-muted-foreground">Routing Number:</span>
+                              <span className="text-xs sm:text-sm text-muted-foreground">{label}:</span>
                               <div className="flex items-center gap-1 sm:gap-2">
-                                <span className="font-mono text-xs sm:text-sm">{account.routingNumber}</span>
+                                <span className="font-mono text-xs sm:text-sm">{value}</span>
                                 <Button
                                   variant="ghost"
                                   size="sm"
                                   className="h-5 w-5 sm:h-6 sm:w-6 p-0 flex-shrink-0"
-                                  onClick={() => copyToClipboard(account.routingNumber!, 'Routing number')}
+                                  onClick={() => copyToClipboard(value!, label)}
                                 >
                                   <Copy className="h-3 w-3" />
                                 </Button>
                               </div>
                             </div>
-                          )
-                        )}
+                          );
+                        })()}
                       </>
                     ) : (
                       <div className="flex items-center justify-between">

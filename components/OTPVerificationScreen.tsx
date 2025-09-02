@@ -6,6 +6,7 @@ import { ArrowLeft, RotateCcw } from 'lucide-react';
 import { authService } from '../services/auth';
 import { toast } from 'sonner';
 import { devAuthConfig } from '../utils/auth-dev-config';
+import { formatPhoneForRegion } from '../utils/regions';
 
 interface OTPVerificationScreenProps {
   phone: string;
@@ -195,15 +196,7 @@ export function OTPVerificationScreen({
     }
   };
 
-  const formatPhone = (phoneNumber: string) => {
-    // Simple phone formatting for display
-    if (phoneNumber.startsWith('+234')) {
-      return phoneNumber.replace('+234', '+234 ');
-    } else if (phoneNumber.startsWith('+1')) {
-      return phoneNumber.replace('+1', '+1 ');
-    }
-    return phoneNumber;
-  };
+  const formatPhone = (phoneNumber: string) => formatPhoneForRegion(region, phoneNumber);
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/5 to-purple-50">

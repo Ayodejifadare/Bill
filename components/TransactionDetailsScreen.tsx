@@ -7,6 +7,7 @@ import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
 import { toast } from 'sonner';
 import { useUserProfile } from './UserProfileContext';
+import { getCurrencySymbol } from '../utils/regions';
 import { ShareSheet } from './ui/share-sheet';
 import { createDeepLink } from './ShareUtils';
 import { apiClient } from '../utils/apiClient';
@@ -62,7 +63,7 @@ export function TransactionDetailsScreen({ transactionId, onNavigate }: Transact
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const isNigeria = appSettings.region === 'NG';
-  const currencySymbol = isNigeria ? '₦' : '$';
+  const currencySymbol = getCurrencySymbol(appSettings.region);
 
   const mapTransaction = (data: any): TransactionDetails => {
     const user = data.user || data.sender || data.receiver || {};

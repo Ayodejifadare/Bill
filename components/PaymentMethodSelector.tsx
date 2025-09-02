@@ -5,6 +5,8 @@ import { Badge } from './ui/badge';
 import { Building2, Smartphone } from 'lucide-react';
 import { BankAccountCard } from './BankAccountCard';
 import { MobileMoneyCard } from './MobileMoneyCard';
+import { useUserProfile } from './UserProfileContext';
+import { formatBankAccountForRegion } from '../utils/regions';
 
 export interface PaymentMethod {
   id: string;
@@ -32,7 +34,6 @@ interface PaymentMethodSelectorProps {
   methods: PaymentMethod[];
   selectedId: string | null;
   onSelect: (method: PaymentMethod | null) => void;
-  isNigeria: boolean;
   loading?: boolean;
   onManage?: () => void;
 }
@@ -41,17 +42,15 @@ export function PaymentMethodSelector({
   methods,
   selectedId,
   onSelect,
-  isNigeria,
   loading = false,
   onManage,
 }: PaymentMethodSelectorProps) {
+  const { appSettings } = useUserProfile();
+  const region = appSettings.region;
   const selectedMethod = methods.find((m) => m.id === selectedId) || null;
 
   const formatAccountNumber = (accountNumber: string) => {
-    if (isNigeria) {
-      return accountNumber.replace(/(\d{4})(\d{4})(\d{2})/, '$1 $2 $3');
-    }
-    return accountNumber;
+    return formatBankAccountForRegion(region, accountNumber);
   };
 
   const renderSelectItem = (method: PaymentMethod) => (

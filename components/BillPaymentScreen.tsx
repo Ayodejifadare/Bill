@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback } from './ui/avatar';
 import { Separator } from './ui/separator';
 import { toast } from 'sonner';
 import { useUserProfile } from './UserProfileContext';
+import { getCurrencySymbol, requiresRoutingNumber, getBankIdentifierLabel, formatBankAccountForRegion } from '../utils/regions';
 import { apiClient } from '../utils/apiClient';
 
 interface BillPaymentScreenProps {
@@ -48,7 +49,7 @@ interface BillSplit {
 export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps) {
   const { appSettings } = useUserProfile();
   const isNigeria = appSettings.region === 'NG';
-  const currencySymbol = isNigeria ? '₦' : '$';
+  const currencySymbol = getCurrencySymbol(appSettings.region);
   
   const [paymentStatus, setPaymentStatus] = useState<'pending' | 'sent' | 'confirmed'>('pending');
   const [bill, setBill] = useState<BillSplit | null>(null);
@@ -99,9 +100,10 @@ export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps
 
     try {
       if (paymentMethod.type === 'bank') {
-        const bankInfo = isNigeria
-          ? `${paymentMethod.bankName}\nAccount Name: ${paymentMethod.accountHolderName}\nAccount Number: ${paymentMethod.accountNumber}\nSort Code: ${paymentMethod.sortCode}`
-          : `${paymentMethod.bankName}\nAccount Holder: ${paymentMethod.accountHolderName}\nRouting Number: ${paymentMethod.routingNumber}\nAccount Number: ${paymentMethod.accountNumber}`;
+        const usesRouting = requiresRoutingNumber(appSettings.region);
+        const label = getBankIdentifierLabel(appSettings.region);
+        const idValue = usesRouting ? paymentMethod.routingNumber : paymentMethod.sortCode;
+        const bankInfo = `${paymentMethod.bankName}\nAccount Name: ${paymentMethod.accountHolderName}\n${label}: ${idValue ?? ''}\nAccount Number: ${paymentMethod.accountNumber}`;
         await navigator.clipboard.writeText(bankInfo);
         toast.success('Bank account details copied to clipboard');
       } else {
@@ -146,13 +148,8 @@ export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps
     }
   };
 
-  const formatAccountNumber = (accountNumber: string) => {
-    if (isNigeria) {
-      return accountNumber.replace(/(\d{4})(\d{4})(\d{2})/, '$1 $2 $3');
-    } else {
-      return accountNumber.replace(/(\*{4})(\d{4})/, '$1 $2');
-    }
-  };
+  const formatAccountNumber = (accountNumber: string) =>
+    formatBankAccountForRegion(appSettings.region, accountNumber);
 
   const getPaymentInstructions = () => {
     const { paymentMethod } = bill;
@@ -265,29 +262,23 @@ export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps
                             <span className="text-muted-foreground">Account Name:</span>
                             <span className="font-medium">{bill.paymentMethod.accountHolderName}</span>
                           </div>
-                          {isNigeria ? (
-                            <>
-                              <div className="flex justify-between">
-                                <span className="text-muted-foreground">Sort Code:</span>
-                                <span className="font-mono">{bill.paymentMethod.sortCode}</span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-muted-foreground">Account Number:</span>
-                                <span className="font-mono">{formatAccountNumber(bill.paymentMethod.accountNumber!)}</span>
-                              </div>
-                            </>
-                          ) : (
-                            <>
-                              <div className="flex justify-between">
-                                <span className="text-muted-foreground">Routing Number:</span>
-                                <span className="font-mono">{bill.paymentMethod.routingNumber}</span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-muted-foreground">Account Number:</span>
-                                <span className="font-mono">{formatAccountNumber(bill.paymentMethod.accountNumber!)}</span>
-                              </div>
-                            </>
-                          )}
+                          {(() => {
+                            const usesRouting = requiresRoutingNumber(appSettings.region);
+                            const label = getBankIdentifierLabel(appSettings.region);
+                            const value = usesRouting ? bill.paymentMethod.routingNumber : bill.paymentMethod.sortCode;
+                            return (
+                              <>
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">{label}:</span>
+                                  <span className="font-mono">{value}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Account Number:</span>
+                                  <span className="font-mono">{formatAccountNumber(bill.paymentMethod.accountNumber!)}</span>
+                                </div>
+                              </>
+                            );
+                          })()}
                         </div>
                       ) : (
                         <div className="text-sm">

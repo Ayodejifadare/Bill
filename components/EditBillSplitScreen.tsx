@@ -12,6 +12,7 @@ import { Badge } from './ui/badge';
 import { toast } from 'sonner';
 import { PageLoading, LoadingSpinner } from './ui/loading';
 import { useUserProfile } from './UserProfileContext';
+import { getCurrencySymbol, requiresRoutingNumber, getBankIdentifierLabel, formatBankAccountForRegion } from '../utils/regions';
 import { apiClient } from '../utils/apiClient';
 
 interface EditBillSplitScreenProps {
@@ -85,7 +86,7 @@ async function updateBillSplit(id: string, payload: any): Promise<void> {
 export function EditBillSplitScreen({ billSplitId, onNavigate }: EditBillSplitScreenProps) {
   const { appSettings, userProfile } = useUserProfile();
   const isNigeria = appSettings.region === 'NG';
-  const currencySymbol = isNigeria ? '₦' : '$';
+  const currencySymbol = getCurrencySymbol(appSettings.region);
 
   const [billSplit, setBillSplit] = useState<BillSplit | null>(null);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
@@ -325,9 +326,10 @@ export function EditBillSplitScreen({ billSplitId, onNavigate }: EditBillSplitSc
 
     try {
       if (selectedPaymentMethod.type === 'bank') {
-        const bankInfo = isNigeria
-          ? `${selectedPaymentMethod.bankName}\nAccount Name: ${selectedPaymentMethod.accountHolderName}\nAccount Number: ${selectedPaymentMethod.accountNumber}\nSort Code: ${selectedPaymentMethod.sortCode}`
-          : `${selectedPaymentMethod.bankName}\nAccount Holder: ${selectedPaymentMethod.accountHolderName}\nRouting Number: ${selectedPaymentMethod.routingNumber}\nAccount Number: ${selectedPaymentMethod.accountNumber}`;
+        const usesRouting = requiresRoutingNumber(appSettings.region);
+        const label = getBankIdentifierLabel(appSettings.region);
+        const idValue = usesRouting ? selectedPaymentMethod.routingNumber : selectedPaymentMethod.sortCode;
+        const bankInfo = `${selectedPaymentMethod.bankName}\nAccount Name: ${selectedPaymentMethod.accountHolderName}\n${label}: ${idValue ?? ''}\nAccount Number: ${selectedPaymentMethod.accountNumber}`;
         await navigator.clipboard.writeText(bankInfo);
         toast.success('Bank account details copied to clipboard');
       } else {
@@ -340,13 +342,8 @@ export function EditBillSplitScreen({ billSplitId, onNavigate }: EditBillSplitSc
     }
   };
 
-  const formatAccountNumber = (accountNumber: string) => {
-    if (isNigeria) {
-      return accountNumber.replace(/(\d{4})(\d{4})(\d{2})/, '$1 $2 $3');
-    } else {
-      return accountNumber.replace(/(\*{4})(\d{4})/, '$1 $2');
-    }
-  };
+  const formatAccountNumber = (accountNumber: string) =>
+    formatBankAccountForRegion(appSettings.region, accountNumber);
 
   const getTotalSplit = () => {
     return participants.reduce((sum, p) => sum + (isNaN(p.amount) ? 0 : p.amount), 0);
@@ -542,25 +539,21 @@ export function EditBillSplitScreen({ billSplitId, onNavigate }: EditBillSplitSc
                         <p className="text-sm text-muted-foreground">
                           {selectedPaymentMethod.accountHolderName}
                         </p>
-                        {isNigeria ? (
-                          <>
-                            <p className="text-sm text-muted-foreground">
-                              Sort Code: {selectedPaymentMethod.sortCode}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              Account: {formatAccountNumber(selectedPaymentMethod.accountNumber!)}
-                            </p>
-                          </>
-                        ) : (
-                          <>
-                            <p className="text-sm text-muted-foreground">
-                              Routing: {selectedPaymentMethod.routingNumber}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              Account: {formatAccountNumber(selectedPaymentMethod.accountNumber!)}
-                            </p>
-                          </>
-                        )}
+                        {(() => {
+                          const label = getBankIdentifierLabel(appSettings.region);
+                          const usesRouting = requiresRoutingNumber(appSettings.region);
+                          const value = usesRouting ? selectedPaymentMethod.routingNumber : selectedPaymentMethod.sortCode;
+                          return (
+                            <>
+                              <p className="text-sm text-muted-foreground">
+                                {label}: {value}
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                Account: {formatAccountNumber(selectedPaymentMethod.accountNumber!)}
+                              </p>
+                            </>
+                          );
+                        })()}
                       </>
                     ) : (
                       <p className="text-sm text-muted-foreground">

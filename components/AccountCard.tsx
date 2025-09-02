@@ -5,6 +5,7 @@ import { Badge } from './ui/badge';
 import { Building2, Smartphone, Copy, Trash2, Check, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 import { useUserProfile } from './UserProfileContext';
+import { formatBankAccountForRegion, getBankIdentifierLabel, requiresRoutingNumber } from '../utils/regions';
 
 interface BaseAccount {
   id: string;
@@ -64,22 +65,18 @@ export function AccountCard({
 
   const copyFullAccountInfo = () => {
     if (account.type === 'bank') {
-      const accountInfo = isNigeria
-        ? `${bank}\nAccount Name: ${accountName}\nAccount Number: ${account.accountNumber}\nSort Code: ${account.sortCode}`
-        : `${bank}\nAccount Holder: ${accountName}\nRouting Number: ${account.routingNumber}\nAccount Number: ${account.accountNumber}`;
+      const usesRouting = requiresRoutingNumber(appSettings.region);
+      const label = getBankIdentifierLabel(appSettings.region);
+      const identifier = usesRouting ? account.routingNumber : account.sortCode;
+      const accountInfo = `${bank}\nAccount Name: ${accountName}\n${label}: ${identifier ?? ''}\nAccount Number: ${account.accountNumber}`;
       copyToClipboard(accountInfo);
     } else {
       copyToClipboard(`${account.provider}\nPhone: ${account.phoneNumber}`);
     }
   };
 
-  const formatAccountNumber = (accountNumber: string) => {
-    if (isNigeria) {
-      return accountNumber.replace(/(\d{4})(\d{4})(\d{2})/, '$1 $2 $3');
-    } else {
-      return accountNumber.replace(/(\*{4})(\d{4})/, '$1 $2');
-    }
-  };
+  const formatAccountNumber = (accountNumber: string) =>
+    formatBankAccountForRegion(appSettings.region, accountNumber);
 
   const formatDate = (isoString: string) => {
     const date = new Date(isoString);
@@ -119,10 +116,9 @@ export function AccountCard({
                 <>
                   <h4 className="text-sm sm:text-base">{account.type === 'bank' ? bank : account.provider}</h4>
                   <p className="text-xs sm:text-sm text-muted-foreground">
-                    {account.type === 'bank' 
-                      ? (isNigeria ? 'Bank Account' : `${account.accountType?.charAt(0).toUpperCase()}${account.accountType?.slice(1)} Account`)
-                      : 'Mobile Money'
-                    }
+                  {account.type === 'bank' 
+                    ? `${(account.accountType ? account.accountType.charAt(0).toUpperCase() + account.accountType.slice(1) : 'Bank')} Account`
+                    : 'Mobile Money'}
                   </p>
                 </>
               )}
@@ -169,31 +165,28 @@ export function AccountCard({
                   </Button>
                 </div>
               </div>
-              {isNigeria ? (
-                account.sortCode && (
+              {(() => {
+                const usesRouting = requiresRoutingNumber(appSettings.region);
+                const label = getBankIdentifierLabel(appSettings.region);
+                const value = usesRouting ? account.routingNumber : account.sortCode;
+                if (!value) return null;
+                return (
                   <div className="flex items-center justify-between">
-                    <span className="text-xs sm:text-sm text-muted-foreground">Sort Code:</span>
-                    <span className="font-mono text-xs sm:text-sm">{account.sortCode}</span>
-                  </div>
-                )
-              ) : (
-                account.routingNumber && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs sm:text-sm text-muted-foreground">Routing Number:</span>
+                    <span className="text-xs sm:text-sm text-muted-foreground">{label}:</span>
                     <div className="flex items-center gap-1 sm:gap-2">
-                      <span className="font-mono text-xs sm:text-sm">{account.routingNumber}</span>
+                      <span className="font-mono text-xs sm:text-sm">{value}</span>
                       <Button
                         variant="ghost"
                         size="sm"
                         className="h-5 w-5 sm:h-6 sm:w-6 p-0 flex-shrink-0"
-                        onClick={() => copyToClipboard(account.routingNumber!, 'Routing number')}
+                        onClick={() => copyToClipboard(value!, `${label}`)}
                       >
                         <Copy className="h-3 w-3" />
                       </Button>
                     </div>
                   </div>
-                )
-              )}
+                );
+              })()}
             </>
           ) : (
             <div className="flex items-center justify-between">

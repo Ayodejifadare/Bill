@@ -8,6 +8,7 @@ import { EmptyState } from './ui/empty-state';
 import { Send, Users, Receipt, Plus, DollarSign } from 'lucide-react';
 import { Alert, AlertDescription } from './ui/alert';
 import { useUserProfile } from './UserProfileContext';
+import { getCurrencySymbol } from '../utils/regions';
 import { TransactionSkeleton } from './ui/loading';
 import { useTransactions } from '../hooks/useTransactions';
 import { NotificationBell } from './ui/notification-bell';
@@ -25,7 +26,7 @@ interface HomeScreenProps {
 
 export function HomeScreen({ onNavigate }: HomeScreenProps) {
   const { appSettings, userProfile } = useUserProfile();
-  const currencySymbol = appSettings.region === 'NG' ? '₦' : '$';
+  const currencySymbol = getCurrencySymbol(appSettings.region);
   const displayName = userProfile?.name?.trim() || 'there';
   const initials = userProfile?.name
     ? userProfile.name

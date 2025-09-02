@@ -4,6 +4,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '
 import { Input } from './ui/input';
 import { Button } from './ui/button';
 import { ScrollArea } from './ui/scroll-area';
+import { useUserProfile } from './UserProfileContext';
+import { getBanksForRegion } from '../utils/banks';
 
 interface BankSelectionSheetProps {
   isOpen: boolean;
@@ -12,35 +14,13 @@ interface BankSelectionSheetProps {
   selectedBank?: string;
 }
 
-const banks = [
-  'Access Bank',
-  'Bank of America',
-  'Chase Bank',
-  'Citibank',
-  'Ecobank',
-  'Fidelity Bank',
-  'First Bank of Nigeria',
-  'First City Monument Bank (FCMB)',
-  'Guaranty Trust Bank (GTBank)',
-  'Heritage Bank',
-  'Keystone Bank',
-  'PNC Bank',
-  'Polaris Bank',
-  'Standard Chartered Bank',
-  'Sterling Bank',
-  'Stanbic IBTC Bank',
-  'TD Bank',
-  'Union Bank',
-  'United Bank for Africa (UBA)',
-  'Unity Bank',
-  'U.S. Bank',
-  'Wells Fargo',
-  'Zenith Bank',
-  'Other'
-];
+const FALLBACK_OTHER = 'Other';
 
 export function BankSelectionSheet({ isOpen, onClose, onSelectBank, selectedBank }: BankSelectionSheetProps) {
   const [searchQuery, setSearchQuery] = useState('');
+  const { appSettings } = useUserProfile();
+  const regionBanks = getBanksForRegion(appSettings.region);
+  const banks = [...regionBanks, FALLBACK_OTHER];
 
   const filteredBanks = banks.filter(bank =>
     bank.toLowerCase().includes(searchQuery.toLowerCase())
