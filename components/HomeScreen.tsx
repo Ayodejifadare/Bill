@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { TransactionCard } from './TransactionCard';
@@ -41,20 +41,22 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
     transactions,
     loading: transactionsLoading,
     error: transactionsError,
+    refetch,
   } = useTransactions();
   const { summary } = useTransactions({ status: 'pending', limit: 0 });
+  const { total: allCount } = useTransactions({ limit: 0 });
+  const { total: sentCount } = useTransactions({ type: 'sent', limit: 0 });
+  const { total: receivedCount } = useTransactions({ type: 'received', limit: 0 });
 
-  const filteredTransactions = transactions.filter(transaction => {
-    if (activityFilter === 'all') return true;
-    if (activityFilter === 'sent') return transaction.type === 'sent';
-    if (activityFilter === 'received') return transaction.type === 'received' || transaction.type === 'split';
-    return true;
-  });
+  useEffect(() => {
+    const type = activityFilter === 'all' ? undefined : activityFilter;
+    refetch({ type });
+  }, [activityFilter, refetch]);
 
   const getTransactionCount = (filterType: 'all' | 'sent' | 'received') => {
-    if (filterType === 'all') return transactions.length;
-    if (filterType === 'sent') return transactions.filter(t => t.type === 'sent').length;
-    if (filterType === 'received') return transactions.filter(t => t.type === 'received' || t.type === 'split').length;
+    if (filterType === 'all') return allCount;
+    if (filterType === 'sent') return sentCount;
+    if (filterType === 'received') return receivedCount;
     return 0;
   };
 
@@ -99,26 +101,9 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
                 </p>
                 <p className="text-sm text-muted-foreground">You owe</p>
               </div>
-
-        {/* Balance Card - always visible */}
-        <Card className="p-4">
-          <h3 className="font-medium mb-3">Your Balance</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="text-center">
-              <p className="text-2xl font-medium text-success">
-                {currencySymbol}{totalOwed.toFixed(2)}
-              </p>
-              <p className="text-sm text-muted-foreground">You are owed</p>
-
             </div>
-            <div className="text-center">
-              <p className="text-2xl font-medium text-destructive">
-                {currencySymbol}{totalOwes.toFixed(2)}
-              </p>
-              <p className="text-sm text-muted-foreground">You owe</p>
-            </div>
-          </div>
-        </Card>
+          </Card>
+        )}
 
         {/* Quick Actions */}
         <div>
@@ -203,7 +188,7 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
             </Alert>
           )}
           {!transactionsLoading && !transactionsError &&
-            filteredTransactions.slice(0, 4).map((transaction) => (
+            transactions.slice(0, 4).map((transaction) => (
               <TransactionCard
                 key={transaction.id}
                 transaction={transaction}
@@ -213,7 +198,7 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
             ))}
         </div>
 
-        {!transactionsLoading && !transactionsError && filteredTransactions.length === 0 && (
+        {!transactionsLoading && !transactionsError && transactions.length === 0 && (
           <EmptyState
             icon={DollarSign}
             title="No transactions found"
@@ -222,7 +207,7 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
           />
         )}
 
-        {!transactionsLoading && !transactionsError && filteredTransactions.length > 4 && (
+        {!transactionsLoading && !transactionsError && transactions.length > 4 && (
           <div className="text-center mt-4">
             <Button
               variant="outline"
