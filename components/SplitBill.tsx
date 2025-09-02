@@ -90,58 +90,43 @@ export function SplitBill({ onNavigate, groupId }: SplitBillProps) {
 
   const [submitting, setSubmitting] = useState(false);
 
+  // Personal payment methods fetched from API
+  const [personalMethods, setPersonalMethods] = useState<PaymentMethod[]>([]);
 
-  // Personal payment methods based on region
-  const personalPaymentMethods: PaymentMethod[] = isNigeria
-    ? [
-        {
-          id: '1',
-          type: 'bank',
-          bankName: 'Access Bank',
-          accountNumber: '0123456789',
-          accountHolderName: 'John Doe',
-          sortCode: '044',
-          isDefault: true,
-        },
-        {
-          id: '2',
-          type: 'mobile_money',
-          provider: 'Opay',
-          phoneNumber: '+234 801 234 5678',
-          isDefault: false,
-        },
-        {
-          id: '3',
-          type: 'bank',
-          bankName: 'GTBank',
-          accountNumber: '0234567890',
-          accountHolderName: 'John Doe',
-          sortCode: '058',
-          isDefault: false,
-        },
-      ]
-    : [
-        {
-          id: '1',
-          type: 'bank',
-          bankName: 'Chase Bank',
-          accountType: 'checking',
-          accountNumber: '****1234',
-          routingNumber: '021000021',
-          accountHolderName: 'John Doe',
-          isDefault: true,
-        },
-        {
-          id: '2',
-          type: 'bank',
-          bankName: 'Bank of America',
-          accountType: 'savings',
-          accountNumber: '****5678',
-          routingNumber: '026009593',
-          accountHolderName: 'John Doe',
-          isDefault: false,
-        },
-      ];
+  useEffect(() => {
+    let cancelled = false;
+    async function loadPaymentMethods() {
+      try {
+        const data = await apiClient('/payment-methods');
+        if (cancelled) return;
+        const methods = Array.isArray((data as any).paymentMethods)
+          ? (data as any).paymentMethods
+          : data;
+        const mapped: PaymentMethod[] = methods.map((method: any) => ({
+          id: String(method.id),
+          type: method.type,
+          bankName: method.bank || method.bankName,
+          bank: method.bank,
+          accountNumber: method.accountNumber,
+          accountHolderName: method.accountName || method.accountHolderName,
+          accountName: method.accountName,
+          sortCode: method.sortCode,
+          routingNumber: method.routingNumber,
+          accountType: method.accountType,
+          provider: method.provider,
+          phoneNumber: method.phoneNumber,
+          isDefault: method.isDefault,
+        }));
+        setPersonalMethods(mapped);
+      } catch (err) {
+        console.error('Failed to load payment methods', err);
+      }
+    }
+    loadPaymentMethods();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Fetch friends and groups
   useEffect(() => {
@@ -224,7 +209,7 @@ export function SplitBill({ onNavigate, groupId }: SplitBillProps) {
 
   // Combine personal methods with external accounts
   useEffect(() => {
-    const methods = [...personalPaymentMethods];
+    const methods = [...personalMethods];
     if (groupId && externalAccounts.length > 0) {
       methods.push(
         ...externalAccounts.map((account) => ({
@@ -236,7 +221,7 @@ export function SplitBill({ onNavigate, groupId }: SplitBillProps) {
       );
     }
     setPaymentMethods(methods);
-  }, [externalAccounts, groupId, isNigeria]);
+  }, [personalMethods, externalAccounts, groupId]);
 
   // Ensure a default payment method is selected
   useEffect(() => {
