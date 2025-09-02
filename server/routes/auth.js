@@ -37,7 +37,12 @@ router.post('/request-otp', [
     otpStore.set(phone, { otp, expiresAt: Date.now() + 5 * 60 * 1000 })
     await sendSms(phone, otp)
 
-    res.json({ message: 'OTP sent' })
+    // In development, include OTP in response to simplify local testing
+    const payload = { message: 'OTP sent' }
+    if (process.env.NODE_ENV === 'development') {
+      payload.otp = otp
+    }
+    res.json(payload)
   } catch (error) {
     console.error('OTP request error:', error)
     res.status(500).json({ error: 'Internal server error' })

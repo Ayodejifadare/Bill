@@ -275,7 +275,7 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
         )}
 
         {/* Add Friends Suggestion */}
-        {activeFriends.length < 3 && (
+        {activeFriends.length === 0 && pendingFriends.length === 0 && searchQuery.trim() === '' && (
           <Card className="p-4 border-dashed border-2 border-muted hover:border-primary/50 transition-colors cursor-pointer" onClick={() => onNavigate('add-friend')}>
             <div className="text-center">
               <UserPlus className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
@@ -353,13 +353,17 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
               </Card>
             ))
           ) : (
-            <EmptyState
-              icon={UserPlus}
-              title="No friends yet"
-              description="Add friends to start splitting bills and sharing expenses!"
-              actionLabel="Add Your First Friend"
-              onAction={() => onNavigate('add-friend')}
-            />
+            // Only show the empty state if there are truly no friends
+            // and no pending requests, and not in a filtered search.
+            (pendingFriends.length === 0 && searchQuery.trim() === '') ? (
+              <EmptyState
+                icon={UserPlus}
+                title="No friends yet"
+                description="Add friends to start splitting bills and sharing expenses!"
+                actionLabel="Add Your First Friend"
+                onAction={() => onNavigate('add-friend')}
+              />
+            ) : null
           )}
         </div>
       </div>

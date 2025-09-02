@@ -88,9 +88,17 @@ router.get('/notification-settings', async (req, res) => {
       })
     }
 
-    const settings = typeof preference.preferences === 'string'
+    const raw = typeof preference.preferences === 'string'
       ? JSON.parse(preference.preferences)
       : preference.preferences
+
+    // Deep-merge with defaults to ensure required nested keys exist
+    const settings = {
+      whatsapp: { ...defaultSettings.whatsapp, ...(raw?.whatsapp || {}) },
+      push: { ...defaultSettings.push, ...(raw?.push || {}) },
+      email: { ...defaultSettings.email, ...(raw?.email || {}) },
+      sms: { ...defaultSettings.sms, ...(raw?.sms || {}) }
+    }
 
     res.json({ settings })
   } catch (error) {
@@ -231,4 +239,3 @@ router.patch('/notifications/mark-all-read', async (req, res) => {
 })
 
 export default router
-

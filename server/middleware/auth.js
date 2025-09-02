@@ -6,12 +6,15 @@ if (!JWT_SECRET) {
 }
 
 export default async function authenticate(req, res, next) {
-  // Simple header-based auth for tests
-  const testUserId = req.headers['x-user-id']
-  if (testUserId) {
-    req.user = { id: testUserId }
-    req.userId = testUserId
-    return next()
+  // Simple header-based auth for tests (dev-only or explicitly enabled)
+  const allowHeaderBypass = process.env.NODE_ENV === 'development' || process.env.ALLOW_HEADER_AUTH === 'true'
+  if (allowHeaderBypass) {
+    const testUserId = req.headers['x-user-id']
+    if (testUserId) {
+      req.user = { id: testUserId }
+      req.userId = testUserId
+      return next()
+    }
   }
 
   const authHeader = req.headers.authorization
