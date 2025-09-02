@@ -93,13 +93,13 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
           <div className="grid grid-cols-2 gap-4">
             <div className="text-center">
               <p className="text-2xl font-medium text-success">
-                {currencySymbol}{totalOwed.toFixed(2)}
+                {currencySymbol}{summary.totalReceived.toFixed(2)}
               </p>
               <p className="text-sm text-muted-foreground">You are owed</p>
             </div>
             <div className="text-center">
               <p className="text-2xl font-medium text-destructive">
-                {currencySymbol}{totalOwes.toFixed(2)}
+                {currencySymbol}{summary.totalSent.toFixed(2)}
               </p>
               <p className="text-sm text-muted-foreground">You owe</p>
             </div>
