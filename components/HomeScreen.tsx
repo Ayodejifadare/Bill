@@ -84,26 +84,26 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
       {/* Content Container */}
       <div className="px-4 space-y-6">
 
-        {/* Balance Card */}
-        {(summary.totalReceived > 0 || summary.totalSent > 0) && (
-          <Card className="p-4">
-            <h3 className="font-medium mb-3">Your Balance</h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="text-center">
-                <p className="text-2xl font-medium text-success">
-                  {currencySymbol}{summary.totalReceived.toFixed(2)}
-                </p>
-                <p className="text-sm text-muted-foreground">You are owed</p>
-              </div>
-              <div className="text-center">
-                <p className="text-2xl font-medium text-destructive">
-                  {currencySymbol}{summary.totalSent.toFixed(2)}
-                </p>
-                <p className="text-sm text-muted-foreground">You owe</p>
-              </div>
+        {/* Content Container */}
+      <div className="px-4 space-y-6">
+        {/* Balance Card - always visible */}
+        <Card className="p-4">
+          <h3 className="font-medium mb-3">Your Balance</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="text-center">
+              <p className="text-2xl font-medium text-success">
+                {currencySymbol}{totalOwed.toFixed(2)}
+              </p>
+              <p className="text-sm text-muted-foreground">You are owed</p>
             </div>
-          </Card>
-        )}
+            <div className="text-center">
+              <p className="text-2xl font-medium text-destructive">
+                {currencySymbol}{totalOwes.toFixed(2)}
+              </p>
+              <p className="text-sm text-muted-foreground">You owe</p>
+            </div>
+          </div>
+        </Card>
 
         {/* Quick Actions */}
         <div>
