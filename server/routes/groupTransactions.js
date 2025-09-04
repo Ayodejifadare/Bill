@@ -57,15 +57,12 @@ router.get('/transactions', async (req, res) => {
 // POST /split-bill - create a bill split transaction
 router.post('/split-bill', async (req, res) => {
   try {
-    const { amount, description = '', participants = [] } = req.body || {}
+    const { amount, description = '', participants } = req.body || {}
 
-    if (!amount || isNaN(amount) || amount <= 0) {
-      return res.status(400).json({ error: 'Valid amount is required' })
-    }
-    if (!Array.isArray(participants) || participants.length === 0) {
+    if (amount === undefined || isNaN(amount) || amount <= 0) {
       return res
         .status(400)
-        .json({ error: 'Participants array with at least one member is required' })
+        .json({ error: 'Amount is required and must be a positive number' })
     }
 
     // Ensure group exists and get members
@@ -79,11 +76,24 @@ router.post('/split-bill', async (req, res) => {
 
     const memberIds = group.members.map((m) => m.userId)
 
-    // Ensure current user is included as payer
     const payerId = req.user.id
-    const allParticipants = participants.includes(payerId)
-      ? participants
-      : [payerId, ...participants]
+    let participantIds
+    if (participants === undefined) {
+      participantIds = memberIds.filter((id) => id !== payerId)
+    } else {
+      if (!Array.isArray(participants) || participants.length === 0) {
+        return res
+          .status(400)
+          .json({
+            error: 'Participants must be a non-empty array of user IDs or omitted'
+          })
+      }
+      participantIds = participants
+    }
+
+    const allParticipants = participantIds.includes(payerId)
+      ? participantIds
+      : [payerId, ...participantIds]
 
     // Verify all participants are members of the group
     const invalid = allParticipants.find((id) => !memberIds.includes(id))

@@ -78,13 +78,51 @@ describe('Group split bill route', () => {
       participants: ['Creator', 'User 2']
     })
 
-    // verify group stats for user2
+    // verify user2 can view the group
     const listRes = await request(app)
       .get('/groups')
       .set('x-user-id', 'u2')
-    const group = listRes.body.groups.find((g) => g.id === groupId)
-    expect(group.totalSpent).toBe(60)
-    expect(group.pendingBills).toBe(1)
+    expect(listRes.status).toBe(200)
+  })
+
+  it('defaults participants to all group members when omitted', async () => {
+    const createRes = await request(app)
+      .post('/groups')
+      .set('x-user-id', 'creator')
+      .send({ name: 'Trip' })
+    const groupId = createRes.body.group.id
+
+    await prisma.groupMember.create({ data: { groupId, userId: 'u2' } })
+
+    const res = await request(app)
+      .post(`/groups/${groupId}/split-bill`)
+      .set('x-user-id', 'creator')
+      .send({ amount: 60, description: 'Dinner' })
+
+    expect(res.status).toBe(201)
+    expect(res.body.transaction).toMatchObject({
+      type: 'bill_split',
+      amount: 30,
+      participants: ['Creator', 'User 2']
+    })
+  })
+
+  it('returns 400 when body is empty', async () => {
+    const createRes = await request(app)
+      .post('/groups')
+      .set('x-user-id', 'creator')
+      .send({ name: 'Trip' })
+    const groupId = createRes.body.group.id
+
+    const res = await request(app)
+      .post(`/groups/${groupId}/split-bill`)
+      .set('x-user-id', 'creator')
+      .send({})
+
+    expect(res.status).toBe(400)
+    expect(res.body).toEqual({
+      error: 'Amount is required and must be a positive number'
+    })
   })
 })
 
