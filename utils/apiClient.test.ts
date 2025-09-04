@@ -1,10 +1,18 @@
 import { describe, beforeEach, it, expect, vi } from 'vitest';
 
 let mockUseMockApi = false;
+let mockUseDevAuth = false;
+let mockDevUserId = '';
 vi.mock('./config', () => ({
   apiBaseUrl: 'http://example.com',
   get useMockApi() {
     return mockUseMockApi;
+  },
+  get useDevAuth() {
+    return mockUseDevAuth;
+  },
+  get devUserId() {
+    return mockDevUserId;
   },
 }));
 
@@ -13,6 +21,8 @@ import { apiClient } from './apiClient';
 describe('apiClient', () => {
   beforeEach(() => {
     mockUseMockApi = false;
+    mockUseDevAuth = false;
+    mockDevUserId = '';
     const store: Record<string, string> = {};
     // simple in-memory localStorage mock
     globalThis.localStorage = {
@@ -119,6 +129,36 @@ describe('apiClient', () => {
         name: 'Demo User',
         phone: '+123',
       },
+    });
+  });
+
+  describe('dev auth x-user-id header', () => {
+    it.each([
+      { label: 'env devUserId', envId: 'env-123', storedUser: null, expected: 'env-123' },
+      { label: 'localStorage user id', envId: '', storedUser: { id: 'local-456' }, expected: 'local-456' },
+    ])('appends x-user-id header when %s is used', async ({ envId, storedUser, expected }) => {
+      mockUseDevAuth = true;
+      const prevDevUserId = mockDevUserId;
+      try {
+        mockDevUserId = envId;
+        if (storedUser) {
+          localStorage.setItem('biltip_user', JSON.stringify(storedUser));
+        }
+
+        await apiClient('/test');
+
+        expect(fetch).toHaveBeenCalledWith(
+          'http://example.com/test',
+          expect.objectContaining({
+            headers: expect.objectContaining({ 'x-user-id': expected }),
+          }),
+        );
+
+        const [, options] = (fetch as any).mock.calls[0];
+        expect(options.headers.Authorization).toBeUndefined();
+      } finally {
+        mockDevUserId = prevDevUserId;
+      }
     });
   });
 
