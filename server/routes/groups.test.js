@@ -9,6 +9,7 @@ import { describe, it, expect, beforeEach, afterAll, beforeAll } from 'vitest'
 import { execSync } from 'child_process'
 import path from 'path'
 import fs from 'fs'
+import { formatDistanceToNow } from 'date-fns'
 
 describe('Group join/leave routes', () => {
   let app
@@ -279,12 +280,17 @@ describe('Group join/leave routes', () => {
 
     expect(res.status).toBe(200)
     const group = res.body.group
+    const storedGroup = await prisma.group.findUnique({ where: { id: groupId } })
+    const expectedCreatedDate = formatDistanceToNow(storedGroup.createdAt, {
+      addSuffix: true,
+    })
     expect(group).toMatchObject({
       id: groupId,
       totalMembers: 3,
       totalSpent: 10,
       hasMoreTransactions: false,
       color: 'bg-purple-500',
+      createdDate: expectedCreatedDate,
     })
     expect(group.members).toEqual(
       expect.arrayContaining([
