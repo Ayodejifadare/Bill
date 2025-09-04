@@ -530,16 +530,18 @@ class ContactsAPI {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ contacts })
       });
-      const results = Array.isArray(data.contacts)
-        ? data.contacts
-        : Array.isArray(data.matchedContacts)
-          ? data.matchedContacts
-          : [];
+
+      const results = Array.isArray(data?.contacts) ? data.contacts : [];
 
       return results.map((c: any, index: number): MatchedContact => ({
         id: c.id || c.contactId || contacts[index]?.id || `contact_${index}`,
         name: c.name || c.displayName || contacts[index]?.name || 'Unknown',
-        phone: c.phone || c.phoneNumber || c.phoneNumbers?.[0] || contacts[index]?.phoneNumbers?.[0] || '',
+        phone:
+          c.phone ||
+          c.phoneNumber ||
+          c.phoneNumbers?.[0] ||
+          contacts[index]?.phoneNumbers?.[0] ||
+          '',
         email: c.email || c.emails?.[0] || contacts[index]?.emails?.[0],
         status: c.status === 'existing_user' ? 'existing_user' : 'not_on_app',
         userId: c.userId,
@@ -547,9 +549,15 @@ class ContactsAPI {
         mutualFriends: typeof c.mutualFriends === 'number' ? c.mutualFriends : undefined,
         avatar: c.avatar
       }));
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to match contacts:', error);
-      throw error instanceof Error ? error : new Error('Network error');
+      if (error instanceof Error) {
+        if (error.name === 'TypeError' || error.message === 'Failed to fetch') {
+          throw new Error('Network error');
+        }
+        throw error;
+      }
+      throw new Error('Network error');
     }
   }
 }

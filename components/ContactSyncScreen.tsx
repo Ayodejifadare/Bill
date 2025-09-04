@@ -5,8 +5,6 @@ import { PermissionRequestScreen } from './contact-sync/PermissionRequestScreen'
 import { SyncingProgressScreen } from './contact-sync/SyncingProgressScreen';
 import { ContactResultsScreen } from './contact-sync/ContactResultsScreen';
 import { MatchedContact, ContactSyncScreenProps, SyncStep } from './contact-sync/types';
-import { mockMatchedContacts } from './contact-sync/constants';
-import { useMockApi } from '../utils/config';
 
 export function ContactSyncScreen({ onNavigate }: ContactSyncScreenProps) {
   const [syncStep, setSyncStep] = useState<SyncStep>('permission');
@@ -17,6 +15,7 @@ export function ContactSyncScreen({ onNavigate }: ContactSyncScreenProps) {
   const [isInviting, setIsInviting] = useState(false);
   const [syncStartTime, setSyncStartTime] = useState<number | null>(null);
   const [contactCount, setContactCount] = useState<number>(0);
+  const [syncMethod, setSyncMethod] = useState<'contacts' | 'file' | 'demo'>('contacts');
 
   // Check if contacts API is available
   const contactsSupported = contactsAPI.isSupported();
@@ -67,30 +66,12 @@ export function ContactSyncScreen({ onNavigate }: ContactSyncScreenProps) {
     try {
       updateSyncProgress(10, 'Accessing your contacts...');
       
-      let contacts: Contact[] = [];
-      let matched: MatchedContact[] = [];
-
-      if (useMockApi) {
-        contacts = mockMatchedContacts.map(c => ({
-          id: c.id,
-          name: c.name,
-          phoneNumbers: c.phone ? [c.phone] : [],
-          emails: c.email ? [c.email] : [],
-          displayName: c.name
-        }));
-        setContactCount(contacts.length);
-        updateSyncProgress(40, `Found ${contacts.length} contacts`);
-        await new Promise(resolve => setTimeout(resolve, 500));
-        updateSyncProgress(70, 'Matching with Biltip users...');
-        matched = mockMatchedContacts;
-      } else {
-        contacts = await contactsAPI.getContacts();
-        setContactCount(contacts.length);
-        updateSyncProgress(40, `Found ${contacts.length} contacts`);
-        await new Promise(resolve => setTimeout(resolve, 500));
-        updateSyncProgress(70, 'Matching with Biltip users...');
-        matched = await contactsAPI.matchContacts(contacts);
-      }
+      const contacts = await contactsAPI.getContacts();
+      setContactCount(contacts.length);
+      updateSyncProgress(40, `Found ${contacts.length} contacts`);
+      await new Promise(resolve => setTimeout(resolve, 500));
+      updateSyncProgress(70, 'Matching with Biltip users...');
+      const matched = await contactsAPI.matchContacts(contacts);
 
       updateSyncProgress(90, 'Almost done...');
 
@@ -101,6 +82,7 @@ export function ContactSyncScreen({ onNavigate }: ContactSyncScreenProps) {
 
       setTimeout(() => {
         setMatchedContacts(matched);
+        setSyncMethod('contacts');
         setSyncStep('results');
 
         const existingUsers = matched.filter(c => c.status === 'existing_user').length;
@@ -119,15 +101,15 @@ export function ContactSyncScreen({ onNavigate }: ContactSyncScreenProps) {
         }
       }, 500);
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Contact sync failed:', error);
       setSyncStep('permission');
       setHasPermission(false);
-      
+
       // Better error messaging
       if (error.message?.includes('Permission denied')) {
         showContactError('permission-denied');
-      } else if (error.message?.includes('Network')) {
+      } else if (error.message === 'Network error' || error.message?.includes('Network')) {
         showContactError('network-failure');
       } else {
         showContactError('Contact sync failed. Please try again.');
@@ -173,25 +155,6 @@ export function ContactSyncScreen({ onNavigate }: ContactSyncScreenProps) {
   // Enhanced file import with better UX
   const handleFileImport = async () => {
     try {
-      if (useMockApi) {
-        setSyncStep('syncing');
-        setSyncProgress(0);
-        setSyncStartTime(Date.now());
-        updateSyncProgress(10, 'Opening file picker...');
-        await new Promise(resolve => setTimeout(resolve, 500));
-        const matched = mockMatchedContacts;
-        setContactCount(matched.length);
-        updateSyncProgress(90, 'Finalizing...');
-        setTimeout(() => {
-          updateSyncProgress(100);
-          setMatchedContacts(matched);
-          setSyncStep('results');
-          setHasPermission(true);
-          toast.success(`Imported ${matched.length} contacts successfully!`);
-        }, 500);
-        return;
-      }
-
       setSyncStep('syncing');
       setSyncProgress(0);
       setSyncStartTime(Date.now());
@@ -210,6 +173,7 @@ export function ContactSyncScreen({ onNavigate }: ContactSyncScreenProps) {
       setTimeout(() => {
         updateSyncProgress(100);
         setMatchedContacts(matched);
+        setSyncMethod('file');
         setSyncStep('results');
         setHasPermission(true);
 
@@ -223,11 +187,13 @@ export function ContactSyncScreen({ onNavigate }: ContactSyncScreenProps) {
         }
       }, 500);
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('File import failed:', error);
       setSyncStep('permission');
 
-      if (error.message === 'CROSS_ORIGIN_RESTRICTION') {
+      if (error.message === 'Network error' || error.message?.includes('Network')) {
+        showContactError('network-failure');
+      } else if (error.message === 'CROSS_ORIGIN_RESTRICTION') {
         showContactError('File picker not available in this environment. Please try the upload option.');
       } else if (error.name === 'SecurityError') {
         showContactError('permission-denied');
@@ -273,6 +239,7 @@ export function ContactSyncScreen({ onNavigate }: ContactSyncScreenProps) {
       updateSyncProgress(100);
 
       setMatchedContacts(matched);
+      setSyncMethod('demo');
       setSyncStep('results');
       setHasPermission(true);
 
@@ -300,6 +267,7 @@ export function ContactSyncScreen({ onNavigate }: ContactSyncScreenProps) {
     setSyncProgress(0);
     setContactCount(0);
     setSyncStartTime(null);
+    setSyncMethod('contacts');
   };
 
   // Render different screens based on sync step
@@ -342,7 +310,7 @@ export function ContactSyncScreen({ onNavigate }: ContactSyncScreenProps) {
           isInviting={isInviting}
           setIsInviting={setIsInviting}
           onRetrySync={handleRetrySync}
-          syncMethod={hasPermission ? 'contacts' : 'demo'}
+          syncMethod={syncMethod}
         />
       );
 
