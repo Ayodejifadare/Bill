@@ -12,6 +12,7 @@ import transactionRoutes from './routes/transactions.js'
 import billSplitRoutes from './routes/billSplits.js'
 import friendRoutes from './routes/friends.js'
 import groupRoutes from './routes/groups.js'
+import settingsRoutes from './routes/settings.js'
 
 // Load environment variables
 dotenv.config()
@@ -49,6 +50,7 @@ app.use((req, res, next) => {
 // Routes
 app.use('/api/auth', authRoutes)
 app.use('/api/users', userRoutes)
+app.use('/api/users', settingsRoutes)
 app.use('/api/transactions', transactionRoutes)
 app.use('/api/bill-splits', billSplitRoutes)
 app.use('/api/friends', friendRoutes)
