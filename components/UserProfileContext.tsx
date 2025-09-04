@@ -57,11 +57,43 @@ interface AppSettings {
   currency: 'USD' | 'NGN';
 }
 
+interface NotificationSettings {
+  pushNotifications: boolean;
+  emailNotifications: boolean;
+  whatsappNotifications: boolean;
+  smsNotifications: boolean;
+  transactionAlerts: boolean;
+  friendRequests: boolean;
+  billReminders: boolean;
+}
+
+interface PrivacySettings {
+  biometricAuth: boolean;
+  twoFactorAuth: boolean;
+  publicProfile: boolean;
+  shareActivity: boolean;
+}
+
+interface PreferenceSettings {
+  language: string;
+  currency: string;
+  dateFormat: string;
+}
+
+interface UserSettings {
+  notifications: NotificationSettings;
+  privacy: PrivacySettings;
+  preferences: PreferenceSettings;
+}
+
 interface UserProfileContextType {
   userProfile: UserProfile;
   appSettings: AppSettings;
+  userSettings: UserSettings;
   refreshUserProfile: () => Promise<void>;
+  fetchUserSettings: () => Promise<void>;
   updateUserProfile: (profile: Partial<UserProfile>) => Promise<void>;
+  updateUserSettings: (settings: Partial<UserSettings>) => Promise<void>;
   updateAppSettings: (settings: Partial<AppSettings>) => void;
   addBankAccount: (account: Omit<LinkedBankAccount, 'id' | 'addedDate'>) => void;
   removeBankAccount: (accountId: string) => void;
@@ -174,6 +206,28 @@ export const getSavedSettings = (): AppSettings => {
 export function UserProfileProvider({ children }: { children: ReactNode }) {
   const [userProfile, setUserProfile] = useState<UserProfile>(mockUserProfile);
   const [appSettings, setAppSettings] = useState<AppSettings>(getSavedSettings());
+  const [userSettings, setUserSettings] = useState<UserSettings>({
+    notifications: {
+      pushNotifications: true,
+      emailNotifications: false,
+      whatsappNotifications: true,
+      smsNotifications: true,
+      transactionAlerts: true,
+      friendRequests: true,
+      billReminders: true,
+    },
+    privacy: {
+      biometricAuth: true,
+      twoFactorAuth: false,
+      publicProfile: false,
+      shareActivity: true,
+    },
+    preferences: {
+      language: 'en',
+      currency: 'USD',
+      dateFormat: 'MM/DD/YYYY',
+    },
+  });
   const refreshUserProfile = async () => {
     try {
       const storedAuth = localStorage.getItem('biltip_auth');
@@ -201,8 +255,44 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const fetchUserSettings = async () => {
+    try {
+      const storedAuth = localStorage.getItem('biltip_auth');
+      const token = storedAuth ? JSON.parse(storedAuth).token : null;
+      const userId = userProfile.id;
+      if (!token || !userId) return;
+
+      const response = await fetch(`/api/users/${userId}/settings`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch user settings');
+      }
+      const data = await response.json();
+      setUserSettings(prev => ({
+        notifications: {
+          ...prev.notifications,
+          ...(data.settings?.notifications ?? {}),
+        },
+        privacy: {
+          ...prev.privacy,
+          ...(data.settings?.privacy ?? {}),
+        },
+        preferences: {
+          ...prev.preferences,
+          ...(data.settings?.preferences ?? {}),
+        },
+      }));
+    } catch (error) {
+      console.error('Error fetching user settings:', error);
+    }
+  };
+
   useEffect(() => {
     refreshUserProfile();
+    fetchUserSettings();
   }, []);
 
   const updateUserProfile = async (profileUpdate: Partial<UserProfile>) => {
@@ -234,6 +324,44 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
       });
     } catch (error) {
       console.error('Error updating user profile:', error);
+    }
+  };
+
+  const updateUserSettings = async (settingsUpdate: Partial<UserSettings>) => {
+    try {
+      const storedAuth = localStorage.getItem('biltip_auth');
+      const token = storedAuth ? JSON.parse(storedAuth).token : null;
+      const userId = userProfile.id;
+      if (!token || !userId) return;
+
+      const response = await fetch(`/api/users/${userId}/settings`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(settingsUpdate),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to update user settings');
+      }
+      const data = await response.json();
+      setUserSettings(prev => ({
+        notifications: {
+          ...prev.notifications,
+          ...(data.settings?.notifications ?? {}),
+        },
+        privacy: {
+          ...prev.privacy,
+          ...(data.settings?.privacy ?? {}),
+        },
+        preferences: {
+          ...prev.preferences,
+          ...(data.settings?.preferences ?? {}),
+        },
+      }));
+    } catch (error) {
+      console.error('Error updating user settings:', error);
     }
   };
 
@@ -288,8 +416,11 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
       value={{
         userProfile,
         appSettings,
+        userSettings,
         refreshUserProfile,
+        fetchUserSettings,
         updateUserProfile,
+        updateUserSettings,
         updateAppSettings,
         addBankAccount,
         removeBankAccount,
