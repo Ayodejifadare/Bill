@@ -75,7 +75,11 @@ export function GroupAccountScreen({ groupId, onNavigate }: GroupAccountScreenPr
     if (!groupId) return;
     try {
       const data = await apiClient(`/api/groups/${groupId}/accounts`);
-      setGroupAccounts(data.accounts || []);
+      const accounts = (data.accounts || []).map((a: any) => ({
+        ...a,
+        createdDate: a.createdDate || a.createdAt,
+      }));
+      setGroupAccounts(accounts);
     } catch (error) {
       toast.error('Failed to load group accounts');
     }

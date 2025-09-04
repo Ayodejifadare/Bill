@@ -64,6 +64,7 @@ const formatAccount = (account) => ({
   id: account.id,
   groupId: account.groupId,
   createdById: account.createdById,
+  createdBy: account.createdBy?.name,
   name: account.name,
   type: account.type === 'BANK' ? 'bank' : 'mobile_money',
   accountType: account.accountType,
@@ -75,14 +76,15 @@ const formatAccount = (account) => ({
   provider: account.provider,
   phoneNumber: account.phoneNumber,
   isDefault: account.isDefault,
-  createdAt: account.createdAt
+  createdDate: account.createdAt.toISOString()
 })
 
 // List all accounts for a specific group
 router.get('/', async (req, res) => {
   try {
     const accounts = await req.prisma.groupAccount.findMany({
-      where: { groupId: req.params.groupId }
+      where: { groupId: req.params.groupId },
+      include: { createdBy: { select: { name: true } } }
     })
     res.json({ accounts: accounts.map(formatAccount) })
   } catch (error) {
@@ -131,7 +133,8 @@ router.post('/', requireGroupAdmin, async (req, res) => {
           type === 'bank'
             ? `${req.body.accountName} - ${req.body.bank}`
             : `${req.body.phoneNumber} - ${req.body.provider}`
-      }
+      },
+      include: { createdBy: { select: { name: true } } }
     })
 
     res.status(201).json({ account: formatAccount(account) })
@@ -160,7 +163,8 @@ router.put('/:accountId', requireGroupAdmin, async (req, res) => {
 
     const updated = await req.prisma.groupAccount.update({
       where: { id: account.id },
-      data: { ...req.body }
+      data: { ...req.body },
+      include: { createdBy: { select: { name: true } } }
     })
 
     res.json({ account: formatAccount(updated) })

@@ -111,7 +111,11 @@ export function VirtualAccountScreen({ groupId, onNavigate }: VirtualAccountScre
     if (!groupId) return;
     try {
       const data = await apiClient(`/api/groups/${groupId}/accounts`);
-      setExternalAccounts(data.accounts || []);
+      const accounts = (data.accounts || []).map((a: any) => ({
+        ...a,
+        createdDate: a.createdDate || a.createdAt,
+      }));
+      setExternalAccounts(accounts);
     } catch (error) {
       toast.error('Failed to load group accounts');
     }
