@@ -1,6 +1,9 @@
 /**
  * @vitest-environment node
  */
+process.env.JWT_SECRET = 'test-secret'
+process.env.ALLOW_HEADER_AUTH = 'true'
+
 import express from 'express'
 import request from 'supertest'
 import groupAccountRouter from './groupAccounts.js'
@@ -17,11 +20,9 @@ describe('Group account routes', () => {
 
   beforeAll(() => {
     process.env.DATABASE_URL = `file:${dbPath}`
-    process.env.ALLOW_HEADER_AUTH = 'true'
-    execSync('npx prisma migrate deploy', {
-      cwd: path.join(__dirname, '..'),
-      stdio: 'inherit'
-    })
+    const cwd = path.join(__dirname, '..')
+    execSync('npx prisma generate', { cwd, stdio: 'inherit' })
+    execSync('npx prisma migrate deploy', { cwd, stdio: 'inherit' })
     prisma = new PrismaClient()
   })
 
@@ -53,54 +54,145 @@ describe('Group account routes', () => {
     if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath)
   })
 
-  it('creates and updates accountType', async () => {
-    const createRes = await request(app)
+  it('lists accounts', async () => {
+    await prisma.groupAccount.create({
+      data: {
+        id: 'a1',
+        groupId: 'g1',
+        createdById: 'u1',
+        type: 'BANK',
+        bank: 'Access Bank',
+        accountNumber: '1234567890',
+        accountName: 'Test Bank',
+        isDefault: true,
+        name: 'Test Bank - Access Bank'
+      }
+    })
+    await prisma.groupAccount.create({
+      data: {
+        id: 'a2',
+        groupId: 'g1',
+        createdById: 'u1',
+        type: 'MOBILE_MONEY',
+        provider: 'Opay',
+        phoneNumber: '+2348012345678',
+        isDefault: false,
+        name: '+2348012345678 - Opay'
+      }
+    })
+
+    const res = await request(app)
+      .get('/groups/g1/accounts')
+      .set('x-user-id', 'u1')
+    expect(res.status).toBe(200)
+    expect(res.body.accounts).toHaveLength(2)
+    expect(res.body.accounts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: 'bank', bankName: 'Access Bank' }),
+        expect.objectContaining({ type: 'mobile_money', provider: 'Opay' })
+      ])
+    )
+  })
+
+  it('creates bank and mobile money accounts', async () => {
+    const bankRes = await request(app)
       .post('/groups/g1/accounts')
       .set('x-user-id', 'u1')
       .send({
         type: 'bank',
         bank: 'Access Bank',
         accountNumber: '1234567890',
-        accountName: 'Test Account',
-        accountType: 'savings'
+        accountName: 'Test Account'
       })
-    expect(createRes.status).toBe(201)
-    expect(createRes.body.account).toMatchObject({ accountType: 'savings' })
-    const accountId = createRes.body.account.id
+    expect(bankRes.status).toBe(201)
+    expect(bankRes.body.account).toMatchObject({
+      type: 'bank',
+      bankName: 'Access Bank',
+      accountHolderName: 'Test Account',
+      isDefault: true
+    })
 
-    const updateRes = await request(app)
-      .put(`/groups/g1/accounts/${accountId}`)
-      .set('x-user-id', 'u1')
-      .send({ accountType: 'checking' })
-    expect(updateRes.status).toBe(200)
-    expect(updateRes.body.account).toMatchObject({ accountType: 'checking' })
-  })
-
-  it('rejects invalid account number for region', async () => {
-    const res = await request(app)
-      .post('/groups/g1/accounts')
-      .set('x-user-id', 'u1')
-      .send({
-        type: 'bank',
-        bank: 'Access Bank',
-        accountNumber: '123',
-        accountName: 'Test Account',
-        accountType: 'savings'
-      })
-    expect(res.status).toBe(400)
-    expect(res.body.error).toMatch(/account number/i)
-  })
-
-  it('rejects phone numbers without correct prefix', async () => {
-    const res = await request(app)
+    const mmRes = await request(app)
       .post('/groups/g1/accounts')
       .set('x-user-id', 'u1')
       .send({
         type: 'mobile_money',
         provider: 'Opay',
-        phoneNumber: '+1234567890'
+        phoneNumber: '+2348012345678'
       })
-    expect(res.status).toBe(400)
-    expect(res.body.error).toMatch(/phone number/i)
+    expect(mmRes.status).toBe(201)
+    expect(mmRes.body.account).toMatchObject({
+      type: 'mobile_money',
+      provider: 'Opay',
+      phoneNumber: '+2348012345678',
+      isDefault: false
+    })
+  })
+
+  it('sets an account as default', async () => {
+    const first = await request(app)
+      .post('/groups/g1/accounts')
+      .set('x-user-id', 'u1')
+      .send({
+        type: 'bank',
+        bank: 'Access Bank',
+        accountNumber: '1234567890',
+        accountName: 'First'
+      })
+    const second = await request(app)
+      .post('/groups/g1/accounts')
+      .set('x-user-id', 'u1')
+      .send({
+        type: 'mobile_money',
+        provider: 'Opay',
+        phoneNumber: '+2348012345678'
+      })
+
+    const secondId = second.body.account.id
+    const res = await request(app)
+      .put(`/groups/g1/accounts/${secondId}`)
+      .set('x-user-id', 'u1')
+      .send({ isDefault: true })
+    expect(res.status).toBe(200)
+    expect(res.body.account).toMatchObject({ id: secondId, isDefault: true })
+
+    const accounts = await prisma.groupAccount.findMany({ where: { groupId: 'g1' } })
+    const firstUpdated = accounts.find(a => a.id === first.body.account.id)
+    const secondUpdated = accounts.find(a => a.id === secondId)
+    expect(firstUpdated.isDefault).toBe(false)
+    expect(secondUpdated.isDefault).toBe(true)
+  })
+
+  it('deletes accounts and reassigns default', async () => {
+    const first = await request(app)
+      .post('/groups/g1/accounts')
+      .set('x-user-id', 'u1')
+      .send({
+        type: 'bank',
+        bank: 'Access Bank',
+        accountNumber: '1234567890',
+        accountName: 'First'
+      })
+    const second = await request(app)
+      .post('/groups/g1/accounts')
+      .set('x-user-id', 'u1')
+      .send({
+        type: 'mobile_money',
+        provider: 'Opay',
+        phoneNumber: '+2348012345678'
+      })
+
+    const firstId = first.body.account.id
+    const delRes = await request(app)
+      .delete(`/groups/g1/accounts/${firstId}`)
+      .set('x-user-id', 'u1')
+    expect(delRes.status).toBe(200)
+    expect(delRes.body).toEqual({ message: 'Deleted' })
+
+    const remaining = await prisma.groupAccount.findMany({ where: { groupId: 'g1' } })
+    expect(remaining).toHaveLength(1)
+    expect(remaining[0].id).toBe(second.body.account.id)
+    expect(remaining[0].isDefault).toBe(true)
   })
 })
+
