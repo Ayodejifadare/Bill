@@ -1,5 +1,10 @@
 import express from 'express'
 import authenticate from '../middleware/auth.js'
+import {
+  getRegionConfig,
+  validateBankAccountNumber,
+  hasValidPhonePrefix
+} from '../utils/regions.js'
 
 // Use mergeParams to access groupId from parent router
 const router = express.Router({ mergeParams: true })
@@ -97,15 +102,31 @@ router.get('/', async (req, res) => {
 router.post('/', requireGroupAdmin, async (req, res) => {
   try {
     const { type, accountType } = req.body
+
+    const user = await req.prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: { region: true }
+    })
+    const region = user?.region
+
     if (type === 'bank') {
       const { bank, accountNumber, accountName } = req.body
       if (!bank || !accountNumber || !accountName || !isValidBank(bank)) {
         return res.status(400).json({ error: 'Invalid bank details' })
       }
+      if (!validateBankAccountNumber(region, accountNumber)) {
+        return res.status(400).json({ error: 'Invalid account number for region' })
+      }
     } else if (type === 'mobile_money') {
       const { provider, phoneNumber } = req.body
       if (!provider || !phoneNumber || !isValidProvider(provider)) {
         return res.status(400).json({ error: 'Invalid provider details' })
+      }
+      if (!hasValidPhonePrefix(region, phoneNumber)) {
+        const prefix = getRegionConfig(region).phoneCountryCode
+        return res
+          .status(400)
+          .json({ error: `Phone number must start with ${prefix}` })
       }
     } else {
       return res.status(400).json({ error: 'Invalid account type' })
