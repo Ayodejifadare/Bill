@@ -5,6 +5,10 @@ import {
   validateBankAccountNumber,
   hasValidPhonePrefix
 } from '../utils/regions.js'
+import {
+  BANK_DIRECTORY_BY_REGION,
+  MOBILE_MONEY_PROVIDERS_BY_REGION
+} from '../../shared/financial-data.js'
 
 // Use mergeParams to access groupId from parent router
 const router = express.Router({ mergeParams: true })
@@ -30,39 +34,16 @@ const requireGroupAdmin = async (req, res, next) => {
   }
 }
 
-const NIGERIAN_BANKS = [
-  { code: '044', name: 'Access Bank' },
-  { code: '063', name: 'Access Bank (Diamond)' },
-  { code: '023', name: 'Citi Bank' },
-  { code: '050', name: 'Ecobank Nigeria' },
-  { code: '070', name: 'Fidelity Bank' },
-  { code: '011', name: 'First Bank of Nigeria' },
-  { code: '214', name: 'First City Monument Bank' },
-  { code: '058', name: 'GTBank' },
-  { code: '221', name: 'Stanbic IBTC Bank' },
-  { code: '033', name: 'United Bank for Africa' },
-  { code: '057', name: 'Zenith Bank' }
-]
-
-const US_BANKS = [
-  { code: '021000021', name: 'Chase Bank' },
-  { code: '026009593', name: 'Bank of America' },
-  { code: '121000248', name: 'Wells Fargo' }
-]
-
-const MOBILE_MONEY_PROVIDERS = [
-  { code: 'opay', name: 'Opay' },
-  { code: 'palmpay', name: 'PalmPay' },
-  { code: 'kuda', name: 'Kuda Bank' },
-  { code: 'moniepoint', name: 'Moniepoint' }
-]
-
 const isValidBank = (bank) => {
-  return [...NIGERIAN_BANKS, ...US_BANKS].some((b) => b.name === bank)
+  return Object.values(BANK_DIRECTORY_BY_REGION)
+    .flat()
+    .some((b) => b.name === bank)
 }
 
 const isValidProvider = (provider) => {
-  return MOBILE_MONEY_PROVIDERS.some((p) => p.name === provider)
+  return Object.values(MOBILE_MONEY_PROVIDERS_BY_REGION)
+    .flat()
+    .some((p) => p.name === provider)
 }
 
 const formatAccount = (account) => ({
