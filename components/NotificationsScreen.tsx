@@ -11,7 +11,7 @@ import { EmptyState } from './ui/empty-state';
 import { Alert, AlertDescription } from './ui/alert';
 import { ArrowLeft, Bell, Check, X, Users, DollarSign, AlertTriangle, MessageCircle, Mail, Smartphone, Settings } from 'lucide-react';
 import { toast } from 'sonner';
-import { apiClient } from '../utils/apiClient';
+import { apiClientWithRetry } from '../utils/apiClientWithRetry';
 
 interface Notification {
   id: string;
@@ -96,23 +96,6 @@ export function NotificationsScreen({ onNavigate }: NotificationsScreenProps) {
   const [loadingNotifications, setLoadingNotifications] = useState(false);
   const [notificationsError, setNotificationsError] = useState<string | null>(null);
 
-  const fetchWithRetry = async (
-    input: RequestInfo | URL,
-    init?: RequestInit,
-    retries = 3,
-    delay = 1000,
-  ): Promise<any> => {
-    try {
-      return await apiClient(input, init);
-    } catch (err) {
-      if (retries <= 1) {
-        throw err;
-      }
-      await new Promise((resolve) => setTimeout(resolve, delay));
-      return fetchWithRetry(input, init, retries - 1, delay * 2);
-    }
-  };
-
   const fetchNotifications = async (currentFilter = filter) => {
     setLoadingNotifications(true);
     try {
@@ -120,7 +103,7 @@ export function NotificationsScreen({ onNavigate }: NotificationsScreenProps) {
         currentFilter === 'unread'
           ? '/api/notifications?filter=unread'
           : '/api/notifications';
-      const data = await fetchWithRetry(endpoint);
+      const data = await apiClientWithRetry(endpoint);
       if (Array.isArray(data?.notifications)) {
         const formatted = data.notifications.map((n: Notification) => ({
           ...n,
@@ -143,7 +126,7 @@ export function NotificationsScreen({ onNavigate }: NotificationsScreenProps) {
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const data = await fetchWithRetry('/api/notification-settings');
+        const data = await apiClientWithRetry('/api/notification-settings');
         if (data?.settings) {
           setNotificationSettings(data.settings);
         }
@@ -156,7 +139,7 @@ export function NotificationsScreen({ onNavigate }: NotificationsScreenProps) {
 
   const saveSettings = async (settings: NotificationSettings) => {
     try {
-      await fetchWithRetry('/api/notification-settings', {
+      await apiClientWithRetry('/api/notification-settings', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -219,7 +202,7 @@ export function NotificationsScreen({ onNavigate }: NotificationsScreenProps) {
 
   const markAsRead = async (id: string) => {
     try {
-      await fetchWithRetry(`/api/notifications/${id}/read`, {
+      await apiClientWithRetry(`/api/notifications/${id}/read`, {
         method: 'PATCH',
       });
       await fetchNotifications(filter);
@@ -230,7 +213,7 @@ export function NotificationsScreen({ onNavigate }: NotificationsScreenProps) {
 
   const markAllAsRead = async () => {
     try {
-      await fetchWithRetry('/api/notifications/mark-all-read', {
+      await apiClientWithRetry('/api/notifications/mark-all-read', {
         method: 'PATCH',
       });
       await fetchNotifications(filter);

@@ -3,7 +3,7 @@ import { Bell } from 'lucide-react';
 import { EventSourcePolyfill } from 'event-source-polyfill';
 import { Button } from './button';
 import { Alert, AlertDescription } from './alert';
-import { apiClient } from '../../utils/apiClient';
+import { apiClientWithRetry } from '../../utils/apiClientWithRetry';
 
 interface NotificationBellProps {
   onClick: () => void;
@@ -18,23 +18,6 @@ export function NotificationBell({ onClick }: NotificationBellProps) {
   const pollTimeout = useRef<NodeJS.Timeout | null>(null);
   const esRef = useRef<EventSource | null>(null);
   const baseInterval = 60000;
-
-  const fetchWithRetry = async (
-    input: RequestInfo | URL,
-    init?: RequestInit,
-    retries = 3,
-    delay = 1000,
-  ): Promise<any> => {
-    try {
-      return await apiClient(input, init);
-    } catch (err) {
-      if (retries <= 1) {
-        throw err;
-      }
-      await new Promise((resolve) => setTimeout(resolve, delay));
-      return fetchWithRetry(input, init, retries - 1, delay * 2);
-    }
-  };
 
   const scheduleFetch = (delay: number) => {
     if (pollTimeout.current) {
@@ -87,7 +70,7 @@ export function NotificationBell({ onClick }: NotificationBellProps) {
       setErrorCount(0);
     }
     try {
-      const data = await fetchWithRetry('/api/notifications/unread');
+      const data = await apiClientWithRetry('/api/notifications/unread');
       setUnread(data?.count || 0);
       setError(null);
       setErrorCount(0);
