@@ -213,7 +213,7 @@ router.post('/', authenticate, async (req, res) => {
       include: {
         members: {
           include: {
-            user: { select: { id: true, name: true, avatar: true } }
+            user: { select: { id: true, name: true, avatar: true, phone: true } }
           }
         }
       }
@@ -224,6 +224,14 @@ router.post('/', authenticate, async (req, res) => {
       fullGroup,
       req.user.id
     )
+    // Return full member objects so the client can immediately navigate
+    // to the group detail view with member information available.
+    formattedGroup.members = fullGroup.members.map((m) => ({
+      id: m.user.id,
+      name: m.user.name,
+      avatar: m.user.avatar || '',
+      phoneNumber: m.user.phone || ''
+    }))
 
     res.status(201).json({ group: formattedGroup })
   } catch (error) {
