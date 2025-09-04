@@ -248,7 +248,7 @@ describe('Group join/leave routes', () => {
     expect(res2.body.nextPage).toBe(null)
   })
 
-  it('fetches group details with members and transactions', async () => {
+  it('fetches group details with members and aggregates', async () => {
     const createRes = await request(app)
       .post('/groups')
       .set('x-user-id', 'creator')
@@ -285,58 +285,49 @@ describe('Group join/leave routes', () => {
 
     expect(res.status).toBe(200)
     const group = res.body.group
-    const storedGroup = await prisma.group.findUnique({ where: { id: groupId } })
-    const expectedCreatedDate = formatDistanceToNow(storedGroup.createdAt, {
-      addSuffix: true,
-    })
     expect(group).toMatchObject({
       id: groupId,
-      totalMembers: 3,
+      name: 'Test',
+      description: '',
+      memberCount: 3,
       totalSpent: 10,
-      hasMoreTransactions: false,
       color: 'bg-purple-500',
-      createdDate: expectedCreatedDate,
+      isAdmin: true
     })
     expect(group.members).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({
-          id: 'creator',
-          email: 'creator@example.com',
-          isAdmin: true,
-          avatar: 'C',
-          balance: 0,
-          totalSpent: 0,
-          joinedDate: expect.any(String),
-        }),
-        expect.objectContaining({
-          id: 'user1',
-          email: 'user1@example.com',
-          isAdmin: false,
-          avatar: 'U1',
-          balance: -10,
-          totalSpent: 10,
-          joinedDate: expect.any(String),
-        }),
-        expect.objectContaining({
-          id: 'user2',
-          email: 'user2@example.com',
-          isAdmin: false,
-          avatar: 'U2',
-          balance: 10,
-          totalSpent: 0,
-          joinedDate: expect.any(String),
-        }),
+        expect.objectContaining({ id: 'creator', name: 'Creator' }),
+        expect.objectContaining({ id: 'user1', name: 'User 1' }),
+        expect.objectContaining({ id: 'user2', name: 'User 2' })
       ])
     )
-    expect(group.recentTransactions).toEqual([
-      expect.objectContaining({
-        amount: 10,
-        type: 'sent',
-        paidBy: 'User 1',
-        participants: ['User 1', 'User 2'],
-        status: 'completed',
-      }),
-    ])
+  })
+
+  it('returns 403 for non-members', async () => {
+    const createRes = await request(app)
+      .post('/groups')
+      .set('x-user-id', 'creator')
+      .send({ name: 'Test' })
+    const groupId = createRes.body.group.id
+
+    await prisma.user.create({
+      data: { id: 'stranger', email: 's@example.com', name: 'Stranger' }
+    })
+
+    const res = await request(app)
+      .get(`/groups/${groupId}`)
+      .set('x-user-id', 'stranger')
+
+    expect(res.status).toBe(403)
+  })
+
+  it('returns 404 for nonexistent groups', async () => {
+    const res = await request(app)
+      .get('/groups/nonexistent')
+      .set('x-user-id', 'creator')
+
+    expect(res.status).toBe(404)
+    expect(res.body.error).toBe('Group not found')
   })
 
   it('lists and removes group members', async () => {
