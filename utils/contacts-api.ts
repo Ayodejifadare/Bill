@@ -4,6 +4,7 @@
 import type { MatchedContact } from '../components/contact-sync/types';
 import { toast } from 'sonner';
 import { apiClient } from './apiClient';
+import { useMockApi } from './config';
 
 export type ContactErrorCode =
   | 'permission-denied'
@@ -524,6 +525,33 @@ class ContactsAPI {
 
   // Match contacts with existing users by calling the backend
   async matchContacts(contacts: Contact[]): Promise<MatchedContact[]> {
+    if (useMockApi) {
+      const data = await apiClient('/contacts/match', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contacts })
+      });
+
+      const results = Array.isArray(data?.contacts) ? data.contacts : [];
+
+      return results.map((c: any, index: number): MatchedContact => ({
+        id: c.id || c.contactId || contacts[index]?.id || `contact_${index}`,
+        name: c.name || c.displayName || contacts[index]?.name || 'Unknown',
+        phone:
+          c.phone ||
+          c.phoneNumber ||
+          c.phoneNumbers?.[0] ||
+          contacts[index]?.phoneNumbers?.[0] ||
+          '',
+        email: c.email || c.emails?.[0] || contacts[index]?.emails?.[0],
+        status: c.status === 'existing_user' ? 'existing_user' : 'not_on_app',
+        userId: c.userId,
+        username: c.username,
+        mutualFriends: typeof c.mutualFriends === 'number' ? c.mutualFriends : undefined,
+        avatar: c.avatar
+      }));
+    }
+
     try {
       const data = await apiClient('/contacts/match', {
         method: 'POST',
