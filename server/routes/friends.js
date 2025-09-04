@@ -93,6 +93,63 @@ router.get('/', async (req, res) => {
   }
 })
 
+// Search friends
+router.get('/search', async (req, res) => {
+  try {
+    const { q } = req.query
+
+    if (!q || typeof q !== 'string' || q.trim() === '') {
+      return res.status(400).json({ error: 'Search query required' })
+    }
+
+    const friendships = await req.prisma.friendship.findMany({
+      where: {
+        OR: [
+          {
+            user1Id: req.userId,
+            user2: {
+              OR: [
+                { name: { contains: q } },
+                { email: { contains: q } },
+                { phone: { contains: q } }
+              ]
+            }
+          },
+          {
+            user2Id: req.userId,
+            user1: {
+              OR: [
+                { name: { contains: q } },
+                { email: { contains: q } },
+                { phone: { contains: q } }
+              ]
+            }
+          }
+        ]
+      },
+      select: {
+        user1Id: true,
+        user2Id: true,
+        user1: {
+          select: { id: true, name: true, email: true, phone: true, avatar: true }
+        },
+        user2: {
+          select: { id: true, name: true, email: true, phone: true, avatar: true }
+        }
+      }
+    })
+
+    const friends = friendships.map(f =>
+      f.user1Id === req.userId ? f.user2 : f.user1
+    )
+
+    res.json({ friends })
+  } catch (error) {
+    console.error('Search friends error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
 // Send friend request
 router.post('/request', [
   body('receiverId').notEmpty()

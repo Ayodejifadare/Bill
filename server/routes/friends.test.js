@@ -75,6 +75,32 @@ describe('Friend routes', () => {
     expect(pending.requestId).toBe(fr.id)
   })
 
+  it('searches friends by query', async () => {
+    await prisma.user.create({ data: { id: 's1', email: 's1@example.com', name: 'Alice' } })
+    await prisma.user.create({ data: { id: 's2', email: 's2@example.com', name: 'Bob' } })
+    await prisma.user.create({ data: { id: 's3', email: 's3@example.com', name: 'Charlie' } })
+    await prisma.friendship.create({ data: { user1Id: 's1', user2Id: 's2' } })
+    await prisma.friendship.create({ data: { user1Id: 's1', user2Id: 's3' } })
+
+    const res = await request(app)
+      .get('/friends/search?q=Bob')
+      .set('Authorization', `Bearer ${sign('s1')}`)
+
+    expect(res.status).toBe(200)
+    expect(res.body.friends).toHaveLength(1)
+    expect(res.body.friends[0].id).toBe('s2')
+  })
+
+  it('returns 400 for empty search query', async () => {
+    await prisma.user.create({ data: { id: 'e1', email: 'e1@example.com', name: 'User 1' } })
+
+    const res = await request(app)
+      .get('/friends/search')
+      .set('Authorization', `Bearer ${sign('e1')}`)
+
+    expect(res.status).toBe(400)
+  })
+
   it('includes last transaction information for active friends', async () => {
     await prisma.user.create({ data: { id: 'a1', email: 'a1@example.com', name: 'A1' } })
     await prisma.user.create({ data: { id: 'a2', email: 'a2@example.com', name: 'A2' } })
