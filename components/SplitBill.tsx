@@ -529,7 +529,21 @@ export function SplitBill({ onNavigate, groupId }: SplitBillProps) {
       return;
     }
 
-    // Create the split bill
+    // Create the split bill payload
+    const payload = {
+      name: billName.trim(),
+      totalAmount: expectedTotal,
+      paymentMethodId: selectedPaymentMethod.isExternal
+        ? selectedPaymentMethod.id.replace('external-', '')
+        : selectedPaymentMethod.id,
+      participants: participants.map(p => ({
+        friendId: p.friend.id,
+        amount: p.amount
+      }))
+    };
+
+    console.log('Creating split bill with payload', payload);
+
     const hasMe = participants.some(p => p.friend.id === 'me');
     const myShare = hasMe ? participants.find(p => p.friend.id === 'me')?.amount || 0 : 0;
     
