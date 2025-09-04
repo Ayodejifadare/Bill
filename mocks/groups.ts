@@ -27,7 +27,7 @@ const accounts: ExternalAccount[] = [
     accountHolderName: 'Mock User',
     routingNumber: '021000021',
     isDefault: true,
-    createdBy: '1',
+    createdBy: 'Mock User',
     createdDate: new Date().toISOString()
   }
 ];

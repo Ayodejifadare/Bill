@@ -60,7 +60,10 @@ export async function fetchExternalAccounts(
 
   const data = await apiClient(`/groups/${groupId}/accounts`);
   const accounts: ExternalAccount[] = Array.isArray(data.accounts)
-    ? data.accounts
+    ? data.accounts.map((a: any) => ({
+        ...a,
+        createdDate: a.createdDate || a.createdAt,
+      }))
     : data;
   externalAccountsCache.set(groupId, accounts);
   return accounts;
