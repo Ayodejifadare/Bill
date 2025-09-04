@@ -108,8 +108,9 @@ export const filterContacts = (
   contacts: MatchedContact[],
   searchQuery: string
 ) => {
-  return contacts.filter(contact => 
+  return contacts.filter(contact =>
     contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    contact.phone.includes(searchQuery)
+    contact.phone.includes(searchQuery) ||
+    contact.username?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 };

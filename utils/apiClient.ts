@@ -2,7 +2,6 @@ import { apiBaseUrl, useMockApi, useDevAuth, devUserId } from './config';
 import { handle as mockFriends } from '../mocks/friends';
 import { handle as mockGroups } from '../mocks/groups';
 import { handle as mockUpcomingPayments } from '../mocks/upcoming-payments';
-import { handle as mockContacts } from '../mocks/contacts';
 import { handle as mockRequests } from '../mocks/requests';
 import { handle as mockAuth } from '../mocks/auth';
 import { handle as mockUsers } from '../mocks/users';
@@ -14,7 +13,6 @@ const mockRoutes: Array<{ test: RegExp; handler: MockHandler }> = [
   { test: /^\/friends/, handler: mockFriends },
   { test: /^\/groups/, handler: mockGroups },
   { test: /^\/upcoming-payments/, handler: mockUpcomingPayments },
-  { test: /^\/contacts\/match/, handler: mockContacts },
   { test: /^\/requests/, handler: mockRequests },
   { test: /^\/auth/, handler: mockAuth },
   { test: /^\/users/, handler: mockUsers },

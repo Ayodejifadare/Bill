@@ -282,7 +282,7 @@ export function ContactResultsScreen({
                         />
                         
                         <Avatar className="h-12 w-12">
-                          <AvatarImage src={contact.userId ? `https://images.unsplash.com/photo-${1500000000000 + parseInt(contact.id)}?w=100` : undefined} />
+                          <AvatarImage src={contact.avatar} />
                           <AvatarFallback>
                             {contact.name.split(' ').map(n => n[0]).join('')}
                           </AvatarFallback>
