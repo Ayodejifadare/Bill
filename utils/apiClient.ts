@@ -5,11 +5,13 @@ import { handle as mockUpcomingPayments } from '../mocks/upcoming-payments';
 import { handle as mockRequests } from '../mocks/requests';
 import { handle as mockAuth } from '../mocks/auth';
 import { handle as mockUsers } from '../mocks/users';
+import { handle as mockContacts } from '../mocks/contacts';
 import { clearAuth } from './auth';
 
 type MockHandler = (path: string, init?: RequestInit) => Promise<any>;
 
 const mockRoutes: Array<{ test: RegExp; handler: MockHandler }> = [
+  { test: /^\/contacts/, handler: mockContacts },
   { test: /^\/friends/, handler: mockFriends },
   { test: /^\/groups/, handler: mockGroups },
   { test: /^\/upcoming-payments/, handler: mockUpcomingPayments },
