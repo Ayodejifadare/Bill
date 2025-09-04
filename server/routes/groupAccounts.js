@@ -66,6 +66,7 @@ const formatAccount = (account) => ({
   createdById: account.createdById,
   name: account.name,
   type: account.type === 'BANK' ? 'bank' : 'mobile_money',
+  accountType: account.accountType,
   bankName: account.bank,
   accountNumber: account.accountNumber,
   accountHolderName: account.accountName,
@@ -93,7 +94,7 @@ router.get('/', async (req, res) => {
 // Create a new account for a group
 router.post('/', requireGroupAdmin, async (req, res) => {
   try {
-    const { type } = req.body
+    const { type, accountType } = req.body
     if (type === 'bank') {
       const { bank, accountNumber, accountName } = req.body
       if (!bank || !accountNumber || !accountName || !isValidBank(bank)) {
@@ -117,6 +118,7 @@ router.post('/', requireGroupAdmin, async (req, res) => {
         groupId,
         createdById: userId,
         type: type === 'bank' ? 'BANK' : 'MOBILE_MONEY',
+        accountType: req.body.accountType,
         bank: req.body.bank,
         accountNumber: req.body.accountNumber,
         accountName: req.body.accountName,
