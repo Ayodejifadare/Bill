@@ -416,7 +416,7 @@ router.get('/:groupId', authenticate, async (req, res) => {
         (m) => m.userId === req.user.id && m.role === 'ADMIN'
       ),
       createdDate: group.createdAt.toISOString(),
-      color: group.color || '',
+      color: mapColor(group.color),
       members: group.members.map((m) => ({
         id: m.user.id,
         name: m.user.name,
