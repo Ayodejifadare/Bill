@@ -311,6 +311,7 @@ model GroupAccount {
   createdById String
   name        String
   type        String
+  accountType String?
   bank        String?
   accountNumber String?
   accountName String?
