@@ -27,66 +27,19 @@ router.get('/', async (req, res) => {
       }
     })
 
-    const friendIds = friendships.map(f =>
-      f.user1Id === req.userId ? f.user2Id : f.user1Id
-    )
-
-    const lastTransactions = await req.prisma.transaction.findMany({
-      where: {
-        OR: [
-          { senderId: req.userId, receiverId: { in: friendIds } },
-          { receiverId: req.userId, senderId: { in: friendIds } }
-        ]
-      },
-      orderBy: { createdAt: 'desc' },
-      select: { amount: true, senderId: true, receiverId: true }
-    })
-
-    const lastTransactionsMap = new Map()
-    for (const tx of lastTransactions) {
-      const friendId = tx.senderId === req.userId ? tx.receiverId : tx.senderId
-      if (!lastTransactionsMap.has(friendId)) {
-        lastTransactionsMap.set(friendId, {
-          amount: tx.amount,
-          type: tx.receiverId === req.userId ? 'owed' : 'owes'
-        })
-      }
-    }
-
     const friends = friendships.map(friendship => {
-      const friendUser =
+      const friend =
         friendship.user1Id === req.userId ? friendship.user2 : friendship.user1
 
       return {
-        id: friendUser.id,
-        name: friendUser.name,
-        username: friendUser.email,
-        avatar: friendUser.avatar,
-        status: 'active',
-        lastTransaction: lastTransactionsMap.get(friendUser.id)
+        id: friend.id,
+        name: friend.name,
+        avatar: friend.avatar,
+        email: friend.email
       }
     })
 
-    const pendingRequestsData = await req.prisma.friendRequest.findMany({
-      where: {
-        receiverId: req.userId,
-        status: 'PENDING'
-      },
-      include: {
-        sender: { select: { id: true, name: true, email: true, avatar: true } }
-      }
-    })
-
-    const pendingRequests = pendingRequestsData.map(r => ({
-      id: r.sender.id,
-      name: r.sender.name,
-      username: r.sender.email,
-      avatar: r.sender.avatar,
-      status: 'pending',
-      requestId: r.id
-    }))
-
-    res.json({ friends: [...friends, ...pendingRequests] })
+    res.json({ friends })
   } catch (error) {
     console.error('Get friends error:', error)
     res.status(500).json({ error: 'Internal server error' })
@@ -98,8 +51,8 @@ router.get('/search', async (req, res) => {
   try {
     const { q } = req.query
 
-    if (!q || typeof q !== 'string' || q.trim().length < 2) {
-      return res.status(400).json({ error: 'Search query must be at least 2 characters' })
+    if (!q || typeof q !== 'string' || !q.trim()) {
+      return res.status(400).json({ error: 'Search query is required' })
     }
 
     const query = q.trim()
@@ -130,21 +83,21 @@ router.get('/search', async (req, res) => {
           }
         ]
       },
-      select: {
-        user1Id: true,
-        user2Id: true,
-        user1: {
-          select: { id: true, name: true, email: true, phone: true, avatar: true }
-        },
-        user2: {
-          select: { id: true, name: true, email: true, phone: true, avatar: true }
-        }
+      include: {
+        user1: { select: { id: true, name: true, email: true, avatar: true } },
+        user2: { select: { id: true, name: true, email: true, avatar: true } }
       }
     })
 
-    const friends = friendships.map(f =>
-      f.user1Id === req.userId ? f.user2 : f.user1
-    )
+    const friends = friendships.map(f => {
+      const friend = f.user1Id === req.userId ? f.user2 : f.user1
+      return {
+        id: friend.id,
+        name: friend.name,
+        avatar: friend.avatar,
+        email: friend.email
+      }
+    })
 
     res.json({ friends })
   } catch (error) {
