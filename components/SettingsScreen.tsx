@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Switch } from './ui/switch';
@@ -6,6 +6,7 @@ import { Separator } from './ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { ArrowLeft, Bell, Shield, Smartphone, Moon, Sun, Monitor, Globe, CreditCard, Eye, MessageCircle } from 'lucide-react';
 import { useTheme } from './ThemeContext';
+import { useUserProfile } from './UserProfileContext';
 
 interface SettingsScreenProps {
   onNavigate: (tab: string) => void;
@@ -13,29 +14,15 @@ interface SettingsScreenProps {
 
 export function SettingsScreen({ onNavigate }: SettingsScreenProps) {
   const { theme, setTheme, actualTheme } = useTheme();
-  
-  const [settings, setSettings] = useState({
-    notifications: {
-      pushNotifications: true,
-      emailNotifications: false,
-      whatsappNotifications: true,
-      smsNotifications: true,
-      transactionAlerts: true,
-      friendRequests: true,
-      billReminders: true,
-    },
-    privacy: {
-      biometricAuth: true,
-      twoFactorAuth: false,
-      publicProfile: false,
-      shareActivity: true,
-    },
-    preferences: {
-      language: 'en',
-      currency: 'USD',
-      dateFormat: 'MM/DD/YYYY',
-    },
-  });
+  const { userSettings, updateUserSettings, fetchUserSettings } = useUserProfile();
+
+  const [settings, setSettings] = useState(userSettings);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setSettings(userSettings);
+  }, [userSettings]);
 
   const updateSetting = (category: keyof typeof settings, key: string, value: boolean | string) => {
     setSettings(prev => ({
@@ -45,6 +32,19 @@ export function SettingsScreen({ onNavigate }: SettingsScreenProps) {
         [key]: value,
       },
     }));
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    setError(null);
+    try {
+      await updateUserSettings(settings);
+      await fetchUserSettings();
+    } catch (err) {
+      setError('Failed to save settings');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -342,9 +342,10 @@ export function SettingsScreen({ onNavigate }: SettingsScreenProps) {
         </Card>
 
         {/* Save Changes */}
-        <Button className="w-full h-12">
-          Save Changes
+        <Button className="w-full h-12" onClick={handleSave} disabled={isSaving}>
+          {isSaving ? 'Saving...' : 'Save Changes'}
         </Button>
+        {error && <p className="text-sm text-destructive text-center mt-2">{error}</p>}
       </div>
     </div>
   );
