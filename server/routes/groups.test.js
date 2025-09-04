@@ -137,11 +137,15 @@ describe('Group join/leave routes', () => {
       memberCount: 3
     })
     expect(res.body.group.members).toEqual(
-      expect.arrayContaining(['U1', 'U2', 'C'])
+      expect.arrayContaining([
+        expect.objectContaining({ id: 'u1', name: 'User 1' }),
+        expect.objectContaining({ id: 'u2', name: 'User 2' }),
+        expect.objectContaining({ id: 'creator', name: 'Creator' })
+      ])
     )
   })
 
-  it('returns member previews without ids', async () => {
+  it('returns member objects with ids', async () => {
     const res = await request(app)
       .post('/groups')
       .set('x-user-id', 'creator')
@@ -150,7 +154,8 @@ describe('Group join/leave routes', () => {
     expect(res.status).toBe(201)
     const members = res.body.group.members
     expect(Array.isArray(members)).toBe(true)
-    expect(typeof members[0]).toBe('string')
+    expect(members[0]).toHaveProperty('id')
+    expect(members[0]).toHaveProperty('name')
   })
 
   it('rejects empty memberIds array', async () => {
