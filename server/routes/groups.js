@@ -337,7 +337,7 @@ router.post('/:groupId/leave', authenticate, async (req, res) => {
   }
 })
 
-// GET /:groupId - get group details with members and recent transactions
+// GET /:groupId - get group details with membership check and aggregates
 router.get('/:groupId', authenticate, async (req, res) => {
   try {
     const group = await req.prisma.group.findUnique({
@@ -345,7 +345,9 @@ router.get('/:groupId', authenticate, async (req, res) => {
       include: {
         members: {
           include: {
-            user: true
+            user: {
+              select: { id: true, name: true, avatar: true, phone: true }
+            }
           }
         }
       }
@@ -355,103 +357,23 @@ router.get('/:groupId', authenticate, async (req, res) => {
       return res.status(404).json({ error: 'Group not found' })
     }
 
-    // Ensure requesting user is a group member
+    // Verify requesting user is a member
     const isMember = group.members.some((m) => m.userId === req.user.id)
     if (!isMember) {
       return res.status(403).json({ error: 'Access denied' })
     }
 
-    const memberIds = group.members.map((m) => m.userId)
-    const pageSize = 10
-    let transactions = await req.prisma.transaction.findMany({
-      where: {
-        OR: [
-          { senderId: { in: memberIds } },
-          { receiverId: { in: memberIds } }
-        ]
-      },
-      include: {
-        sender: { select: { id: true, name: true } },
-        receiver: { select: { id: true, name: true } }
-      },
-      orderBy: { createdAt: 'desc' },
-      take: pageSize + 1
-    })
+    const formatted = await formatGroup(req.prisma, group, req.user.id)
 
-    let hasMoreTransactions = false
-    if (transactions.length > pageSize) {
-      transactions.pop()
-      hasMoreTransactions = true
-    }
+    // Replace member preview with full member objects
+    formatted.members = group.members.map((m) => ({
+      id: m.user.id,
+      name: m.user.name,
+      avatar: m.user.avatar || '',
+      phoneNumber: m.user.phone || ''
+    }))
 
-    // Calculate balances and total spent
-    const stats = {}
-    memberIds.forEach((id) => {
-      stats[id] = { totalSpent: 0, balance: 0 }
-    })
-
-    const allTransactions = await req.prisma.transaction.findMany({
-      where: {
-        OR: [
-          { senderId: { in: memberIds } },
-          { receiverId: { in: memberIds } }
-        ]
-      },
-      select: { senderId: true, receiverId: true, amount: true }
-    })
-
-    let totalSpent = 0
-    allTransactions.forEach((t) => {
-      if (stats[t.senderId]) {
-        stats[t.senderId].totalSpent += t.amount
-        stats[t.senderId].balance -= t.amount
-      }
-      if (stats[t.receiverId]) {
-        stats[t.receiverId].balance += t.amount
-      }
-      if (stats[t.senderId] || stats[t.receiverId]) {
-        totalSpent += t.amount
-      }
-    })
-
-    const formattedGroup = {
-      id: group.id,
-      name: group.name,
-      description: group.description || '',
-      totalSpent,
-      totalMembers: group.members.length,
-      isAdmin: group.members.some(
-        (m) => m.userId === req.user.id && m.role === 'ADMIN'
-      ),
-      createdDate: formatDistanceToNow(group.createdAt, { addSuffix: true }),
-      color: mapColor(group.color),
-      members: group.members.map((m) => ({
-        id: m.user.id,
-        name: m.user.name,
-        avatar: m.user.avatar || getInitials(m.user.name),
-        email: m.user.email,
-        isAdmin: m.role === 'ADMIN',
-        balance: stats[m.userId]?.balance || 0,
-        totalSpent: stats[m.userId]?.totalSpent || 0,
-        joinedDate: m.joinedAt.toISOString()
-      })),
-      recentTransactions: transactions.map((t) => ({
-        id: t.id,
-        type: TRANSACTION_TYPE_MAP[t.type] || t.type,
-        amount: t.amount,
-        description: t.description || '',
-        date: t.createdAt.toISOString(),
-        status: TRANSACTION_STATUS_MAP[t.status] || t.status,
-        paidBy: t.sender?.name || t.senderId,
-        participants: [
-          t.sender?.name || t.senderId,
-          t.receiver?.name || t.receiverId
-        ]
-      })),
-      hasMoreTransactions
-    }
-
-    res.json({ group: formattedGroup })
+    res.json({ group: formatted })
   } catch (error) {
     console.error('Get group error:', error)
     res.status(500).json({ error: 'Internal server error' })
