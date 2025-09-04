@@ -32,7 +32,7 @@ describe('Group account routes', () => {
     await prisma.user.deleteMany()
 
     await prisma.user.create({
-      data: { id: 'u1', email: 'u1@example.com', name: 'User 1' }
+      data: { id: 'u1', email: 'u1@example.com', name: 'User 1', region: 'NG' }
     })
     await prisma.group.create({ data: { id: 'g1', name: 'Group 1' } })
     await prisma.groupMember.create({
@@ -74,5 +74,33 @@ describe('Group account routes', () => {
       .send({ accountType: 'checking' })
     expect(updateRes.status).toBe(200)
     expect(updateRes.body.account).toMatchObject({ accountType: 'checking' })
+  })
+
+  it('rejects invalid account number for region', async () => {
+    const res = await request(app)
+      .post('/groups/g1/accounts')
+      .set('x-user-id', 'u1')
+      .send({
+        type: 'bank',
+        bank: 'Access Bank',
+        accountNumber: '123',
+        accountName: 'Test Account',
+        accountType: 'savings'
+      })
+    expect(res.status).toBe(400)
+    expect(res.body.error).toMatch(/account number/i)
+  })
+
+  it('rejects phone numbers without correct prefix', async () => {
+    const res = await request(app)
+      .post('/groups/g1/accounts')
+      .set('x-user-id', 'u1')
+      .send({
+        type: 'mobile_money',
+        provider: 'Opay',
+        phoneNumber: '+1234567890'
+      })
+    expect(res.status).toBe(400)
+    expect(res.body.error).toMatch(/phone number/i)
   })
 })
