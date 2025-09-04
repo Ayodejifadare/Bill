@@ -98,20 +98,23 @@ router.get('/search', async (req, res) => {
   try {
     const { q } = req.query
 
-    if (!q || typeof q !== 'string' || q.trim() === '') {
-      return res.status(400).json({ error: 'Search query required' })
+    if (!q || typeof q !== 'string' || q.trim().length < 2) {
+      return res.status(400).json({ error: 'Search query must be at least 2 characters' })
     }
 
+    const query = q.trim()
+
     const friendships = await req.prisma.friendship.findMany({
+      take: 20,
       where: {
         OR: [
           {
             user1Id: req.userId,
             user2: {
               OR: [
-                { name: { contains: q } },
-                { email: { contains: q } },
-                { phone: { contains: q } }
+                { name: { contains: query, mode: 'insensitive' } },
+                { email: { contains: query, mode: 'insensitive' } },
+                { phone: { contains: query, mode: 'insensitive' } }
               ]
             }
           },
@@ -119,9 +122,9 @@ router.get('/search', async (req, res) => {
             user2Id: req.userId,
             user1: {
               OR: [
-                { name: { contains: q } },
-                { email: { contains: q } },
-                { phone: { contains: q } }
+                { name: { contains: query, mode: 'insensitive' } },
+                { email: { contains: query, mode: 'insensitive' } },
+                { phone: { contains: query, mode: 'insensitive' } }
               ]
             }
           }
