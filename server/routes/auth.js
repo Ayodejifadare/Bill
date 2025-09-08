@@ -2,9 +2,10 @@ import express from 'express'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { body, validationResult } from 'express-validator'
-import { randomInt } from 'crypto'
 import authenticate from '../middleware/auth.js'
 import { defaultSettings as defaultNotificationSettings } from './notifications.js'
+import { generateCode, cleanupExpiredCodes } from '../utils/verificationCodes.js'
+import { sendSms } from '../utils/sms.js'
 
 const { JWT_SECRET } = process.env
 if (!JWT_SECRET) {
@@ -21,16 +22,6 @@ function normalizePhone (input = '') {
   return `+${national}`
 }
 
-// Temporary store for OTPs
-const otpStore = new Map()
-
-const generateOtp = () => randomInt(0, 1_000_000).toString().padStart(6, '0')
-
-async function sendSms (phone, otp) {
-  // Replace with real SMS provider integration
-  console.log(`Sending OTP ${otp} to ${phone}`)
-}
-
 // Request OTP
 router.post('/request-otp', [
   body('phone').matches(/^\+?[1-9]\d{7,14}$/)
@@ -43,9 +34,15 @@ router.post('/request-otp', [
 
     const { phone } = req.body
     const key = normalizePhone(phone)
-    const otp = generateOtp()
-    otpStore.set(key, { otp, expiresAt: Date.now() + 5 * 60 * 1000 })
-    await sendSms(phone, otp)
+    await cleanupExpiredCodes(req.prisma)
+    const otp = generateCode()
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000)
+    await req.prisma.verificationCode.upsert({
+      where: { target_type: { target: key, type: 'auth' } },
+      update: { code: otp, expiresAt },
+      create: { target: key, type: 'auth', code: otp, expiresAt }
+    })
+    await sendSms(key, `Your verification code is ${otp}`)
 
     // In development, include OTP in response to simplify local testing
     const payload = { message: 'OTP sent' }
@@ -76,11 +73,14 @@ router.post('/verify-otp', [
 
     const { phone, otp } = req.body
     const key = normalizePhone(phone)
-    const entry = otpStore.get(key)
-    if (!entry || entry.otp !== otp || entry.expiresAt < Date.now()) {
+    await cleanupExpiredCodes(req.prisma)
+    const entry = await req.prisma.verificationCode.findUnique({
+      where: { target_type: { target: key, type: 'auth' } }
+    })
+    if (!entry || entry.code !== otp || entry.expiresAt < new Date()) {
       return res.status(400).json({ error: 'Invalid or expired OTP' })
     }
-    otpStore.delete(key)
+    await req.prisma.verificationCode.delete({ where: { id: entry.id } })
 
     let user = await req.prisma.user.findFirst({ where: { phone: key } })
     if (!user) {
