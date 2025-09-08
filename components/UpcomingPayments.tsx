@@ -4,6 +4,7 @@ import { Badge } from './ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Clock, AlertTriangle, Calendar, Users, CreditCard, AlertCircle } from 'lucide-react';
 import { useUserProfile } from './UserProfileContext';
+import { formatCurrencyForRegion } from '../utils/regions';
 import { ListSkeleton } from './ui/loading';
 import { Alert, AlertDescription } from './ui/alert';
 import { useUpcomingPayments } from '../hooks/useUpcomingPayments';
@@ -14,7 +15,6 @@ interface UpcomingPaymentsProps {
 
 export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
   const { appSettings } = useUserProfile();
-  const currencySymbol = appSettings.region === 'NG' ? '₦' : '$';
   const { upcomingPayments, loading, error } = useUpcomingPayments();
   const getInitials = (name: string) =>
     name
@@ -131,7 +131,7 @@ export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
                 </div>
               </div>
               <div className="text-right space-y-2">
-                <p className="font-medium">{currencySymbol}{payment.amount.toFixed(2)}</p>
+                <p className="font-medium">{formatCurrencyForRegion(appSettings.region, payment.amount)}</p>
                 <Badge className={`${getStatusColor(payment.status)} text-xs flex items-center gap-1`}>
                   {getStatusIcon(payment.status)}
                   Due {payment.dueDate}

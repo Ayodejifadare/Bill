@@ -3,6 +3,9 @@ import { handle as mockFriends } from '../mocks/friends';
 import { handle as mockGroups } from '../mocks/groups';
 import { handle as mockUpcomingPayments } from '../mocks/upcoming-payments';
 import { handle as mockRequests } from '../mocks/requests';
+import { handle as mockTransactions } from '../mocks/transactions';
+import { handle as mockNotifications } from '../mocks/notifications';
+import { handle as mockBillSplits } from '../mocks/bill-splits';
 import { handle as mockAuth } from '../mocks/auth';
 import { handle as mockUsers } from '../mocks/users';
 import { handle as mockContacts } from '../mocks/contacts';
@@ -18,6 +21,10 @@ const mockRoutes: Array<{ test: RegExp; handler: MockHandler }> = [
   { test: /^\/requests/, handler: mockRequests },
   { test: /^\/auth/, handler: mockAuth },
   { test: /^\/users/, handler: mockUsers },
+  { test: /^\/api\/users/, handler: mockUsers },
+  { test: /^\/api\/transactions(\/|$)/, handler: mockTransactions },
+  { test: /^\/api\/notifications(\/|$)/, handler: mockNotifications },
+  { test: /^\/bill-splits(\/|$)/, handler: mockBillSplits },
 ];
 
 export async function apiClient(
