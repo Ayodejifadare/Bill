@@ -373,9 +373,11 @@ router.get('/:id/settings', async (req, res) => {
     const user = await req.prisma.user.findUnique({
       where: { id: req.params.id },
       select: {
-        notificationSettings: true,
-        privacySettings: true,
-        preferenceSettings: true
+        twoFactorEnabled: true,
+        biometricEnabled: true,
+        preferenceSettings: true,
+        region: true,
+        currency: true,
       }
     })
 
@@ -383,13 +385,21 @@ router.get('/:id/settings', async (req, res) => {
       return res.status(404).json({ error: 'User not found' })
     }
 
-    res.json({
-      settings: {
-        notifications: user.notificationSettings || {},
-        privacy: user.privacySettings || {},
-        preferences: user.preferenceSettings || {}
-      }
-    })
+    // Load notifications from relation
+    const pref = await req.prisma.notificationPreference.findUnique({ where: { userId: req.params.id } })
+    const notifications = pref
+      ? (typeof pref.preferences === 'string' ? JSON.parse(pref.preferences) : pref.preferences)
+      : defaultSettings
+
+    const privacy = {
+      twoFactorAuth: !!user.twoFactorEnabled,
+      biometricAuth: !!user.biometricEnabled,
+    }
+    const preferences = user.preferenceSettings || {}
+    if (user.region) preferences.region = user.region
+    if (user.currency) preferences.currency = user.currency
+
+    res.json({ settings: { notifications, privacy, preferences } })
   } catch (error) {
     console.error('Get user settings error:', error)
     res.status(500).json({ error: 'Internal server error' })
@@ -405,27 +415,52 @@ router.put('/:id/settings', async (req, res) => {
 
     const { notifications, privacy, preferences } = req.body
     const data = {}
-    if (notifications !== undefined) data.notificationSettings = notifications
-    if (privacy !== undefined) data.privacySettings = privacy
-    if (preferences !== undefined) data.preferenceSettings = preferences
+    if (privacy) {
+      if (privacy.twoFactorAuth !== undefined) data.twoFactorEnabled = !!privacy.twoFactorAuth
+      if (privacy.biometricAuth !== undefined) data.biometricEnabled = !!privacy.biometricAuth
+    }
+    if (preferences) {
+      data.preferenceSettings = preferences
+      if (preferences.region !== undefined) data.region = preferences.region
+      if (preferences.currency !== undefined) data.currency = preferences.currency
+    }
 
-    const user = await req.prisma.user.update({
-      where: { id: req.params.id },
-      data,
-      select: {
-        notificationSettings: true,
-        privacySettings: true,
-        preferenceSettings: true
-      }
-    })
+    const updatedUser = Object.keys(data).length
+      ? await req.prisma.user.update({ where: { id: req.params.id }, data, select: {
+          twoFactorEnabled: true,
+          biometricEnabled: true,
+          preferenceSettings: true,
+          region: true,
+          currency: true,
+        } })
+      : await req.prisma.user.findUnique({ where: { id: req.params.id }, select: {
+          twoFactorEnabled: true,
+          biometricEnabled: true,
+          preferenceSettings: true,
+          region: true,
+          currency: true,
+        } })
 
-    res.json({
-      settings: {
-        notifications: user.notificationSettings || {},
-        privacy: user.privacySettings || {},
-        preferences: user.preferenceSettings || {}
-      }
-    })
+    // Update notifications via helper if provided
+    let notificationsOut
+    if (notifications) {
+      notificationsOut = await updateNotificationPreference(req.prisma, req.params.id, notifications, false)
+    } else {
+      const pref = await req.prisma.notificationPreference.findUnique({ where: { userId: req.params.id } })
+      notificationsOut = pref
+        ? (typeof pref.preferences === 'string' ? JSON.parse(pref.preferences) : pref.preferences)
+        : defaultSettings
+    }
+
+    const privacyOut = {
+      twoFactorAuth: !!updatedUser.twoFactorEnabled,
+      biometricAuth: !!updatedUser.biometricEnabled,
+    }
+    const preferencesOut = updatedUser.preferenceSettings || {}
+    if (updatedUser.region) preferencesOut.region = updatedUser.region
+    if (updatedUser.currency) preferencesOut.currency = updatedUser.currency
+
+    res.json({ settings: { notifications: notificationsOut, privacy: privacyOut, preferences: preferencesOut } })
   } catch (error) {
     console.error('Update user settings error:', error)
     res.status(500).json({ error: 'Internal server error' })
@@ -553,4 +588,3 @@ router.post('/:id/logout-others', async (req, res) => {
 })
 
 export default router
-
