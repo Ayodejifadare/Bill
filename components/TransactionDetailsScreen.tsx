@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, User, Calendar, Building2, MapPin, Receipt, MoreHorizontal, Copy, Smartphone, Share2, Phone } from 'lucide-react';
+import { ArrowLeft, User, Calendar, Building2, MapPin, Receipt, Copy, Smartphone, Share2, Phone } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Badge } from './ui/badge';
-import { Separator } from './ui/separator';
+// import { Separator } from './ui/separator';
 import { toast } from 'sonner';
 import { useUserProfile } from './UserProfileContext';
 import { getCurrencySymbol, requiresRoutingNumber, getBankIdentifierLabel, formatBankAccountForRegion, formatCurrencyForRegion } from '../utils/regions';

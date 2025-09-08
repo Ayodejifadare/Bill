@@ -6,7 +6,7 @@ import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Badge } from './ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
-import { ArrowLeft, Plus, Building2, Smartphone, Copy, Trash2, Check, Edit2, Crown } from 'lucide-react';
+import { ArrowLeft, Plus, Building2, Smartphone, Copy, Trash2, Check, Crown } from 'lucide-react';
 import { toast } from 'sonner';
 import { useUserProfile } from './UserProfileContext';
 import { getBankDirectoryForRegion } from '../utils/banks';
@@ -47,16 +47,7 @@ interface VirtualAccountScreenProps {
 
 // Bank directory now centralized in utils/banks
 
-const MOBILE_MONEY_PROVIDERS = [
-  { code: 'opay', name: 'Opay' },
-  { code: 'palmpay', name: 'PalmPay' },
-  { code: 'kuda', name: 'Kuda Bank' },
-  { code: 'moniepoint', name: 'Moniepoint' },
-  { code: 'carbon', name: 'Carbon' },
-  { code: 'fairmoney', name: 'FairMoney' },
-  { code: 'cowrywise', name: 'Cowrywise' },
-  { code: 'piggyvest', name: 'PiggyVest' }
-];
+// providers sourced from utils/providers per region
 
 export function VirtualAccountScreen({ groupId, onNavigate }: VirtualAccountScreenProps) {
   const { appSettings } = useUserProfile();

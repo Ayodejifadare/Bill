@@ -20,13 +20,13 @@ export const devAuthConfig = {
   },
   log(message: string, ...args: any[]) {
     if (this.shouldShowOTPDebug()) {
-      // eslint-disable-next-line no-console
+       
       console.debug(`[OTP DEBUG] ${message}`, ...args);
     }
   },
   logError(message: string, error: unknown) {
     if (this.shouldShowOTPDebug()) {
-      // eslint-disable-next-line no-console
+       
       console.error(`[OTP DEBUG] ${message}`, error);
     }
   },

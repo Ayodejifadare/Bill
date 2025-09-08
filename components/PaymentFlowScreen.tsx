@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Building2, Copy, CheckCircle, ExternalLink, Smartphone, Users, DollarSign, Clock } from 'lucide-react';
+import { ArrowLeft, Building2, Copy, CheckCircle, ExternalLink, Smartphone, Users, Clock } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Avatar, AvatarFallback } from './ui/avatar';
-import { Separator } from './ui/separator';
+// import { Separator } from './ui/separator';
 import { toast } from 'sonner';
 import { useUserProfile } from './UserProfileContext';
 import { getCurrencySymbol, formatCurrencyForRegion, requiresRoutingNumber, getBankIdentifierLabel, formatBankAccountForRegion } from '../utils/regions';
@@ -27,7 +27,6 @@ const recipientMethodCache = new Map<string, PaymentMethod | null>();
 
 export function PaymentFlowScreen({ paymentRequest, onNavigate }: PaymentFlowScreenProps) {
   const { appSettings } = useUserProfile();
-  const currencySymbol = getCurrencySymbol(appSettings.region);
   
   const [paymentStatus, setPaymentStatus] = useState<'pending' | 'sent' | 'confirmed'>('pending');
   const [recipientPaymentMethod, setRecipientPaymentMethod] = useState<PaymentMethod | null>(null);
