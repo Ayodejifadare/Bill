@@ -53,7 +53,6 @@ export function AccountCard({
   variant = 'personal'
 }: AccountCardProps) {
   const { appSettings } = useUserProfile();
-  const isNigeria = appSettings.region === 'NG';
   const isGroupAccount = variant === 'group' && 'name' in account;
   const bank = account.bankName || account.bank;
   const accountName = account.accountHolderName || account.accountName;

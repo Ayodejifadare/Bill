@@ -27,7 +27,6 @@ const recipientMethodCache = new Map<string, PaymentMethod | null>();
 
 export function PaymentFlowScreen({ paymentRequest, onNavigate }: PaymentFlowScreenProps) {
   const { appSettings } = useUserProfile();
-  const isNigeria = appSettings.region === 'NG';
   const currencySymbol = getCurrencySymbol(appSettings.region);
   
   const [paymentStatus, setPaymentStatus] = useState<'pending' | 'sent' | 'confirmed'>('pending');

@@ -30,7 +30,6 @@ interface PaymentMethodsScreenProps {
 
 export function PaymentMethodsScreen({ onNavigate }: PaymentMethodsScreenProps) {
   const { appSettings, updateAppSettings } = useUserProfile();
-  const isNigeria = appSettings.region === 'NG';
   const banks = getBankDirectoryForRegion(appSettings.region);
   const providers = getMobileMoneyProviders(appSettings.region);
   const phoneCountryCode = getRegionConfig(appSettings.region).phoneCountryCode;

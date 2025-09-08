@@ -10,7 +10,7 @@ import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
 import { toast } from 'sonner';
 import { useUserProfile } from './UserProfileContext';
-import { getCurrencySymbol, formatCurrencyForRegion } from '../utils/regions';
+import { getCurrencySymbol, formatCurrencyForRegion, getBankIdentifierLabel, requiresRoutingNumber } from '../utils/regions';
 
 import { PaymentMethodSelector, PaymentMethod } from './PaymentMethodSelector';
 import { useFriends, Friend as BaseFriend } from '../hooks/useFriends';
@@ -39,7 +39,6 @@ interface SendMoneyProps {
 
 export function SendMoney({ onNavigate, prefillData }: SendMoneyProps) {
   const { appSettings } = useUserProfile();
-  const isNigeria = appSettings.region === 'NG';
   const currencySymbol = getCurrencySymbol(appSettings.region);
   
   const [selectedFriend, setSelectedFriend] = useState<Friend | null>(null);
@@ -133,7 +132,7 @@ export function SendMoney({ onNavigate, prefillData }: SendMoneyProps) {
     }
 
     // Create the money transfer
-    toast.success(`Payment instructions sent! Transfer ${currencySymbol}${parseFloat(amount).toFixed(2)} to ${selectedFriend.name} using their payment details.`);
+    toast.success(`Payment instructions sent! Transfer ${formatCurrencyForRegion(appSettings.region, parseFloat(amount))} to ${selectedFriend.name} using their payment details.`);
     
     // Reset form
     setSelectedFriend(null);
@@ -150,6 +149,23 @@ export function SendMoney({ onNavigate, prefillData }: SendMoneyProps) {
       toast.error('Please complete all required fields');
       return;
     }
+    // Region-aware early builder (overrides legacy block below)
+    const amt = formatCurrencyForRegion(appSettings.region, parseFloat(amount));
+    let details = `Send Payment: ${amt}\nTo: ${selectedFriend.name}`;
+    if (message) details += `\nMessage: ${message}`;
+    if (selectedPaymentMethod.type === 'bank') {
+      const label = getBankIdentifierLabel(appSettings.region);
+      const idValue = requiresRoutingNumber(appSettings.region)
+        ? selectedPaymentMethod.routingNumber
+        : selectedPaymentMethod.sortCode;
+      details += `\n\nBank Details:\n${selectedPaymentMethod.bankName}\n- ${selectedPaymentMethod.accountHolderName}\n${label}: ${idValue}\nAccount: ${selectedPaymentMethod.accountNumber}`;
+    } else {
+      details += `\n\nMobile Money:\n${selectedPaymentMethod.provider}\nPhone: ${selectedPaymentMethod.phoneNumber}`;
+    }
+    details += `\n\nContact: ${selectedFriend.phoneNumber || 'Phone not available'}`;
+    navigator.clipboard.writeText(details);
+    toast.success('Payment details copied to clipboard');
+    return;
     const paymentMethod = selectedPaymentMethod;
     let paymentDetails = `💸 Send Payment: ${currencySymbol}${amount}\n👤 To: ${selectedFriend.name}\n${message ? `📝 Message: ${message}\n` : ''}`;
 

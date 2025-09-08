@@ -62,7 +62,6 @@ export function TransactionDetailsScreen({ transactionId, onNavigate }: Transact
   const [transaction, setTransaction] = useState<TransactionDetails | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const isNigeria = appSettings.region === 'NG';
   const currencySymbol = getCurrencySymbol(appSettings.region);
 
   const mapTransaction = (data: any): TransactionDetails => {
@@ -213,9 +212,10 @@ export function TransactionDetailsScreen({ transactionId, onNavigate }: Transact
     
     try {
       if (paymentMethod.type === 'bank') {
-        const bankInfo = isNigeria 
-          ? `${paymentMethod.bankName}\nAccount Name: ${paymentMethod.accountHolderName}\nAccount Number: ${paymentMethod.accountNumber}\nSort Code: ${paymentMethod.sortCode}`
-          : `${paymentMethod.bankName}\nAccount Holder: ${paymentMethod.accountHolderName}\nRouting Number: ${paymentMethod.routingNumber}\nAccount Number: ${paymentMethod.accountNumber}`;
+        const usesRouting = requiresRoutingNumber(appSettings.region);
+        const label = getBankIdentifierLabel(appSettings.region);
+        const idValue = usesRouting ? paymentMethod.routingNumber : paymentMethod.sortCode;
+        const bankInfo = `${paymentMethod.bankName}\nAccount Name: ${paymentMethod.accountHolderName}\n${label}: ${idValue ?? ''}\nAccount Number: ${paymentMethod.accountNumber}`;
         
         // Try modern clipboard first
         if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -273,13 +273,8 @@ export function TransactionDetailsScreen({ transactionId, onNavigate }: Transact
     }
   };
 
-  const formatAccountNumber = (accountNumber: string) => {
-    if (isNigeria) {
-      return accountNumber.replace(/(\d{4})(\d{4})(\d{2})/, '$1 $2 $3');
-    } else {
-      return accountNumber.replace(/(\*{4})(\d{4})/, '$1 $2');
-    }
-  };
+  const formatAccountNumber = (accountNumber: string) =>
+    formatBankAccountForRegion(appSettings.region, accountNumber);
 
   return (
     <div className="pb-20">

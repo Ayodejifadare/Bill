@@ -12,8 +12,7 @@ import { Checkbox } from './ui/checkbox';
 import { Switch } from './ui/switch';
 import { toast } from 'sonner';
 import { useUserProfile } from './UserProfileContext';
-import { getCurrencySymbol, requiresRoutingNumber } from '../utils/regions';
-import { requiresRoutingNumber } from '../utils/regions';
+import { getCurrencySymbol, requiresRoutingNumber, getBankIdentifierLabel, formatCurrencyForRegion } from '../utils/regions';
 // Removed unused Share2-related imports as sharing is handled via copy-to-clipboard
 // utilities rather than a dedicated share action.
 import { createRequest } from '../utils/request-api';
@@ -40,8 +39,9 @@ interface RequestMoneyProps {
 
 export function RequestMoney({ onNavigate, prefillData }: RequestMoneyProps) {
   const { appSettings, userProfile } = useUserProfile();
-  const isNigeria = appSettings.region === 'NG';
   const currencySymbol = getCurrencySymbol(appSettings.region);
+  // Legacy variable for unreachable code block (safe to remove when legacy block is deleted)
+  const isNigeria = appSettings.region === 'NG';
   
   const [selectedFriends, setSelectedFriends] = useState<Friend[]>([]);
   const [amount, setAmount] = useState('');
@@ -110,7 +110,7 @@ export function RequestMoney({ onNavigate, prefillData }: RequestMoneyProps) {
       }
       return defaultMethod;
     });
-  }, [userProfile.linkedBankAccounts, isNigeria]);
+  }, [userProfile.linkedBankAccounts, appSettings.region]);
 
   useEffect(() => {
     if (!prefillData) return;
@@ -198,6 +198,31 @@ export function RequestMoney({ onNavigate, prefillData }: RequestMoneyProps) {
       toast.error('Please complete all required fields');
       return;
     }
+    // Region-aware early builder (overrides legacy block below)
+    const header = `Payment Request: ${formatCurrencyForRegion(appSettings.region, parseFloat(amount))}`;
+    const msgLine = message ? `Message: ${message}` : '';
+    let built = [header, msgLine, 'Send payment to:'].filter(Boolean).join('\n');
+    if (selectedPaymentMethod.type === 'bank') {
+      const label = getBankIdentifierLabel(appSettings.region);
+      const idValue = requiresRoutingNumber(appSettings.region)
+        ? selectedPaymentMethod.routingNumber
+        : selectedPaymentMethod.sortCode;
+      built += `\n${selectedPaymentMethod.bankName}\n- ${selectedPaymentMethod.accountHolderName}\n${label}: ${idValue}\nAccount: ${selectedPaymentMethod.accountNumber}`;
+    } else {
+      built += `\n${selectedPaymentMethod.provider}\nPhone: ${selectedPaymentMethod.phoneNumber}`;
+    }
+    built += `\n\nRecipients: ${selectedFriends.map(f => f.name).join(', ')}`;
+    if (!navigator.clipboard || !navigator.clipboard.writeText) {
+      toast.error('Clipboard not supported. Please copy manually.');
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(built);
+      toast.success('Request details copied to clipboard');
+    } catch {
+      toast.error('Failed to copy request. Please copy manually.');
+    }
+    return;
 
     let requestDetails = `💰 Payment Request: ${currencySymbol}${amount}
 ${message ? `📝 Message: ${message}\n` : ''}

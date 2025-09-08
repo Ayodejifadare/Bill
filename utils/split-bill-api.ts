@@ -39,11 +39,11 @@ export interface ExternalAccount {
 let groupsCache: Group[] | null = null;
 const externalAccountsCache = new Map<string, ExternalAccount[]>();
 
-export async function fetchFriends(_isNigeria: boolean): Promise<Friend[]> {
+export async function fetchFriends(): Promise<Friend[]> {
   return fetchFriendsApi();
 }
 
-export async function fetchGroups(_isNigeria: boolean): Promise<Group[]> {
+export async function fetchGroups(): Promise<Group[]> {
   if (groupsCache) return groupsCache;
 
   const data = await apiClient('/groups');

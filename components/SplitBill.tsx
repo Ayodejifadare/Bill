@@ -25,7 +25,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collap
 import { toast } from 'sonner';
 import { apiClient } from '../utils/apiClient';
 import { useUserProfile } from './UserProfileContext';
-import { getCurrencySymbol } from '../utils/regions';
+import { getCurrencySymbol, getBankIdentifierLabel, requiresRoutingNumber, formatCurrencyForRegion } from '../utils/regions';
 import {
   fetchFriends,
   fetchGroups,
@@ -49,8 +49,9 @@ interface SplitBillProps {
 
 export function SplitBill({ onNavigate, groupId }: SplitBillProps) {
   const { appSettings, userProfile } = useUserProfile();
-  const isNigeria = appSettings.region === 'NG';
   const currencySymbol = getCurrencySymbol(appSettings.region);
+  // Legacy variable for unreachable code block (safe to remove when legacy block is deleted)
+  const isNigeria = appSettings.region === 'NG';
   
   const [billName, setBillName] = useState('');
   const [totalAmount, setTotalAmount] = useState('');
@@ -137,8 +138,8 @@ export function SplitBill({ onNavigate, groupId }: SplitBillProps) {
         setLoading(true);
         setError(null);
         const [friends, fetchedGroups] = await Promise.all([
-          fetchFriends(isNigeria),
-          fetchGroups(isNigeria),
+          fetchFriends(),
+          fetchGroups(), 
         ]);
         if (cancelled) return;
         setGroups(fetchedGroups);
@@ -177,7 +178,7 @@ export function SplitBill({ onNavigate, groupId }: SplitBillProps) {
     return () => {
       cancelled = true;
     };
-  }, [groupId, isNigeria]);
+  }, [groupId]);
 
   // Fetch external accounts when group changes
   useEffect(() => {
@@ -523,6 +524,40 @@ export function SplitBill({ onNavigate, groupId }: SplitBillProps) {
     }
 
     const myShare = participants.find(p => p.friend.id === 'me')?.amount || 0;
+
+    // Region-aware early builder (overrides legacy block below)
+    const total = parseFloat(totalAmount || '0');
+    const totalFmt = formatCurrencyForRegion(appSettings.region, isNaN(total) ? 0 : total);
+    const myShareFmt = myShare > 0 ? formatCurrencyForRegion(appSettings.region, myShare) : '';
+    let built = `Split Bill: ${billName || 'Untitled Bill'}\nTotal Amount: ${totalFmt}`;
+    if (description) built += `\nDescription: ${description}`;
+    if (myShare > 0) built += `\nYour Share: ${myShareFmt}`;
+    built += `\nSend payment to:`;
+    if (selectedPaymentMethod.type === 'bank') {
+      const label = getBankIdentifierLabel(appSettings.region);
+      const idValue = requiresRoutingNumber(appSettings.region)
+        ? selectedPaymentMethod.routingNumber
+        : selectedPaymentMethod.sortCode;
+      built += `\n${selectedPaymentMethod.bankName}\n- ${selectedPaymentMethod.accountHolderName}\n${label}: ${idValue}\nAccount: ${selectedPaymentMethod.accountNumber}`;
+    } else {
+      built += `\n${selectedPaymentMethod.provider}\nPhone: ${selectedPaymentMethod.phoneNumber}`;
+    }
+    try {
+      if (navigator.share) {
+        await navigator.share({ text: built });
+        toast.success('Split details shared');
+        return;
+      }
+      throw new Error('Share not supported');
+    } catch {
+      try {
+        await navigator.clipboard.writeText(built);
+        toast.success('Split details copied to clipboard');
+      } catch {
+        toast.error('Failed to share split details');
+      }
+    }
+    return;
 
     let splitDetails = `📄 Split Bill: ${billName || 'Untitled Bill'}
 💰 Total Amount: ${currencySymbol}${totalAmount}

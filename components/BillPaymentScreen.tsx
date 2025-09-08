@@ -48,7 +48,6 @@ interface BillSplit {
 
 export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps) {
   const { appSettings } = useUserProfile();
-  const isNigeria = appSettings.region === 'NG';
   const currencySymbol = getCurrencySymbol(appSettings.region);
   
   const [paymentStatus, setPaymentStatus] = useState<'pending' | 'sent' | 'confirmed'>('pending');

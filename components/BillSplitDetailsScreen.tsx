@@ -77,7 +77,6 @@ async function deleteBillSplit(id: string): Promise<void> {
 
 export function BillSplitDetailsScreen({ billSplitId, onNavigate }: BillSplitDetailsScreenProps) {
   const { userProfile, appSettings } = useUserProfile();
-  const isNigeria = appSettings.region === 'NG';
   const currencySymbol = getCurrencySymbol(appSettings.region);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showShareSheet, setShowShareSheet] = useState(false);

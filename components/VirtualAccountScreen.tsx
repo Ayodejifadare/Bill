@@ -60,7 +60,6 @@ const MOBILE_MONEY_PROVIDERS = [
 
 export function VirtualAccountScreen({ groupId, onNavigate }: VirtualAccountScreenProps) {
   const { appSettings } = useUserProfile();
-  const isNigeria = appSettings.region === 'NG';
   const banks = getBankDirectoryForRegion(appSettings.region);
   const providers = getMobileMoneyProviders(appSettings.region);
   const phoneCountryCode = getRegionConfig(appSettings.region).phoneCountryCode;
@@ -332,8 +331,8 @@ export function VirtualAccountScreen({ groupId, onNavigate }: VirtualAccountScre
                 <div className="space-y-4">
 
 
-                  {/* Method Type Selection - Only show for Nigeria */}
-                  {isNigeria && (
+                  {/* Method Type Selection - Only show when mobile money is supported */}
+                  {providers.length > 0 && (
                     <div className="grid grid-cols-2 gap-2">
                       <Button
                         variant={methodType === 'bank' ? 'default' : 'outline'}
@@ -354,7 +353,7 @@ export function VirtualAccountScreen({ groupId, onNavigate }: VirtualAccountScre
                     </div>
                   )}
 
-                  {(!isNigeria || methodType === 'bank') ? (
+                  {(providers.length === 0 || methodType === 'bank') ? (
                     <>
                       <div className="space-y-2">
                         <Label>Bank</Label>
@@ -484,7 +483,7 @@ export function VirtualAccountScreen({ groupId, onNavigate }: VirtualAccountScre
         {externalAccounts.length === 0 ? (
           <Card>
             <CardContent className="p-8 text-center">
-              {isNigeria ? (
+              {providers.length > 0 ? (
                 <div className="flex items-center justify-center gap-4 mb-4">
                   <Building2 className="h-12 w-12 text-muted-foreground" />
                   <Smartphone className="h-12 w-12 text-muted-foreground" />

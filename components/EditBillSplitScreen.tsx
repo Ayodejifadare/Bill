@@ -85,7 +85,6 @@ async function updateBillSplit(id: string, payload: any): Promise<void> {
 
 export function EditBillSplitScreen({ billSplitId, onNavigate }: EditBillSplitScreenProps) {
   const { appSettings, userProfile } = useUserProfile();
-  const isNigeria = appSettings.region === 'NG';
   const currencySymbol = getCurrencySymbol(appSettings.region);
 
   const [billSplit, setBillSplit] = useState<BillSplit | null>(null);
