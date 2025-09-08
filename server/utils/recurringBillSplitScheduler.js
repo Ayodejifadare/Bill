@@ -19,17 +19,15 @@ export function computeNextRun(frequency, day, from = new Date()) {
 }
 
 // Schedule cron job to process recurring bill splits
+import { recurringBillSplitQueue } from './taskQueue.js'
+
 export async function scheduleRecurringBillSplits(prisma) {
   const cron = (await import('node-cron')).default
-  // Check daily at midnight
-  cron.schedule('0 0 * * *', async () => {
-    const now = new Date()
-    const dueSplits = await prisma.recurringBillSplit.findMany({
-      where: { nextRun: { lte: now } },
-      include: { billSplit: { include: { participants: true } } }
-    })
 
-    for (const rec of dueSplits) {
+  // Worker to process queued bill splits
+  recurringBillSplitQueue.process(async job => {
+    const rec = job.data
+    try {
       await prisma.billSplit.create({
         data: {
           title: rec.billSplit.title,
@@ -53,6 +51,25 @@ export async function scheduleRecurringBillSplits(prisma) {
         where: { id: rec.id },
         data: { nextRun }
       })
+    } catch (err) {
+      console.error('Failed to process recurring bill split job', err)
+    }
+  })
+
+  // Check daily at midnight
+  cron.schedule('0 0 * * *', async () => {
+    try {
+      const now = new Date()
+      const dueSplits = await prisma.recurringBillSplit.findMany({
+        where: { nextRun: { lte: now } },
+        include: { billSplit: { include: { participants: true } } }
+      })
+
+      for (const rec of dueSplits) {
+        await recurringBillSplitQueue.add(rec, { jobId: `recurring-bill-split-${rec.id}` })
+      }
+    } catch (err) {
+      console.error('Error scheduling recurring bill splits', err)
     }
   })
 }

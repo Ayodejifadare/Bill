@@ -18,16 +18,15 @@ export function computeNextDueDate(frequency, day, dayOfWeek, from = new Date())
   return next
 }
 
+import { recurringRequestQueue } from './taskQueue.js'
+
 export async function scheduleRecurringRequests(prisma) {
   const cron = (await import('node-cron')).default
-  // Check daily at midnight
-  cron.schedule('0 0 * * *', async () => {
-    const now = new Date()
-    const dueRequests = await prisma.paymentRequest.findMany({
-      where: { isRecurring: true, nextDueDate: { lte: now } }
-    })
 
-    for (const req of dueRequests) {
+  // Worker to process queued recurring requests
+  recurringRequestQueue.process(async job => {
+    const req = job.data
+    try {
       await prisma.paymentRequest.create({
         data: {
           senderId: req.senderId,
@@ -53,6 +52,25 @@ export async function scheduleRecurringRequests(prisma) {
         where: { id: req.id },
         data: { nextDueDate: null }
       })
+    } catch (err) {
+      console.error('Failed to process recurring request job', err)
+    }
+  })
+
+  // Check daily at midnight
+  cron.schedule('0 0 * * *', async () => {
+    try {
+      const now = new Date()
+      const dueRequests = await prisma.paymentRequest.findMany({
+        where: { isRecurring: true, nextDueDate: { lte: now } }
+      })
+
+      for (const req of dueRequests) {
+        // jobId ensures only one instance processes this request
+        await recurringRequestQueue.add(req, { jobId: `recurring-request-${req.id}` })
+      }
+    } catch (err) {
+      console.error('Error scheduling recurring requests', err)
     }
   })
 }
