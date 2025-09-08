@@ -422,14 +422,16 @@ model Invoice {
 
 model VerificationCode {
   id        String   @id @default(cuid())
-  userId    String
+  userId    String?
   type      String
   code      String
-  target    String?
+  target    String
   expiresAt DateTime
 
-  user User @relation(fields: [userId], references: [id])
+  user User? @relation(fields: [userId], references: [id])
 
   @@unique([userId, type])
+  @@unique([target, type])
+  @@index([expiresAt])
   @@map("verification_codes")
 }
