@@ -1,9 +1,6 @@
-import jwt from 'jsonwebtoken'
-
-const { JWT_SECRET } = process.env
-if (!JWT_SECRET) {
-  throw new Error('JWT_SECRET environment variable is not defined')
-}
+// Authentication is handled by auth middleware which sets `req.user` and `req.userId`.
+// This middleware only checks the user's onboarding state and assumes any missing
+// authentication has already been handled upstream.
 
 // Middleware to gate access for users who haven't completed onboarding
 // Instead of issuing a 307 redirect (problematic for fetch/SSE), return a
@@ -25,15 +22,15 @@ export default async function onboardingRedirect(req, res, next) {
     return next()
   }
 
-  const token = req.headers.authorization?.replace('Bearer ', '')
-  if (!token) {
+  const userId = req.userId || req.user?.id
+  if (!userId) {
+    // Authentication middleware will handle missing auth
     return next()
   }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET)
     const user = await req.prisma.user.findUnique({
-      where: { id: decoded.userId },
+      where: { id: userId },
       select: { onboardingCompleted: true }
     })
 
@@ -41,11 +38,11 @@ export default async function onboardingRedirect(req, res, next) {
       return res.status(403).json({
         error: 'onboarding_required',
         message: 'User must complete onboarding before accessing this resource.',
-        onboardingUrl: `/api/users/${decoded.userId}/onboarding`
+        onboardingUrl: `/api/users/${userId}/onboarding`
       })
     }
   } catch (err) {
-    // Ignore errors – authentication middleware will handle them
+    // Ignore errors – auth middleware or downstream handlers will manage errors
   }
   next()
 }
