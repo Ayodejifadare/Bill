@@ -12,7 +12,7 @@ import { saveAuth, loadAuth, clearAuth } from './utils/auth';
 import { apiClient } from './utils/apiClient';
 
 // Lazy load components for code splitting
-const HomeScreen = lazy(() => import('./components/HomeScreen').then(m => ({ default: m.HomeScreen })));
+import { HomeScreen } from './components/HomeScreen';
 const SendMoney = lazy(() => import('./components/SendMoney').then(m => ({ default: m.SendMoney })));
 const SplitBill = lazy(() => import('./components/SplitBill').then(m => ({ default: m.SplitBill })));
 const FriendsList = lazy(() => import('./components/FriendsList').then(m => ({ default: m.FriendsList })));
@@ -79,6 +79,7 @@ interface NavigationState {
   requestMoneyData: any;
   sendMoneyData: any;
   reminderData: any;
+  historyBackTo: string | null;
 }
 
 type NavigationAction = 
@@ -98,6 +99,7 @@ type NavigationAction =
   | { type: 'SET_REQUEST_DATA'; payload: any }
   | { type: 'SET_SEND_DATA'; payload: any }
   | { type: 'SET_REMINDER_DATA'; payload: any }
+  | { type: 'SET_HISTORY_BACK_TO'; payload: string | null }
   | { type: 'CLEAR_ALL' }
   | { type: 'CLEAR_PREVIOUS_STATE'; payload: string };
 
@@ -119,6 +121,7 @@ const initialState: NavigationState = {
   requestMoneyData: null,
   sendMoneyData: null,
   reminderData: null,
+  historyBackTo: null,
 };
 
 const navigationReducer = (state: NavigationState, action: NavigationAction): NavigationState => {
@@ -159,6 +162,8 @@ const navigationReducer = (state: NavigationState, action: NavigationAction): Na
       return { ...state, sendMoneyData: action.payload };
     case 'SET_REMINDER_DATA':
       return { ...state, reminderData: action.payload };
+    case 'SET_HISTORY_BACK_TO':
+      return { ...state, historyBackTo: action.payload };
     case 'CLEAR_ALL':
       return initialState;
     case 'CLEAR_PREVIOUS_STATE':
@@ -167,6 +172,9 @@ const navigationReducer = (state: NavigationState, action: NavigationAction): Na
       const previousTab = action.payload;
       
       switch (previousTab) {
+        case 'transaction-history':
+          newState.historyBackTo = null;
+          break;
         case 'transaction-details':
           newState.selectedTransactionId = null;
           break;
@@ -218,18 +226,14 @@ const navigationReducer = (state: NavigationState, action: NavigationAction): Na
 // Memoized loading component
 const MemoizedPageLoading = memo(PageLoading);
 
-// Performance monitoring hook
+// Performance monitoring hook (logs disabled by default to reduce console noise)
 const usePerformanceMonitoring = () => {
   useEffect(() => {
     // Performance observer for monitoring navigation timing
     if ('PerformanceObserver' in window) {
       const observer = new PerformanceObserver((list) => {
         for (const entry of list.getEntries()) {
-          if (entry.entryType === 'navigation') {
-            console.log('Navigation timing:', entry);
-          } else if (entry.entryType === 'measure') {
-            console.log('Custom measure:', entry);
-          }
+          // Intentionally no logging; enable here if needed
         }
       });
       
@@ -245,6 +249,7 @@ function AppContent() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showLogin, setShowLogin] = useState(true);
   const [isInitializing, setIsInitializing] = useState(true);
+  const DEBUG_NAV = false;
   
   // Performance monitoring
   usePerformanceMonitoring();
@@ -289,7 +294,7 @@ function AppContent() {
     try {
       performance.mark('navigation-start');
       
-      console.log('Navigation:', tab, data);
+      if (DEBUG_NAV) console.log('Navigation:', tab, data);
       
       // Clear previous state
       dispatch({ type: 'CLEAR_PREVIOUS_STATE', payload: navState.activeTab });
@@ -297,6 +302,9 @@ function AppContent() {
       // Handle navigation with data
       if (data) {
         switch (tab) {
+          case 'transaction-history':
+            dispatch({ type: 'SET_HISTORY_BACK_TO', payload: data.from || 'home' });
+            break;
           case 'transaction-details':
             if (data.transactionId) {
               dispatch({ type: 'SET_TRANSACTION_ID', payload: data.transactionId });
@@ -392,6 +400,32 @@ function AppContent() {
       }
     }
   }, [navState.activeTab]);
+
+  // Prefetch common screens after initial render to make subsequent navigations snappier
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const w = window as any;
+    const run = () => {
+      Promise.allSettled([
+        import('./components/FriendsList'),
+        import('./components/SplitBill'),
+        import('./components/BillsScreen'),
+        import('./components/ProfileScreen'),
+        import('./components/TransactionHistoryScreen'),
+        import('./components/SpendingInsightsScreen'),
+        import('./components/GroupDetailsScreen'),
+        import('./components/NotificationsScreen'),
+        import('./components/PaymentMethodsScreen'),
+      ]).catch(() => {/* ignore */});
+    };
+    const idleId = w.requestIdleCallback
+      ? w.requestIdleCallback(run, { timeout: 1200 })
+      : setTimeout(run, 600);
+    return () => {
+      if (w.cancelIdleCallback && idleId) w.cancelIdleCallback(idleId);
+      else clearTimeout(idleId);
+    };
+  }, [isAuthenticated]);
 
   // Memoized group navigation handler
   const handleGroupNavigation = useCallback((screen: string, groupId?: string, additionalData?: any) => {
@@ -579,7 +613,7 @@ function AppContent() {
         case 'payment-flow':
           return <PaymentFlowScreen paymentRequest={navState.paymentRequest} onNavigate={handleNavigate} />;
         case 'transaction-history':
-          return <TransactionHistoryScreen onNavigate={handleNavigate} />;
+          return <TransactionHistoryScreen onNavigate={handleNavigate} backTo={navState.historyBackTo || 'home'} />;
         case 'spending-insights':
           return <SpendingInsightsScreen onNavigate={handleNavigate} />;
         case 'create-group':

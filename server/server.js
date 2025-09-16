@@ -83,7 +83,14 @@ if (rateLimitEnabled) {
 
 app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true, limit: '10mb' }))
-app.use('/uploads', express.static(path.join(process.cwd(), UPLOAD_DIR)))
+// Serve uploads with caching headers to optimize avatar/images load
+app.use('/uploads', express.static(path.join(process.cwd(), UPLOAD_DIR), {
+  maxAge: '7d',
+  setHeaders: (res, filePath) => {
+    // Mark as public cacheable for a short period; adjust as needed
+    res.setHeader('Cache-Control', 'public, max-age=604800, immutable')
+  }
+}))
 
 // Make prisma available in req object
 app.use((req, res, next) => {

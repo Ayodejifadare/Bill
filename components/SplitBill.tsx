@@ -442,9 +442,21 @@ export function SplitBill({ onNavigate, groupId }: SplitBillProps) {
       currentParticipants = calculateEqualSplit(participants);
     }
 
-    const splitTotalCents = Math.round(
-      currentParticipants.reduce((sum, p) => sum + (isNaN(p.amount) ? 0 : p.amount), 0) * 100
-    );
+    // Final normalization and de-duplication of participants by user id
+    const currentUserId = userProfile?.id;
+    const normalizedList = currentParticipants
+      .filter(p => !isNaN(p.amount) && p.amount > 0)
+      .map(p => ({
+        id: p.friend.id === 'me' ? (currentUserId || 'me') : p.friend.id,
+        amount: Number(p.amount)
+      }));
+    const dedupMap = new Map<string, number>();
+    for (const item of normalizedList) {
+      dedupMap.set(item.id, (dedupMap.get(item.id) || 0) + item.amount);
+    }
+    const dedupParticipants = Array.from(dedupMap.entries()).map(([id, amount]) => ({ id, amount }));
+
+    const splitTotalCents = Math.round(dedupParticipants.reduce((sum, p) => sum + p.amount, 0) * 100);
     const expectedTotalCents = Math.round(parseFloat(totalAmount) * 100);
 
     if (splitTotalCents !== expectedTotalCents) {
@@ -460,7 +472,6 @@ export function SplitBill({ onNavigate, groupId }: SplitBillProps) {
 
     try {
       setSubmitting(true);
-      const currentUserId = userProfile?.id;
       const payload: any = {
         title: billName.trim(),
         totalAmount: parseFloat(totalAmount),
@@ -476,12 +487,7 @@ export function SplitBill({ onNavigate, groupId }: SplitBillProps) {
         dayOfWeek: isRecurring && recurringFrequency === 'weekly'
           ? recurringDayOfWeek
           : undefined,
-        participants: participants
-          .filter(p => !isNaN(p.amount) && p.amount > 0)
-          .map(p => ({
-            id: p.friend.id === 'me' ? (currentUserId || 'me') : p.friend.id,
-            amount: Number(p.amount)
-          })),
+        participants: dedupParticipants,
       };
 
       await apiClient('/bill-splits', {

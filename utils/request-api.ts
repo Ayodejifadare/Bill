@@ -1,11 +1,8 @@
 export interface CreateRequestPayload {
   amount: number;
   recipients: string[];
-  paymentMethod: {
-    id: string;
-    type: 'bank' | 'mobile_money';
-    [key: string]: any;
-  };
+  // Can be an ID or a PaymentMethod-like object; we will send the ID to the server
+  paymentMethod: { id: string } | string;
   isRecurring?: boolean;
   recurringFrequency?: string;
   recurringDay?: number;
@@ -16,9 +13,20 @@ export interface CreateRequestPayload {
 import { apiClient } from './apiClient';
 
 export async function createRequest(payload: CreateRequestPayload): Promise<void> {
+  const body = {
+    amount: payload.amount,
+    recipients: payload.recipients,
+    paymentMethod: typeof payload.paymentMethod === 'string' ? payload.paymentMethod : payload.paymentMethod.id,
+    message: payload.message,
+    // Optional recurring fields (server validates types)
+    isRecurring: payload.isRecurring,
+    recurringFrequency: payload.recurringFrequency,
+    recurringDay: payload.recurringDay,
+    recurringDayOfWeek: payload.recurringDayOfWeek,
+  };
   await apiClient('/requests', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(body),
   });
 }

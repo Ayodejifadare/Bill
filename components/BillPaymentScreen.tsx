@@ -120,10 +120,22 @@ export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps
     toast.success('Amount copied to clipboard');
   };
 
-  const copyReference = () => {
-    const reference = `Biltip-${bill.id}-${Date.now()}`;
-    navigator.clipboard.writeText(reference);
-    toast.success('Payment reference copied to clipboard');
+  const copyReference = async () => {
+    try {
+      // Prefer server-side reference for reconciliation
+      const data = await apiClient(`/api/bill-splits/${bill.id}/reference`, { method: 'POST' });
+      const reference = data?.reference || `Biltip-${bill.id}-${Date.now()}`;
+      await navigator.clipboard.writeText(reference);
+      toast.success('Payment reference copied to clipboard');
+    } catch {
+      const fallback = `Biltip-${bill.id}-${Date.now()}`;
+      try {
+        await navigator.clipboard.writeText(fallback);
+        toast.success('Payment reference copied to clipboard');
+      } catch {
+        toast.error('Failed to copy reference. Please copy manually.');
+      }
+    }
   };
 
   const markAsSent = async () => {

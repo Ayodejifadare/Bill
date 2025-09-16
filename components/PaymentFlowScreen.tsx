@@ -115,10 +115,25 @@ export function PaymentFlowScreen({ paymentRequest, onNavigate }: PaymentFlowScr
     toast.success('Amount copied to clipboard');
   };
 
-  const copyReference = () => {
-    const reference = `Biltip-${paymentRequest.id}-${Date.now()}`;
-    navigator.clipboard.writeText(reference);
-    toast.success('Payment reference copied to clipboard');
+  const copyReference = async () => {
+    try {
+      let reference: string | null = null;
+      if ((paymentRequest as any)?.billSplitId) {
+        const data = await apiClient(`/api/bill-splits/${(paymentRequest as any).billSplitId}/reference`, { method: 'POST' });
+        reference = data?.reference || null;
+      }
+      const refToCopy = reference || `Biltip-${paymentRequest.id}-${Date.now()}`;
+      await navigator.clipboard.writeText(refToCopy);
+      toast.success('Payment reference copied to clipboard');
+    } catch {
+      const fallback = `Biltip-${paymentRequest.id}-${Date.now()}`;
+      try {
+        await navigator.clipboard.writeText(fallback);
+        toast.success('Payment reference copied to clipboard');
+      } catch {
+        toast.error('Failed to copy reference. Please copy manually.');
+      }
+    }
   };
 
   const markAsSent = () => {

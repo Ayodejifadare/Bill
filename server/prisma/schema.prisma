@@ -6,78 +6,79 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider          = "postgresql"
+  url               = env("DATABASE_URL")
   shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String
-  password  String   @default("")
-  firstName String?
-  lastName  String?
-  dateOfBirth DateTime?
-  address   String?
-  bio       String?
-  phone     String?
-  avatar    String?
-  balance   Float    @default(0)
-  twoFactorEnabled Boolean  @default(false)
-  biometricEnabled Boolean  @default(false)
-  phoneVerified     Boolean  @default(false)
-  emailVerified     Boolean  @default(false)
-  idVerified        Boolean  @default(false)
-  documentsSubmitted Boolean @default(false)
-  kycStatus String   @default("pending")
-  tokenVersion    Int      @default(0)
-  privacySettings      String?
-  preferenceSettings   String?
-  region    String   @default("US")
-  currency  String   @default("USD")
-  onboardingCompleted  Boolean @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                  String    @id @default(cuid())
+  email               String    @unique
+  name                String
+  password            String    @default("")
+  firstName           String?
+  lastName            String?
+  dateOfBirth         DateTime?
+  address             String?
+  bio                 String?
+  phone               String?
+  avatar              String?
+  balance             Float     @default(0)
+  twoFactorEnabled    Boolean   @default(false)
+  biometricEnabled    Boolean   @default(false)
+  phoneVerified       Boolean   @default(false)
+  emailVerified       Boolean   @default(false)
+  idVerified          Boolean   @default(false)
+  documentsSubmitted  Boolean   @default(false)
+  kycStatus           String    @default("pending")
+  tokenVersion        Int       @default(0)
+  privacySettings     String?
+  preferenceSettings  String?
+  region              String    @default("US")
+  currency            String    @default("USD")
+  onboardingCompleted Boolean   @default(false)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   // Relationships
-  sentTransactions     Transaction[] @relation("SentTransactions")
-  receivedTransactions Transaction[] @relation("ReceivedTransactions")
-  billSplits          BillSplit[]
-  billSplitParticipants BillSplitParticipant[]
-  friendRequestsSent  FriendRequest[] @relation("FriendRequestSender")
-  friendRequestsReceived FriendRequest[] @relation("FriendRequestReceiver")
-  friendships1        Friendship[] @relation("User1")
-  friendships2        Friendship[] @relation("User2")
-  groups              GroupMember[]
-  groupAccounts       GroupAccount[]
-  paymentMethods      PaymentMethod[]
-  notifications       Notification[] @relation("NotificationRecipient")
-  notificationPreference NotificationPreference?
-  notificationsActing Notification[] @relation("NotificationActor")
-  paymentRequestsSent     PaymentRequest[] @relation("PaymentRequestSender")
-  paymentRequestsReceived PaymentRequest[] @relation("PaymentRequestReceiver")
-  securityLogs        SecurityLog[]
-  verificationCodes   VerificationCode[]
-  remindersSent     BillSplitReminder[] @relation("BillSplitReminderSender")
-  remindersReceived BillSplitReminder[] @relation("BillSplitReminderRecipient")
+  sentTransactions        Transaction[]           @relation("SentTransactions")
+  receivedTransactions    Transaction[]           @relation("ReceivedTransactions")
+  billSplits              BillSplit[]
+  billSplitParticipants   BillSplitParticipant[]
+  friendRequestsSent      FriendRequest[]         @relation("FriendRequestSender")
+  friendRequestsReceived  FriendRequest[]         @relation("FriendRequestReceiver")
+  friendships1            Friendship[]            @relation("User1")
+  friendships2            Friendship[]            @relation("User2")
+  groups                  GroupMember[]
+  groupAccounts           GroupAccount[]
+  paymentMethods          PaymentMethod[]
+  notifications           Notification[]          @relation("NotificationRecipient")
+  notificationPreference  NotificationPreference?
+  notificationsActing     Notification[]          @relation("NotificationActor")
+  paymentRequestsSent     PaymentRequest[]        @relation("PaymentRequestSender")
+  paymentRequestsReceived PaymentRequest[]        @relation("PaymentRequestReceiver")
+  securityLogs            SecurityLog[]
+  verificationCodes       VerificationCode[]
+  remindersSent           BillSplitReminder[]     @relation("BillSplitReminderSender")
+  remindersReceived       BillSplitReminder[]     @relation("BillSplitReminderRecipient")
+  paymentReferences       PaymentReference[]
 
   @@map("users")
 }
 
 model Transaction {
-    id          String            @id @default(cuid())
-    amount      Float
-    description String?
-    status      String @default("PENDING")
-    type        String
-    category    String?
-    createdAt   DateTime          @default(now())
-    updatedAt   DateTime          @updatedAt
+  id          String   @id @default(cuid())
+  amount      Float
+  description String?
+  status      String   @default("PENDING")
+  type        String
+  category    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   // Foreign keys
-  senderId   String
-  receiverId String
+  senderId    String
+  receiverId  String
   billSplitId String?
 
   // Relationships
@@ -85,25 +86,26 @@ model Transaction {
   receiver  User       @relation("ReceivedTransactions", fields: [receiverId], references: [id])
   billSplit BillSplit? @relation(fields: [billSplitId], references: [id])
 
-  receipts Receipt[]
-  invoices Invoice[]
+  receipts          Receipt[]
+  invoices          Invoice[]
+  paymentReferences PaymentReference[]
 
   @@map("transactions")
 }
 
 model PaymentRequest {
-  id          String   @id @default(cuid())
-  amount      Float
-  description String?
-  message     String?
-  status      String   @default("PENDING")
-  isRecurring Boolean  @default(false)
+  id                 String    @id @default(cuid())
+  amount             Float
+  description        String?
+  message            String?
+  status             String    @default("PENDING")
+  isRecurring        Boolean   @default(false)
   recurringFrequency String?
-  recurringDay Int?
+  recurringDay       Int?
   recurringDayOfWeek Int?
-  nextDueDate DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  nextDueDate        DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   // Foreign keys
   senderId   String
@@ -117,34 +119,35 @@ model PaymentRequest {
 }
 
 model BillSplit {
-    id          String           @id @default(cuid())
-    title       String
-    description String?
-    totalAmount Float
-    status      String @default("PENDING")
-    createdAt   DateTime         @default(now())
-    updatedAt   DateTime         @updatedAt
-    location    String?
-    date        DateTime?
-    note        String?
-    splitMethod String?
-    paymentMethodId String?
-    groupId     String?
-    isRecurring Boolean @default(false)
+  id              String    @id @default(cuid())
+  title           String
+  description     String?
+  totalAmount     Float
+  status          String    @default("PENDING")
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  location        String?
+  date            DateTime?
+  note            String?
+  splitMethod     String?
+  paymentMethodId String?
+  groupId         String?
+  isRecurring     Boolean   @default(false)
 
   // Foreign keys
   createdBy String
 
   // Relationships
-  creator      User          @relation(fields: [createdBy], references: [id])
-  group        Group?        @relation(fields: [groupId], references: [id])
-  transactions Transaction[]
-  participants BillSplitParticipant[]
-  items        BillItem[]
-  receipts     Receipt[]
-  invoices     Invoice[]
-  reminders   BillSplitReminder[]
-  recurring    RecurringBillSplit?
+  creator           User                   @relation(fields: [createdBy], references: [id])
+  group             Group?                 @relation(fields: [groupId], references: [id])
+  transactions      Transaction[]
+  participants      BillSplitParticipant[]
+  items             BillItem[]
+  receipts          Receipt[]
+  invoices          Invoice[]
+  reminders         BillSplitReminder[]
+  recurring         RecurringBillSplit?
+  paymentReferences PaymentReference[]
 
   @@map("bill_splits")
 }
@@ -162,10 +165,10 @@ model BillItem {
 }
 
 model BillSplitParticipant {
-  id       String @id @default(cuid())
-  amount   Float
-  status   String @default("PENDING")
-  isPaid   Boolean @default(false)
+  id     String  @id @default(cuid())
+  amount Float
+  status String  @default("PENDING")
+  isPaid Boolean @default(false)
 
   // Foreign keys
   billSplitId String
@@ -225,10 +228,10 @@ model Friendship {
 }
 
 model FriendRequest {
-    id        String              @id @default(cuid())
-    status    String @default("PENDING")
-    createdAt DateTime            @default(now())
-    updatedAt DateTime            @updatedAt
+  id        String   @id @default(cuid())
+  status    String   @default("PENDING")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Foreign keys
   senderId   String
@@ -243,18 +246,18 @@ model FriendRequest {
 }
 
 model Group {
-  id        String   @id @default(cuid())
-  name      String
+  id          String   @id @default(cuid())
+  name        String
   description String?
-  color     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  color       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  members  GroupMember[]
-  accounts GroupAccount[]
-  invites  GroupInvite[]
+  members     GroupMember[]
+  accounts    GroupAccount[]
+  invites     GroupInvite[]
   inviteLinks GroupInviteLink[]
-  billSplits BillSplit[]
+  billSplits  BillSplit[]
 
   @@map("groups")
 }
@@ -273,16 +276,16 @@ model GroupMember {
 }
 
 model GroupInvite {
-  id         String   @id @default(cuid())
-  groupId    String
-  name       String?
-  contact    String
-  method     String
-  invitedBy  String
-  invitedAt  DateTime @default(now())
-  status     String   @default("sent")
-  expiresAt  DateTime
-  attempts   Int      @default(1)
+  id          String    @id @default(cuid())
+  groupId     String
+  name        String?
+  contact     String
+  method      String
+  invitedBy   String
+  invitedAt   DateTime  @default(now())
+  status      String    @default("sent")
+  expiresAt   DateTime
+  attempts    Int       @default(1)
   lastAttempt DateTime?
 
   group Group @relation(fields: [groupId], references: [id])
@@ -307,21 +310,21 @@ model GroupInviteLink {
 }
 
 model GroupAccount {
-  id          String @id @default(cuid())
-  groupId     String
-  createdById String
-  name        String
-  type        String
-  accountType String?
-  bank        String?
+  id            String   @id @default(cuid())
+  groupId       String
+  createdById   String
+  name          String
+  type          String
+  accountType   String?
+  bank          String?
   accountNumber String?
-  accountName String?
+  accountName   String?
   sortCode      String?
   routingNumber String?
-  provider    String?
-  phoneNumber String?
-  isDefault   Boolean @default(false)
-  createdAt   DateTime @default(now())
+  provider      String?
+  phoneNumber   String?
+  isDefault     Boolean  @default(false)
+  createdAt     DateTime @default(now())
 
   group     Group @relation(fields: [groupId], references: [id])
   createdBy User  @relation(fields: [createdById], references: [id])
@@ -342,8 +345,8 @@ model Notification {
   createdAt   String   @default("")
   updatedAt   DateTime @updatedAt
 
-  recipient User   @relation("NotificationRecipient", fields: [recipientId], references: [id])
-  actor     User?  @relation("NotificationActor", fields: [actorId], references: [id])
+  recipient User  @relation("NotificationRecipient", fields: [recipientId], references: [id])
+  actor     User? @relation("NotificationActor", fields: [actorId], references: [id])
 
   @@map("notifications")
 }
@@ -375,7 +378,7 @@ model SecurityLog {
 }
 
 model PaymentMethod {
-  id            String   @id @default(cuid())
+  id            String  @id @default(cuid())
   type          String
   bank          String?
   accountNumber String?
@@ -405,6 +408,24 @@ model Receipt {
   billSplit   BillSplit?   @relation(fields: [billSplitId], references: [id])
 
   @@map("receipts")
+}
+
+model PaymentReference {
+  id            String   @id @default(cuid())
+  code          String   @unique
+  userId        String
+  billSplitId   String?
+  transactionId String?
+  used          Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  user        User         @relation(fields: [userId], references: [id])
+  billSplit   BillSplit?   @relation(fields: [billSplitId], references: [id])
+  transaction Transaction? @relation(fields: [transactionId], references: [id])
+
+  @@index([billSplitId])
+  @@index([transactionId])
+  @@map("payment_references")
 }
 
 model Invoice {

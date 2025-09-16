@@ -14,13 +14,14 @@ import { useTransactions, Transaction } from '../hooks/useTransactions';
 
 interface TransactionHistoryScreenProps {
   onNavigate: (tab: string, data?: any) => void;
+  backTo?: string; // target tab for back navigation
 }
 
 // Filter options
 const timeFilters = ['All Time', 'This Week', 'This Month', 'Last 3 Months', 'This Year'];
 const typeFilters = ['All Types', 'Sent', 'Received', 'Bill Splits', 'Requests'];
 
-export function TransactionHistoryScreen({ onNavigate }: TransactionHistoryScreenProps) {
+export function TransactionHistoryScreen({ onNavigate, backTo = 'home' }: TransactionHistoryScreenProps) {
   const { appSettings } = useUserProfile();
   const fmt = (n: number) => formatCurrencyForRegion(appSettings.region, n);
   const [searchQuery, setSearchQuery] = useState('');
@@ -140,7 +141,7 @@ export function TransactionHistoryScreen({ onNavigate }: TransactionHistoryScree
           <Button 
             variant="ghost" 
             size="sm" 
-            onClick={() => onNavigate('profile')}
+            onClick={() => onNavigate(backTo)}
             className="min-h-[44px] min-w-[44px] -ml-2"
           >
             <ArrowLeft className="h-5 w-5" />

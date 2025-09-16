@@ -89,7 +89,7 @@ export function ProfileScreen({ onNavigate, onLogout }: ProfileScreenProps) {
     {
       section: 'Activity',
       items: [
-        { icon: Receipt, label: 'Transaction History', action: () => onNavigate('transaction-history') },
+        { icon: Receipt, label: 'Transaction History', action: () => onNavigate('transaction-history', { from: 'profile' }) },
         { icon: TrendingUp, label: 'Spending Insights', action: () => onNavigate('spending-insights') },
         { icon: Users, label: 'Friend Activity', action: () => onNavigate('friends') },
       ],
@@ -301,4 +301,3 @@ export function ProfileScreen({ onNavigate, onLogout }: ProfileScreenProps) {
     </div>
   );
 }
-

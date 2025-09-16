@@ -37,7 +37,8 @@ router.post('/', async (req, res) => {
   try {
     const { maxUses = 10, expireDays = 7 } = req.body || {}
     const id = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)
-    const link = `https://example.com/invite/${id}`
+    const baseUrl = process.env.APP_PUBLIC_URL || `${req.protocol}://${req.get('host')}`
+    const link = `${baseUrl}/invite/${id}`
     const expiresAt = new Date(Date.now() + expireDays * 24 * 60 * 60 * 1000)
     const created = await req.prisma.groupInviteLink.create({
       data: {

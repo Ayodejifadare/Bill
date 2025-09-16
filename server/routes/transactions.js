@@ -19,6 +19,89 @@ const router = express.Router()
 
 router.use(authenticate)
 
+// Lightweight counts endpoint to avoid multiple list calls on home
+router.get('/counts', async (req, res) => {
+  try {
+    const {
+      startDate,
+      endDate,
+      status,
+      category,
+      minAmount,
+      maxAmount,
+      keyword,
+    } = req.query
+
+    const baseWhere = {}
+
+    if (startDate || endDate) {
+      baseWhere.createdAt = {}
+      if (startDate) baseWhere.createdAt.gte = new Date(startDate)
+      if (endDate) baseWhere.createdAt.lte = new Date(endDate)
+    }
+
+    if (status) {
+      const mappedStatus = REVERSE_TRANSACTION_STATUS_MAP[status] || status
+      baseWhere.status = mappedStatus
+    }
+
+    if (category) {
+      const mappedCategory = REVERSE_TRANSACTION_CATEGORY_MAP[category] || category
+      baseWhere.category = mappedCategory
+    }
+
+    if (minAmount || maxAmount) {
+      baseWhere.amount = {}
+      if (minAmount) baseWhere.amount.gte = parseFloat(minAmount)
+      if (maxAmount) baseWhere.amount.lte = parseFloat(maxAmount)
+    }
+
+    if (keyword) {
+      const keywordFilter = {
+        OR: [
+          { description: { contains: keyword, mode: 'insensitive' } },
+          { billSplit: { title: { contains: keyword, mode: 'insensitive' } } },
+          { billSplit: { description: { contains: keyword, mode: 'insensitive' } } },
+          { sender: { name: { contains: keyword, mode: 'insensitive' } } },
+          { receiver: { name: { contains: keyword, mode: 'insensitive' } } }
+        ]
+      }
+      baseWhere.AND = Array.isArray(baseWhere.AND)
+        ? [...baseWhere.AND, keywordFilter]
+        : [keywordFilter]
+    }
+
+    const totalWhere = {
+      ...baseWhere,
+      OR: [
+        { senderId: req.userId },
+        { receiverId: req.userId }
+      ]
+    }
+
+    const sentWhere = {
+      ...baseWhere,
+      senderId: req.userId,
+    }
+
+    const receivedWhere = {
+      ...baseWhere,
+      receiverId: req.userId,
+    }
+
+    const [total, sent, received] = await req.prisma.$transaction([
+      req.prisma.transaction.count({ where: totalWhere }),
+      req.prisma.transaction.count({ where: sentWhere }),
+      req.prisma.transaction.count({ where: receivedWhere }),
+    ])
+
+    res.json({ total, sent, received })
+  } catch (error) {
+    console.error('Get transaction counts error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
 // Get distinct transaction categories for the current user
 router.get('/categories', async (req, res) => {
   try {

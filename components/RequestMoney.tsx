@@ -166,11 +166,20 @@ export function RequestMoney({ onNavigate, prefillData }: RequestMoneyProps) {
 
     setIsSubmitting(true);
     try {
+      // Map weekly day-of-week string to number expected by backend (0=Sunday .. 6=Saturday)
+      const dayOfWeekMap: Record<string, number> = {
+        sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6,
+      };
+
       await createRequest({
         amount: parseFloat(amount),
         recipients: selectedFriends.map(f => f.id),
-        paymentMethod: selectedPaymentMethod,
+        paymentMethod: selectedPaymentMethod ? selectedPaymentMethod.id : '',
         message: message.trim() || undefined,
+        isRecurring: isRecurring || undefined,
+        recurringFrequency: isRecurring ? recurringFrequency : undefined,
+        recurringDay: isRecurring && recurringFrequency === 'monthly' ? parseInt(recurringDay || '1', 10) : undefined,
+        recurringDayOfWeek: isRecurring && recurringFrequency === 'weekly' ? (dayOfWeekMap[recurringDayOfWeek as keyof typeof dayOfWeekMap] ?? 0) : undefined,
       });
 
       if (isRecurring) {

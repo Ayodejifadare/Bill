@@ -65,30 +65,6 @@ const REGION_MAP: Record<RegionCode, RegionConfig> = {
       requiresRoutingNumber: true,
     },
   },
-  GB: {
-    code: 'GB',
-    name: 'United Kingdom',
-    currencyCode: 'GBP',
-    currencySymbol: '£',
-    phoneCountryCode: '+44',
-    features: {
-      bankTransfers: true,
-      mobileMoney: false,
-      requiresRoutingNumber: false,
-    },
-  },
-  CA: {
-    code: 'CA',
-    name: 'Canada',
-    currencyCode: 'CAD',
-    currencySymbol: '$',
-    phoneCountryCode: '+1',
-    features: {
-      bankTransfers: true,
-      mobileMoney: false,
-      requiresRoutingNumber: true,
-    },
-  },
   AU: {
     code: 'AU',
     name: 'Australia',
@@ -132,10 +108,7 @@ export function getRegionConfig(region: RegionCode | undefined | null): RegionCo
 }
 
 export function getCurrencySymbol(region: RegionCode | undefined | null): string {
-  const r = getRegionConfig(region)
-  // Ensure NG uses the correct Naira sign regardless of file encoding glitches
-  if (r.code === 'NG') return '₦'
-  return r.currencySymbol
+  return getRegionConfig(region).currencySymbol;
 }
 
 export function getCurrencyCode(region: RegionCode | undefined | null): string {
@@ -212,8 +185,6 @@ export function getLocaleForRegion(region: RegionCode | undefined | null): strin
   if (r.code === 'CA') return 'en-CA';
   if (r.code === 'AU') return 'en-AU';
   if (r.code === 'EU') return 'en-IE';
-  if (r.code === 'GB') return 'en-GB';
-  if (r.code === 'CA') return 'en-CA';
   if (typeof navigator !== 'undefined' && navigator.language) return navigator.language;
   return 'en-US';
 }
@@ -228,3 +199,4 @@ export function formatCurrencyForRegion(region: RegionCode | undefined | null, a
     return `${symbol}${amount.toFixed(2)}`
   }
 }
+

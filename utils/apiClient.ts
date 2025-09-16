@@ -45,23 +45,12 @@ export async function apiClient(
   const tokenIsValid = typeof token === 'string'
     && /^[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+$/.test(token);
 
-  if (process.env.NODE_ENV === 'development') {
-    console.debug('apiClient token:', token, 'valid JWT:', tokenIsValid);
-  }
+  // Reduce console noise during development to improve startup performance
 
   if (tokenIsValid) {
     headers['Authorization'] = `Bearer ${token}`;
-    if (process.env.NODE_ENV === 'development') {
-      console.debug('apiClient Authorization header appended');
-    }
+    // Authorization header attached
   } else {
-    if (process.env.NODE_ENV === 'development') {
-      console.debug(
-        'apiClient Authorization header omitted',
-        'storedAuth:', storedAuth,
-        'tokenIsValid:', tokenIsValid,
-      );
-    }
     if (token) {
       console.warn('Invalid auth token, Authorization header omitted');
       clearAuth();
@@ -87,9 +76,7 @@ export async function apiClient(
     if (xUserId) {
       headers['x-user-id'] = xUserId;
     }
-    if (process.env.NODE_ENV === 'development') {
-      console.debug('apiClient x-user-id header appended for dev auth');
-    }
+    // x-user-id header appended for dev auth
   }
 
   const resource = typeof input === 'string'

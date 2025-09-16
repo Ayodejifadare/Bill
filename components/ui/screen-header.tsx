@@ -43,7 +43,9 @@ export function ScreenHeader({
           
           {showAvatar && (
             <Avatar className="h-10 w-10">
-              {avatarSrc && <AvatarImage src={avatarSrc} />}
+              {avatarSrc && (
+                <AvatarImage src={avatarSrc} loading="eager" fetchPriority="high" decoding="async" />
+              )}
               <AvatarFallback className="bg-primary text-primary-foreground">
                 {avatarFallback}
               </AvatarFallback>

@@ -236,6 +236,53 @@ router.get(
   }
 )
 
+// Generate a server-side payment reference for a bill split
+router.post(
+  '/:id/reference',
+  [authenticateToken, param('id').trim().notEmpty().isString()],
+  async (req, res) => {
+    const errors = validationResult(req)
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() })
+    }
+
+    try {
+      const { id } = req.params
+      // Ensure the requester is the creator or a participant
+      const billSplit = await req.prisma.billSplit.findUnique({
+        where: { id },
+        include: { participants: { select: { userId: true } } }
+      })
+
+      if (
+        !billSplit ||
+        (billSplit.createdBy !== req.userId && !billSplit.participants.some(p => p.userId === req.userId))
+      ) {
+        return res.status(404).json({ error: 'Bill split not found' })
+      }
+
+      // Generate a unique, human-readable reference and persist it
+      const shortBill = String(id).slice(-6)
+      const shortUser = String(req.userId).slice(-6)
+      const ts = new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0, 14) // YYYYMMDDHHMMSS
+      const code = `BTP-${shortBill}-${shortUser}-${ts}`
+
+      const created = await req.prisma.paymentReference.create({
+        data: {
+          code,
+          userId: req.userId,
+          billSplitId: id
+        }
+      })
+
+      return res.json({ reference: created.code, id: created.id, createdAt: created.createdAt })
+    } catch (error) {
+      console.error('Create bill split reference error:', error)
+      res.status(500).json({ error: 'Internal server error' })
+    }
+  }
+)
+
 // Send reminders to participants
 router.post(
   '/:id/reminders',

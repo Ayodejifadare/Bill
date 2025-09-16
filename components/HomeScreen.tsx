@@ -42,12 +42,31 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
     transactions,
     loading: transactionsLoading,
     error: transactionsError,
+    summary,
     refetch,
   } = useTransactions();
-  const { summary } = useTransactions({ status: 'pending', limit: 0 });
-  const { total: allCount } = useTransactions({ limit: 0 });
-  const { total: sentCount } = useTransactions({ type: 'sent', limit: 0 });
-  const { total: receivedCount } = useTransactions({ type: 'received', limit: 0 });
+  const [counts, setCounts] = useState<{ all: number; sent: number; received: number }>({ all: 0, sent: 0, received: 0 });
+  useEffect(() => {
+    // Defer non-critical counts fetch to idle time to speed up first paint
+    const run = () => {
+      (async () => {
+        try {
+          const data = await apiClient('/api/transactions/counts');
+          setCounts({ all: data?.total ?? 0, sent: data?.sent ?? 0, received: data?.received ?? 0 });
+        } catch {
+          // Keep counts at 0 on failure
+        }
+      })();
+    };
+    const w = window as any;
+    const idleId = w.requestIdleCallback
+      ? w.requestIdleCallback(run, { timeout: 800 })
+      : setTimeout(run, 250);
+    return () => {
+      if (w.cancelIdleCallback && idleId) w.cancelIdleCallback(idleId);
+      else clearTimeout(idleId);
+    };
+  }, []);
 
   useEffect(() => {
     const type = activityFilter === 'all' ? undefined : activityFilter;
@@ -55,9 +74,9 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
   }, [activityFilter, refetch]);
 
   const getTransactionCount = (filterType: 'all' | 'sent' | 'received') => {
-    if (filterType === 'all') return allCount;
-    if (filterType === 'sent') return sentCount;
-    if (filterType === 'received') return receivedCount;
+    if (filterType === 'all') return counts.all;
+    if (filterType === 'sent') return counts.sent;
+    if (filterType === 'received') return counts.received;
     return 0;
   };
 
@@ -141,7 +160,7 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
           <Button 
             variant="ghost" 
             size="sm"
-            onClick={() => onNavigate('transaction-history')}
+            onClick={() => onNavigate('transaction-history', { from: 'home' })}
           >
             See All
           </Button>
@@ -211,7 +230,7 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => onNavigate('transaction-history')}
+              onClick={() => onNavigate('transaction-history', { from: 'home' })}
             >
               Load More
             </Button>

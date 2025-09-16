@@ -139,8 +139,16 @@ export function SpendingInsightsScreen({ onNavigate }: SpendingInsightsScreenPro
         <div className="space-y-4">
           <h3 className="font-medium text-lg">Key Insights</h3>
           <div className="space-y-3">
-            {spendingData.insights.map((insight, index) => {
-              const IconComponent = insight.icon;
+            {spendingData.insights.map((insight: any, index: number) => {
+              // Backend returns { type: 'positive'|'warning'|'neutral', message: string }
+              // Provide safe fallbacks for icon/title/description expected by UI
+              const IconComponent = insight.type === 'positive'
+                ? Award
+                : insight.type === 'warning'
+                  ? TrendingDown
+                  : DollarSign;
+              const title = insight.title || 'Spending Insight';
+              const description = insight.description || insight.message || '';
               return (
                 <Card key={index} className={`p-4 min-h-[60px] ${getInsightBgColor(insight.type)}`}>
                   <div className="flex items-start space-x-3">
@@ -148,8 +156,8 @@ export function SpendingInsightsScreen({ onNavigate }: SpendingInsightsScreenPro
                       <IconComponent className={`h-5 w-5 ${getInsightColor(insight.type)}`} />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h4 className="font-medium text-base">{insight.title}</h4>
-                      <p className="text-sm text-muted-foreground leading-relaxed mt-1">{insight.description}</p>
+                      <h4 className="font-medium text-base">{title}</h4>
+                      <p className="text-sm text-muted-foreground leading-relaxed mt-1">{description}</p>
                     </div>
                   </div>
                 </Card>
