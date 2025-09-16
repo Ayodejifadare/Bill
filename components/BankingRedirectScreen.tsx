@@ -6,6 +6,7 @@ import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { toast } from 'sonner';
 import { useUserProfile } from './UserProfileContext';
+import { formatCurrencyForRegion } from '../utils/regions';
 
 interface BankingRedirectScreenProps {
   paymentRequest: {
@@ -36,7 +37,8 @@ interface LinkedBankOption {
 }
 
 export function BankingRedirectScreen({ paymentRequest, method, onNavigate }: BankingRedirectScreenProps) {
-  const { userProfile } = useUserProfile();
+  const { userProfile, appSettings } = useUserProfile();
+  const fmt = (n: number) => formatCurrencyForRegion(appSettings.region, n);
   const linkedBanks: LinkedBankOption[] = userProfile.linkedBankAccounts.map(account => ({
     id: account.id,
     name: account.bankName,
@@ -250,7 +252,7 @@ export function BankingRedirectScreen({ paymentRequest, method, onNavigate }: Ba
             </div>
             <div className="flex justify-between">
               <span className="text-sm">Amount</span>
-              <span className="text-sm">${totalAmount.toFixed(2)}</span>
+              <span className="text-sm">{fmt(totalAmount)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-sm">Description</span>
@@ -325,7 +327,7 @@ export function BankingRedirectScreen({ paymentRequest, method, onNavigate }: Ba
             <p className="text-sm text-muted-foreground">To {paymentRequest.recipient}</p>
           </div>
           <div className="text-right">
-            <p className="text-xl font-bold">${totalAmount.toFixed(2)}</p>
+            <p className="text-xl font-bold">{fmt(totalAmount)}</p>
             <Badge variant="secondary" className="text-xs">
               {method.name}
             </Badge>

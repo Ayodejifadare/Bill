@@ -9,6 +9,7 @@ import { Separator } from './ui/separator';
 import { EmptyState } from './ui/empty-state';
 import { TransactionCard } from './TransactionCard';
 import { useUserProfile } from './UserProfileContext';
+import { formatCurrencyForRegion } from '../utils/regions';
 import { useTransactions, Transaction } from '../hooks/useTransactions';
 
 interface TransactionHistoryScreenProps {
@@ -21,7 +22,7 @@ const typeFilters = ['All Types', 'Sent', 'Received', 'Bill Splits', 'Requests']
 
 export function TransactionHistoryScreen({ onNavigate }: TransactionHistoryScreenProps) {
   const { appSettings } = useUserProfile();
-  const currencySymbol = appSettings.region === 'NG' ? '₦' : '$';
+  const fmt = (n: number) => formatCurrencyForRegion(appSettings.region, n);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All Categories');
   const [selectedTimeFilter, setSelectedTimeFilter] = useState('All Time');
@@ -156,7 +157,7 @@ export function TransactionHistoryScreen({ onNavigate }: TransactionHistoryScree
               <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-success mr-1" />
             </div>
             <p className="text-base sm:text-lg font-medium text-success">
-              {currencySymbol}{totalReceived.toFixed(0)}
+              {fmt(totalReceived)}
             </p>
             <p className="text-xs text-muted-foreground">Received</p>
           </Card>
@@ -166,7 +167,7 @@ export function TransactionHistoryScreen({ onNavigate }: TransactionHistoryScree
               <TrendingDown className="h-4 w-4 sm:h-5 sm:w-5 text-destructive mr-1" />
             </div>
             <p className="text-base sm:text-lg font-medium text-destructive">
-              {currencySymbol}{totalSent.toFixed(0)}
+              {fmt(totalSent)}
             </p>
             <p className="text-xs text-muted-foreground">Sent</p>
           </Card>
@@ -176,7 +177,7 @@ export function TransactionHistoryScreen({ onNavigate }: TransactionHistoryScree
               <ArrowUpDown className="h-4 w-4 sm:h-5 sm:w-5 text-primary mr-1" />
             </div>
             <p className={`text-base sm:text-lg font-medium ${netFlow >= 0 ? 'text-success' : 'text-destructive'}`}>
-              {netFlow >= 0 ? '+' : ''}{currencySymbol}{Math.abs(netFlow).toFixed(0)}
+              {netFlow >= 0 ? '+' : ''}{fmt(Math.abs(netFlow))}
             </p>
             <p className="text-xs text-muted-foreground">Net Flow</p>
           </Card>

@@ -115,7 +115,7 @@ export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
                     <p className="font-medium truncate">{payment.title}</p>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    {payment.organizer.name} • {payment.participants} people
+                    {payment.organizer.name} • {Array.isArray(payment.participants) ? payment.participants.length : payment.participants} people
                   </p>
                   
                   {/* Show payment method info if available */}

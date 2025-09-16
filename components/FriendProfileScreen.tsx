@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
+import { formatCurrencyForRegion } from '../utils/regions';
+import { useUserProfile } from './UserProfileContext';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { 
@@ -69,6 +71,7 @@ interface SharedGroup {
 }
 
 export function FriendProfileScreen({ friendId, onNavigate }: FriendProfileScreenProps) {
+  const { appSettings } = useUserProfile();
   const [activeTab, setActiveTab] = useState('activity');
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);
   const [friend, setFriend] = useState<Friend | null>(null);
@@ -268,7 +271,7 @@ export function FriendProfileScreen({ friendId, onNavigate }: FriendProfileScree
               <div className="flex items-center justify-between">
                 <div className="flex-1 text-center">
                   <p className={`text-2xl ${friend.currentBalance.type === 'owed' ? 'text-success' : 'text-destructive'}`}>
-                    ${friend.currentBalance.amount.toFixed(2)}
+                    {formatCurrencyForRegion(appSettings.region, friend.currentBalance.amount)}
                   </p>
                   <p className="text-sm text-muted-foreground">
                     {friend.currentBalance.type === 'owed' 

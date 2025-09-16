@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback } from './ui/avatar';
 import { Badge } from './ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { useUserProfile } from './UserProfileContext';
+import { formatCurrencyForRegion } from '../utils/regions';
 import { ListSkeleton } from './ui/loading';
 import { Alert, AlertDescription } from './ui/alert';
 import { useUpcomingPayments } from '../hooks/useUpcomingPayments';
@@ -15,7 +16,7 @@ interface UpcomingPaymentsScreenProps {
 
 export function UpcomingPaymentsScreen({ onNavigate }: UpcomingPaymentsScreenProps) {
   const { appSettings } = useUserProfile();
-  const currencySymbol = appSettings.region === 'NG' ? '₦' : '$';
+  const fmt = (n: number) => formatCurrencyForRegion(appSettings.region, n);
   const { upcomingPayments, loading, error } = useUpcomingPayments();
 
   const dueSoonTotal = upcomingPayments
@@ -89,7 +90,7 @@ export function UpcomingPaymentsScreen({ onNavigate }: UpcomingPaymentsScreenPro
               <p className="font-medium truncate">{payment.title}</p>
             </div>
             <p className="text-sm text-muted-foreground">
-              {payment.organizer.name} • {payment.participants} people
+              {payment.organizer.name} • {Array.isArray(payment.participants) ? payment.participants.length : payment.participants} people
             </p>
             
             {/* Show payment method info if available */}
@@ -105,7 +106,7 @@ export function UpcomingPaymentsScreen({ onNavigate }: UpcomingPaymentsScreenPro
           </div>
         </div>
         <div className="text-right space-y-2">
-          <p className="font-medium">{currencySymbol}{payment.amount.toFixed(2)}</p>
+          <p className="font-medium">{fmt(payment.amount)}</p>
           <Badge className={`${getStatusColor(payment.status)} text-xs flex items-center gap-1`}>
             {getStatusIcon(payment.status)}
             Due {payment.dueDate}
@@ -182,13 +183,13 @@ export function UpcomingPaymentsScreen({ onNavigate }: UpcomingPaymentsScreenPro
       <div className="grid grid-cols-2 gap-4">
         <Card className="p-4">
           <div className="text-center space-y-2">
-            <p className="font-medium text-destructive">{currencySymbol}{dueSoonTotal.toFixed(2)}</p>
+            <p className="font-medium text-destructive">{fmt(dueSoonTotal)}</p>
             <p className="text-sm text-muted-foreground">Due Soon</p>
           </div>
         </Card>
         <Card className="p-4">
           <div className="text-center space-y-2">
-              <p className="font-medium">{currencySymbol}{monthTotal.toFixed(2)}</p>
+              <p className="font-medium">{fmt(monthTotal)}</p>
             <p className="text-sm text-muted-foreground">This Month</p>
           </div>
         </Card>

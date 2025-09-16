@@ -211,7 +211,7 @@ export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps
               {formatCurrencyForRegion(appSettings.region, bill.yourShare)}
             </div>
             <p className="text-sm text-muted-foreground mb-4">
-              Your share of {currencySymbol}{bill.totalAmount.toFixed(2)} total
+              Your share of {formatCurrencyForRegion(appSettings.region, bill.totalAmount)} total
             </p>
             <Button 
               variant="outline" 

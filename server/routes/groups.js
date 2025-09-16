@@ -240,6 +240,57 @@ router.post('/', authenticate, async (req, res) => {
   }
 })
 
+// PATCH /:groupId - update group details (admin only)
+router.patch('/:groupId', authenticate, async (req, res) => {
+  try {
+    const { groupId } = req.params
+    const { name, description, color } = req.body || {}
+
+    const group = await req.prisma.group.findUnique({
+      where: { id: groupId },
+      include: { members: true }
+    })
+    if (!group) {
+      return res.status(404).json({ error: 'Group not found' })
+    }
+
+    const me = group.members.find((m) => m.userId === req.user.id)
+    if (!me || me.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Only admins can edit the group' })
+    }
+
+    const updates = {}
+    if (typeof name === 'string' && name.trim()) updates.name = name.trim()
+    if (typeof description === 'string') updates.description = description
+    if (typeof color === 'string' && color.trim()) updates.color = color.trim()
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ error: 'No valid fields to update' })
+    }
+
+    await req.prisma.group.update({ where: { id: groupId }, data: updates })
+
+    const updated = await req.prisma.group.findUnique({
+      where: { id: groupId },
+      include: {
+        members: { include: { user: { select: { id: true, name: true, avatar: true, phone: true } } } }
+      }
+    })
+    const formatted = await formatGroup(req.prisma, updated, req.user.id)
+    formatted.members = updated.members.map((m) => ({
+      id: m.user.id,
+      name: m.user.name,
+      avatar: m.user.avatar || '',
+      phoneNumber: m.user.phone || ''
+    }))
+
+    res.json({ group: formatted })
+  } catch (error) {
+    console.error('Update group error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
 // POST /:groupId/join - add current user to group
 router.post('/:groupId/join', authenticate, async (req, res) => {
   try {

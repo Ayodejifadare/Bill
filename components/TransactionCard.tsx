@@ -1,6 +1,8 @@
 import { ArrowUpRight, ArrowDownLeft, Users, Clock } from "lucide-react";
 import { Card } from "./ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
+import { useUserProfile } from './UserProfileContext';
+import { formatCurrencyForRegion } from '../utils/regions';
 import { Badge } from "./ui/badge";
 import { formatDate } from "../utils/formatDate";
 import type { TransactionType, TransactionStatus } from "../shared/transactions";
@@ -27,10 +29,12 @@ interface TransactionCardProps {
   transaction: Transaction;
   onNavigate?: (tab: string, data?: any) => void;
   onClick?: () => void;
-  currencySymbol?: string;
+  currencySymbol?: string; // deprecated, left for backward compat
 }
 
-export function TransactionCard({ transaction, onNavigate, onClick, currencySymbol = '$' }: TransactionCardProps) {
+export function TransactionCard({ transaction, onNavigate, onClick }: TransactionCardProps) {
+  const { appSettings } = useUserProfile();
+  const fmt = (n: number) => formatCurrencyForRegion(appSettings.region, n);
   const getIcon = () => {
     switch (transaction.type) {
       case 'sent':
@@ -166,7 +170,7 @@ export function TransactionCard({ transaction, onNavigate, onClick, currencySymb
               <p className="font-medium truncate pr-2">{userInfo.name}</p>
               <div className="flex flex-col items-end gap-1 flex-shrink-0">
                 <p className={`font-medium text-sm ${getAmountColor()}`}>
-                  {getAmountPrefix()}{currencySymbol}{transaction.amount.toFixed(2)}
+                  {getAmountPrefix()}{fmt(transaction.amount)}
                 </p>
                 <p className="text-xs text-muted-foreground">{getTypeLabel()}</p>
               </div>

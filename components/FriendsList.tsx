@@ -11,6 +11,8 @@ import { UserPlus, Send, Users, AlertCircle } from 'lucide-react';
 import { GroupSection } from './GroupSection';
 import { apiClient } from '../utils/apiClient';
 import { toast } from 'sonner';
+import { formatCurrencyForRegion } from '../utils/regions';
+import { useUserProfile } from './UserProfileContext';
 
 interface Friend {
   id: string;
@@ -36,6 +38,8 @@ interface FriendsListProps {
 }
 
 export function FriendsList({ onNavigate }: FriendsListProps) {
+  const { appSettings } = useUserProfile();
+  const fmt = (n: number) => formatCurrencyForRegion(appSettings.region, n);
   const [searchQuery, setSearchQuery] = useState('');
   const [friends, setFriends] = useState<Friend[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -199,11 +203,11 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
         {/* Quick Stats */}
         <div className="grid grid-cols-2 gap-4">
           <Card className="p-4 text-center">
-            <p className="text-2xl text-success">${summary.owedToUser.toFixed(2)}</p>
+            <p className="text-2xl text-success">{formatCurrencyForRegion(appSettings.region, summary.owedToUser)}</p>
             <p className="text-sm text-muted-foreground">You're owed</p>
           </Card>
           <Card className="p-4 text-center">
-            <p className="text-2xl text-destructive">${summary.userOwes.toFixed(2)}</p>
+            <p className="text-2xl text-destructive">{formatCurrencyForRegion(appSettings.region, summary.userOwes)}</p>
             <p className="text-sm text-muted-foreground">You owe</p>
           </Card>
         </div>
@@ -313,8 +317,8 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
                           className="text-xs mt-1"
                         >
                           {friend.lastTransaction.type === 'owed'
-                            ? `Owes you ${friend.lastTransaction.amount.toFixed(2)}`
-                            : `You owe ${friend.lastTransaction.amount.toFixed(2)}`
+                            ? `Owes you ${fmt(friend.lastTransaction.amount)}`
+                            : `You owe ${fmt(friend.lastTransaction.amount)}`
                           }
                         </Badge>
                       )}
@@ -373,3 +377,4 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
     </div>
   );
 }
+

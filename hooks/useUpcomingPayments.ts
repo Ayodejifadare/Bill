@@ -14,7 +14,7 @@ export interface UpcomingPayment {
   dueDate: string;
   organizer: PaymentOrganizer;
   status: 'overdue' | 'pending' | 'due_soon' | 'upcoming';
-  participants: number;
+  participants: number | any[];
   billSplitId?: string;
   requestId?: string;
   paymentMethod?: Record<string, any>;
@@ -57,4 +57,3 @@ export function useUpcomingPayments(): UseUpcomingPaymentsResult {
 
   return { upcomingPayments, loading, error, refetch: fetchUpcomingPayments };
 }
-

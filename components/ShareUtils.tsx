@@ -3,6 +3,7 @@ import { Share2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { ShareSheet } from './ui/share-sheet';
 import { useUserProfile } from './UserProfileContext';
+import { formatCurrencyForRegion } from '../utils/regions';
 
 export interface ShareData {
   type: 'bill_split' | 'payment_request' | 'transaction' | 'payment_confirmation' | 'group_summary';
@@ -113,7 +114,7 @@ export function ShareUtils({
   className = ''
 }: ShareUtilsProps) {
   const { userProfile, appSettings } = useUserProfile();
-  const currencySymbol = appSettings.region === 'NG' ? '₦' : '$';
+  const fmt = (n: number) => formatCurrencyForRegion(appSettings.region, n);
   const [showShareSheet, setShowShareSheet] = useState(false);
 
   const shareText = generateShareText(shareData, currencySymbol, userProfile);
@@ -165,7 +166,7 @@ export function QuickShareButton({
   const currencySymbol = appSettings.region === 'NG' ? '₦' : '$';
 
   const generateQuickShareText = () => {
-    const formattedAmount = `${currencySymbol}${shareData.amount.toFixed(2)}`;
+    const formattedAmount = fmt(shareData.amount);
     return `*${shareData.title}*
 
 💰 ${formattedAmount}${shareData.description ? `\n📝 ${shareData.description}` : ''}

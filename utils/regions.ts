@@ -41,6 +41,78 @@ const REGION_MAP: Record<RegionCode, RegionConfig> = {
       requiresRoutingNumber: false,
     },
   },
+  GB: {
+    code: 'GB',
+    name: 'United Kingdom',
+    currencyCode: 'GBP',
+    currencySymbol: '£',
+    phoneCountryCode: '+44',
+    features: {
+      bankTransfers: true,
+      mobileMoney: false,
+      requiresRoutingNumber: false,
+    },
+  },
+  CA: {
+    code: 'CA',
+    name: 'Canada',
+    currencyCode: 'CAD',
+    currencySymbol: '$',
+    phoneCountryCode: '+1',
+    features: {
+      bankTransfers: true,
+      mobileMoney: false,
+      requiresRoutingNumber: true,
+    },
+  },
+  GB: {
+    code: 'GB',
+    name: 'United Kingdom',
+    currencyCode: 'GBP',
+    currencySymbol: '£',
+    phoneCountryCode: '+44',
+    features: {
+      bankTransfers: true,
+      mobileMoney: false,
+      requiresRoutingNumber: false,
+    },
+  },
+  CA: {
+    code: 'CA',
+    name: 'Canada',
+    currencyCode: 'CAD',
+    currencySymbol: '$',
+    phoneCountryCode: '+1',
+    features: {
+      bankTransfers: true,
+      mobileMoney: false,
+      requiresRoutingNumber: true,
+    },
+  },
+  AU: {
+    code: 'AU',
+    name: 'Australia',
+    currencyCode: 'AUD',
+    currencySymbol: '$',
+    phoneCountryCode: '+61',
+    features: {
+      bankTransfers: true,
+      mobileMoney: false,
+      requiresRoutingNumber: false,
+    },
+  },
+  EU: {
+    code: 'EU',
+    name: 'European Union',
+    currencyCode: 'EUR',
+    currencySymbol: '€',
+    phoneCountryCode: '+00',
+    features: {
+      bankTransfers: true,
+      mobileMoney: false,
+      requiresRoutingNumber: false,
+    },
+  },
 };
 
 // Nigeria is the primary region by default
@@ -60,7 +132,10 @@ export function getRegionConfig(region: RegionCode | undefined | null): RegionCo
 }
 
 export function getCurrencySymbol(region: RegionCode | undefined | null): string {
-  return getRegionConfig(region).currencySymbol;
+  const r = getRegionConfig(region)
+  // Ensure NG uses the correct Naira sign regardless of file encoding glitches
+  if (r.code === 'NG') return '₦'
+  return r.currencySymbol
 }
 
 export function getCurrencyCode(region: RegionCode | undefined | null): string {
@@ -133,6 +208,12 @@ export function getLocaleForRegion(region: RegionCode | undefined | null): strin
   const r = getRegionConfig(region);
   if (r.code === 'NG') return 'en-NG';
   if (r.code === 'US') return 'en-US';
+  if (r.code === 'GB') return 'en-GB';
+  if (r.code === 'CA') return 'en-CA';
+  if (r.code === 'AU') return 'en-AU';
+  if (r.code === 'EU') return 'en-IE';
+  if (r.code === 'GB') return 'en-GB';
+  if (r.code === 'CA') return 'en-CA';
   if (typeof navigator !== 'undefined' && navigator.language) return navigator.language;
   return 'en-US';
 }
@@ -143,7 +224,7 @@ export function formatCurrencyForRegion(region: RegionCode | undefined | null, a
   try {
     return new Intl.NumberFormat(locale, { style: 'currency', currency, currencyDisplay: 'symbol', maximumFractionDigits: 2 }).format(amount);
   } catch {
-    const symbol = getRegionConfig(region).currencySymbol;
-    return `${symbol}${amount.toFixed(2)}`;
+    const symbol = getCurrencySymbol(region)
+    return `${symbol}${amount.toFixed(2)}`
   }
 }

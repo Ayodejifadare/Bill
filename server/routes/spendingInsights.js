@@ -105,7 +105,9 @@ router.get('/spending-insights', authenticate, async (req, res) => {
       }
     })
 
-    const insights = generateInsights(transactions, req.user.id)
+    // Load user's region/currency for region-aware messages
+    const me = await req.prisma.user.findUnique({ where: { id: req.user.id }, select: { region: true, currency: true } })
+    const insights = generateInsights(transactions, req.user.id, { region: me?.region, currency: me?.currency })
 
     res.json({
       currentMonth: { total, categories: [] },
@@ -121,4 +123,3 @@ router.get('/spending-insights', authenticate, async (req, res) => {
 })
 
 export default router
-

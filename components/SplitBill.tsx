@@ -492,13 +492,13 @@ export function SplitBill({ onNavigate, groupId }: SplitBillProps) {
 
       if (isRecurring) {
         if (hasMe && myShare > 0) {
-          toast.success(`Recurring split bill created! You owe ${currencySymbol}${myShare.toFixed(2)} ${recurringFrequency}.`);
+          toast.success(`Recurring split bill created! You owe ${formatCurrencyForRegion(appSettings.region, myShare)} ${recurringFrequency}.`);
         } else {
           toast.success(`Recurring split bill created! This will repeat ${recurringFrequency}.`);
         }
       } else {
         if (hasMe && myShare > 0) {
-          toast.success(`Split bill created! You owe ${currencySymbol}${myShare.toFixed(2)}.`);
+          toast.success(`Split bill created! You owe ${formatCurrencyForRegion(appSettings.region, myShare)}.`);
         } else {
           toast.success('Split bill created successfully.');
         }
@@ -560,9 +560,9 @@ export function SplitBill({ onNavigate, groupId }: SplitBillProps) {
     return;
 
     let splitDetails = `📄 Split Bill: ${billName || 'Untitled Bill'}
-💰 Total Amount: ${currencySymbol}${totalAmount}
+💰 Total Amount: ${formatCurrencyForRegion(appSettings.region, Number(totalAmount || 0))}
 ${description ? `📝 Description: ${description}\n` : ''}
-${myShare > 0 ? `👥 Your Share: ${currencySymbol}${myShare.toFixed(2)}\n` : ''}
+${myShare > 0 ? `👥 Your Share: ${formatCurrencyForRegion(appSettings.region, myShare)}\n` : ''}
 💳 Send payment to:`;
 
     if (selectedPaymentMethod.type === 'bank') {
@@ -837,7 +837,7 @@ ${myShare > 0 ? `👥 Your Share: ${currencySymbol}${myShare.toFixed(2)}\n` : ''
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Current Split</span>
                 <span className="text-sm text-muted-foreground">
-                  {currencySymbol}{getTotalSplit().toFixed(2)} of {currencySymbol}{totalAmount || '0.00'}
+                  {formatCurrencyForRegion(appSettings.region, getTotalSplit())} of {formatCurrencyForRegion(appSettings.region, Number(totalAmount || 0))}
                 </span>
               </div>
               
@@ -889,7 +889,7 @@ ${myShare > 0 ? `👥 Your Share: ${currencySymbol}${myShare.toFixed(2)}\n` : ''
                     
                     <div className="text-right">
                       <p className="font-medium text-sm">
-                        {currencySymbol}{participant.amount?.toFixed(2) || '0.00'}
+                        {formatCurrencyForRegion(appSettings.region, Number(participant.amount || 0))}
                       </p>
                     </div>
                     
@@ -1137,7 +1137,7 @@ ${myShare > 0 ? `👥 Your Share: ${currencySymbol}${myShare.toFixed(2)}\n` : ''
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm text-muted-foreground">Total Amount:</span>
-                      <span className="text-sm font-medium">{currencySymbol}{totalAmount || '0.00'}</span>
+                      <span className="text-sm font-medium">{formatCurrencyForRegion(appSettings.region, Number(totalAmount || 0))}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm text-muted-foreground">Participants:</span>
@@ -1188,7 +1188,7 @@ ${myShare > 0 ? `👥 Your Share: ${currencySymbol}${myShare.toFixed(2)}\n` : ''
         {participants.length > 0 && totalAmount && (
           <div className="text-center">
             <p className="text-sm text-muted-foreground">
-              Split {currencySymbol}{totalAmount} among {participants.length} {participants.length === 1 ? 'person' : 'people'}
+              Split {formatCurrencyForRegion(appSettings.region, Number(totalAmount || 0))} among {participants.length} {participants.length === 1 ? 'person' : 'people'}
             </p>
             {Math.abs(getTotalSplit() - parseFloat(totalAmount)) > 0.01 && (
               <p className="text-xs text-destructive mt-1">

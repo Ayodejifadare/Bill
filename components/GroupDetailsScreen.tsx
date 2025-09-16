@@ -7,12 +7,17 @@ import { Badge } from './ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from './ui/alert-dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from './ui/sheet';
 import { Separator } from './ui/separator';
 import { TransactionCard } from './TransactionCard';
 import { EmptyState } from './ui/empty-state';
 import { toast } from 'sonner';
 import { apiClient } from '../utils/apiClient';
+import { useUserProfile } from './UserProfileContext';
+import { formatCurrencyForRegion } from '../utils/regions';
 
 interface GroupDetailsScreenProps {
   groupId: string | null;
@@ -26,8 +31,8 @@ interface GroupMember {
   avatar: string;
   email: string;
   isAdmin: boolean;
-  balance: number; // positive = owed money, negative = owes money
-  totalSpent: number;
+  balance?: number; // positive = owed money, negative = owes money
+  totalSpent?: number;
   joinedDate: string;
 }
 
@@ -69,13 +74,30 @@ export function GroupDetailsScreen({ groupId, onNavigate, onGroupNavigation }: G
   const [page, setPage] = useState(1);
   const [hasMoreTransactions, setHasMoreTransactions] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const { appSettings } = useUserProfile();
+  const fmt = (n: number) => formatCurrencyForRegion(appSettings.region, n);
 
   useEffect(() => {
     const fetchGroup = async () => {
       if (!groupId) return;
       try {
         const data = await apiClient(`/api/groups/${groupId}`);
-        setGroup(data.group);
+        // Normalize missing numeric member fields to 0 to prevent runtime errors
+        const normalizedMembers = Array.isArray(data.group?.members)
+          ? data.group.members.map((m: any) => ({
+              ...m,
+              balance: typeof m.balance === 'number' ? m.balance : 0,
+              totalSpent: typeof m.totalSpent === 'number' ? m.totalSpent : 0,
+            }))
+          : [];
+        const normalized = {
+          ...data.group,
+          members: normalizedMembers,
+        };
+        setGroup(normalized);
         setTransactions(data.group?.recentTransactions ?? []);
         setHasMoreTransactions(data.group?.hasMoreTransactions ?? false);
       } catch {
@@ -86,6 +108,30 @@ export function GroupDetailsScreen({ groupId, onNavigate, onGroupNavigation }: G
     };
     fetchGroup();
   }, [groupId]);
+
+  const openEdit = () => {
+    if (!group) return;
+    setEditName(group.name || '');
+    setEditDescription(group.description || '');
+    setShowEditDialog(true);
+  };
+
+  const saveEdits = async () => {
+    if (!group) return;
+    try {
+      const data = await apiClient(`/api/groups/${group.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: editName, description: editDescription })
+      });
+      if (data?.group) {
+        setGroup({ ...group, ...data.group });
+      }
+      setShowEditDialog(false);
+    } catch (e: any) {
+      console.error('Edit group error:', e);
+    }
+  };
 
   if (loading) {
     return (
@@ -137,19 +183,13 @@ export function GroupDetailsScreen({ groupId, onNavigate, onGroupNavigation }: G
     );
   }
 
-  const totalOwed = group.members.reduce((sum, member) => sum + Math.max(0, member.balance), 0);
-  const totalOwe = group.members.reduce((sum, member) => sum + Math.abs(Math.min(0, member.balance)), 0);
+  const totalOwed = group.members.reduce((sum, member) => sum + Math.max(0, Number(member.balance ?? 0)), 0);
+  const totalOwe = group.members.reduce((sum, member) => sum + Math.abs(Math.min(0, Number(member.balance ?? 0))), 0);
 
-  const handleSplitBill = async () => {
-    try {
-      const data = await apiClient(`/api/groups/${group.id}/split-bill`, { method: 'POST' });
-      if (data.transaction) {
-        setTransactions(prev => [data.transaction, ...prev]);
-      }
-      toast.success('Bill split successfully');
-    } catch {
-      toast.error('Failed to split bill');
-    }
+  const handleSplitBill = () => {
+    if (!group) return;
+    // Navigate to the full SplitBill flow with this group preselected
+    onNavigate('split', { groupId: group.id });
   };
 
   const handleLeaveGroup = async () => {
@@ -252,7 +292,7 @@ export function GroupDetailsScreen({ groupId, onNavigate, onGroupNavigation }: G
               <DropdownMenuContent align="end">
                 {group.isAdmin && (
                   <>
-                    <DropdownMenuItem>
+                    <DropdownMenuItem onClick={openEdit}>
                       <Edit className="h-4 w-4 mr-2" />
                       Edit Group
                     </DropdownMenuItem>
@@ -309,15 +349,15 @@ export function GroupDetailsScreen({ groupId, onNavigate, onGroupNavigation }: G
         {/* Quick Stats */}
         <div className="grid grid-cols-3 gap-2 sm:gap-4">
           <Card className="p-3 sm:p-4 text-center">
-            <p className="text-lg sm:text-xl font-bold">${group.totalSpent.toFixed(0)}</p>
+            <p className="text-lg sm:text-xl font-bold">{fmt(group.totalSpent)}</p>
             <p className="text-xs text-muted-foreground leading-tight">Total Spent</p>
           </Card>
           <Card className="p-3 sm:p-4 text-center">
-            <p className="text-lg sm:text-xl font-bold text-success">${totalOwed.toFixed(0)}</p>
+            <p className="text-lg sm:text-xl font-bold text-success">{fmt(totalOwed)}</p>
             <p className="text-xs text-muted-foreground leading-tight">You're Owed</p>
           </Card>
           <Card className="p-3 sm:p-4 text-center">
-            <p className="text-lg sm:text-xl font-bold text-destructive">${totalOwe.toFixed(0)}</p>
+            <p className="text-lg sm:text-xl font-bold text-destructive">{fmt(totalOwe)}</p>
             <p className="text-xs text-muted-foreground leading-tight">You Owe</p>
           </Card>
         </div>
@@ -426,20 +466,20 @@ export function GroupDetailsScreen({ groupId, onNavigate, onGroupNavigation }: G
                           </div>
                           <p className="text-xs sm:text-sm text-muted-foreground truncate">{member.email}</p>
                           <p className="text-xs text-muted-foreground">
-                            <span className="hidden sm:inline">Joined {member.joinedDate} • </span>
+                            <span className="hidden sm:inline">Joined {member.joinedDate} � </span>
                             <span className="sm:hidden">{member.joinedDate} • </span>
-                            Spent ${member.totalSpent.toFixed(0)}
+                            Spent {fmt(Number(member.totalSpent ?? 0))}
                           </p>
                         </div>
                       </div>
 
                       <div className="text-right flex-shrink-0 ml-2">
                         <div>
-                          <p className={`font-medium text-sm sm:text-base ${member.balance >= 0 ? 'text-success' : 'text-destructive'}`}>
-                            {member.balance >= 0 ? '+' : ''}${member.balance.toFixed(2)}
+                          <p className={`font-medium text-sm sm:text-base ${(Number(member.balance ?? 0) >= 0) ? 'text-success' : 'text-destructive'}`}>
+                            {(Number(member.balance ?? 0) >= 0) ? '+' : ''}{fmt(Number(member.balance ?? 0))}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            {member.balance >= 0 ? 'gets back' : 'owes'}
+                            {(Number(member.balance ?? 0) >= 0) ? 'gets back' : 'owes'}
                           </p>
                         </div>
                       </div>
@@ -494,6 +534,29 @@ export function GroupDetailsScreen({ groupId, onNavigate, onGroupNavigation }: G
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Edit Group Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Group</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="edit-name">Name</Label>
+              <Input id="edit-name" value={editName} onChange={(e) => setEditName(e.target.value)} />
+            </div>
+            <div>
+              <Label htmlFor="edit-desc">Description</Label>
+              <Input id="edit-desc" value={editDescription} onChange={(e) => setEditDescription(e.target.value)} />
+            </div>
+            <div className="flex gap-2 justify-end pt-2">
+              <Button variant="outline" onClick={() => setShowEditDialog(false)}>Cancel</Button>
+              <Button onClick={saveEdits}>Save</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Member Actions Sheet */}
       <Sheet open={showMemberActions} onOpenChange={setShowMemberActions}>
         <SheetContent side="bottom" className="h-auto">
@@ -520,10 +583,10 @@ export function GroupDetailsScreen({ groupId, onNavigate, onGroupNavigation }: G
                     <div className="text-xs text-muted-foreground mt-1">
                       <span>Joined {selectedMemberForActions.joinedDate}</span>
                       <span className="mx-2">•</span>
-                      <span>Spent ${selectedMemberForActions.totalSpent.toFixed(0)}</span>
+                      <span>Spent {fmt(selectedMemberForActions.totalSpent)}</span>
                       <span className="mx-2">•</span>
                       <span className={selectedMemberForActions.balance >= 0 ? 'text-success' : 'text-destructive'}>
-                        {selectedMemberForActions.balance >= 0 ? 'Gets back' : 'Owes'} ${Math.abs(selectedMemberForActions.balance).toFixed(2)}
+                        {selectedMemberForActions.balance >= 0 ? 'Gets back' : 'Owes'} {fmt(Math.abs(selectedMemberForActions.balance))}
                       </span>
                     </div>
                   </div>

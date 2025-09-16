@@ -89,7 +89,28 @@ export function useBillSplits(initialOptions: UseBillSplitsOptions = {}): UseBil
 
         const endpoint = `/bill-splits?${params.toString()}`;
         const data = await apiClient(endpoint);
-        setBillSplits(Array.isArray(data.billSplits) ? data.billSplits : []);
+        const raw: any[] = Array.isArray(data.billSplits) ? data.billSplits : [];
+        const mapped = raw.map((b: any) => {
+          const participantsRaw: any[] = Array.isArray(b.participants) ? b.participants : [];
+          const participants: BillParticipant[] = participantsRaw.map((p: any) => ({
+            name: typeof p?.name === 'string' ? p.name : (p?.user?.name || 'Unknown'),
+            amount: typeof p?.amount === 'number' ? p.amount : Number(p?.amount || 0),
+            paid: typeof p?.paid === 'boolean' ? p.paid : Boolean(p?.isPaid)
+          }));
+          return {
+            id: String(b.id),
+            title: b.title ?? '',
+            totalAmount: typeof b.totalAmount === 'number' ? b.totalAmount : Number(b.totalAmount || 0),
+            yourShare: typeof b.yourShare === 'number' ? b.yourShare : Number(b.yourShare || 0),
+            status: (b.status as any) || 'pending',
+            participants,
+            createdBy: typeof b.createdBy === 'string' ? b.createdBy : (b.createdBy?.name || 'Unknown'),
+            date: typeof b.date === 'string' ? b.date : (b.createdAt || new Date().toISOString()),
+            groupId: b.groupId,
+            groupName: b.groupName,
+          } as BillSplit;
+        });
+        setBillSplits(mapped);
         setTotal(data.total ?? 0);
         setPageCount(data.pageCount ?? 0);
       } catch (err) {
@@ -110,4 +131,3 @@ export function useBillSplits(initialOptions: UseBillSplitsOptions = {}): UseBil
 
   return { billSplits, loading, error, total, pageCount, refetch: fetchBillSplits };
 }
-

@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { useUserProfile } from './UserProfileContext';
+import { formatCurrencyForRegion } from '../utils/regions';
 
 export interface ShareData {
   type: 'bill_split' | 'payment_request' | 'transaction' | 'payment_confirmation' | 'group_summary';
@@ -33,11 +34,11 @@ interface SocialSharingUtilsProps {
 
 export function SocialSharingUtils({ shareData, onNavigate }: SocialSharingUtilsProps) {
   const { userProfile, appSettings } = useUserProfile();
-  const currencySymbol = appSettings.region === 'NG' ? '₦' : '$';
+  const fmt = (n: number) => formatCurrencyForRegion(appSettings.region, n);
 
   const generateShareText = () => {
     const { type, title, amount, description, participantNames, dueDate, status, groupName } = shareData;
-    const formattedAmount = `${currencySymbol}${amount.toFixed(2)}`;
+    const formattedAmount = fmt(amount);
     
     switch (type) {
       case 'bill_split':

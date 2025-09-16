@@ -96,8 +96,63 @@ export function BillSplitDetailsScreen({ billSplitId, onNavigate }: BillSplitDet
         setBillSplit(billSplitCache.get(billSplitId)!);
       } else {
         const data = await getBillSplit(billSplitId);
-        billSplitCache.set(billSplitId, data);
-        setBillSplit(data);
+        // Normalize fields to expected shape and add safe fallbacks
+        const participants = Array.isArray(data.participants)
+          ? data.participants.map((p: any) => {
+              const name: string = typeof p?.name === 'string'
+                ? p.name
+                : typeof p?.user?.name === 'string'
+                  ? p.user.name
+                  : 'Unknown';
+              const amount: number = typeof p?.amount === 'number' ? p.amount : Number(p?.amount || 0);
+              const paidBool: boolean = typeof p?.paid === 'boolean' ? p.paid : (typeof p?.isPaid === 'boolean' ? p.isPaid : false);
+              const status: 'paid' | 'pending' = paidBool ? 'paid' : 'pending';
+              const avatar: string = (name || 'U')
+                .split(' ')
+                .filter(Boolean)
+                .map((n: string) => n[0])
+                .join('')
+                .slice(0, 2)
+                .toUpperCase();
+              return { name, amount, status, avatar };
+            })
+          : [];
+
+        const organizerName: string =
+          typeof (data as any)?.organizer?.name === 'string'
+            ? (data as any).organizer.name
+            : typeof (data as any)?.createdBy === 'string'
+              ? (data as any).createdBy
+              : 'Unknown';
+        const organizerAvatar: string =
+          typeof (data as any)?.organizer?.avatar === 'string' && (data as any).organizer.avatar
+            ? (data as any).organizer.avatar
+            : (organizerName || 'U')
+                .split(' ')
+                .filter(Boolean)
+                .map((n: string) => n[0])
+                .join('')
+                .slice(0, 2)
+                .toUpperCase();
+
+        const items = Array.isArray((data as any).items)
+          ? (data as any).items.map((it: any) => ({
+              name: it?.name ?? 'Item',
+              price: typeof it?.price === 'number' ? it.price : Number(it?.price || 0),
+              quantity: typeof it?.quantity === 'number' ? it.quantity : Number(it?.quantity || 1),
+            }))
+          : [];
+
+        const normalized = {
+          ...data,
+          organizer: { name: organizerName, avatar: organizerAvatar },
+          participants,
+          items,
+          note: (data as any)?.note ?? '',
+          location: (data as any)?.location ?? '',
+        } as BillSplit;
+        billSplitCache.set(billSplitId, normalized);
+        setBillSplit(normalized);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load bill split');
@@ -473,7 +528,7 @@ export function BillSplitDetailsScreen({ billSplitId, onNavigate }: BillSplitDet
                     </Avatar>
                     <div className="min-w-0 flex-1">
                       <p className="font-medium truncate">{participant.name}</p>
-                      <p className="text-sm text-muted-foreground">{currencySymbol}{participant.amount.toFixed(2)}</p>
+                      <p className="text-sm text-muted-foreground">{formatCurrencyForRegion(appSettings.region, participant.amount)}</p>
                     </div>
                   </div>
                   <div className="flex-shrink-0 ml-3">
@@ -509,7 +564,7 @@ export function BillSplitDetailsScreen({ billSplitId, onNavigate }: BillSplitDet
                       <span className="text-xs text-muted-foreground flex-shrink-0">x{item.quantity}</span>
                     )}
                   </div>
-                  <span className="text-sm font-medium flex-shrink-0 ml-2">{currencySymbol}{item.price.toFixed(2)}</span>
+                  <span className="text-sm font-medium flex-shrink-0 ml-2">{formatCurrencyForRegion(appSettings.region, item.price)}</span>
                 </div>
               ))}
             </div>
@@ -557,7 +612,7 @@ export function BillSplitDetailsScreen({ billSplitId, onNavigate }: BillSplitDet
             isOpen={showShareSheet}
             onClose={() => setShowShareSheet(false)}
             title="Share Bill Split"
-            shareText={`*${shareData.title}*\n\n💰 Total: ${currencySymbol}${shareData.amount.toFixed(2)}${shareData.participantNames ? `\n👥 Split with: ${shareData.participantNames.join(', ')}` : ''}${shareData.dueDate ? `\n📅 Date: ${shareData.dueDate}` : ''}${shareData.description ? `\n📝 ${shareData.description}` : ''}\n\n_Shared via Biltip 🚀_`}
+            shareText={`*${shareData.title}*\n\n💰 Total: ${formatCurrencyForRegion(appSettings.region, shareData.amount)}${shareData.participantNames ? `\n👥 Split with: ${shareData.participantNames.join(', ')}` : ''}${shareData.dueDate ? `\n📅 Date: ${shareData.dueDate}` : ''}${shareData.description ? `\n📝 ${shareData.description}` : ''}\n\n_Shared via Biltip 🚀_`}
             documentData={{
               title: shareData.title,
               content: shareData,
@@ -609,7 +664,7 @@ export function BillSplitDetailsScreen({ billSplitId, onNavigate }: BillSplitDet
                   dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days from now
                 }
               })}>
-                Pay Your Share - {currencySymbol}{billSplit.yourShare.toFixed(2)}
+                Pay Your Share - {formatCurrencyForRegion(appSettings.region, billSplit.yourShare)}
               </Button>
               <div className="grid grid-cols-2 gap-3">
                 <Button 

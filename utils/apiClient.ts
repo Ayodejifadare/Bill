@@ -40,14 +40,10 @@ export async function apiClient(
     ...(init.headers as Record<string, string> | undefined),
   };
   // token is expected to be a JWT (three base64url segments)
-  // Accept any token when using the mock API or in development to allow
-  // local development flows without requiring a real JWT.
+  // Only attach the Authorization header for syntactically valid JWTs.
+  // Dev auth should be handled via `useDevAuth` (x-user-id) instead.
   const tokenIsValid = typeof token === 'string'
-    && (
-      useMockApi
-      || process.env.NODE_ENV === 'development'
-      || /^[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+$/.test(token)
-    );
+    && /^[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+$/.test(token);
 
   if (process.env.NODE_ENV === 'development') {
     console.debug('apiClient token:', token, 'valid JWT:', tokenIsValid);
@@ -127,6 +123,13 @@ export async function apiClient(
       if (response.status === 403 && (data?.error === 'onboarding_required')) {
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('onboarding-required', { detail: data }));
+        }
+      }
+      // If server says we're unauthorized, clear auth and notify app
+      if (response.status === 401) {
+        clearAuth();
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('session-expired'));
         }
       }
       message = data?.message || data?.error || message;

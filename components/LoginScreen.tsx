@@ -60,8 +60,8 @@ const CanadaFlag = () => (
 const countryOptions = [
   { code: 'NG', name: 'Nigeria', flag: <NigeriaFlag />, phonePrefix: '+234', region: 'NG' as const, currency: 'NGN' as const },
   { code: 'US', name: 'United States', flag: <USFlag />, phonePrefix: '+1', region: 'US' as const, currency: 'USD' as const },
-  { code: 'GB', name: 'United Kingdom', flag: <UKFlag />, phonePrefix: '+44', region: 'US' as const, currency: 'USD' as const },
-  { code: 'CA', name: 'Canada', flag: <CanadaFlag />, phonePrefix: '+1', region: 'US' as const, currency: 'USD' as const },
+  { code: 'GB', name: 'United Kingdom', flag: <UKFlag />, phonePrefix: '+44', region: 'GB' as const, currency: 'GBP' as const },
+  { code: 'CA', name: 'Canada', flag: <CanadaFlag />, phonePrefix: '+1', region: 'CA' as const, currency: 'CAD' as const },
 ];
 
 export function LoginScreen({ onLogin, onShowRegister }: LoginScreenProps) {

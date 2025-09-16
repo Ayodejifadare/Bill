@@ -381,6 +381,25 @@ router.post(
         dayOfWeek
       } = req.body
 
+      // Validate participant totals ~= totalAmount with small tolerance (<= 1 cent)
+      const toCents = (n) => Math.round(Number(n) * 100)
+      const totalCents = toCents(totalAmount)
+      const participantsCents = Array.isArray(participants)
+        ? participants.reduce((sum, p) => sum + toCents(p.amount), 0)
+        : 0
+      const EPSILON_CENTS = 1 // allow up to 1 cent rounding difference
+      const delta = Math.abs(participantsCents - totalCents)
+      if (delta > EPSILON_CENTS) {
+        return res.status(400).json({
+          error: 'Participants total does not match totalAmount',
+          details: {
+            totalAmount,
+            participantsTotal: participants.reduce((s, p) => s + Number(p.amount), 0),
+            delta: Math.abs(participants.reduce((s, p) => s + Number(p.amount), 0) - Number(totalAmount))
+          }
+        })
+      }
+
       const dayValue =
         frequency === 'weekly'
           ? dayOfWeekMap[dayOfWeek?.toLowerCase?.()] ?? 0
