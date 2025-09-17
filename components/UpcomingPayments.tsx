@@ -164,6 +164,7 @@ export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
                             amount: payment.amount,
                             description: payment.title,
                             recipient: payment.organizer.name,
+                            recipientId: payment.organizer.id ?? payment.organizer.name,
                             dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
                           }
                         });

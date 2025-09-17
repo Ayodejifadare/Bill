@@ -7,7 +7,7 @@ const upcomingPayments: UpcomingPayment[] = [
     title: 'Dinner',
     amount: 45,
     dueDate: new Date().toISOString(),
-    organizer: { name: 'Alice', avatar: '' },
+    organizer: { id: 'user_alice', name: 'Alice', avatar: '' },
     status: 'pending',
     participants: 3
   }
