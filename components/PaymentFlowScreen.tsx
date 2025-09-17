@@ -17,6 +17,7 @@ interface PaymentFlowScreenProps {
     amount: number;
     description: string;
     recipient: string;
+    recipientId?: string;
     groupId?: string;
     billSplitId?: string;
     dueDate?: string;
@@ -37,7 +38,7 @@ export function PaymentFlowScreen({ paymentRequest, onNavigate }: PaymentFlowScr
   useEffect(() => {
     if (!paymentRequest) return;
 
-    const recipientId = paymentRequest.recipient;
+    const recipientId = paymentRequest.recipientId ?? paymentRequest.recipient;
     const cached = recipientMethodCache.get(recipientId);
     if (cached !== undefined) {
       setRecipientPaymentMethod(cached);

@@ -14,6 +14,7 @@ interface BankingRedirectScreenProps {
     amount: number;
     description: string;
     recipient: string;
+    recipientId?: string;
     groupId?: string;
     billSplitId?: string;
   } | null;

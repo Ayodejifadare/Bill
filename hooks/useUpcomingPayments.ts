@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { apiClient } from '../utils/apiClient';
 
 export interface PaymentOrganizer {
+  id?: string;
   name: string;
   avatar: string;
 }

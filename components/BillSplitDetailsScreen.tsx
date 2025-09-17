@@ -662,6 +662,7 @@ export function BillSplitDetailsScreen({ billSplitId, onNavigate }: BillSplitDet
                   amount: billSplit.yourShare,
                   description: billSplit.title,
                   recipient: billSplit.organizer.name,
+                  recipientId: billSplit.creatorId ?? billSplit.organizer.name,
                   billSplitId: billSplit.id,
                   dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days from now
                 }
