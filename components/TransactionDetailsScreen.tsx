@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ArrowLeft, User, Calendar, Building2, MapPin, Receipt, Copy, Smartphone, Share2, Phone } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
@@ -558,8 +558,7 @@ export function TransactionDetailsScreen({ transactionId, onNavigate }: Transact
           isOpen={showShareSheet}
           onClose={() => setShowShareSheet(false)}
           title="Share Transaction Details"
-          shareText={`*${shareData.title}*\n\nðŸ’° Amount: ${formatCurrencyForRegion(appSettings.region, shareData.amount)}\nðŸ“Š Status: ${shareData.status}${shareData.transactionId ? `\nðŸ§¾ Ref: ${shareData.transactionId}` : ''}${shareData.paymentMethod ? `\nðŸ’³ Via: ${shareData.paymentMethod}` : ''}\n\n_Powered by Biltip ðŸš€_`}
-          shareText={`*${shareData.title}*\n\nðŸ’° Amount: ${formatCurrencyForRegion(appSettings.region, shareData.amount)}\nðŸ“Š Status: ${shareData.status}${shareData.transactionId ? `\nðŸ§¾ Ref: ${shareData.transactionId}` : ''}${shareData.paymentMethod ? `\nðŸ’³ Via: ${shareData.paymentMethod}` : ''}\n\n_Powered by Biltip ðŸš€_`}
+          shareText={`*${shareData.title}*\n\n💰 Amount: ${formatCurrencyForRegion(appSettings.region, shareData.amount)}\n📊 Status: ${shareData.status}${shareData.transactionId ? `\n🧾 Ref: ${shareData.transactionId}` : ''}${shareData.paymentMethod ? `\n💳 Via: ${shareData.paymentMethod}` : ''}\n\n_Powered by Biltip 🚀_`}
           documentData={{
             title: shareData.title,
             content: shareData,

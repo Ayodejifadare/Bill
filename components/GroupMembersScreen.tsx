@@ -48,6 +48,11 @@ interface PendingInvite {
   invitedBy: string;
   invitedAt: string;
   method: 'whatsapp' | 'sms' | 'app';
+  status?: string;
+  attempts?: number;
+  contact?: string;
+  expiresAt?: string;
+  lastAttempt?: string;
 }
 
 interface GroupMembersScreenProps {
@@ -60,6 +65,7 @@ export function GroupMembersScreen({ groupId, onNavigate }: GroupMembersScreenPr
   const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'pending'>('all');
   const [members, setMembers] = useState<GroupMember[]>([]);
   const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
+  const [inviteActionState, setInviteActionState] = useState<Record<string, { canceling: boolean; resending: boolean }>>({});
 
   useEffect(() => {
     const fetchData = async () => {
@@ -180,15 +186,59 @@ export function GroupMembersScreen({ groupId, onNavigate }: GroupMembersScreenPr
     }
   };
 
-  const handleCancelInvite = (inviteId: string) => {
-    const invite = pendingInvites.find(i => i.id === inviteId);
-    setPendingInvites(prev => prev.filter(i => i.id !== inviteId));
-    toast.success(`Invitation to ${invite?.name} cancelled`);
+  const updateInviteActionState = (inviteId: string, action: Partial<{ canceling: boolean; resending: boolean }>) => {
+    setInviteActionState(prev => ({
+      ...prev,
+      [inviteId]: {
+        canceling: prev[inviteId]?.canceling ?? false,
+        resending: prev[inviteId]?.resending ?? false,
+        ...action,
+      },
+    }));
   };
 
-  const handleResendInvite = (inviteId: string) => {
+  const getInviteDisplayName = (invite?: Partial<PendingInvite> & { contact?: string }) => {
+    if (!invite) return 'member';
+    return invite.name || invite.username || invite.contact || 'member';
+  };
+
+  const handleCancelInvite = async (inviteId: string) => {
+    if (!groupId) return;
     const invite = pendingInvites.find(i => i.id === inviteId);
-    toast.success(`Invitation resent to ${invite?.name}`);
+    updateInviteActionState(inviteId, { canceling: true });
+    try {
+      await apiClient(`/api/groups/${groupId}/invites/${inviteId}`, { method: 'DELETE' });
+      setPendingInvites(prev => prev.filter(i => i.id !== inviteId));
+      toast.success(`Invitation to ${getInviteDisplayName(invite)} cancelled`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to cancel invitation';
+      toast.error(message);
+    } finally {
+      updateInviteActionState(inviteId, { canceling: false });
+    }
+  };
+
+  const handleResendInvite = async (inviteId: string) => {
+    if (!groupId) return;
+    const existingInvite = pendingInvites.find(i => i.id === inviteId);
+    updateInviteActionState(inviteId, { resending: true });
+    try {
+      const data = await apiClient(`/api/groups/${groupId}/invites/${inviteId}/resend`, {
+        method: 'POST'
+      });
+      if (data?.invite) {
+        setPendingInvites(prev => prev.map(invite =>
+          invite.id === inviteId ? { ...invite, ...data.invite } : invite
+        ));
+      }
+      const updatedInvite = data?.invite ? { ...existingInvite, ...data.invite } : existingInvite;
+      toast.success(`Invitation resent to ${getInviteDisplayName(updatedInvite)}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to resend invitation';
+      toast.error(message);
+    } finally {
+      updateInviteActionState(inviteId, { resending: false });
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -216,12 +266,23 @@ export function GroupMembersScreen({ groupId, onNavigate }: GroupMembersScreenPr
 
   const getMemberActions = (member: GroupMember | any) => {
     if (member.status === 'pending') {
+      const actionState = inviteActionState[member.id];
       return (
         <div className="flex gap-2">
-          <Button size="sm" variant="outline" onClick={() => handleResendInvite(member.id)}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleResendInvite(member.id)}
+            disabled={actionState?.resending || actionState?.canceling}
+          >
             Resend
           </Button>
-          <Button size="sm" variant="destructive" onClick={() => handleCancelInvite(member.id)}>
+          <Button
+            size="sm"
+            variant="destructive"
+            onClick={() => handleCancelInvite(member.id)}
+            disabled={actionState?.resending || actionState?.canceling}
+          >
             Cancel
           </Button>
         </div>

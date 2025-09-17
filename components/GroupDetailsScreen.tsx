@@ -391,21 +391,39 @@ export function GroupDetailsScreen({ groupId, onNavigate, onGroupNavigation: _on
 
             {transactions.length > 0 ? (
               <div className="space-y-2 sm:space-y-3">
-                {transactions.map((transaction) => (
-                  <TransactionCard
-                    key={transaction.id}
-                    transaction={{
-                      id: transaction.id,
-                      type: transaction.type,
-                      amount: transaction.amount,
-                      description: transaction.description,
-                      date: transaction.date,
-                      status: transaction.status,
-                      sender: { name: transaction.paidBy, avatar: 'PB' }
-                    }}
-                    onClick={() => onNavigate('transaction-details', { transactionId: transaction.id })}
-                  />
-                ))}
+                {transactions.map((transaction, index) => {
+                  const tx = transaction as any;
+                  if (!tx || typeof tx !== 'object') {
+                    return null;
+                  }
+
+                  const transactionType: GroupTransaction['type'] =
+                    typeof tx.type === 'string' && ['sent', 'received', 'bill_split'].includes(tx.type)
+                      ? (tx.type as GroupTransaction['type'])
+                      : 'received';
+                  const amount = typeof tx.amount === 'number' ? tx.amount : Number(tx.amount) || 0;
+                  const description = typeof tx.description === 'string' ? tx.description : '';
+                  const date = typeof tx.date === 'string' ? tx.date : new Date().toISOString();
+                  const status: GroupTransaction['status'] = tx.status === 'pending' ? 'pending' : 'completed';
+                  const paidBy = typeof tx.paidBy === 'string' ? tx.paidBy : 'Unknown';
+                  const id = typeof tx.id === 'string' ? tx.id : `txn_${index}`;
+
+                  return (
+                    <TransactionCard
+                      key={id}
+                      transaction={{
+                        id,
+                        type: transactionType,
+                        amount,
+                        description,
+                        date,
+                        status,
+                        sender: { name: paidBy, avatar: 'PB' }
+                      }}
+                      onClick={() => onNavigate('transaction-details', { transactionId: id })}
+                    />
+                  );
+                })}
                 {hasMoreTransactions && (
                   <Button variant="outline" className="w-full mt-2" onClick={loadMoreTransactions}>
                     Load more
@@ -668,3 +686,4 @@ export function GroupDetailsScreen({ groupId, onNavigate, onGroupNavigation: _on
     </div>
   );
 }
+

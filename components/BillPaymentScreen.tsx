@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Building2, Copy, CheckCircle, ExternalLink, Smartphone, Users, DollarSign } from 'lucide-react';
+import { ArrowLeft, Building2, Copy, CheckCircle, ExternalLink, Smartphone, Users, DollarSign, AlertTriangle } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
@@ -42,7 +42,7 @@ interface BillSplit {
   }>;
   createdBy: string;
   date: string;
-  paymentMethod: PaymentMethod;
+  paymentMethod: PaymentMethod | null;
   location?: string;
   note?: string;
 }
@@ -89,8 +89,75 @@ export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps
     );
   }
 
-  const formattedBillDate = formatBillDate(bill.date);
+  if (!bill.paymentMethod) {
+    return (
+      <div className="min-h-screen bg-background px-4 py-6">
+        <div className="flex items-center space-x-4 mb-6">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => onNavigate('bills')}
+            className="min-h-[44px] min-w-[44px] -ml-2"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <h2 className="text-xl font-semibold">Bill Payment</h2>
+        </div>
+        <div className="flex flex-col items-center justify-center text-center py-12 space-y-4">
+          <AlertTriangle className="h-10 w-10 text-warning" />
+          <div className="space-y-2">
+            <p className="font-medium">Payment details unavailable</p>
+            <p className="text-sm text-muted-foreground">
+              We couldn't load payment instructions for this bill. Please contact the bill creator.
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            className="min-h-[44px] min-w-[44px]"
+            onClick={() => onNavigate('bill-split-details', { billSplitId: bill.id })}
+          >
+            View Bill Details
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
+  if (!bill.paymentMethod) {
+    return (
+      <div className="min-h-screen bg-background px-4 py-6">
+        <div className="flex items-center space-x-4 mb-6">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => onNavigate('bills')}
+            className="min-h-[44px] min-w-[44px] -ml-2"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <h2 className="text-xl font-semibold">Bill Payment</h2>
+        </div>
+        <div className="flex flex-col items-center justify-center text-center py-12 space-y-4">
+          <AlertTriangle className="h-10 w-10 text-warning" />
+          <div className="space-y-2">
+            <p className="font-medium">Payment details unavailable</p>
+            <p className="text-sm text-muted-foreground">
+              We couldn't load payment instructions for this bill. Please contact the bill creator.
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            className="min-h-[44px] min-w-[44px]"
+            onClick={() => onNavigate('bill-split-details', { billSplitId: bill.id })}
+          >
+            View Bill Details
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  const formattedBillDate = formatBillDate(bill.date);
   const copyPaymentDetails = async () => {
     const { paymentMethod } = bill;
 
@@ -165,13 +232,12 @@ export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps
     formatBankAccountForRegion(appSettings.region, accountNumber);
 
   const getPaymentInstructions = () => {
-    const { paymentMethod } = bill;
-    
     if (paymentMethod.type === 'bank') {
       return 'Use your banking app (mobile or web), or visit a branch to send this payment.';
-    } else {
-      return `Open your ${paymentMethod.provider} app and send money to the phone number above.`;
     }
+
+    const provider = paymentMethod.provider || 'your mobile money';
+    return `Open your ${provider} app and send money to the phone number above.`;
   };
 
   return (
@@ -362,10 +428,7 @@ export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps
             
             <div>
               <p className="text-sm text-muted-foreground mb-1">Created by</p>
-              <p className="text-sm">
-                {bill.createdBy}
-                {formattedBillDate ? ` • ${formattedBillDate}` : ''}
-              </p>
+              <p className="text-sm">{bill.createdBy} • {bill.date}</p>
             </div>
 
             {bill.note && (
@@ -468,3 +531,5 @@ export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps
     </div>
   );
 }
+
+

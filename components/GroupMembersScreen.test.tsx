@@ -107,7 +107,10 @@ describe('GroupMembersScreen', () => {
     await user.click(removeItem);
 
     await waitFor(() => expect(screen.queryByText('Alice Smith')).toBeNull());
-    expect(fetchMock).toHaveBeenCalledWith('/api/groups/g1/members/m2', { method: 'DELETE' });
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/groups/g1/members/m2',
+      expect.objectContaining({ method: 'DELETE' })
+    );
   });
 });
 

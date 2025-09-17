@@ -339,7 +339,6 @@ export function PaymentConfirmationScreen({
           onClose={() => setShowShareSheet(false)}
           title="Share Payment Receipt"
           shareText={`*Payment Sent Successfully!*\n\n💰 Amount: ${fmt(paymentRequest.amount)}\n👤 To: ${paymentRequest.recipient}\n📋 For: ${paymentRequest.description}\n🧾 Reference: ${paymentResult.confirmationNumber}\n💳 Method: ${method.name}\n\n_Paid via Biltip 🚀_`}
-          shareText={`*Payment Sent Successfully!*\n\n💰 Amount: ${fmt(paymentRequest.amount)}\n👤 To: ${paymentRequest.recipient}\n📋 For: ${paymentRequest.description}\n🧾 Reference: ${paymentResult.confirmationNumber}\n💳 Method: ${method.name}\n\n_Paid via Biltip 🚀_`}
           documentData={{
             title: `Payment to ${paymentRequest.recipient}`,
             content: { paymentRequest, paymentResult, method },
