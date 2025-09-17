@@ -12,6 +12,7 @@ import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { useUserProfile } from './UserProfileContext';
 import { formatCurrencyForRegion } from '../utils/regions';
+import { formatDueDate } from '../utils/formatDueDate';
 
 export interface ShareData {
   type: 'bill_split' | 'payment_request' | 'transaction' | 'payment_confirmation' | 'group_summary';
@@ -39,6 +40,7 @@ export function SocialSharingUtils({ shareData, onNavigate }: SocialSharingUtils
   const generateShareText = () => {
     const { type, title, amount, description, participantNames, dueDate, status, groupName } = shareData;
     const formattedAmount = fmt(amount);
+    const formattedDueDate = dueDate ? formatDueDate(dueDate) : '';
     
     switch (type) {
       case 'bill_split':
@@ -46,7 +48,7 @@ export function SocialSharingUtils({ shareData, onNavigate }: SocialSharingUtils
         return `💰 *Bill Split: ${title}*\n\n` +
                `Amount: ${formattedAmount}\n` +
                `Split with: ${participantsList}\n` +
-               (dueDate ? `Due: ${dueDate}\n` : '') +
+               (formattedDueDate ? `Due: ${formattedDueDate}\n` : '') +
                (description ? `Details: ${description}\n` : '') +
                `\n📱 Organized with Biltip - Your bill splitting made easy!` +
                (shareData.deepLink ? `\n\nView details: ${shareData.deepLink}` : '');
@@ -56,7 +58,7 @@ export function SocialSharingUtils({ shareData, onNavigate }: SocialSharingUtils
                `Amount: ${formattedAmount}\n` +
                `From: ${userProfile.name}\n` +
                `For: ${title}\n` +
-               (dueDate ? `Due: ${dueDate}\n` : '') +
+               (formattedDueDate ? `Due: ${formattedDueDate}\n` : '') +
                (description ? `Details: ${description}\n` : '') +
                `\n📱 Send via Biltip - Quick & secure payments!` +
                (shareData.deepLink ? `\n\nPay now: ${shareData.deepLink}` : '');
