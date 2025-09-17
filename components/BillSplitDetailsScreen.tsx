@@ -14,7 +14,7 @@ import { ShareSheet } from './ui/share-sheet';
 import { createDeepLink } from './ShareUtils';
 import { PageLoading } from './ui/loading';
 import { apiClient } from '../utils/apiClient';
-import { formatDueDate } from '../utils/formatDueDate';
+import { formatBillDate } from '../utils/formatBillDate';
 
 interface BillSplitDetailsScreenProps {
   billSplitId: string | null;
@@ -64,29 +64,6 @@ interface BillSplit {
 }
 
 const billSplitCache = new Map<string, BillSplit>();
-
-const formatBillSplitDate = (dateString?: string) => {
-  if (!dateString) {
-    return '';
-  }
-
-  const relative = formatDueDate(dateString);
-  if (relative) {
-    return relative;
-  }
-
-  const parsed = new Date(dateString);
-  if (Number.isNaN(parsed.getTime())) {
-    return '';
-  }
-
-  const now = new Date();
-  return parsed.toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: parsed.getFullYear() === now.getFullYear() ? undefined : 'numeric',
-  });
-};
 
 async function getBillSplit(id: string): Promise<BillSplit> {
   const data = await apiClient(`/bill-splits/${id}`);
@@ -241,7 +218,7 @@ export function BillSplitDetailsScreen({ billSplitId, onNavigate }: BillSplitDet
   const paidParticipants = billSplit.participants.filter(p => p.status === 'paid');
   const totalPaid = paidParticipants.reduce((sum, p) => sum + p.amount, 0);
   const progressPercentage = (totalPaid / billSplit.totalAmount) * 100;
-  const formattedBillDate = formatBillSplitDate(billSplit.date);
+  const formattedBillDate = formatBillDate(billSplit.date);
   const detailsCardDate = formattedBillDate || '—';
 
   const handleEdit = () => {

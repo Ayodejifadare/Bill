@@ -1,7 +1,9 @@
 // Mock handler for /bill-splits/* endpoints
+import { formatBillDate } from '../utils/formatBillDate';
 
 function makeBillSplit(id: string) {
   const createdAt = new Date().toISOString();
+  const friendlyDate = formatBillDate(createdAt);
   return {
     id,
     title: 'Mock Group Dinner',
@@ -15,6 +17,7 @@ function makeBillSplit(id: string) {
     ],
     createdBy: 'Alice',
     date: createdAt,
+    friendlyDate,
     paymentMethod: {
       type: 'bank',
       bankName: 'Mock Bank',

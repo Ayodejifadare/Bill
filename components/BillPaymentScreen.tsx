@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { useUserProfile } from './UserProfileContext';
 import { requiresRoutingNumber, getBankIdentifierLabel, formatBankAccountForRegion, formatCurrencyForRegion } from '../utils/regions';
 import { apiClient } from '../utils/apiClient';
+import { formatBillDate } from '../utils/formatBillDate';
 
 interface BillPaymentScreenProps {
   billId: string | null;
@@ -87,6 +88,8 @@ export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps
       </div>
     );
   }
+
+  const formattedBillDate = formatBillDate(bill.date);
 
   const copyPaymentDetails = async () => {
     const { paymentMethod } = bill;
@@ -359,7 +362,10 @@ export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps
             
             <div>
               <p className="text-sm text-muted-foreground mb-1">Created by</p>
-              <p className="text-sm">{bill.createdBy} • {bill.date}</p>
+              <p className="text-sm">
+                {bill.createdBy}
+                {formattedBillDate ? ` • ${formattedBillDate}` : ''}
+              </p>
             </div>
 
             {bill.note && (
