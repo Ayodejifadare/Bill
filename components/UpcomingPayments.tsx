@@ -156,21 +156,23 @@ export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
                       e.stopPropagation();
                       if (payment.type === 'bill_split' && payment.billSplitId) {
                         onNavigate('pay-bill', { billId: payment.billSplitId });
-                      } else {
-                        // For direct money requests, use the simplified payment flow
-                        onNavigate('payment-flow', {
-                          paymentRequest: {
-                            id: `upcoming-${payment.id}`,
-                            amount: payment.amount,
-                            description: payment.title,
-                            recipient: payment.organizer.name,
-                            recipientId: payment.organizer.id ?? payment.organizer.name,
-                            dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
-                          }
-                        });
+                  } else {
+                    // For direct money requests, use the simplified payment flow
+                    onNavigate('payment-flow', {
+                      paymentRequest: {
+                        id: `upcoming-${payment.id}`,
+                        amount: payment.amount,
+                        description: payment.title,
+                        recipient: payment.organizer.name,
+                        recipientId: payment.organizer.id ?? payment.organizer.name,
+                        // Pass through the underlying request transaction id if present
+                        requestId: payment.requestId || payment.id,
+                        dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
                       }
-                    }}
-                  >
+                    });
+                  }
+                }}
+              >
                     {payment.status === 'overdue' ? 'Pay Overdue' : payment.status === 'due_soon' ? 'Pay Now' : 'Pay'}
                   </Button>
                 </div>

@@ -139,6 +139,8 @@ export function UpcomingPaymentsScreen({ onNavigate }: UpcomingPaymentsScreenPro
                       description: payment.title,
                       recipient: payment.organizer.name,
                       recipientId: payment.organizer.id ?? payment.organizer.name,
+                      // Pass through the underlying request transaction id if present
+                      requestId: payment.requestId || payment.id,
                       dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
                     }
                   });

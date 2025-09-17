@@ -18,6 +18,8 @@ interface PaymentFlowScreenProps {
     description: string;
     recipient: string;
     recipientId?: string;
+    // If coming from upcoming payments, this is the request transaction id
+    requestId?: string;
     groupId?: string;
     billSplitId?: string;
     dueDate?: string;
@@ -138,14 +140,24 @@ export function PaymentFlowScreen({ paymentRequest, onNavigate }: PaymentFlowScr
     }
   };
 
-  const markAsSent = () => {
-    setPaymentStatus('sent');
-    toast.success('Payment marked as sent! The recipient will be notified.');
-    
-    // Navigate back to home screen after a short delay
-    setTimeout(() => {
-      onNavigate('home');
-    }, 2000);
+  const markAsSent = async () => {
+    try {
+      // If this flow has a corresponding request transaction id, update it on the server
+      const reqId = (paymentRequest as any)?.requestId as string | undefined
+      if (reqId) {
+        await apiClient(`/api/transactions/${reqId}/mark-sent`, { method: 'POST' })
+      }
+      setPaymentStatus('sent');
+      toast.success('Payment marked as sent! The recipient will be notified.');
+
+      // Navigate back to home screen after a short delay
+      setTimeout(() => {
+        onNavigate('home');
+      }, 1500);
+    } catch (error) {
+      console.error('Failed to mark payment as sent', error)
+      toast.error('Failed to mark payment as sent');
+    }
   };
 
   const formatAccountNumber = (accountNumber: string) =>

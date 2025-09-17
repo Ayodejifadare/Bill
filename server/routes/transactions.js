@@ -268,16 +268,22 @@ router.get('/', async (req, res) => {
       pageCount = Math.ceil(total / pageSize)
     }
 
-    const formatted = transactions.map(({ createdAt, receiver, ...t }) => ({
-      ...t,
-      date: createdAt.toISOString(),
-      recipient: receiver,
-      type: TRANSACTION_TYPE_MAP[t.type] || t.type,
-      status: TRANSACTION_STATUS_MAP[t.status] || t.status,
-      ...(t.category
-        ? { category: TRANSACTION_CATEGORY_MAP[t.category] || t.category }
-        : {})
-    }))
+    const formatted = transactions.map(({ createdAt, receiver, ...t }) => {
+      let mappedType = TRANSACTION_TYPE_MAP[t.type] || t.type
+      if (mappedType === 'sent' || mappedType === 'received') {
+        mappedType = t.senderId === req.userId ? 'sent' : 'received'
+      }
+      return {
+        ...t,
+        date: createdAt.toISOString(),
+        recipient: receiver,
+        type: mappedType,
+        status: TRANSACTION_STATUS_MAP[t.status] || t.status,
+        ...(t.category
+          ? { category: TRANSACTION_CATEGORY_MAP[t.category] || t.category }
+          : {})
+      }
+    })
     let summaryData = {}
     if (includeSummary === 'true' || includeSummary === '1') {
       const completedStatus =
@@ -615,6 +621,65 @@ router.post('/send', [
     })
   } catch (error) {
     console.error('Send money error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+// Mark a request transaction as sent/completed by the payer
+router.post('/:id/mark-sent', async (req, res) => {
+  try {
+    const { id } = req.params
+
+    // Find the transaction
+    const tx = await req.prisma.transaction.findUnique({ where: { id } })
+
+    if (!tx) {
+      return res.status(404).json({ error: 'Transaction not found' })
+    }
+
+    // Only the payer (senderId on the request tx) can mark as sent
+    if (tx.senderId !== req.userId) {
+      return res.status(403).json({ error: 'Not authorized to update this transaction' })
+    }
+
+    // Only allow transitioning request -> sent when pending
+    if (tx.type !== 'REQUEST' || tx.status !== 'PENDING') {
+      return res.status(400).json({ error: 'Only pending request transactions can be marked as sent' })
+    }
+
+    const updated = await req.prisma.transaction.update({
+      where: { id },
+      data: {
+        type: 'SEND',
+        status: 'COMPLETED',
+      },
+      include: {
+        sender: { select: { id: true, name: true, email: true, avatar: true } },
+        receiver: { select: { id: true, name: true, email: true, avatar: true } }
+      }
+    })
+
+    const formatted = {
+      ...updated,
+      type: TRANSACTION_TYPE_MAP[updated.type] || updated.type,
+      status: TRANSACTION_STATUS_MAP[updated.status] || updated.status,
+      ...(updated.category
+        ? { category: TRANSACTION_CATEGORY_MAP[updated.category] || updated.category }
+        : {})
+    }
+
+    await createNotification(req.prisma, {
+      recipientId: updated.receiverId,
+      actorId: updated.senderId,
+      type: 'payment_sent',
+      title: 'Payment sent',
+      message: `${updated.sender.name} sent you ${updated.amount}`,
+      amount: updated.amount,
+    })
+
+    res.json({ transaction: formatted })
+  } catch (error) {
+    console.error('Mark request as sent error:', error)
     res.status(500).json({ error: 'Internal server error' })
   }
 })
