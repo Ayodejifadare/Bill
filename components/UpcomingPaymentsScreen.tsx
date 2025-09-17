@@ -6,6 +6,7 @@ import { Badge } from './ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { useUserProfile } from './UserProfileContext';
 import { formatCurrencyForRegion } from '../utils/regions';
+import { formatDueDate } from '../utils/formatDueDate';
 import { ListSkeleton } from './ui/loading';
 import { Alert, AlertDescription } from './ui/alert';
 import { useUpcomingPayments } from '../hooks/useUpcomingPayments';
@@ -68,77 +69,88 @@ export function UpcomingPaymentsScreen({ onNavigate }: UpcomingPaymentsScreenPro
     }
   };
 
-  const PaymentCard = ({ payment }: { payment: any }) => (
-    <Card className="p-4 hover:bg-muted/50 transition-colors cursor-pointer"
-          onClick={() => {
-            if (payment.type === 'bill_split' && payment.billSplitId) {
-              onNavigate('bill-split-details', { billSplitId: payment.billSplitId });
-            } else if (payment.type === 'request' && payment.requestId) {
-              onNavigate('transaction-details', { transactionId: payment.requestId });
-            }
-          }}>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-3">
-          <Avatar className="h-10 w-10">
-            <AvatarFallback className="bg-primary text-primary-foreground">
-              {payment.organizer.avatar}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center space-x-2 mb-1">
-              {getTypeIcon(payment.type)}
-              <p className="font-medium truncate">{payment.title}</p>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              {payment.organizer.name} • {Array.isArray(payment.participants) ? payment.participants.length : payment.participants} people
-            </p>
-            
-            {/* Show payment method info if available */}
-            {payment.paymentMethod && (
-              <p className="text-xs text-muted-foreground mt-1">
-                {payment.paymentMethod.type === 'bank' ? (
-                  <>Pay via {payment.paymentMethod.bankName}</>
-                ) : (
-                  <>Pay via {payment.paymentMethod.provider}</>
-                )}
+  const PaymentCard = ({ payment }: { payment: any }) => {
+    const duePhrase = formatDueDate(payment.dueDate);
+    const dueText = duePhrase
+      ? duePhrase.toLowerCase().startsWith('overdue')
+        ? duePhrase
+        : `Due ${duePhrase}`
+      : 'Due date unavailable';
+
+    return (
+      <Card
+        className="p-4 hover:bg-muted/50 transition-colors cursor-pointer"
+        onClick={() => {
+          if (payment.type === 'bill_split' && payment.billSplitId) {
+            onNavigate('bill-split-details', { billSplitId: payment.billSplitId });
+          } else if (payment.type === 'request' && payment.requestId) {
+            onNavigate('transaction-details', { transactionId: payment.requestId });
+          }
+        }}
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <Avatar className="h-10 w-10">
+              <AvatarFallback className="bg-primary text-primary-foreground">
+                {payment.organizer.avatar}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center space-x-2 mb-1">
+                {getTypeIcon(payment.type)}
+                <p className="font-medium truncate">{payment.title}</p>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {payment.organizer.name} • {Array.isArray(payment.participants) ? payment.participants.length : payment.participants} people
               </p>
-            )}
+
+              {/* Show payment method info if available */}
+              {payment.paymentMethod && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  {payment.paymentMethod.type === 'bank' ? (
+                    <>Pay via {payment.paymentMethod.bankName}</>
+                  ) : (
+                    <>Pay via {payment.paymentMethod.provider}</>
+                  )}
+                </p>
+              )}
+            </div>
+          </div>
+          <div className="text-right space-y-2">
+            <p className="font-medium">{fmt(payment.amount)}</p>
+            <Badge className={`${getStatusColor(payment.status)} text-xs flex items-center gap-1`}>
+              {getStatusIcon(payment.status)}
+              {dueText}
+            </Badge>
+            <Button
+              size="sm"
+              variant={payment.status === 'overdue' || payment.status === 'due_soon' ? 'default' : 'outline'}
+              className="w-full"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (payment.type === 'bill_split' && payment.billSplitId) {
+                  onNavigate('pay-bill', { billId: payment.billSplitId });
+                } else {
+                  // For direct money requests, use the simplified payment flow
+                  onNavigate('payment-flow', {
+                    paymentRequest: {
+                      id: `upcoming-${payment.id}`,
+                      amount: payment.amount,
+                      description: payment.title,
+                      recipient: payment.organizer.name,
+                      dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+                    }
+                  });
+                }
+              }}
+            >
+              {payment.status === 'overdue' ? 'Pay Overdue' : payment.status === 'due_soon' ? 'Pay Now' : 'Pay'}
+            </Button>
           </div>
         </div>
-        <div className="text-right space-y-2">
-          <p className="font-medium">{fmt(payment.amount)}</p>
-          <Badge className={`${getStatusColor(payment.status)} text-xs flex items-center gap-1`}>
-            {getStatusIcon(payment.status)}
-            Due {payment.dueDate}
-          </Badge>
-          <Button 
-            size="sm" 
-            variant={payment.status === 'overdue' || payment.status === 'due_soon' ? 'default' : 'outline'}
-            className="w-full"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (payment.type === 'bill_split' && payment.billSplitId) {
-                onNavigate('pay-bill', { billId: payment.billSplitId });
-              } else {
-                // For direct money requests, use the simplified payment flow
-                onNavigate('payment-flow', {
-                  paymentRequest: {
-                    id: `upcoming-${payment.id}`,
-                    amount: payment.amount,
-                    description: payment.title,
-                    recipient: payment.organizer.name,
-                    dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
-                  }
-                });
-              }
-            }}
-          >
-            {payment.status === 'overdue' ? 'Pay Overdue' : payment.status === 'due_soon' ? 'Pay Now' : 'Pay'}
-          </Button>
-        </div>
-      </div>
-    </Card>
-  );
+      </Card>
+    );
+  };
   if (loading) {
     return (
       <div className="p-4 space-y-6 pb-20">
