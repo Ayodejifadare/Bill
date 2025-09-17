@@ -52,21 +52,62 @@ export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps
   
   const [paymentStatus, setPaymentStatus] = useState<'pending' | 'sent' | 'confirmed'>('pending');
   const [bill, setBill] = useState<BillSplit | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!billId) return;
-    const loadBill = async () => {
-      try {
-        const data = await apiClient(`/bill-splits/${billId}`);
-        if (data?.billSplit) {
-          setBill(data.billSplit);
-        }
-      } catch (error) {
-        console.error('Failed to load bill split', error);
+    let cancelled = false;
+    async function loadBill() {
+      if (!billId) {
+        setBill(null);
+        setLoading(false);
+        return;
       }
-    };
+      try {
+        setLoading(true);
+        setLoadError(null);
+        const data = await apiClient(`/bill-splits/${billId}`);
+        if (!cancelled) {
+          if (data?.billSplit) {
+            setBill(data.billSplit);
+          } else {
+            setBill(null);
+          }
+        }
+      } catch (error: any) {
+        if (!cancelled) {
+          console.error('Failed to load bill split', error);
+          setLoadError(error?.message || 'Failed to load bill split');
+          setBill(null);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
     loadBill();
+    return () => { cancelled = true };
   }, [billId]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background px-4 py-6">
+        <div className="flex items-center space-x-4 mb-6">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => onNavigate('bills')}
+            className="min-h-[44px] min-w-[44px] -ml-2"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <h2 className="text-xl font-semibold">Bill Payment</h2>
+        </div>
+        <div className="text-center py-12">
+          <p className="text-muted-foreground">Loading bill...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!bill) {
     return (
@@ -82,42 +123,15 @@ export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps
           </Button>
           <h2 className="text-xl font-semibold">Bill Payment</h2>
         </div>
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">Bill not found</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!bill.paymentMethod) {
-    return (
-      <div className="min-h-screen bg-background px-4 py-6">
-        <div className="flex items-center space-x-4 mb-6">
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={() => onNavigate('bills')}
-            className="min-h-[44px] min-w-[44px] -ml-2"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <h2 className="text-xl font-semibold">Bill Payment</h2>
-        </div>
-        <div className="flex flex-col items-center justify-center text-center py-12 space-y-4">
+        <div className="flex flex-col items-center justify-center text-center py-12 space-y-2">
           <AlertTriangle className="h-10 w-10 text-warning" />
-          <div className="space-y-2">
-            <p className="font-medium">Payment details unavailable</p>
-            <p className="text-sm text-muted-foreground">
-              We couldn't load payment instructions for this bill. Please contact the bill creator.
-            </p>
-          </div>
-          <Button
-            variant="outline"
-            className="min-h-[44px] min-w-[44px]"
-            onClick={() => onNavigate('bill-split-details', { billSplitId: bill.id })}
-          >
-            View Bill Details
-          </Button>
+          <p className="font-medium">Bill not found</p>
+          {loadError && (
+            <p className="text-sm text-muted-foreground">{loadError}</p>
+          )}
+          {!loadError && (
+            <p className="text-sm text-muted-foreground">You might not have access to this bill, or it may have been deleted.</p>
+          )}
         </div>
       </div>
     );
@@ -232,11 +246,12 @@ export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps
     formatBankAccountForRegion(appSettings.region, accountNumber);
 
   const getPaymentInstructions = () => {
-    if (paymentMethod.type === 'bank') {
+    if (!bill.paymentMethod) return '';
+    if (bill.paymentMethod.type === 'bank') {
       return 'Use your banking app (mobile or web), or visit a branch to send this payment.';
     }
 
-    const provider = paymentMethod.provider || 'your mobile money';
+    const provider = bill.paymentMethod.provider || 'your mobile money';
     return `Open your ${provider} app and send money to the phone number above.`;
   };
 

@@ -647,16 +647,38 @@ router.post('/:id/mark-sent', async (req, res) => {
       return res.status(400).json({ error: 'Only pending request transactions can be marked as sent' })
     }
 
-    const updated = await req.prisma.transaction.update({
-      where: { id },
-      data: {
-        type: 'SEND',
-        status: 'COMPLETED',
-      },
-      include: {
-        sender: { select: { id: true, name: true, email: true, avatar: true } },
-        receiver: { select: { id: true, name: true, email: true, avatar: true } }
+    // Check balances and perform atomic update + balance transfers
+    const updated = await req.prisma.$transaction(async (prisma) => {
+      // Check sender (payer) balance
+      const payer = await prisma.user.findUnique({ where: { id: tx.senderId } })
+      if (!payer || payer.balance < tx.amount) {
+        throw Object.assign(new Error('Insufficient balance'), { status: 400 })
       }
+
+      // Update transaction state
+      const newTx = await prisma.transaction.update({
+        where: { id },
+        data: {
+          type: 'SEND',
+          status: 'COMPLETED',
+        },
+        include: {
+          sender: { select: { id: true, name: true, email: true, avatar: true } },
+          receiver: { select: { id: true, name: true, email: true, avatar: true } }
+        }
+      })
+
+      // Transfer balances
+      await prisma.user.update({
+        where: { id: newTx.senderId },
+        data: { balance: { decrement: newTx.amount } }
+      })
+      await prisma.user.update({
+        where: { id: newTx.receiverId },
+        data: { balance: { increment: newTx.amount } }
+      })
+
+      return newTx
     })
 
     const formatted = {
@@ -679,6 +701,11 @@ router.post('/:id/mark-sent', async (req, res) => {
 
     res.json({ transaction: formatted })
   } catch (error) {
+    const status = (error && typeof error === 'object' && 'status' in error) ? error.status : 500
+    if (status === 400) {
+      const message = (error && typeof error === 'object' && 'message' in error && error.message) ? error.message : 'Bad request'
+      return res.status(400).json({ error: message })
+    }
     console.error('Mark request as sent error:', error)
     res.status(500).json({ error: 'Internal server error' })
   }

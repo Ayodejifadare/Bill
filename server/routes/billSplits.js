@@ -772,7 +772,14 @@ router.post(
           })
 
           if (!existing) {
-            await prisma.transaction.create({
+            // Ensure participant has sufficient balance
+            const payer = await prisma.user.findUnique({ where: { id: participant.userId } })
+            if (!payer || payer.balance < participant.amount) {
+              throw Object.assign(new Error(`Participant has insufficient balance`), { status: 400 })
+            }
+
+            // Create transaction
+            const newTx = await prisma.transaction.create({
               data: {
                 senderId: participant.userId,
                 receiverId: billSplit.createdBy,
@@ -782,6 +789,16 @@ router.post(
                 status: 'COMPLETED',
                 billSplitId: id
               }
+            })
+
+            // Transfer balances
+            await prisma.user.update({
+              where: { id: newTx.senderId },
+              data: { balance: { decrement: newTx.amount } }
+            })
+            await prisma.user.update({
+              where: { id: newTx.receiverId },
+              data: { balance: { increment: newTx.amount } }
             })
           }
         }
@@ -815,6 +832,11 @@ router.post(
 
       res.json({ billSplit: updated })
     } catch (error) {
+      const status = (error && typeof error === 'object' && 'status' in error) ? error.status : 500
+      if (status === 400) {
+        const message = (error && typeof error === 'object' && 'message' in error && error.message) ? error.message : 'Bad request'
+        return res.status(400).json({ error: message })
+      }
       console.error('Settle bill split error:', error)
       res.status(500).json({ error: 'Internal server error' })
     }

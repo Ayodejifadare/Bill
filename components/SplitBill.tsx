@@ -492,7 +492,8 @@ export function SplitBill({ onNavigate, groupId, prefillFriendId }: SplitBillPro
         description: description || undefined,
         splitMethod,
         groupId: groupId || undefined,
-        paymentMethodId: selectedPaymentMethod?.isExternal ? String(selectedPaymentMethod.id).replace(/^external-/, '') : undefined,
+        // Always send a paymentMethodId; strip any external prefix if present
+        paymentMethodId: selectedPaymentMethod ? String(selectedPaymentMethod.id).replace(/^external-/, '') : undefined,
         isRecurring,
         frequency: isRecurring ? recurringFrequency : undefined,
         day: isRecurring && recurringFrequency === 'monthly'
