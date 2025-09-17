@@ -42,7 +42,7 @@ export function SimpleShareUtils({ shareData, onNavigate }: SimpleShareUtilsProp
   const generateShareText = () => {
     const { type, title, amount, description, participantNames, dueDate, status, groupName } = shareData;
     const formattedAmount = fmt(amount);
-    const formattedDueDate = dueDate ? formatDueDate(dueDate) : '';
+    const formattedDueDate = dueDate ? (formatDueDate(dueDate) || dueDate) : '';
     
     switch (type) {
       case 'bill_split':
