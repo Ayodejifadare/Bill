@@ -12,6 +12,7 @@ import { Button } from './ui/button';
 import { ShareSheet } from './ui/share-sheet';
 import { useUserProfile } from './UserProfileContext';
 import { formatCurrencyForRegion, getCurrencySymbol } from '../utils/regions';
+import { formatDueDate } from '../utils/formatDueDate';
 
 export interface ShareData {
   type: 'bill_split' | 'payment_request' | 'transaction' | 'payment_confirmation' | 'group_summary';
@@ -41,6 +42,7 @@ export function SimpleShareUtils({ shareData, onNavigate }: SimpleShareUtilsProp
   const generateShareText = () => {
     const { type, title, amount, description, participantNames, dueDate, status, groupName } = shareData;
     const formattedAmount = fmt(amount);
+    const formattedDueDate = dueDate ? formatDueDate(dueDate) : '';
     
     switch (type) {
       case 'bill_split':
@@ -48,7 +50,7 @@ export function SimpleShareUtils({ shareData, onNavigate }: SimpleShareUtilsProp
         return `*${title}*
 
 💰 Amount: ${formattedAmount}
-👥 Split with: ${participantsList}${dueDate ? `\n📅 Due: ${dueDate}` : ''}${description ? `\n📝 ${description}` : ''}
+  👥 Split with: ${participantsList}${formattedDueDate ? `\n📅 Due: ${formattedDueDate}` : ''}${description ? `\n📝 ${description}` : ''}
 
 _Shared via Biltip 🚀_`;
 
@@ -57,7 +59,7 @@ _Shared via Biltip 🚀_`;
 
 💸 Amount: ${formattedAmount}
 👤 From: ${userProfile.name}
-📋 For: ${title}${dueDate ? `\n📅 Due: ${dueDate}` : ''}${description ? `\n📝 ${description}` : ''}
+  📋 For: ${title}${formattedDueDate ? `\n📅 Due: ${formattedDueDate}` : ''}${description ? `\n📝 ${description}` : ''}
 
 _Send via Biltip 🚀_`;
 
