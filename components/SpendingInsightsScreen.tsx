@@ -6,22 +6,115 @@ import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart as RechartsPieChart, Cell, LineChart, Line } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart as RechartsPieChart, Cell, LineChart, Line, Tooltip } from 'recharts';
 import { useUserProfile } from './UserProfileContext';
+import { formatCurrencyForRegion, getCurrencyCode, getLocaleForRegion } from '../utils/regions';
 import { apiClient } from '../utils/apiClient';
 
 interface SpendingInsightsScreenProps {
-  onNavigate: (tab: string) => void;
+  onNavigate: (tab: string, data?: any) => void;
+  backTo?: string;
 }
 
+interface SpendingCategory {
+  name: string;
+  amount: number;
+  percentage: number;
+  color: string;
+}
 
-export function SpendingInsightsScreen({ onNavigate }: SpendingInsightsScreenProps) {
+interface SpendingGoal {
+  category: string;
+  spent: number;
+  budget: number;
+  target: string;
+}
+
+interface SpendingInsightItem {
+  type: 'positive' | 'warning' | 'neutral';
+  message?: string;
+  title?: string;
+  description?: string;
+}
+
+interface SpendingMonthlyTrend {
+  month: string;
+  sent: number;
+  received: number;
+  splits: number;
+}
+
+interface WeeklyActivityItem {
+  day: string;
+  amount: number;
+}
+
+interface SpendingData {
+  currentMonth: { total: number; categories: SpendingCategory[] };
+  monthlyTrends: SpendingMonthlyTrend[];
+  weeklyActivity: WeeklyActivityItem[];
+  goals: SpendingGoal[];
+  insights: SpendingInsightItem[];
+  overview?: {
+    totalSpentDeltaPct: number;
+    splitsCount: number;
+    splitsDeltaPct: number;
+  }
+}
+
+export function SpendingInsightsScreen({ onNavigate, backTo = 'home' }: SpendingInsightsScreenProps) {
   const { appSettings } = useUserProfile();
-  const currencySymbol = appSettings.region === 'NG' ? '₦' : '$';
+  const fmt = (n: number) => formatCurrencyForRegion(appSettings.region, n);
+  const fmtAxis = (n: number) => {
+    const locale = getLocaleForRegion(appSettings.region);
+    const currency = getCurrencyCode(appSettings.region);
+    try {
+      return new Intl.NumberFormat(locale, {
+        style: 'currency',
+        currency,
+        notation: 'compact',
+        maximumFractionDigits: 1,
+      }).format(Number(n) || 0);
+    } catch {
+      return fmt(Number(n) || 0);
+    }
+  };
   const [selectedPeriod, setSelectedPeriod] = useState('This Month');
-  const [spendingData, setSpendingData] = useState<any | null>(null);
+  const [spendingData, setSpendingData] = useState<SpendingData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Delta helpers for dynamic coloring/icons
+  const spentDelta = spendingData?.overview?.totalSpentDeltaPct ?? 0;
+  const splitsDelta = spendingData?.overview?.splitsDeltaPct ?? 0;
+  const neutralThreshold = 1; // +/-1% considered neutral
+  const warningThreshold = 5; // within 5% uses warning color
+
+  const formatDelta = (n: number) => `${n > 0 ? '+' : ''}${Math.round(n)}%`;
+
+  // Lower spending is good; increases are bad (warning/red)
+  const spentIsNeutral = Math.abs(spentDelta) < neutralThreshold;
+  const spentIsDown = spentDelta <= -neutralThreshold;
+  const spentIsSmallUp = spentDelta >= neutralThreshold && spentDelta <= warningThreshold;
+  const spentBadgeClass = spentIsNeutral
+    ? 'text-muted-foreground'
+    : spentIsDown
+    ? 'text-success'
+    : spentIsSmallUp
+    ? 'text-warning'
+    : 'text-destructive';
+
+  // More splits is generally good for engagement
+  const splitsIsNeutral = Math.abs(splitsDelta) < neutralThreshold;
+  const splitsIsUp = splitsDelta >= neutralThreshold;
+  const splitsIsSmallDown = splitsDelta <= -neutralThreshold && splitsDelta >= -warningThreshold;
+  const splitsBadgeClass = splitsIsNeutral
+    ? 'text-muted-foreground'
+    : splitsIsUp
+    ? 'text-success'
+    : splitsIsSmallDown
+    ? 'text-warning'
+    : 'text-destructive';
 
   const periods = ['This Week', 'This Month', 'Last 3 Months', 'This Year'];
 
@@ -80,7 +173,7 @@ export function SpendingInsightsScreen({ onNavigate }: SpendingInsightsScreenPro
             <Button 
               variant="ghost" 
               size="icon" 
-              onClick={() => onNavigate('profile')}
+              onClick={() => onNavigate(backTo)}
               className="-ml-2"
             >
               <ArrowLeft className="h-5 w-5" />
@@ -108,14 +201,20 @@ export function SpendingInsightsScreen({ onNavigate }: SpendingInsightsScreenPro
         <div className="grid grid-cols-2 gap-4">
           <Card className="p-4 min-h-[120px] flex flex-col justify-between">
             <div className="flex items-center justify-between mb-3">
-              <TrendingDown className="h-5 w-5 text-destructive" />
-              <Badge variant="outline" className="text-destructive text-xs">
-                -8%
+              {spentIsNeutral ? (
+                <DollarSign className={`h-5 w-5 ${spentBadgeClass}`} />
+              ) : spentIsDown ? (
+                <TrendingDown className={`h-5 w-5 ${spentBadgeClass}`} />
+              ) : (
+                <TrendingUp className={`h-5 w-5 ${spentBadgeClass}`} />
+              )}
+              <Badge variant="outline" className={`${spentBadgeClass} text-xs`}>
+                {formatDelta(spentDelta)}
               </Badge>
             </div>
             <div className="flex-1 flex flex-col justify-end">
               <p className="text-xl sm:text-2xl font-bold">
-                {currencySymbol}{spendingData.currentMonth.total.toFixed(0)}
+                {fmt(spendingData.currentMonth.total)}
               </p>
               <p className="text-sm text-muted-foreground mt-1">Total Spent</p>
             </div>
@@ -123,13 +222,19 @@ export function SpendingInsightsScreen({ onNavigate }: SpendingInsightsScreenPro
           
           <Card className="p-4 min-h-[120px] flex flex-col justify-between">
             <div className="flex items-center justify-between mb-3">
-              <TrendingUp className="h-5 w-5 text-success" />
-              <Badge variant="outline" className="text-success text-xs">
-                +12%
+              {splitsIsNeutral ? (
+                <DollarSign className={`h-5 w-5 ${splitsBadgeClass}`} />
+              ) : splitsIsUp ? (
+                <TrendingUp className={`h-5 w-5 ${splitsBadgeClass}`} />
+              ) : (
+                <TrendingDown className={`h-5 w-5 ${splitsBadgeClass}`} />
+              )}
+              <Badge variant="outline" className={`${splitsBadgeClass} text-xs`}>
+                {formatDelta(splitsDelta)}
               </Badge>
             </div>
             <div className="flex-1 flex flex-col justify-end">
-              <p className="text-xl sm:text-2xl font-bold">15</p>
+              <p className="text-xl sm:text-2xl font-bold">{spendingData.overview?.splitsCount ?? 0}</p>
               <p className="text-sm text-muted-foreground mt-1">Bill Splits</p>
             </div>
           </Card>
@@ -178,32 +283,36 @@ export function SpendingInsightsScreen({ onNavigate }: SpendingInsightsScreenPro
             {/* Category Breakdown */}
             <Card className="p-4 sm:p-6">
               <h3 className="font-medium mb-4 text-lg">Spending by Category</h3>
-              <div className="space-y-4">
-                {spendingData.currentMonth.categories.map((category, index) => (
-                  <div key={index} className="space-y-3 min-h-[44px] flex flex-col justify-center">
-                    <div className="flex justify-between items-start">
-                      <div className="min-w-0 flex-1">
-                        <span className="font-medium text-base">{category.name}</span>
-                      </div>
-                      <div className="text-right ml-3 flex-shrink-0">
-                        <div className="font-medium text-base">
-                          {currencySymbol}{category.amount.toFixed(2)}
+              {spendingData.currentMonth.categories.length === 0 ? (
+                <div className="text-sm text-muted-foreground py-6">No category data for this period.</div>
+              ) : (
+                <div className="space-y-4">
+                  {spendingData.currentMonth.categories.map((category, index) => (
+                    <div key={index} className="space-y-3 min-h-[44px] flex flex-col justify-center">
+                      <div className="flex justify-between items-start">
+                        <div className="min-w-0 flex-1">
+                          <span className="font-medium text-base">{category.name}</span>
                         </div>
-                        <div className="text-sm text-muted-foreground">
-                          {category.percentage}%
+                        <div className="text-right ml-3 flex-shrink-0">
+                          <div className="font-medium text-base">
+                            {fmt(category.amount)}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {category.percentage}%
+                          </div>
                         </div>
                       </div>
+                      <Progress 
+                        value={category.percentage} 
+                        className="h-3"
+                        style={{ 
+                          '--progress-background': category.color 
+                        } as React.CSSProperties}
+                      />
                     </div>
-                    <Progress 
-                      value={category.percentage} 
-                      className="h-3"
-                      style={{ 
-                        '--progress-background': category.color 
-                      } as React.CSSProperties}
-                    />
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </Card>
 
             {/* Weekly Activity */}
@@ -226,7 +335,9 @@ export function SpendingInsightsScreen({ onNavigate }: SpendingInsightsScreenPro
                       tick={{ fontSize: 12 }}
                       axisLine={false}
                       tickLine={false}
+                      tickFormatter={fmtAxis}
                     />
+                    <Tooltip formatter={(value: number) => fmt(Number(value))} />
                     <Bar 
                       dataKey="amount" 
                       fill="#000000" 
@@ -260,7 +371,9 @@ export function SpendingInsightsScreen({ onNavigate }: SpendingInsightsScreenPro
                       tick={{ fontSize: 12 }}
                       axisLine={false}
                       tickLine={false}
+                      tickFormatter={fmtAxis}
                     />
+                    <Tooltip formatter={(value: number) => fmt(Number(value))} />
                     <Line 
                       type="monotone" 
                       dataKey="sent" 
@@ -315,6 +428,7 @@ export function SpendingInsightsScreen({ onNavigate }: SpendingInsightsScreenPro
                       axisLine={false}
                       tickLine={false}
                     />
+                    <Tooltip formatter={(value: number) => `${Number(value) || 0} splits`} />
                     <Bar 
                       dataKey="splits" 
                       fill="#3b82f6" 
@@ -331,7 +445,9 @@ export function SpendingInsightsScreen({ onNavigate }: SpendingInsightsScreenPro
             {/* Budget Goals */}
             <div className="space-y-4">
               <h3 className="font-medium text-lg">Budget Goals</h3>
-              {spendingData.goals.map((goal, index) => {
+              {spendingData.goals.length === 0 ? (
+                <div className="text-sm text-muted-foreground py-6">No goals yet for this period.</div>
+              ) : spendingData.goals.map((goal, index) => {
                 const percentage = (goal.spent / goal.budget) * 100;
                 const isOverBudget = percentage > 100;
                 
@@ -347,8 +463,8 @@ export function SpendingInsightsScreen({ onNavigate }: SpendingInsightsScreenPro
                       
                       <div className="space-y-3">
                         <div className="flex justify-between text-sm">
-                          <span>{currencySymbol}{goal.spent.toFixed(2)} spent</span>
-                          <span>{currencySymbol}{goal.budget.toFixed(2)} budget</span>
+                          <span>{fmt(goal.spent)} spent</span>
+                          <span>{fmt(goal.budget)} budget</span>
                         </div>
                         <Progress 
                           value={Math.min(percentage, 100)} 
@@ -357,7 +473,7 @@ export function SpendingInsightsScreen({ onNavigate }: SpendingInsightsScreenPro
                         <div className="flex justify-between text-xs text-muted-foreground">
                           <span>{percentage.toFixed(1)}% used</span>
                           <span>
-                            {currencySymbol}{Math.max(goal.budget - goal.spent, 0).toFixed(2)} remaining
+                            {fmt(Math.max(goal.budget - goal.spent, 0))} remaining
                           </span>
                         </div>
                       </div>

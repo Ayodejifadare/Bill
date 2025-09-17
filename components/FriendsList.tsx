@@ -332,6 +332,7 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
                         e.stopPropagation();
                         onNavigate('request', {
                           requestData: {
+                            friendId: friend.id,
                             recipientId: friend.id,
                             recipientName: friend.name
                           }
@@ -346,7 +347,7 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
                       variant="outline"
                       onClick={(e) => {
                         e.stopPropagation();
-                        onNavigate('split');
+                        onNavigate('split', { friendId: friend.id });
                       }}
                       title="Split bill"
                     >

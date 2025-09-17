@@ -1,4 +1,3 @@
-import React from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -122,9 +121,9 @@ export function PaymentMethodSelector({
 
       {selectedMethod && (
         selectedMethod.type === 'bank' ? (
-          <BankAccountCard account={selectedMethod} showAdminActions={false} />
+          <BankAccountCard account={selectedMethod as any} showAdminActions={false} />
         ) : (
-          <MobileMoneyCard account={selectedMethod} showAdminActions={false} />
+          <MobileMoneyCard account={selectedMethod as any} showAdminActions={false} />
         )
       )}
 

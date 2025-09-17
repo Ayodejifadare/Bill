@@ -1,13 +1,12 @@
 import { useState } from 'react';
-import { ArrowLeft, Users, Search, MessageCircle, UserPlus, CheckCircle, RefreshCw, Settings, Share2, Filter } from 'lucide-react';
+import { ArrowLeft, Users, Search, MessageCircle, UserPlus, CheckCircle, RefreshCw, Share2 } from 'lucide-react';
 import { Button } from '../ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { Card, CardContent } from '../ui/card';
 import { Input } from '../ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Badge } from '../ui/badge';
 import { Checkbox } from '../ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
-import { Separator } from '../ui/separator';
 import { MatchedContact, ContactSyncScreenProps, ActiveTab } from './types';
 import { filterContacts, handleBulkInviteContacts, handleSingleInvite, handleSendFriendRequest } from './helpers';
 
@@ -33,7 +32,6 @@ export function ContactResultsScreen({
 }: ContactResultsScreenProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<ActiveTab>('on_app');
-  const [showSelectAll, setShowSelectAll] = useState(false);
 
   const filteredContacts = filterContacts(matchedContacts, searchQuery);
   const existingUsers = filteredContacts.filter(c => c.status === 'existing_user');

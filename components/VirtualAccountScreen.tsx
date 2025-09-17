@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -61,11 +61,19 @@ export function VirtualAccountScreen({ groupId, onNavigate }: VirtualAccountScre
 
   const [isAddingMethod, setIsAddingMethod] = useState(false);
   const [methodType, setMethodType] = useState<'bank' | 'mobile_money'>('bank');
-  const [formData, setFormData] = useState({
+  interface FormDataState {
+    bank: string;
+    accountNumber: string;
+    accountName: string;
+    accountType: 'checking' | 'savings';
+    provider: string;
+    phoneNumber: string;
+  }
+  const [formData, setFormData] = useState<FormDataState>({
     bank: '',
     accountNumber: '',
     accountName: '',
-    accountType: 'checking' as const,
+    accountType: 'checking',
     provider: '',
     phoneNumber: ''
   });
@@ -111,7 +119,7 @@ export function VirtualAccountScreen({ groupId, onNavigate }: VirtualAccountScre
     }
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     fetchGroup();
     fetchAccounts();
   }, [groupId]);

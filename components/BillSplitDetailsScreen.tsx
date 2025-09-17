@@ -9,7 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from './ui/alert-dialog';
 import { toast } from 'sonner';
 import { useUserProfile } from './UserProfileContext';
-import { getCurrencySymbol, requiresRoutingNumber, getBankIdentifierLabel, formatCurrencyForRegion, formatBankAccountForRegion } from '../utils/regions';
+import { requiresRoutingNumber, getBankIdentifierLabel, formatCurrencyForRegion, formatBankAccountForRegion } from '../utils/regions';
 import { ShareSheet } from './ui/share-sheet';
 import { createDeepLink } from './ShareUtils';
 import { PageLoading } from './ui/loading';
@@ -77,7 +77,6 @@ async function deleteBillSplit(id: string): Promise<void> {
 
 export function BillSplitDetailsScreen({ billSplitId, onNavigate }: BillSplitDetailsScreenProps) {
   const { userProfile, appSettings } = useUserProfile();
-  const currencySymbol = getCurrencySymbol(appSettings.region);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showShareSheet, setShowShareSheet] = useState(false);
   const [billSplit, setBillSplit] = useState<BillSplit | null>(null);
@@ -166,7 +165,7 @@ export function BillSplitDetailsScreen({ billSplitId, onNavigate }: BillSplitDet
     fetchBillSplit();
   }, [fetchBillSplit]);
 
-  const isCreator = billSplit && billSplit.creatorId === userProfile.id;
+  const isCreator = !!billSplit && (userProfile?.id ? billSplit.creatorId === userProfile.id : false);
 
   if (loading) {
     return <PageLoading message="Loading bill split..." />;

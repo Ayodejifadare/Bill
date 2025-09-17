@@ -1,0 +1,56 @@
+diff --git a/App.tsx b/App.tsx
+index 0000000..1111111 100644
+--- a/App.tsx
++++ b/App.tsx
+@@ -1,12 +1,12 @@
+-import { useState, useReducer, Suspense, useCallback, memo, useEffect } from 'react';
++import { useState, useReducer, Suspense, useCallback, memo, useEffect, useRef } from 'react';
+ import { lazy } from 'react';
+ import { UserProfileProvider } from './components/UserProfileContext';
+ import { BottomNavigation } from './components/BottomNavigation';
+ import { ThemeProvider } from './components/ThemeContext';
+ import { LoadingStateProvider } from './components/LoadingStateContext';
+ import { ErrorBoundary, PageErrorBoundary, CriticalErrorBoundary } from './components/ErrorBoundary';
+ import { NetworkErrorHandler, useNetworkStatus } from './components/NetworkErrorHandler';
+ import { PageLoading } from './components/ui/loading';
+ import { toast } from 'sonner';
+ import { saveAuth, loadAuth, clearAuth } from './utils/auth';
+ import { apiClient } from './utils/apiClient';
+@@ -106,6 +108,8 @@
+ const initialState: NavigationState = {
+   historyBackTo: null,
+ };
++const PRIMARY_TABS = new Set(['home', 'friends', 'split', 'bills', 'profile']);
+ 
+ const navigationReducer = (state: NavigationState, action: NavigationAction): NavigationState => {
+@@ -247,7 +249,11 @@
+ function AppContent() {
+-  const [navState, dispatch] = useReducer(navigationReducer, initialState);
++  const [navState, dispatch] = useReducer(navigationReducer, initialState);
++  const [mountedPrimaryTabs, setMountedPrimaryTabs] = useState<string[]>(() => (
++    PRIMARY_TABS.has(initialState.activeTab) ? [initialState.activeTab] : []
++  ));
++  const lastPrimaryTabRef = useRef<string>(initialState.activeTab);
+   const [isAuthenticated, setIsAuthenticated] = useState(false);
+   const [showLogin, setShowLogin] = useState(true);
+   const [isInitializing, setIsInitializing] = useState(true);
+@@ -292,6 +302,18 @@
+   }, []);
+
++  useEffect(() => {
++    if (!isAuthenticated) {
++      setMountedPrimaryTabs(PRIMARY_TABS.has(initialState.activeTab) ? [initialState.activeTab] : []);
++      lastPrimaryTabRef.current = initialState.activeTab;
++      return;
++    }
+
++    if (PRIMARY_TABS.has(navState.activeTab)) {
++      lastPrimaryTabRef.current = navState.activeTab;
++      setMountedPrimaryTabs(prev =>
++        prev.includes(navState.activeTab) ? prev : [...prev, navState.activeTab]
++      );
++    }
++  }, [isAuthenticated, navState.activeTab]);
+
+   // Memoized navigation handler
+@@ -544,41 +572,76 @@

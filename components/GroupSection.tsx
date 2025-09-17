@@ -8,6 +8,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { EmptyState } from './ui/empty-state';
 import { ListSkeleton, ErrorRetry } from './ui/loading';
 import { useGroups } from '../hooks/useGroups';
+import { useUserProfile } from './UserProfileContext';
+import { formatCurrencyForRegion } from '../utils/regions';
 
 interface GroupSectionProps {
   onNavigate: (tab: string, data?: any) => void;
@@ -16,6 +18,8 @@ interface GroupSectionProps {
 export function GroupSection({ onNavigate }: GroupSectionProps) {
   const [showAllGroups, setShowAllGroups] = useState(false);
   const { groups, loading, error, refetch } = useGroups();
+  const { appSettings } = useUserProfile();
+  const fmt = (n: number) => formatCurrencyForRegion(appSettings.region, n);
 
   const displayedGroups = showAllGroups ? groups : groups.slice(0, 2);
   const totalPendingBills = groups.reduce((sum, group) => sum + group.pendingBills, 0);
@@ -141,7 +145,7 @@ export function GroupSection({ onNavigate }: GroupSectionProps) {
                   </div>
                   
                   <div className="text-right">
-                    <p className="text-sm font-medium">${group.totalSpent.toFixed(0)} spent</p>
+                    <p className="text-sm font-medium">{fmt(group.totalSpent)} spent</p>
                     <p className="text-xs text-muted-foreground">{group.recentActivity}</p>
                   </div>
                 </div>

@@ -11,6 +11,7 @@ import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { toast } from 'sonner';
 import { useUserProfile } from './UserProfileContext';
+import { formatCurrencyForRegion } from '../utils/regions';
 
 interface SendReminderScreenProps {
   onNavigate: (tab: string, data?: any) => void;
@@ -62,7 +63,7 @@ export function SendReminderScreen({
   amount
 }: SendReminderScreenProps) {
   const { appSettings } = useUserProfile();
-  const currencySymbol = appSettings.region === 'NG' ? '₦' : '$';
+  const fmt = (n: number) => formatCurrencyForRegion(appSettings.region, n);
   
   const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
   const [reminderType, setReminderType] = useState('friendly');
@@ -187,7 +188,8 @@ export function SendReminderScreen({
     let message = template.message;
     message = message.replace('{billTitle}', billData.title);
     message = message.replace('{name}', 'John'); // Example name
-    message = message.replace('{amount}', `${currencySymbol}28.50`); // Example amount
+    const exampleAmount = typeof amount === 'number' ? amount : 28.5;
+    message = message.replace('{amount}', fmt(exampleAmount));
     
     return message;
   };
@@ -209,7 +211,7 @@ export function SendReminderScreen({
     
     const action = scheduleReminder ? 'scheduled' : 'sent';
     toast.success(
-      `Payment reminder ${action} to ${selectedParticipants.length} participant${selectedParticipants.length > 1 ? 's' : ''} for ${currencySymbol}${totalAmount.toFixed(2)} total outstanding`
+      `Payment reminder ${action} to ${selectedParticipants.length} participant${selectedParticipants.length > 1 ? 's' : ''} for ${fmt(totalAmount)} total outstanding`
     );
     
     // Navigate back after successful send
@@ -303,7 +305,7 @@ export function SendReminderScreen({
                       <div className="min-w-0 flex-1">
                         <p className="font-medium truncate">{participant.name}</p>
                         <div className="text-sm text-muted-foreground">
-                          <div>{currencySymbol}{participant.amount.toFixed(2)}</div>
+                          <div>{fmt(participant.amount)}</div>
                           {participant.lastReminder && (
                             <div className="text-xs">Last reminded {participant.lastReminder}</div>
                           )}
@@ -326,11 +328,12 @@ export function SendReminderScreen({
                   {selectedParticipants.length} participant{selectedParticipants.length > 1 ? 's' : ''} selected
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  Total amount: {currencySymbol}
-                  {selectedParticipants.reduce((sum, id) => {
-                    const participant = participants.find(p => p.id === id);
-                    return sum + (participant?.amount || 0);
-                  }, 0).toFixed(2)}
+                  Total amount: {
+                    fmt(selectedParticipants.reduce((sum, id) => {
+                      const participant = participants.find(p => p.id === id);
+                      return sum + (participant?.amount || 0);
+                    }, 0))
+                  }
                 </p>
               </div>
             )}

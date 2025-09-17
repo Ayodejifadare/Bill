@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ArrowLeft, Search, UserPlus, Send, Mail, MessageCircle, Phone, Users, Plus, ChevronDown, ChevronUp, CheckCircle, RefreshCw, Zap, X, MoreVertical } from 'lucide-react';
+import { ArrowLeft, Search, UserPlus, Send, Mail, MessageCircle, Phone, Users, ChevronDown, ChevronUp, CheckCircle, Zap, X, MoreVertical } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -231,13 +231,13 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
     }
   };
 
-  const handleRetrySync = () => {
-    setSyncedContacts([]);
-    setHasSyncedContacts(false);
-    setShowSyncPrompt(true);
-    setSelectedMembers([]);
-    localStorage.removeItem('biltip_contacts_synced');
-  };
+  // const handleRetrySync = () => {
+  //   setSyncedContacts([]);
+  //   setHasSyncedContacts(false);
+  //   setShowSyncPrompt(true);
+  //   setSelectedMembers([]);
+  //   localStorage.removeItem('biltip_contacts_synced');
+  // };
 
   const handleAddSelectedMembers = () => {
     if (selectedMembers.length === 0) {

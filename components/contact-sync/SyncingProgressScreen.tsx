@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, MessageCircle, Users, Zap, Shield, CheckCircle } from 'lucide-react';
+import { MessageCircle, Users, Zap, Shield, CheckCircle } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Card, CardContent } from '../ui/card';
 import { Progress } from '../ui/progress';
@@ -13,7 +13,7 @@ interface SyncingProgressScreenProps extends ContactSyncScreenProps {
 }
 
 export function SyncingProgressScreen({
-  onNavigate,
+  onNavigate: _onNavigate,
   syncProgress,
   contactCount = 0,
   startTime,

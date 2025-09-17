@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { ThemeToggleButton } from './ThemeToggleButton';
 import { useUserProfile } from './UserProfileContext';
+import { formatCurrencyForRegion } from '../utils/regions';
 import { ProfileSkeleton } from './ui/profile-skeleton';
 
 interface ProfileScreenProps {
@@ -32,7 +33,7 @@ interface ProfileScreenProps {
 }
 
 export function ProfileScreen({ onNavigate, onLogout }: ProfileScreenProps) {
-  const { userProfile, updateUserProfile, refreshUserProfile } = useUserProfile();
+  const { userProfile, updateUserProfile, refreshUserProfile, appSettings } = useUserProfile();
   const defaultPreferences = {
     notifications: false,
     emailAlerts: false,
@@ -170,13 +171,13 @@ export function ProfileScreen({ onNavigate, onLogout }: ProfileScreenProps) {
             <div className="grid grid-cols-2 gap-4">
               <div className="text-center">
                 <p className="text-2xl font-medium text-green-600">
-                  ${userProfile.stats.totalReceived.toFixed(0)}
+                  {formatCurrencyForRegion(appSettings.region, Number(userProfile.stats.totalReceived.toFixed(0)))}
                 </p>
                 <p className="text-sm text-muted-foreground">Received</p>
               </div>
               <div className="text-center">
                 <p className="text-2xl font-medium text-blue-600">
-                  ${userProfile.stats.totalSent.toFixed(0)}
+                  {formatCurrencyForRegion(appSettings.region, Number(userProfile.stats.totalSent.toFixed(0)))}
                 </p>
                 <p className="text-sm text-muted-foreground">Sent</p>
               </div>

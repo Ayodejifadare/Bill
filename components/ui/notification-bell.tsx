@@ -13,9 +13,9 @@ export function NotificationBell({ onClick }: NotificationBellProps) {
   const [unread, setUnread] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [errorCount, setErrorCount] = useState(0);
+  const [_errorCount, setErrorCount] = useState(0);
 
-  const pollTimeout = useRef<NodeJS.Timeout | null>(null);
+  const pollTimeout = useRef<number | null>(null);
   const esRef = useRef<EventSource | null>(null);
   const baseInterval = 60000;
 
@@ -23,7 +23,7 @@ export function NotificationBell({ onClick }: NotificationBellProps) {
     if (pollTimeout.current) {
       clearTimeout(pollTimeout.current);
     }
-    pollTimeout.current = setTimeout(() => fetchUnread(), delay);
+    pollTimeout.current = window.setTimeout(() => fetchUnread(), delay);
   };
 
   const handleFailure = (manual = false) => {
@@ -71,7 +71,7 @@ export function NotificationBell({ onClick }: NotificationBellProps) {
     }
     try {
       const data = await apiClientWithRetry('/api/notifications/unread');
-      setUnread(data?.count || 0);
+      setUnread((data as any)?.count || 0);
       setError(null);
       setErrorCount(0);
       if (!esRef.current) {
@@ -129,4 +129,3 @@ export function NotificationBell({ onClick }: NotificationBellProps) {
     </div>
   );
 }
-

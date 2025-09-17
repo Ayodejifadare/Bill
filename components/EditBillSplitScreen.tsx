@@ -5,14 +5,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
-import { Separator } from './ui/separator';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Badge } from './ui/badge';
 import { toast } from 'sonner';
 import { PageLoading, LoadingSpinner } from './ui/loading';
 import { useUserProfile } from './UserProfileContext';
-import { getCurrencySymbol, requiresRoutingNumber, getBankIdentifierLabel, formatBankAccountForRegion } from '../utils/regions';
+import { getCurrencySymbol, requiresRoutingNumber, getBankIdentifierLabel, formatBankAccountForRegion, formatCurrencyForRegion } from '../utils/regions';
 import { apiClient } from '../utils/apiClient';
 
 interface EditBillSplitScreenProps {
@@ -86,6 +85,7 @@ async function updateBillSplit(id: string, payload: any): Promise<void> {
 export function EditBillSplitScreen({ billSplitId, onNavigate }: EditBillSplitScreenProps) {
   const { appSettings, userProfile } = useUserProfile();
   const currencySymbol = getCurrencySymbol(appSettings.region);
+  const fmt = (n: number) => formatCurrencyForRegion(appSettings.region, n);
 
   const [billSplit, setBillSplit] = useState<BillSplit | null>(null);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
@@ -139,7 +139,7 @@ export function EditBillSplitScreen({ billSplitId, onNavigate }: EditBillSplitSc
     fetchData();
   }, [fetchData]);
 
-  const isCreator = billSplit && billSplit.creatorId === userProfile.id;
+  const isCreator = !!billSplit && (userProfile?.id ? billSplit.creatorId === userProfile.id : false);
 
   useEffect(() => {
     if (!selectedPaymentMethod && paymentMethods.length > 0) {
@@ -373,7 +373,7 @@ export function EditBillSplitScreen({ billSplitId, onNavigate }: EditBillSplitSc
     const splitTotal = getTotalSplit();
 
     if (Math.abs(splitTotal - total) > 0.01) {
-      toast.error(`Split amounts (${currencySymbol}${splitTotal.toFixed(2)}) don't match total (${currencySymbol}${total.toFixed(2)})`);
+      toast.error(`Split amounts (${fmt(splitTotal)}) don't match total (${fmt(total)})`);
       return;
     }
 
@@ -653,9 +653,7 @@ export function EditBillSplitScreen({ billSplitId, onNavigate }: EditBillSplitSc
                   )}
                   
                   {splitMethod === 'equal' && (
-                    <span className="text-sm font-medium">
-                      {currencySymbol}{participant.amount.toFixed(2)}
-                    </span>
+                    <span className="text-sm font-medium">{fmt(participant.amount)}</span>
                   )}
                   
                   <Button
@@ -755,9 +753,7 @@ export function EditBillSplitScreen({ billSplitId, onNavigate }: EditBillSplitSc
                 </div>
                 
                 <div className="text-right">
-                  <span className="text-sm text-muted-foreground">
-                    Subtotal: {currencySymbol}{(item.price * item.quantity).toFixed(2)}
-                  </span>
+                  <span className="text-sm text-muted-foreground">Subtotal: {fmt(item.price * item.quantity)}</span>
                 </div>
               </div>
             ))}
@@ -779,11 +775,11 @@ export function EditBillSplitScreen({ billSplitId, onNavigate }: EditBillSplitSc
           <div className="space-y-3">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Total Amount:</span>
-            <span className="font-medium">{currencySymbol}{totalAmount.toFixed(2)}</span>
+            <span className="font-medium">{fmt(totalAmount)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Split Total:</span>
-              <span className="font-medium">{currencySymbol}{getTotalSplit().toFixed(2)}</span>
+              <span className="font-medium">{fmt(getTotalSplit())}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Participants:</span>

@@ -476,6 +476,24 @@ router.post(
           }))
         })
 
+        // If this split belongs to a group, mirror entries in transactions for activity feed
+        if (groupId) {
+          // Create a transaction from creator to each participant to reflect owed shares
+          for (const p of participants) {
+            await prisma.transaction.create({
+              data: {
+                senderId: req.userId,
+                receiverId: p.id,
+                amount: Number(p.amount),
+                type: 'BILL_SPLIT',
+                status: p.id === req.userId ? 'COMPLETED' : 'PENDING',
+                description: description || title,
+                billSplitId: newBillSplit.id
+              }
+            })
+          }
+        }
+
         if (isRecurring && frequency) {
           const nextRun = computeNextRun(frequency, dayValue)
           await prisma.recurringBillSplit.create({

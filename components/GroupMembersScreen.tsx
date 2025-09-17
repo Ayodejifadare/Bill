@@ -350,7 +350,9 @@ export function GroupMembersScreen({ groupId, onNavigate }: GroupMembersScreenPr
                   <div className="flex items-center gap-3">
                     <div className="relative">
                       <Avatar className="h-12 w-12">
-                        {member.avatar && <AvatarImage src={member.avatar} />}
+                        {'avatar' in member && (member as any).avatar ? (
+                          <AvatarImage src={(member as any).avatar} />
+                        ) : null}
                         <AvatarFallback>
                           {member.name.split(' ').map(n => n[0]).join('')}
                         </AvatarFallback>
@@ -373,7 +375,7 @@ export function GroupMembersScreen({ groupId, onNavigate }: GroupMembersScreenPr
                       
                       {member.status === 'pending' ? (
                         <p className="text-xs text-muted-foreground">
-                          Invited {formatDate(member.invitedAt)} by {(member as any).invitedBy}
+                          Invited {formatDate((member as any).invitedAt)} by {(member as any).invitedBy}
                         </p>
                       ) : (
                         <>

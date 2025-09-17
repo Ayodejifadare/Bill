@@ -52,14 +52,6 @@ export function ContactSyncScreen({ onNavigate }: ContactSyncScreenProps) {
     }
   };
 
-  // Auto-sync for returning users
-  const handleAutoSync = async () => {
-    if (!hasPermission) return;
-    
-    setSyncStep('syncing');
-    setSyncStartTime(Date.now());
-    await performContactSync();
-  };
 
   // Main contact sync logic
   const performContactSync = async () => {
@@ -86,17 +78,17 @@ export function ContactSyncScreen({ onNavigate }: ContactSyncScreenProps) {
         setSyncStep('results');
 
         const existingUsers = matched.filter(c => c.status === 'existing_user').length;
-        const inviteableContacts = matched.filter(c => c.status === 'not_on_app').length;
+        // const _inviteableContacts = matched.filter(c => c.status === 'not_on_app').length;
 
         if (existingUsers > 0) {
           toast.success(`Found ${existingUsers} friend${existingUsers !== 1 ? 's' : ''} on Biltip!`);
         }
 
-        if (inviteableContacts > 0) {
-          toast.success(`${inviteableContacts} contact${inviteableContacts !== 1 ? 's' : ''} can be invited to join!`);
+        if (_inviteableContacts > 0) {
+          toast.success(`${_inviteableContacts} contact${_inviteableContacts !== 1 ? 's' : ''} can be invited to join!`);
         }
 
-        if (existingUsers === 0 && inviteableContacts === 0) {
+        if (existingUsers === 0 && _inviteableContacts === 0) {
           toast.info('Contact sync complete');
         }
       }, 500);
@@ -178,12 +170,12 @@ export function ContactSyncScreen({ onNavigate }: ContactSyncScreenProps) {
         setHasPermission(true);
 
         const existingUsers = matched.filter(c => c.status === 'existing_user').length;
-        const inviteableContacts = matched.filter(c => c.status === 'not_on_app').length;
+        const _inviteableContacts = matched.filter(c => c.status === 'not_on_app').length;
 
         toast.success(`Imported ${contacts.length} contacts successfully!`);
 
         if (existingUsers > 0) {
-          toast.success(`Found ${existingUsers} friend${existingUsers !== 1 ? 's' : ''} on Biltip!`, { delay: 1000 });
+          toast.success(`Found ${existingUsers} friend${existingUsers !== 1 ? 's' : ''} on Biltip!`, { duration: 1200 });
         }
       }, 500);
 
@@ -328,3 +320,4 @@ export function ContactSyncScreen({ onNavigate }: ContactSyncScreenProps) {
       );
   }
 }
+

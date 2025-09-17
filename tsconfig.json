@@ -20,9 +20,10 @@
       "@/*": ["./src/*"],
       "@/components/*": ["./components/*"],
       "@/styles/*": ["./styles/*"]
-    }
+    },
+    "types": ["vite/client", "vitest/globals", "@testing-library/jest-dom"]
   },
-  "include": [
+  "include": ["types", 
     "src",
     "components",
     "hooks",
@@ -34,6 +35,11 @@
   "exclude": [
     "node_modules",
     "dist",
-    "server"
+    "server",
+    "**/*.test.tsx",
+    "**/*.test.ts",
+    "**/*.spec.tsx",
+    "**/*.spec.ts"
   ]
 }
+

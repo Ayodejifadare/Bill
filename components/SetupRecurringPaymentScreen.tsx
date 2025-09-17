@@ -10,6 +10,7 @@ import { Switch } from './ui/switch';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { toast } from 'sonner';
 import { useUserProfile } from './UserProfileContext';
+import { formatCurrencyForRegion, getCurrencySymbol } from '../utils/regions';
 import { fetchPaymentMethods as apiFetchPaymentMethods, type PaymentMethod as ApiPaymentMethod } from '@/api/payment-methods';
 import { apiClient } from '../utils/apiClient';
 
@@ -45,7 +46,11 @@ export function SetupRecurringPaymentScreen({
   editMode = false
 }: SetupRecurringPaymentScreenProps) {
   const { appSettings } = useUserProfile();
-  const currencySymbol = appSettings.region === 'NG' ? '₦' : '$';
+  const currencySymbol = getCurrencySymbol(appSettings.region);
+  const fmt = (n: number | string) => {
+    const num = typeof n === 'string' ? parseFloat(n || '0') : n;
+    return formatCurrencyForRegion(appSettings.region, isNaN(num as number) ? 0 : (num as number));
+  };
 
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [friends, setFriends] = useState<Friend[]>([]);
@@ -245,7 +250,7 @@ export function SetupRecurringPaymentScreen({
     }
     
     const monthlyAmount = amount * multiplier;
-    return `≈ ${currencySymbol}${monthlyAmount.toFixed(2)} per ${period}`;
+    return `≈ ${fmt(monthlyAmount)} per ${period}`;
   };
 
   const selectedPaymentMethod = paymentMethods.find(pm => pm.id === formData.paymentMethod);
@@ -533,7 +538,7 @@ export function SetupRecurringPaymentScreen({
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Amount</span>
               <span className="font-medium">
-                {currencySymbol}{formData.amount || '0.00'}
+                {fmt(formData.amount || '0')}
               </span>
             </div>
             <div className="flex items-center justify-between">

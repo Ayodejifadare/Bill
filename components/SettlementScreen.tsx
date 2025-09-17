@@ -15,6 +15,8 @@ import { BankSelectionSheet } from './BankSelectionSheet';
 import { PageLoading, LoadingSpinner } from './ui/loading';
 import { toast } from 'sonner';
 import { apiClient } from '../utils/apiClient';
+import { useUserProfile } from './UserProfileContext';
+import { formatCurrencyForRegion, getCurrencySymbol } from '../utils/regions';
 
 interface SettlementScreenProps {
   onNavigate: (tab: string, data?: unknown) => void;
@@ -61,6 +63,9 @@ async function initiateTransfer(payload: {
 }
 
 export function SettlementScreen({ onNavigate, billSplitId }: SettlementScreenProps) {
+  const { appSettings } = useUserProfile();
+  const fmt = (n: number) => formatCurrencyForRegion(appSettings.region, n);
+  const symbol = getCurrencySymbol(appSettings.region);
   const [step, setStep] = useState<'overview' | 'transfer' | 'confirm' | 'complete'>('overview');
   const [billSplit, setBillSplit] = useState<BillSplit | null>(null);
   const [loading, setLoading] = useState(false);
@@ -195,7 +200,7 @@ export function SettlementScreen({ onNavigate, billSplitId }: SettlementScreenPr
             </div>
 
             <div className="text-center space-y-2">
-              <p className="text-3xl font-bold text-success">${billSplit.collectedAmount.toFixed(2)}</p>
+              <p className="text-3xl font-bold text-success">{fmt(billSplit.collectedAmount)}</p>
               <p className="text-sm text-muted-foreground">Collected from {billSplit.participants.length} participants</p>
             </div>
 
@@ -221,7 +226,7 @@ export function SettlementScreen({ onNavigate, billSplitId }: SettlementScreenPr
                   <span className="text-sm">{participant.name}</span>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <span className="text-sm">${participant.amount.toFixed(2)}</span>
+                  <span className="text-sm">{fmt(participant.amount)}</span>
                   <Badge variant={participant.hasPaid ? "default" : "outline"} className={participant.hasPaid ? "bg-success text-success-foreground" : ""}>
                     {participant.hasPaid ? <CheckCircle className="h-3 w-3 mr-1" /> : <Clock className="h-3 w-3 mr-1" />}
                     {participant.hasPaid ? "Paid" : "Pending"}
@@ -294,11 +299,11 @@ export function SettlementScreen({ onNavigate, billSplitId }: SettlementScreenPr
         <Card className="p-4 bg-muted/30">
           <div className="flex justify-between items-center">
             <span className="text-muted-foreground">Available Balance:</span>
-            <span className="font-medium">${billSplit.collectedAmount.toFixed(2)}</span>
+            <span className="font-medium">{fmt(billSplit.collectedAmount)}</span>
           </div>
           <div className="flex justify-between items-center mt-1">
-            <span className="text-sm text-success">$ {billSplit.collectedAmount.toFixed(2)} available</span>
-            <span className="text-sm text-muted-foreground">$ 0.00 used</span>
+            <span className="text-sm text-success">{fmt(billSplit.collectedAmount)} available</span>
+            <span className="text-sm text-muted-foreground">{fmt(0)} used</span>
           </div>
         </Card>
 
@@ -351,7 +356,7 @@ export function SettlementScreen({ onNavigate, billSplitId }: SettlementScreenPr
             <div>
               <Label htmlFor="amount">Amount</Label>
               <div className="relative mt-1">
-                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-lg">$</span>
+                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-lg">{symbol}</span>
                 <Input
                   id="amount"
                   type="number"
@@ -383,8 +388,8 @@ export function SettlementScreen({ onNavigate, billSplitId }: SettlementScreenPr
               </div>
 
               <div className="flex justify-between text-xs text-muted-foreground mt-2">
-                <span>Maximum: ${billSplit.collectedAmount.toFixed(2)}</span>
-                <span>Fee: ${calculateProcessingFee(getActualTransferAmount()).toFixed(2)}</span>
+                <span>Maximum: {fmt(billSplit.collectedAmount)}</span>
+                <span>Fee: {fmt(calculateProcessingFee(getActualTransferAmount()))}</span>
               </div>
             </div>
 

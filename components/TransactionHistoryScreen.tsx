@@ -329,7 +329,6 @@ export function TransactionHistoryScreen({ onNavigate, backTo = 'home' }: Transa
                   <TransactionCard
                     transaction={transaction}
                     onClick={() => handleTransactionClick(transaction.id)}
-                    currencySymbol={currencySymbol}
                   />
                   {index < transactions.length - 1 && (
                     <Separator className="my-3" />

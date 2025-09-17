@@ -1,4 +1,3 @@
-import React from 'react';
 import { AccountCard, AccountCardProps } from './AccountCard';
 
 interface MobileMoneyAccount {

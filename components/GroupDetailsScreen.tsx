@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Users, Plus, MoreHorizontal, Settings, UserPlus, Receipt, Building2, Calendar, Edit, UserMinus, LogOut, Crown, DollarSign, User, Phone } from 'lucide-react';
+import { ArrowLeft, Users, Plus, MoreHorizontal, UserPlus, Receipt, Building2, Edit, UserMinus, LogOut, Crown, DollarSign, User } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Avatar, AvatarFallback } from './ui/avatar';
@@ -62,7 +62,7 @@ interface Group {
 }
 
 
-export function GroupDetailsScreen({ groupId, onNavigate, onGroupNavigation }: GroupDetailsScreenProps) {
+export function GroupDetailsScreen({ groupId, onNavigate, onGroupNavigation: _onGroupNavigation }: GroupDetailsScreenProps) {
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
   const [showRemoveMemberDialog, setShowRemoveMemberDialog] = useState(false);
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
@@ -260,15 +260,15 @@ export function GroupDetailsScreen({ groupId, onNavigate, onGroupNavigation }: G
     }
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit'
-    });
-  };
+  // const formatDate = (dateString: string) => {
+  //   const date = new Date(dateString);
+  //   return date.toLocaleDateString('en-US', { 
+  //     month: 'short', 
+  //     day: 'numeric',
+  //     hour: 'numeric',
+  //     minute: '2-digit'
+  //   });
+  // };
 
   return (
     <div className="min-h-screen">
@@ -583,10 +583,10 @@ export function GroupDetailsScreen({ groupId, onNavigate, onGroupNavigation }: G
                     <div className="text-xs text-muted-foreground mt-1">
                       <span>Joined {selectedMemberForActions.joinedDate}</span>
                       <span className="mx-2">•</span>
-                      <span>Spent {fmt(selectedMemberForActions.totalSpent)}</span>
+                      <span>Spent {fmt((selectedMemberForActions.totalSpent ?? 0))}</span>
                       <span className="mx-2">•</span>
-                      <span className={selectedMemberForActions.balance >= 0 ? 'text-success' : 'text-destructive'}>
-                        {selectedMemberForActions.balance >= 0 ? 'Gets back' : 'Owes'} {fmt(Math.abs(selectedMemberForActions.balance))}
+                      <span className={(selectedMemberForActions.balance ?? 0) >= 0 ? 'text-success' : 'text-destructive'}>
+                        {(selectedMemberForActions.balance ?? 0) >= 0 ? 'Gets back' : 'Owes'} {fmt(Math.abs(selectedMemberForActions.balance ?? 0))}
                       </span>
                     </div>
                   </div>
@@ -612,7 +612,7 @@ export function GroupDetailsScreen({ groupId, onNavigate, onGroupNavigation }: G
                   View Profile
                 </Button>
 
-                {selectedMemberForActions.balance < 0 && (
+                {(selectedMemberForActions.balance ?? 0) < 0 && (
                   <Button
                     variant="ghost"
                     className="w-full justify-start h-12"

@@ -8,6 +8,7 @@ import { Separator } from './ui/separator';
 import { toast } from 'sonner';
 import { ShareSheet } from './ui/share-sheet';
 import { useUserProfile } from './UserProfileContext';
+import { formatCurrencyForRegion, getCurrencySymbol } from '../utils/regions';
 
 interface PaymentConfirmationScreenProps {
   paymentRequest: {
@@ -41,7 +42,8 @@ export function PaymentConfirmationScreen({
   onNavigate 
 }: PaymentConfirmationScreenProps) {
   const { appSettings } = useUserProfile();
-  const currencySymbol = appSettings.region === 'NG' ? '₦' : '$';
+  const fmt = (n: number) => formatCurrencyForRegion(appSettings.region, n);
+  const currencySymbol = getCurrencySymbol(appSettings.region);
 
   const [paymentResult] = useState<PaymentResult>({
     transactionId: `TXN${Date.now()}`,
@@ -167,7 +169,7 @@ export function PaymentConfirmationScreen({
               </p>
             </div>
             <div className="text-right">
-              <p className="text-2xl font-bold">{currencySymbol}{paymentRequest.amount.toFixed(2)}</p>
+              <p className="text-2xl font-bold">{fmt(paymentRequest.amount)}</p>
               <p className="text-sm text-muted-foreground">via {method.name}</p>
             </div>
           </div>
@@ -213,17 +215,17 @@ export function PaymentConfirmationScreen({
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Payment Amount</span>
-                <span>{currencySymbol}{paymentRequest.amount.toFixed(2)}</span>
+                <span>{fmt(paymentRequest.amount)}</span>
               </div>
               {method.fees > 0 && (
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Processing Fee</span>
-                  <span>{currencySymbol}{method.fees.toFixed(2)}</span>
+                  <span>{fmt(method.fees)}</span>
                 </div>
               )}
               <div className="flex justify-between font-medium">
                 <span>Total Charged</span>
-                <span>{currencySymbol}{totalAmount.toFixed(2)}</span>
+                <span>{fmt(totalAmount)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Payment Method</span>
@@ -336,7 +338,8 @@ export function PaymentConfirmationScreen({
           isOpen={showShareSheet}
           onClose={() => setShowShareSheet(false)}
           title="Share Payment Receipt"
-          shareText={`*Payment Sent Successfully!*\n\n💰 Amount: ${currencySymbol}${paymentRequest.amount.toFixed(2)}\n👤 To: ${paymentRequest.recipient}\n📋 For: ${paymentRequest.description}\n🧾 Reference: ${paymentResult.confirmationNumber}\n💳 Method: ${method.name}\n\n_Paid via Biltip 🚀_`}
+          shareText={`*Payment Sent Successfully!*\n\n💰 Amount: ${fmt(paymentRequest.amount)}\n👤 To: ${paymentRequest.recipient}\n📋 For: ${paymentRequest.description}\n🧾 Reference: ${paymentResult.confirmationNumber}\n💳 Method: ${method.name}\n\n_Paid via Biltip 🚀_`}
+          shareText={`*Payment Sent Successfully!*\n\n💰 Amount: ${fmt(paymentRequest.amount)}\n👤 To: ${paymentRequest.recipient}\n📋 For: ${paymentRequest.description}\n🧾 Reference: ${paymentResult.confirmationNumber}\n💳 Method: ${method.name}\n\n_Paid via Biltip 🚀_`}
           documentData={{
             title: `Payment to ${paymentRequest.recipient}`,
             content: { paymentRequest, paymentResult, method },

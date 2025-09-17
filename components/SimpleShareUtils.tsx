@@ -11,6 +11,7 @@ import { Share2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { ShareSheet } from './ui/share-sheet';
 import { useUserProfile } from './UserProfileContext';
+import { formatCurrencyForRegion, getCurrencySymbol } from '../utils/regions';
 
 export interface ShareData {
   type: 'bill_split' | 'payment_request' | 'transaction' | 'payment_confirmation' | 'group_summary';
@@ -33,12 +34,13 @@ interface SimpleShareUtilsProps {
 
 export function SimpleShareUtils({ shareData, onNavigate }: SimpleShareUtilsProps) {
   const { userProfile, appSettings } = useUserProfile();
-  const currencySymbol = appSettings.region === 'NG' ? '₦' : '$';
+  const currencySymbol = getCurrencySymbol(appSettings.region);
+  const fmt = (n: number) => formatCurrencyForRegion(appSettings.region, n);
   const [showShareSheet, setShowShareSheet] = useState(false);
 
   const generateShareText = () => {
     const { type, title, amount, description, participantNames, dueDate, status, groupName } = shareData;
-    const formattedAmount = `${currencySymbol}${amount.toFixed(2)}`;
+    const formattedAmount = fmt(amount);
     
     switch (type) {
       case 'bill_split':
@@ -128,10 +130,10 @@ interface QuickShareButtonProps {
 export function QuickShareButton({ shareData, variant = 'outline', size = 'sm', showText = true }: QuickShareButtonProps) {
   const [showShareSheet, setShowShareSheet] = useState(false);
   const { appSettings } = useUserProfile();
-  const currencySymbol = appSettings.region === 'NG' ? '₦' : '$';
+  const fmt = (n: number) => formatCurrencyForRegion(appSettings.region, n);
 
   const generateQuickShareText = () => {
-    const formattedAmount = `${currencySymbol}${shareData.amount.toFixed(2)}`;
+    const formattedAmount = fmt(shareData.amount);
     return `*${shareData.title}*
 
 💰 ${formattedAmount}${shareData.description ? `\n📝 ${shareData.description}` : ''}

@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import * as React from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Wifi, WifiOff, AlertTriangle, RefreshCw, Server, Clock } from 'lucide-react';
 import { Button } from './ui/button';
-import { Card } from './ui/card';
 import { Alert, AlertDescription } from './ui/alert';
 import { Badge } from './ui/badge';
-import { useLoadingState } from './LoadingStateContext';
+// import { useLoadingState } from './LoadingStateContext';
 import { toast } from 'sonner';
 
 // Network status types
@@ -378,7 +378,7 @@ export const withNetworkErrorHandling = <P extends object>(
 ) => {
   const NetworkErrorWrapper: React.FC<P> = (props) => {
     const [error, setError] = useState<NetworkError | null>(null);
-    const networkStatus = useNetworkStatus();
+    // const networkStatus = useNetworkStatus();
 
     const handleRetry = useCallback(() => {
       setError(null);

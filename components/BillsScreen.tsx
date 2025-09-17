@@ -8,9 +8,7 @@ import { ScreenHeader } from './ui/screen-header';
 import { FilterTabs } from './ui/filter-tabs';
 import { Plus, Clock, CheckCircle, AlertCircle, Receipt, RotateCcw, Copy } from 'lucide-react';
 import { toast } from 'sonner';
-import { BillSplitSkeleton } from './ui/loading';
-import { Alert, AlertDescription } from './ui/alert';
-import { useBillSplits, BillSplit } from '../hooks/useBillSplits';
+import { useBillSplits } from '../hooks/useBillSplits';
 import { useUserProfile } from './UserProfileContext';
 import { formatCurrencyForRegion } from '../utils/regions';
 
@@ -21,10 +19,9 @@ interface BillsScreenProps {
 
 export function BillsScreen({ onNavigate, groupId }: BillsScreenProps) {
   const [activeFilter, setActiveFilter] = useState('all');
-  const { billSplits, loading, error } = useBillSplits({ groupId: groupId || undefined });
+  const { billSplits } = useBillSplits({ groupId: groupId || undefined });
   const { appSettings } = useUserProfile();
   const fmt = (n: number) => formatCurrencyForRegion(appSettings.region, n);
-  const currencySymbol = appSettings.region === 'NG' ? '₦' : '$';
 
   const handleReorderSplit = (bill: any) => {
     // Create an exact copy with the same details but as a new split

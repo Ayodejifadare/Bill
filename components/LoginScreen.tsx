@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Card } from './ui/card';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
-import { Separator } from './ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Smartphone } from 'lucide-react';
 import { useUserProfile } from './UserProfileContext';
@@ -11,6 +10,7 @@ import OTPVerificationScreen from './OTPVerificationScreen';
 import { toast } from 'sonner';
 import { saveAuth } from '../utils/auth';
 import { apiClient } from '../utils/apiClient';
+import { Separator } from './ui/separator';
 
 interface LoginScreenProps {
   onLogin: (authData: any) => void;
@@ -69,12 +69,12 @@ export function LoginScreen({ onLogin, onShowRegister }: LoginScreenProps) {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [country, setCountry] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [codeSent, setCodeSent] = useState(false);
-  const [otp, setOtp] = useState('');
-  const [isVerifying, setIsVerifying] = useState(false);
+  const [, setCodeSent] = useState(false);
+  const [otp] = useState('');
+  const [, setIsVerifying] = useState(false);
   const [showOtpScreen, setShowOtpScreen] = useState(false);
   const [otpContext, setOtpContext] = useState<{ phone: string; region: string; demoOTP?: string } | null>(null);
-  const [error, setError] = useState('');
+  const [, setError] = useState('');
 
   const selectedCountry = countryOptions.find(c => c.code === country);
 

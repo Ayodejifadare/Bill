@@ -3,7 +3,7 @@ import { Share2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { ShareSheet } from './ui/share-sheet';
 import { useUserProfile } from './UserProfileContext';
-import { formatCurrencyForRegion } from '../utils/regions';
+import { formatCurrencyForRegion, getCurrencySymbol } from '../utils/regions';
 
 export interface ShareData {
   type: 'bill_split' | 'payment_request' | 'transaction' | 'payment_confirmation' | 'group_summary';
@@ -22,9 +22,13 @@ export interface ShareData {
 /**
  * Generate formatted share text based on share data type
  */
-export function generateShareText(shareData: ShareData, currencySymbol: string, userProfile: any) {
+export function generateShareText(
+  shareData: ShareData,
+  formatAmount: (n: number) => string,
+  userProfile: any
+) {
   const { type, title, amount, description, participantNames, dueDate, status, groupName } = shareData;
-  const formattedAmount = `${currencySymbol}${amount.toFixed(2)}`;
+  const formattedAmount = formatAmount(amount);
   
   switch (type) {
     case 'bill_split':
@@ -115,9 +119,10 @@ export function ShareUtils({
 }: ShareUtilsProps) {
   const { userProfile, appSettings } = useUserProfile();
   const fmt = (n: number) => formatCurrencyForRegion(appSettings.region, n);
+  const currencySymbol = getCurrencySymbol(appSettings.region);
   const [showShareSheet, setShowShareSheet] = useState(false);
 
-  const shareText = generateShareText(shareData, currencySymbol, userProfile);
+  const shareText = generateShareText(shareData, fmt, userProfile);
   const documentData = getDocumentData(shareData);
 
   return (
@@ -163,7 +168,7 @@ export function QuickShareButton({
 }: QuickShareButtonProps) {
   const [showShareSheet, setShowShareSheet] = useState(false);
   const { userProfile, appSettings } = useUserProfile();
-  const currencySymbol = appSettings.region === 'NG' ? '₦' : '$';
+  const fmt = (n: number) => formatCurrencyForRegion(appSettings.region, n);
 
   const generateQuickShareText = () => {
     const formattedAmount = fmt(shareData.amount);

@@ -1,4 +1,4 @@
-import { ArrowLeft, Phone, Check, AlertCircle, Smartphone, FileText, Upload, MessageCircle, Shield, UserPlus, Zap } from 'lucide-react';
+import { ArrowLeft, AlertCircle, Smartphone, FileText, Upload, MessageCircle, Shield, UserPlus, Zap } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
@@ -15,13 +15,13 @@ interface PermissionRequestScreenProps extends ContactSyncScreenProps {
 }
 
 export function PermissionRequestScreen({
-  onNavigate,
+  onNavigate: _onNavigate,
   contactsSupported,
   requestContactPermission,
   handleFileImport,
   handleDemoMode,
   denyPermission,
-  hasPermission
+  hasPermission: _hasPermission
 }: PermissionRequestScreenProps) {
   const isInCrossOrigin = contactsAPI.isInCrossOriginContext();
   const shouldUseFileInput = contactsAPI.shouldUseFileInput();
@@ -35,7 +35,7 @@ export function PermissionRequestScreen({
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => onNavigate('add-friend')}
+              onClick={() => _onNavigate('add-friend')}
               className="min-h-[44px] min-w-[44px] -ml-2"
             >
               <ArrowLeft className="h-5 w-5" />

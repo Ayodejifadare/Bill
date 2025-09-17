@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, ReactNode } from 'react';
+import { createContext, useContext, useReducer, type ReactNode } from 'react';
 
 // Loading state types
 interface LoadingState {
@@ -13,18 +13,18 @@ interface LoadingState {
 interface LoadingAction {
   type: 'START_LOADING' | 'STOP_LOADING' | 'SET_ERROR' | 'CLEAR_ERROR' | 'INCREMENT_RETRY' | 'RESET_STATE';
   key: string;
-  error?: string;
+  error?: string | null;
 }
 
 interface LoadingContextValue {
   loadingStates: LoadingState;
   setLoading: (key: string, isLoading: boolean) => void;
-  setError: (key: string, error: string | null) => void;
+  setError: (key: string, error: string | null | undefined) => void;
   clearError: (key: string) => void;
   incrementRetry: (key: string) => void;
   resetState: (key: string) => void;
   isLoading: (key: string) => boolean;
-  getError: (key: string) => string | null;
+  getError: (key: string) => string | undefined;
   getRetryCount: (key: string) => number;
   // Convenience methods
   withLoading: <T>(key: string, asyncOperation: () => Promise<T>) => Promise<T>;
@@ -117,7 +117,7 @@ export const LoadingStateProvider: React.FC<{ children: ReactNode }> = ({ childr
     });
   };
 
-  const setError = (key: string, error: string | null) => {
+  const setError = (key: string, error: string | null | undefined) => {
     dispatch({ type: 'SET_ERROR', key, error });
   };
 
@@ -138,7 +138,8 @@ export const LoadingStateProvider: React.FC<{ children: ReactNode }> = ({ childr
   };
 
   const getError = (key: string) => {
-    return loadingStates[key]?.error || null;
+    const e = loadingStates[key]?.error;
+    return e === null ? undefined : e ?? undefined;
   };
 
   const getRetryCount = (key: string) => {
@@ -197,7 +198,7 @@ export const useLoading = (key: string) => {
     isLoading: isLoading(key),
     error: getError(key),
     setLoading: (loading: boolean) => setLoading(key, loading),
-    setError: (error: string | null) => setError(key, error),
+    setError: (error: string | null | undefined) => setError(key, error),
     clearError: () => clearError(key),
     incrementRetry: () => incrementRetry(key),
     resetState: () => resetState(key),

@@ -35,7 +35,10 @@ router.get('/', async (req, res) => {
         id: friend.id,
         name: friend.name,
         avatar: friend.avatar,
-        email: friend.email
+        email: friend.email,
+        // Align with client expectation: expose an explicit status
+        status: 'active',
+        phoneNumber: friend.phone
       }
     })
 
@@ -95,7 +98,9 @@ router.get('/search', async (req, res) => {
         id: friend.id,
         name: friend.name,
         avatar: friend.avatar,
-        email: friend.email
+        email: friend.email,
+        status: 'active',
+        phoneNumber: friend.phone
       }
     })
 
@@ -272,27 +277,49 @@ router.get('/summary', async (req, res) => {
       key => TRANSACTION_STATUS_MAP[key] === 'pending'
     ) || 'PENDING'
 
-    const [owedAgg, owesAgg] = await req.prisma.$transaction([
+    const [owedAgg, owesAgg, unpaidAsCreator, unpaidAsParticipant] = await req.prisma.$transaction([
+      // Direct transactions where friends owe the user (exclude bill split placeholder tx)
       req.prisma.transaction.aggregate({
         where: {
           receiverId: req.userId,
           senderId: { in: friendIds },
-          status: pendingStatus
+          status: pendingStatus,
+          NOT: { type: 'BILL_SPLIT' }
         },
         _sum: { amount: true }
       }),
+      // Direct transactions where the user owes friends (exclude bill split placeholder tx)
       req.prisma.transaction.aggregate({
         where: {
           senderId: req.userId,
           receiverId: { in: friendIds },
-          status: pendingStatus
+          status: pendingStatus,
+          NOT: { type: 'BILL_SPLIT' }
+        },
+        _sum: { amount: true }
+      }),
+      // Unpaid bill split shares where the user is creator and friends are participants (friends owe user)
+      req.prisma.billSplitParticipant.aggregate({
+        where: {
+          userId: { in: friendIds },
+          isPaid: false,
+          billSplit: { createdBy: req.userId }
+        },
+        _sum: { amount: true }
+      }),
+      // Unpaid bill split shares where friends are creators and user is participant (user owes friends)
+      req.prisma.billSplitParticipant.aggregate({
+        where: {
+          userId: req.userId,
+          isPaid: false,
+          billSplit: { createdBy: { in: friendIds } }
         },
         _sum: { amount: true }
       })
     ])
 
-    const owedToUser = owedAgg._sum.amount || 0
-    const userOwes = owesAgg._sum.amount || 0
+    const owedToUser = (owedAgg._sum.amount || 0) + (unpaidAsCreator._sum.amount || 0)
+    const userOwes = (owesAgg._sum.amount || 0) + (unpaidAsParticipant._sum.amount || 0)
 
     res.json({ owedToUser, userOwes })
   } catch (error) {
@@ -501,11 +528,38 @@ router.get('/:friendId', async (req, res) => {
       }
     })
 
+    // Base balance from direct send/receive transactions only (exclude bill splits to avoid double counting)
     let balance = 0
     transactionsData.forEach(t => {
-      if (t.receiverId === req.userId) balance += t.amount
-      if (t.senderId === req.userId) balance -= t.amount
+      if (t.type !== 'BILL_SPLIT') {
+        if (t.receiverId === req.userId) balance += t.amount
+        if (t.senderId === req.userId) balance -= t.amount
+      }
     })
+
+    // Add outstanding bill-split obligations between these two users
+    const [friendOwesUser, userOwesFriend] = await req.prisma.$transaction([
+      req.prisma.billSplitParticipant.aggregate({
+        where: {
+          userId: friendId,
+          isPaid: false,
+          billSplit: { createdBy: req.userId }
+        },
+        _sum: { amount: true }
+      }),
+      req.prisma.billSplitParticipant.aggregate({
+        where: {
+          userId: req.userId,
+          isPaid: false,
+          billSplit: { createdBy: friendId }
+        },
+        _sum: { amount: true }
+      })
+    ])
+    const splitOwedToUser = friendOwesUser._sum.amount || 0
+    const splitUserOwes = userOwesFriend._sum.amount || 0
+    balance += splitOwedToUser
+    balance -= splitUserOwes
 
     let currentBalance = null
     if (balance > 0) currentBalance = { amount: balance, type: 'owed' }

@@ -10,6 +10,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { toast } from 'sonner';
 import { useUserProfile } from './UserProfileContext';
+import { formatCurrencyForRegion } from '../utils/regions';
 import { apiClient } from '../utils/apiClient';
 
 interface RecurringPaymentsScreenProps {
@@ -36,7 +37,7 @@ interface RecurringPayment {
 
 export function RecurringPaymentsScreen({ onNavigate }: RecurringPaymentsScreenProps) {
   const { appSettings } = useUserProfile();
-  const currencySymbol = appSettings.region === 'NG' ? '₦' : '$';
+  const fmt = (n: number) => formatCurrencyForRegion(appSettings.region, n);
   const [recurringPayments, setRecurringPayments] = useState<RecurringPayment[]>([]);
   const [selectedPayment, setSelectedPayment] = useState<string | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -238,7 +239,7 @@ export function RecurringPaymentsScreen({ onNavigate }: RecurringPaymentsScreenP
                   Next: {formatDate(payment.nextPayment)}
                 </div>
                 <div className="text-right">
-                  <p className="font-medium">{currencySymbol}{payment.amount.toFixed(2)}</p>
+                  <p className="font-medium">{fmt(payment.amount)}</p>
                   <p className="text-xs text-muted-foreground">
                     {payment.completedPayments} of {payment.totalPayments || '∞'} payments
                   </p>
@@ -275,7 +276,7 @@ export function RecurringPaymentsScreen({ onNavigate }: RecurringPaymentsScreenP
         <Card>
           <CardContent className="p-4 text-center">
             <p className="text-2xl font-bold text-primary">
-              {currencySymbol}{totalMonthlyAmount.toFixed(2)}
+              {fmt(totalMonthlyAmount)}
             </p>
             <p className="text-sm text-muted-foreground">Monthly Total</p>
           </CardContent>

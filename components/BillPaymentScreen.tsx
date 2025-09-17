@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback } from './ui/avatar';
 import { Separator } from './ui/separator';
 import { toast } from 'sonner';
 import { useUserProfile } from './UserProfileContext';
-import { getCurrencySymbol, requiresRoutingNumber, getBankIdentifierLabel, formatBankAccountForRegion, formatCurrencyForRegion } from '../utils/regions';
+import { requiresRoutingNumber, getBankIdentifierLabel, formatBankAccountForRegion, formatCurrencyForRegion } from '../utils/regions';
 import { apiClient } from '../utils/apiClient';
 
 interface BillPaymentScreenProps {
@@ -48,7 +48,6 @@ interface BillSplit {
 
 export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps) {
   const { appSettings } = useUserProfile();
-  const currencySymbol = getCurrencySymbol(appSettings.region);
   
   const [paymentStatus, setPaymentStatus] = useState<'pending' | 'sent' | 'confirmed'>('pending');
   const [bill, setBill] = useState<BillSplit | null>(null);

@@ -139,18 +139,74 @@ router.get('/', authenticate, async (req, res) => {
     const hasMore = groups.length > pageSize
     if (hasMore) groups.pop()
 
-    const formatted = groups.map((g) => ({
-      id: g.id,
-      name: g.name,
-      // Return minimal friend objects for UI participant lists
-      members: g.members.map((m) => ({
-        id: m.user.id,
-        name: m.user.name,
-        avatar: m.user.avatar || '',
-        phoneNumber: m.user.phone || ''
-      })),
-      color: mapColor(g.color)
-    }))
+    // Enrich with aggregates for UI summaries
+    const formatted = await Promise.all(
+      groups.map(async (g) => {
+        const fg = await formatGroup(req.prisma, g, req.user.id)
+
+        // Derive a human-friendly recent activity description and a relative lastActive
+        const memberIds = g.members.map((m) => m.userId)
+
+        const [tx] = memberIds.length
+          ? await req.prisma.transaction.findMany({
+              where: {
+                OR: [
+                  { senderId: { in: memberIds } },
+                  { receiverId: { in: memberIds } }
+                ]
+              },
+              orderBy: { createdAt: 'desc' },
+              take: 1,
+              select: { createdAt: true, description: true, type: true }
+            })
+          : []
+
+        const bill = await req.prisma.billSplit.findFirst({
+          where: { groupId: g.id },
+          orderBy: { createdAt: 'desc' },
+          select: { createdAt: true, title: true }
+        })
+
+        let lastDate = null
+        let recentActivity = ''
+        if (tx && bill) {
+          if (tx.createdAt > bill.createdAt) {
+            lastDate = tx.createdAt
+            recentActivity = tx.description || 'Transfer'
+          } else {
+            lastDate = bill.createdAt
+            recentActivity = bill.title || 'Group bill split'
+          }
+        } else if (tx) {
+          lastDate = tx.createdAt
+          recentActivity = tx.description || 'Transfer'
+        } else if (bill) {
+          lastDate = bill.createdAt
+          recentActivity = bill.title || 'Group bill split'
+        }
+
+        const lastActiveRelative = lastDate
+          ? formatDistanceToNow(lastDate, { addSuffix: true })
+          : ''
+
+        return {
+          id: fg.id,
+          name: fg.name,
+          description: fg.description,
+          memberCount: g.members.length,
+          totalSpent: fg.totalSpent || 0,
+          // Show description/title of most recent activity
+          recentActivity,
+          // Initials preview for compact UI
+          members: g.members.map((m) => getInitials(m.user.name)),
+          isAdmin: fg.isAdmin || false,
+          // Relative time for header subtitle
+          lastActive: lastActiveRelative,
+          pendingBills: fg.pendingBills || 0,
+          color: fg.color
+        }
+      })
+    )
 
     res.json({ groups: formatted, nextPage: hasMore ? page + 1 : null })
   } catch (error) {
@@ -397,7 +453,7 @@ router.get('/:groupId', authenticate, async (req, res) => {
         members: {
           include: {
             user: {
-              select: { id: true, name: true, avatar: true, phone: true }
+              select: { id: true, name: true, avatar: true, phone: true, email: true }
             }
           }
         }
@@ -414,17 +470,106 @@ router.get('/:groupId', authenticate, async (req, res) => {
       return res.status(403).json({ error: 'Access denied' })
     }
 
-    const formatted = await formatGroup(req.prisma, group, req.user.id)
+    const prisma = req.prisma
+    const userId = req.user.id
 
-    // Replace member preview with full member objects
-    formatted.members = group.members.map((m) => ({
-      id: m.user.id,
-      name: m.user.name,
-      avatar: m.user.avatar || '',
-      phoneNumber: m.user.phone || ''
+    // Base aggregates (totalSpent, isAdmin, color, etc.)
+    const base = await formatGroup(prisma, group, userId)
+
+    // Compute per-member balances and per-member total spent within this group
+    const memberIds = group.members.map((m) => m.userId)
+
+    // Load all bill splits for this group with participants
+    const billSplits = await prisma.billSplit.findMany({
+      where: { groupId: group.id },
+      include: { participants: true }
+    })
+
+    const memberBalanceMap = new Map()
+    const memberSpentMap = new Map()
+    for (const m of group.members) {
+      memberBalanceMap.set(m.userId, 0)
+      memberSpentMap.set(m.userId, 0)
+    }
+
+    for (const bs of billSplits) {
+      // Payer lays out the total
+      if (memberSpentMap.has(bs.createdBy)) {
+        memberSpentMap.set(bs.createdBy, memberSpentMap.get(bs.createdBy) + Number(bs.totalAmount || 0))
+      }
+      for (const p of bs.participants) {
+        // Each participant is responsible for their share
+        if (memberSpentMap.has(p.userId)) {
+          memberSpentMap.set(p.userId, memberSpentMap.get(p.userId) + Number(p.amount || 0))
+        }
+        // Outstanding balance: participants owe payer until paid
+        if (p.userId !== bs.createdBy && p.isPaid === false) {
+          if (memberBalanceMap.has(bs.createdBy)) {
+            memberBalanceMap.set(bs.createdBy, memberBalanceMap.get(bs.createdBy) + Number(p.amount || 0))
+          }
+          if (memberBalanceMap.has(p.userId)) {
+            memberBalanceMap.set(p.userId, memberBalanceMap.get(p.userId) - Number(p.amount || 0))
+          }
+        }
+      }
+    }
+
+    // Recent activity (first page), consistent with groupTransactions router
+    const pageSize = 10
+    const transactions = await prisma.transaction.findMany({
+      where: {
+        OR: [
+          { senderId: { in: memberIds } },
+          { receiverId: { in: memberIds } }
+        ]
+      },
+      include: {
+        sender: { select: { id: true, name: true } },
+        receiver: { select: { id: true, name: true } }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: pageSize + 1
+    })
+    const hasMore = transactions.length > pageSize
+    const recentSlice = transactions.slice(0, pageSize)
+    const recentTransactions = recentSlice.map((t) => ({
+      id: t.id,
+      type: TRANSACTION_TYPE_MAP[t.type] || t.type,
+      amount: t.amount,
+      description: t.description || '',
+      date: t.createdAt.toISOString(),
+      status: TRANSACTION_STATUS_MAP[t.status] || t.status,
+      paidBy: t.sender?.name || t.senderId,
+      participants: [t.sender?.name || t.senderId, t.receiver?.name || t.receiverId]
     }))
 
-    res.json({ group: formatted })
+    // Build members array enriched with balance/totalSpent
+    const members = group.members.map((m) => ({
+      id: m.user.id,
+      name: m.user.name,
+      avatar: m.user.avatar || getInitials(m.user.name),
+      email: m.user.email || '',
+      isAdmin: m.role === 'ADMIN',
+      balance: Number(memberBalanceMap.get(m.userId) || 0),
+      totalSpent: Number(memberSpentMap.get(m.userId) || 0),
+      joinedDate: m.joinedAt ? new Date(m.joinedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''
+    }))
+
+    const response = {
+      id: base.id,
+      name: base.name,
+      description: base.description,
+      totalSpent: base.totalSpent,
+      totalMembers: group.members.length,
+      isAdmin: base.isAdmin,
+      createdDate: group.createdAt ? group.createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '',
+      color: base.color,
+      members,
+      recentTransactions,
+      hasMoreTransactions: hasMore
+    }
+
+    res.json({ group: response })
   } catch (error) {
     console.error('Get group error:', error)
     res.status(500).json({ error: 'Internal server error' })

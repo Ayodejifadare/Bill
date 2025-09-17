@@ -148,16 +148,18 @@ export function FriendProfileScreen({ friendId, onNavigate }: FriendProfileScree
   };
 
   const handleRequestMoney = () => {
-    onNavigate('request', { 
-      requestData: { 
-        recipientId: friend.id,
-        recipientName: friend.name 
+    onNavigate('request', {
+      requestData: {
+        friendId: friend.id, // preferred key used by RequestMoney prefill
+        recipientId: friend.id, // backward compat
+        recipientName: friend.name
       }
     });
   };
 
   const handleSplitBill = () => {
-    onNavigate('split');
+    // Prefill this friend as a participant in Split Bill
+    onNavigate('split', { friendId: friend.id });
   };
 
   const handleSendReminder = () => {

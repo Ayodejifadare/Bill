@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ArrowLeft, Search, UserPlus, Send, Mail, MessageCircle, Phone, Users, Plus, ChevronDown, ChevronUp, CheckCircle, RefreshCw, Zap, X, MoreVertical } from 'lucide-react';
+import { ArrowLeft, Search, UserPlus, Send, Mail, MessageCircle, Phone, Users, ChevronDown, ChevronUp, CheckCircle, RefreshCw, Zap, X, MoreVertical } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';

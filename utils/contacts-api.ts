@@ -119,7 +119,7 @@ class ContactsAPI {
         // return { granted: state === 'granted', denied: state === 'denied', prompt: state === 'prompt' };
       }
 
-      if ('cordova' in window && window.cordova?.plugins?.contacts) {
+      if (typeof window !== 'undefined' && 'cordova' in window && (window as any).cordova?.plugins?.contacts) {
         return { granted: true, denied: false, prompt: false };
       }
 
@@ -163,7 +163,7 @@ class ContactsAPI {
         }
       }
 
-      if (typeof window !== 'undefined' && window.cordova?.plugins?.contacts) {
+      if (typeof window !== 'undefined' && (window as any).cordova?.plugins?.contacts) {
         // Cordova implementation with runtime permission request
         const permissions = window.cordova.plugins.permissions;
         if (permissions?.requestPermission) {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, type ChangeEvent } from 'react';
 import { Card } from './ui/card';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
@@ -15,6 +15,13 @@ interface AccountSettingsScreenProps {
 
 export function AccountSettingsScreen({ onNavigate }: AccountSettingsScreenProps) {
   const { userProfile, updateUserProfile, refreshUserProfile } = useUserProfile();
+  if (!userProfile) {
+    return (
+      <div className="p-4">
+        <p className="text-sm text-muted-foreground">Loading profile…</p>
+      </div>
+    );
+  }
   const [isEditing, setIsEditing] = useState(false);
 
   const profileToState = () => ({
@@ -69,7 +76,7 @@ export function AccountSettingsScreen({ onNavigate }: AccountSettingsScreenProps
     fileInputRef.current?.click();
   };
 
-  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     try {

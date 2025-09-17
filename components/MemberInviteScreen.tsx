@@ -6,7 +6,6 @@ import { Avatar, AvatarFallback } from './ui/avatar';
 import { ScreenHeader } from './ui/screen-header';
 import { EmptyState } from './ui/empty-state';
 import { FilterTabs } from './ui/filter-tabs';
-import { Switch } from './ui/switch';
 import { 
   MessageCircle, 
   Mail, 
@@ -17,10 +16,9 @@ import {
   RotateCcw,
   Link,
   Copy,
-  Settings,
   Users,
-  Calendar
 } from 'lucide-react';
+import { Switch } from './ui/switch';
 import { Separator } from './ui/separator';
 import { toast } from 'sonner';
 import { apiClient } from '../utils/apiClient';

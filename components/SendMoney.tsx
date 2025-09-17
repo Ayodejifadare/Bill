@@ -40,6 +40,7 @@ interface SendMoneyProps {
 export function SendMoney({ onNavigate, prefillData }: SendMoneyProps) {
   const { appSettings } = useUserProfile();
   const currencySymbol = getCurrencySymbol(appSettings.region);
+  const fmt = (n: number) => formatCurrencyForRegion(appSettings.region, n);
   
   const [selectedFriend, setSelectedFriend] = useState<Friend | null>(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod | null>(null);
@@ -167,7 +168,7 @@ export function SendMoney({ onNavigate, prefillData }: SendMoneyProps) {
     toast.success('Payment details copied to clipboard');
     return;
     const paymentMethod = selectedPaymentMethod;
-    let paymentDetails = `💸 Send Payment: ${currencySymbol}${amount}\n👤 To: ${selectedFriend.name}\n${message ? `📝 Message: ${message}\n` : ''}`;
+    let paymentDetails = `💸 Send Payment: ${formatCurrencyForRegion(appSettings.region, parseFloat(amount))}\n👤 To: ${selectedFriend.name}\n${message ? `📝 Message: ${message}\n` : ''}`;
 
     if (paymentMethod.type === 'bank') {
       paymentDetails += `🏦 Bank Details:\n${paymentMethod.bankName}\n👤 ${paymentMethod.accountHolderName}\n`;
@@ -455,7 +456,7 @@ export function SendMoney({ onNavigate, prefillData }: SendMoneyProps) {
                     <p className="text-sm text-amber-800 font-medium">Payment Instructions</p>
                     <p className="text-sm text-amber-700 mt-1">
                       Use your {selectedPaymentMethod.type === 'bank' ? 'bank' : 'mobile money'} app to send a transfer to the {selectedPaymentMethod.type === 'bank' ? 'account' : 'number'} above.
-                      Include "{message || `Payment from SplitPay - ${currencySymbol}${amount}`}" in the transfer memo.
+                      Include "{message || `Payment from SplitPay - ${formatCurrencyForRegion(appSettings.region, parseFloat(amount || '0'))}`}" in the transfer memo.
                     </p>
                   </div>
                 </div>
@@ -495,7 +496,7 @@ export function SendMoney({ onNavigate, prefillData }: SendMoneyProps) {
             <CardContent className="space-y-3">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Amount:</span>
-                <span className="font-medium">{currencySymbol}{parseFloat(amount).toFixed(2)}</span>
+                <span className="font-medium">{fmt(parseFloat(amount))}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">To:</span>

@@ -24,6 +24,7 @@ import verificationRoutes from './routes/verification.js'
 import receiptRoutes from './routes/receipts.js'
 import spendingInsightsRoutes from './routes/spendingInsights.js'
 import recurringPaymentRoutes from './routes/recurringPayments.js'
+import transferRoutes from './routes/transfers.js'
 import { cleanupExpiredCodes } from './utils/verificationCodes.js'
 import { initSchedulers } from './utils/schedulerInit.js'
 
@@ -118,6 +119,7 @@ app.use('/api/contacts', contactRoutes)
 app.use('/api/verification', verificationRoutes)
 app.use('/api/receipts', receiptRoutes)
 app.use('/api', spendingInsightsRoutes)
+app.use('/api', transferRoutes)
 
 
 // Health check endpoint

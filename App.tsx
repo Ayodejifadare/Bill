@@ -1,11 +1,11 @@
-import { useState, useReducer, Suspense, useCallback, memo, useEffect } from 'react';
+import { useState, useReducer, Suspense, useCallback, memo, useEffect, useRef } from 'react';
 import { lazy } from 'react';
 import { UserProfileProvider } from './components/UserProfileContext';
 import { BottomNavigation } from './components/BottomNavigation';
 import { ThemeProvider } from './components/ThemeContext';
 import { LoadingStateProvider } from './components/LoadingStateContext';
 import { ErrorBoundary, PageErrorBoundary, CriticalErrorBoundary } from './components/ErrorBoundary';
-import { NetworkErrorHandler, useNetworkStatus } from './components/NetworkErrorHandler';
+import { NetworkErrorHandler } from './components/NetworkErrorHandler';
 import { PageLoading } from './components/ui/loading';
 import { toast } from 'sonner';
 import { saveAuth, loadAuth, clearAuth } from './utils/auth';
@@ -80,6 +80,10 @@ interface NavigationState {
   sendMoneyData: any;
   reminderData: any;
   historyBackTo: string | null;
+  // Bump to force SplitBill remount and clear lingering inputs
+  splitKey: number;
+  // Optional friend to prefill in SplitBill
+  splitPrefillFriendId: string | null;
 }
 
 type NavigationAction = 
@@ -101,7 +105,10 @@ type NavigationAction =
   | { type: 'SET_REMINDER_DATA'; payload: any }
   | { type: 'SET_HISTORY_BACK_TO'; payload: string | null }
   | { type: 'CLEAR_ALL' }
-  | { type: 'CLEAR_PREVIOUS_STATE'; payload: string };
+  | { type: 'CLEAR_PREVIOUS_STATE'; payload: string }
+  | { type: 'BUMP_SPLIT_KEY' }
+  // prettier-ignore
+  | { type: 'SET_SPLIT_PREFILL_FRIEND_ID'; payload: string | null };
 
 const initialState: NavigationState = {
   activeTab: 'home',
@@ -118,16 +125,22 @@ const initialState: NavigationState = {
   bankingRedirectData: null,
   paymentConfirmationData: null,
   settlementBillSplitId: null,
+  splitKey: 0,
+  splitPrefillFriendId: null,
   requestMoneyData: null,
   sendMoneyData: null,
   reminderData: null,
   historyBackTo: null,
 };
 
+const PRIMARY_TABS = new Set(['home', 'friends', 'split', 'bills', 'profile']);
+
 const navigationReducer = (state: NavigationState, action: NavigationAction): NavigationState => {
   switch (action.type) {
     case 'SET_TAB':
       return { ...state, activeTab: action.payload };
+    case 'BUMP_SPLIT_KEY':
+      return { ...state, splitKey: state.splitKey + 1 };
     case 'SET_TRANSACTION_ID':
       return { ...state, selectedTransactionId: action.payload };
     case 'SET_BILL_SPLIT_ID':
@@ -144,6 +157,8 @@ const navigationReducer = (state: NavigationState, action: NavigationAction): Na
       return { ...state, currentGroupId: action.payload };
     case 'SET_GROUP_CONTEXT':
       return { ...state, groupNavigationContext: action.payload };
+    case 'SET_SPLIT_PREFILL_FRIEND_ID':
+      return { ...state, splitPrefillFriendId: action.payload };
     case 'SET_RECURRING_PAYMENT':
       return { 
         ...state, 
@@ -166,11 +181,11 @@ const navigationReducer = (state: NavigationState, action: NavigationAction): Na
       return { ...state, historyBackTo: action.payload };
     case 'CLEAR_ALL':
       return initialState;
-    case 'CLEAR_PREVIOUS_STATE':
+    case 'CLEAR_PREVIOUS_STATE': {
       // Clear state based on previous tab
       const newState = { ...state };
       const previousTab = action.payload;
-      
+
       switch (previousTab) {
         case 'transaction-history':
           newState.historyBackTo = null;
@@ -216,8 +231,12 @@ const navigationReducer = (state: NavigationState, action: NavigationAction): Na
         case 'settlement':
           newState.settlementBillSplitId = null;
           break;
+        case 'split':
+          newState.splitPrefillFriendId = null;
+          break;
       }
       return newState;
+    }
     default:
       return state;
   }
@@ -232,7 +251,7 @@ const usePerformanceMonitoring = () => {
     // Performance observer for monitoring navigation timing
     if ('PerformanceObserver' in window) {
       const observer = new PerformanceObserver((list) => {
-        for (const entry of list.getEntries()) {
+        for (const _entry of list.getEntries()) {
           // Intentionally no logging; enable here if needed
         }
       });
@@ -246,6 +265,10 @@ const usePerformanceMonitoring = () => {
 
 function AppContent() {
   const [navState, dispatch] = useReducer(navigationReducer, initialState);
+  const [mountedPrimaryTabs, setMountedPrimaryTabs] = useState<string[]>(() => (
+    PRIMARY_TABS.has(initialState.activeTab) ? [initialState.activeTab] : []
+  ));
+  const lastPrimaryTabRef = useRef<string>(initialState.activeTab);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showLogin, setShowLogin] = useState(true);
   const [isInitializing, setIsInitializing] = useState(true);
@@ -254,8 +277,7 @@ function AppContent() {
   // Performance monitoring
   usePerformanceMonitoring();
   
-  // Network status for connection-aware features
-  const networkStatus = useNetworkStatus();
+  // Network status for connection-aware features (not currently used)
 
   // Check for existing authentication on app load
   useEffect(() => {
@@ -269,7 +291,7 @@ function AppContent() {
           const { auth, user } = stored;
 
           // Simple validation - in production, verify token with backend
-          if (auth.token && auth.expiresAt > Date.now()) {
+          if (auth.token && typeof auth.expiresAt === 'number' && auth.expiresAt > Date.now()) {
             setIsAuthenticated(true);
             console.log('Restored user session:', user.name);
           } else {
@@ -288,6 +310,22 @@ function AppContent() {
 
     checkAuthStatus();
   }, []);
+
+  // Keep primary tabs mounted to avoid refetch/reload on quick navigation
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setMountedPrimaryTabs(PRIMARY_TABS.has(initialState.activeTab) ? [initialState.activeTab] : []);
+      lastPrimaryTabRef.current = initialState.activeTab;
+      return;
+    }
+
+    if (PRIMARY_TABS.has(navState.activeTab)) {
+      lastPrimaryTabRef.current = navState.activeTab;
+      setMountedPrimaryTabs(prev =>
+        prev.includes(navState.activeTab) ? prev : [...prev, navState.activeTab]
+      );
+    }
+  }, [isAuthenticated, navState.activeTab]);
 
   // Memoized navigation handler
   const handleNavigate = useCallback((tab: string, data?: any) => {
@@ -383,9 +421,23 @@ function AppContent() {
           case 'send-reminder':
             dispatch({ type: 'SET_REMINDER_DATA', payload: data });
             break;
+          case 'spending-insights':
+            dispatch({ type: 'SET_HISTORY_BACK_TO', payload: (data && (data as any).from) ? (data as any).from : navState.activeTab });
+            break;
         }
       }
-      
+      // If navigating to primary tabs without explicit group context, clear lingering group state
+      if ((tab === 'bills' || tab === 'split') && (!data || !data.groupId)) {
+        dispatch({ type: 'SET_GROUP_ID', payload: null });
+        dispatch({ type: 'SET_GROUP_CONTEXT', payload: null });
+      }
+      // Always bump split key when navigating to the Split tab to reset form state
+      if (tab === 'split') {
+        const prefillId = (data && (data as any).friendId) ? String((data as any).friendId) : null;
+        dispatch({ type: 'SET_SPLIT_PREFILL_FRIEND_ID', payload: prefillId });
+        dispatch({ type: 'BUMP_SPLIT_KEY' });
+      }
+
       dispatch({ type: 'SET_TAB', payload: tab });
       
       performance.mark('navigation-end');
@@ -537,7 +589,7 @@ function AppContent() {
 
   // Show loading during initialization
   if (isInitializing) {
-    return <MemoizedPageLoading message="Loading Biltip..." />;
+    return <MemoizedPageLoading />;
   }
 
   // Show authentication screens if not logged in
@@ -571,19 +623,37 @@ function AppContent() {
     }
   }
 
+  const renderPrimaryTab = (tab: string) => {
+    switch (tab) {
+      case 'home':
+        return <HomeScreen onNavigate={handleNavigate} />;
+      case 'friends':
+        return <FriendsList onNavigate={handleNavigate} />;
+      case 'split':
+        return (
+          <SplitBill
+            key={`split-${navState.splitKey}-${navState.currentGroupId || 'none'}`}
+            onNavigate={handleNavigate}
+            groupId={navState.currentGroupId}
+            prefillFriendId={navState.splitPrefillFriendId}
+          />
+        );
+      case 'bills':
+        return <BillsScreen onNavigate={handleNavigate} groupId={navState.currentGroupId} />;
+      case 'profile':
+        return <ProfileScreen onNavigate={handleNavigate} onLogout={handleLogout} />;
+      default:
+        return <HomeScreen onNavigate={handleNavigate} />;
+    }
+  };
+
   const renderContent = () => {
-    try {
+    const isPrimaryTab = PRIMARY_TABS.has(navState.activeTab);
+    const requestedPrimary = isPrimaryTab ? navState.activeTab : lastPrimaryTabRef.current;
+    const activePrimaryTab = mountedPrimaryTabs.includes(requestedPrimary) ? requestedPrimary : initialState.activeTab;
+
+    const renderSecondaryContent = () => {
       switch (navState.activeTab) {
-        case 'home':
-          return <HomeScreen onNavigate={handleNavigate} />;
-        case 'friends':
-          return <FriendsList onNavigate={handleNavigate} />;
-        case 'split':
-          return <SplitBill onNavigate={handleNavigate} groupId={navState.currentGroupId} />;
-        case 'bills':
-          return <BillsScreen onNavigate={handleNavigate} groupId={navState.currentGroupId} />;
-        case 'profile':
-          return <ProfileScreen onNavigate={handleNavigate} onLogout={handleLogout} />;
         case 'send':
           return <SendMoney onNavigate={handleNavigate} prefillData={navState.sendMoneyData} />;
         case 'request':
@@ -615,63 +685,86 @@ function AppContent() {
         case 'transaction-history':
           return <TransactionHistoryScreen onNavigate={handleNavigate} backTo={navState.historyBackTo || 'home'} />;
         case 'spending-insights':
-          return <SpendingInsightsScreen onNavigate={handleNavigate} />;
+          return <SpendingInsightsScreen onNavigate={handleNavigate} backTo={navState.historyBackTo || 'home'} />;
         case 'create-group':
           return <CreateGroupScreen onNavigate={handleNavigate} />;
         case 'group-details':
           return <GroupDetailsScreen groupId={navState.currentGroupId} onNavigate={handleNavigate} onGroupNavigation={handleGroupNavigation} />;
         case 'group-account':
           return <GroupAccountScreen groupId={navState.currentGroupId} onNavigate={handleNavigate} />;
-        case 'send-reminder':
-          return <SendReminderScreen 
-            onNavigate={handleNavigate}
-            billSplitId={navState.reminderData?.billSplitId}
-            paymentType={navState.reminderData?.paymentType}
-            friendId={navState.reminderData?.friendId}
-            friendName={navState.reminderData?.friendName}
-            amount={navState.reminderData?.amount}
-          />;
-        case 'friend-profile':
-          return <FriendProfileScreen friendId={navState.selectedFriendId} onNavigate={handleNavigate} />;
-        case 'add-friend':
-          return <AddFriendScreen onNavigate={handleNavigate} />;
-        case 'contact-sync':
-          return <ContactSyncScreen onNavigate={handleNavigate} />;
         case 'group-members':
           return <GroupMembersScreen groupId={navState.currentGroupId} onNavigate={handleNavigate} />;
         case 'add-group-member':
           return <AddGroupMemberScreen groupId={navState.currentGroupId} onNavigate={handleNavigate} />;
         case 'member-invites':
           return <MemberInviteScreen groupId={navState.currentGroupId} onNavigate={handleNavigate} />;
+        case 'send-reminder':
+          return (
+            <SendReminderScreen
+              onNavigate={handleNavigate}
+              billSplitId={navState.reminderData?.billSplitId}
+              paymentType={navState.reminderData?.paymentType}
+              friendId={navState.reminderData?.friendId}
+              friendName={navState.reminderData?.friendName}
+              amount={navState.reminderData?.amount}
+            />
+          );
+        case 'friend-profile':
+          return <FriendProfileScreen friendId={navState.selectedFriendId} onNavigate={handleNavigate} />;
+        case 'add-friend':
+          return <AddFriendScreen onNavigate={handleNavigate} />;
+        case 'contact-sync':
+          return <ContactSyncScreen onNavigate={handleNavigate} />;
         case 'recurring-payments':
           return <RecurringPaymentsScreen onNavigate={handleNavigate} />;
         case 'setup-recurring-payment':
-          return <SetupRecurringPaymentScreen 
-            onNavigate={handleNavigate}
-            paymentId={navState.recurringPaymentId}
-            editMode={navState.recurringPaymentEditMode}
-          />;
+          return (
+            <SetupRecurringPaymentScreen
+              onNavigate={handleNavigate}
+              paymentId={navState.recurringPaymentId}
+              editMode={navState.recurringPaymentEditMode}
+            />
+          );
         case 'virtual-account':
           return <VirtualAccountScreen groupId={navState.currentGroupId} onNavigate={handleNavigate} />;
         case 'banking-redirect':
-          return <BankingRedirectScreen 
-            paymentRequest={navState.bankingRedirectData?.paymentRequest || null}
-            method={navState.bankingRedirectData?.method || null}
-            onNavigate={handleNavigate}
-          />;
+          return (
+            <BankingRedirectScreen
+              paymentRequest={navState.bankingRedirectData?.paymentRequest || null}
+              method={navState.bankingRedirectData?.method || null}
+              onNavigate={handleNavigate}
+            />
+          );
         case 'payment-confirmation':
-          return <PaymentConfirmationScreen 
-            paymentRequest={navState.paymentConfirmationData?.paymentRequest || null}
-            method={navState.paymentConfirmationData?.method}
-            status={navState.paymentConfirmationData?.status || 'unknown'}
-            onNavigate={handleNavigate}
-          />;
+          return (
+            <PaymentConfirmationScreen
+              paymentRequest={navState.paymentConfirmationData?.paymentRequest || null}
+              method={navState.paymentConfirmationData?.method}
+              status={navState.paymentConfirmationData?.status || 'unknown'}
+              onNavigate={handleNavigate}
+            />
+          );
         case 'settlement':
-          return <SettlementScreen onNavigate={handleNavigate} billSplitId={navState.settlementBillSplitId} />;
+          return <SettlementScreen onNavigate={handleNavigate} billSplitId={navState.settlementBillSplitId ?? undefined} />;
         default:
           console.warn(`Unknown navigation tab: ${navState.activeTab}`);
-          return <HomeScreen onNavigate={handleNavigate} />;
+          return renderPrimaryTab('home');
       }
+    };
+
+    try {
+      return (
+        <>
+          <div style={{ display: isPrimaryTab ? 'block' : 'none' }}>
+            {mountedPrimaryTabs.map((tab) => (
+              <div key={tab} style={{ display: tab === activePrimaryTab ? 'block' : 'none' }}>
+                {renderPrimaryTab(tab)}
+              </div>
+            ))}
+          </div>
+          {!isPrimaryTab && renderSecondaryContent()}
+        </>
+      );
     } catch (error) {
       console.error('Error rendering content for tab:', navState.activeTab, error);
       throw error;
@@ -679,7 +772,7 @@ function AppContent() {
   };
 
   // Determine if bottom navigation should be shown
-  const showBottomNav = isAuthenticated && ['home', 'friends', 'split', 'bills', 'profile'].includes(navState.activeTab);
+  const showBottomNav = isAuthenticated && PRIMARY_TABS.has(navState.activeTab);
   
   // Determine if padding should be applied
   const screensThatNeedPadding = new Set(['friends', 'split', 'bills', 'profile']);

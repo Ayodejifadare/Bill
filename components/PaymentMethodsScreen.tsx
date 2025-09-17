@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -38,11 +38,19 @@ export function PaymentMethodsScreen({ onNavigate }: PaymentMethodsScreenProps) 
 
   const [isAddingMethod, setIsAddingMethod] = useState(false);
   const [methodType, setMethodType] = useState<'bank' | 'mobile_money'>('bank');
-  const [formData, setFormData] = useState({
+  interface FormDataState {
+    bank: string;
+    accountNumber: string;
+    accountName: string;
+    accountType: 'checking' | 'savings';
+    provider: string;
+    phoneNumber: string;
+  }
+  const [formData, setFormData] = useState<FormDataState>({
     bank: '',
     accountNumber: '',
     accountName: '',
-    accountType: 'checking' as const,
+    accountType: 'checking',
     provider: '',
     phoneNumber: ''
   });
@@ -99,35 +107,32 @@ export function PaymentMethodsScreen({ onNavigate }: PaymentMethodsScreenProps) 
 
     try {
       const selectedBank = banks.find(bank => bank.name === formData.bank);
-      const basePayload: Partial<PaymentMethod> = {
-        type: methodType,
-        ...(methodType === 'bank'
+      const basePayload: CreatePaymentMethodPayload =
+        methodType === 'bank'
           ? {
+              type: 'bank',
               bank: formData.bank,
               accountNumber: formData.accountNumber,
               accountName: formData.accountName,
               accountType: formData.accountType,
-              ...(
-                requiresRoutingNumber(appSettings.region)
-                  ? { routingNumber: selectedBank?.code }
-                  : { sortCode: selectedBank?.code }
-              )
+              ...(requiresRoutingNumber(appSettings.region)
+                ? { routingNumber: selectedBank?.code ?? '' }
+                : { sortCode: selectedBank?.code ?? '' }),
+              isDefault: false,
             }
           : {
+              type: 'mobile_money',
               provider: formData.provider,
-              phoneNumber: formData.phoneNumber
-            })
-      };
+              phoneNumber: formData.phoneNumber,
+              isDefault: false,
+            };
 
       if (editingMethod) {
         await updatePaymentMethod(editingMethod.id, basePayload);
         toast.success('Payment method updated successfully!');
       } else {
-        const createPayload: CreatePaymentMethodPayload = {
-          ...basePayload,
-          isDefault: paymentMethods.length === 0
-        };
-        await createPaymentMethod(createPayload);
+        basePayload.isDefault = paymentMethods.length === 0;
+        await createPaymentMethod(basePayload);
         toast.success('Payment method added successfully!');
       }
       const methods = await fetchPaymentMethods();

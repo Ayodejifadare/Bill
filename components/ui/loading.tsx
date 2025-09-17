@@ -1,4 +1,3 @@
-import React from 'react';
 import { Loader2, RefreshCw, Wifi, WifiOff, AlertCircle } from 'lucide-react';
 import { Button } from './button';
 import { Card } from './card';

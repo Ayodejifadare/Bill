@@ -62,15 +62,15 @@ export function useGroups(): UseGroupsResult {
         return {
           id: g.id,
           name: g.name,
+          description: g.description || '',
+          memberCount: typeof g.memberCount === 'number' ? g.memberCount : members.length,
+          totalSpent: typeof g.totalSpent === 'number' ? g.totalSpent : 0,
+          recentActivity: g.recentActivity || '',
           members,
-          color: g.color || '',
-          description: '',
-          memberCount: members.length,
-          totalSpent: 0,
-          recentActivity: '',
-          isAdmin: false,
-          lastActive: null,
-          pendingBills: 0
+          isAdmin: Boolean(g.isAdmin),
+          lastActive: g.lastActive ?? null,
+          pendingBills: typeof g.pendingBills === 'number' ? g.pendingBills : 0,
+          color: g.color || ''
         } as Group;
       });
       setGroups(mapped);
@@ -84,6 +84,13 @@ export function useGroups(): UseGroupsResult {
 
   useEffect(() => {
     fetchGroups();
+  }, [fetchGroups]);
+
+  // Allow other parts of the app to request a refresh
+  useEffect(() => {
+    const handler = () => fetchGroups();
+    window.addEventListener('groupsUpdated', handler);
+    return () => window.removeEventListener('groupsUpdated', handler);
   }, [fetchGroups]);
 
   const joinGroup = useCallback(async (groupId: string) => {

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Smartphone, ExternalLink, CheckCircle, AlertCircle, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Smartphone, ExternalLink, CheckCircle, RefreshCw } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
@@ -39,7 +39,7 @@ interface LinkedBankOption {
 export function BankingRedirectScreen({ paymentRequest, method, onNavigate }: BankingRedirectScreenProps) {
   const { userProfile, appSettings } = useUserProfile();
   const fmt = (n: number) => formatCurrencyForRegion(appSettings.region, n);
-  const linkedBanks: LinkedBankOption[] = userProfile.linkedBankAccounts.map(account => ({
+  const linkedBanks: LinkedBankOption[] = (userProfile?.linkedBankAccounts ?? []).map(account => ({
     id: account.id,
     name: account.bankName,
     accountName: account.accountName,
@@ -59,7 +59,7 @@ export function BankingRedirectScreen({ paymentRequest, method, onNavigate }: Ba
   const [checkAttempts, setCheckAttempts] = useState(0);
 
   useEffect(() => {
-    let timer: NodeJS.Timeout;
+    let timer: ReturnType<typeof setInterval> | undefined;
     
     if (redirectStatus === 'waiting' && timeLeft > 0) {
       timer = setInterval(() => {
@@ -70,12 +70,14 @@ export function BankingRedirectScreen({ paymentRequest, method, onNavigate }: Ba
       toast.error('Payment session expired. Please try again.');
     }
 
-    return () => clearInterval(timer);
+    return () => {
+      if (timer) clearInterval(timer);
+    };
   }, [redirectStatus, timeLeft]);
 
   // Simulate checking for payment completion
   useEffect(() => {
-    let checkTimer: NodeJS.Timeout;
+    let checkTimer: ReturnType<typeof setInterval> | undefined;
     
     if (redirectStatus === 'waiting') {
       checkTimer = setInterval(() => {
@@ -92,7 +94,9 @@ export function BankingRedirectScreen({ paymentRequest, method, onNavigate }: Ba
       }, 3000);
     }
 
-    return () => clearInterval(checkTimer);
+    return () => {
+      if (checkTimer) clearInterval(checkTimer);
+    };
   }, [redirectStatus, checkAttempts]);
 
   if (!paymentRequest || !method) {

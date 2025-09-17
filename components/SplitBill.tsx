@@ -45,9 +45,10 @@ interface SplitParticipant {
 interface SplitBillProps {
   onNavigate: (screen: string, data?: any) => void;
   groupId?: string | null;
+  prefillFriendId?: string | null;
 }
 
-export function SplitBill({ onNavigate, groupId }: SplitBillProps) {
+export function SplitBill({ onNavigate, groupId, prefillFriendId }: SplitBillProps) {
   const { appSettings, userProfile } = useUserProfile();
   const currencySymbol = getCurrencySymbol(appSettings.region);
   // Legacy variable for unreachable code block (safe to remove when legacy block is deleted)
@@ -153,7 +154,9 @@ export function SplitBill({ onNavigate, groupId }: SplitBillProps) {
         if (groupId) {
           const group = fetchedGroups.find((g) => g.id === groupId);
           const groupMembers = group ? group.members : [];
-          const groupParticipants = groupMembers.map((friend) => ({
+          // Exclude the current user from groupParticipants to avoid duplication
+          const filteredMembers = groupMembers.filter((m) => m.id !== currentUser.id);
+          const groupParticipants = filteredMembers.map((friend) => ({
             friend,
             amount: 0,
             percentage: 0,
@@ -179,6 +182,17 @@ export function SplitBill({ onNavigate, groupId }: SplitBillProps) {
       cancelled = true;
     };
   }, [groupId]);
+
+  // Prefill a single friend as participant when provided (and no group preselection)
+  useEffect(() => {
+    if (!prefillFriendId || groupId) return;
+    // Avoid duplicates
+    if (participants.some(p => p.friend.id === prefillFriendId)) return;
+    const friend = availableFriends.find(f => f.id === prefillFriendId);
+    if (friend) {
+      addParticipant(friend);
+    }
+  }, [prefillFriendId, groupId, availableFriends, participants]);
 
   // Fetch external accounts when group changes
   useEffect(() => {
@@ -461,7 +475,7 @@ export function SplitBill({ onNavigate, groupId }: SplitBillProps) {
 
     if (splitTotalCents !== expectedTotalCents) {
       toast.error(
-        `Split amounts (${currencySymbol}${(splitTotalCents / 100).toFixed(2)}) don't match total (${currencySymbol}${(expectedTotalCents / 100).toFixed(2)})`
+        `Split amounts (${formatCurrencyForRegion(appSettings.region, splitTotalCents / 100)}) don't match total (${formatCurrencyForRegion(appSettings.region, expectedTotalCents / 100)})`
       );
       return;
     }
@@ -510,6 +524,10 @@ export function SplitBill({ onNavigate, groupId }: SplitBillProps) {
         }
       }
 
+      // Notify group lists to refresh
+      if (typeof window !== 'undefined') {
+        try { window.dispatchEvent(new Event('groupsUpdated')); } catch {}
+      }
       // Navigate back after success
       if (groupId) {
         onNavigate('group-details', { groupId });

@@ -7,7 +7,8 @@ import { Avatar, AvatarFallback } from './ui/avatar';
 // import { Separator } from './ui/separator';
 import { toast } from 'sonner';
 import { useUserProfile } from './UserProfileContext';
-import { getCurrencySymbol, formatCurrencyForRegion, requiresRoutingNumber, getBankIdentifierLabel, formatBankAccountForRegion } from '../utils/regions';
+import { formatCurrencyForRegion, requiresRoutingNumber, getBankIdentifierLabel, formatBankAccountForRegion } from '../utils/regions';
+import { apiClient } from '../utils/apiClient';
 import { type PaymentMethod, fetchUserPaymentMethods } from '@/api/payment-methods';
 
 interface PaymentFlowScreenProps {

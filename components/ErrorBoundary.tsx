@@ -1,4 +1,4 @@
-import React, { Component, ReactNode } from 'react';
+import { Component, type ReactNode, type ErrorInfo, type FC } from 'react';
 import { AlertTriangle, RefreshCw, Home, Bug } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
@@ -7,7 +7,7 @@ import { Alert, AlertDescription } from './ui/alert';
 interface ErrorBoundaryProps {
   children: ReactNode;
   fallback?: ReactNode;
-  onError?: (error: Error, errorInfo: React.ErrorInfo) => void;
+  onError?: (error: Error, errorInfo: ErrorInfo) => void;
   onRetry?: () => void;
   showHomeButton?: boolean;
   level?: 'page' | 'component' | 'critical';
@@ -44,7 +44,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     };
   }
 
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     // Log error details
     console.error('Error Boundary Caught Error:', {
       error: error.message,
@@ -60,12 +60,12 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
     // In production, you would send this to an error reporting service
     // Example: Sentry, LogRocket, etc.
-    if (process.env.NODE_ENV === 'production') {
+    if (import.meta.env.MODE === 'production') {
       this.reportError(error, errorInfo);
     }
   }
 
-  private reportError = (error: Error, errorInfo: React.ErrorInfo) => {
+  private reportError = (error: Error, errorInfo: ErrorInfo) => {
     // Mock error reporting - replace with actual service
     const errorReport = {
       message: error.message,
@@ -180,7 +180,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
               <p className="text-sm text-muted-foreground mb-4">
                 This page encountered an error and couldn't load properly.
               </p>
-              {process.env.NODE_ENV === 'development' && (
+              {import.meta.env.MODE === 'development' && (
                 <Alert className="border-destructive/20 bg-destructive/5 mb-4 text-left">
                   <Bug className="h-4 w-4" />
                   <AlertDescription>
@@ -224,7 +224,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
           <div className="flex items-center justify-between">
             <div>
               <strong>Component Error:</strong> {error?.message || 'Unknown error'}
-              {process.env.NODE_ENV === 'development' && (
+              {import.meta.env.MODE === 'development' && (
                 <div className="text-xs text-muted-foreground mt-1">
                   ID: {errorId}
                 </div>
@@ -262,7 +262,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 }
 
 // Convenience wrapper components for different error levels
-export const PageErrorBoundary: React.FC<{ children: ReactNode; onRetry?: () => void }> = ({ 
+export const PageErrorBoundary: FC<{ children: ReactNode; onRetry?: () => void }> = ({ 
   children, 
   onRetry 
 }) => (
@@ -271,7 +271,7 @@ export const PageErrorBoundary: React.FC<{ children: ReactNode; onRetry?: () => 
   </ErrorBoundary>
 );
 
-export const ComponentErrorBoundary: React.FC<{ children: ReactNode; onRetry?: () => void }> = ({ 
+export const ComponentErrorBoundary: FC<{ children: ReactNode; onRetry?: () => void }> = ({ 
   children, 
   onRetry 
 }) => (
@@ -280,7 +280,7 @@ export const ComponentErrorBoundary: React.FC<{ children: ReactNode; onRetry?: (
   </ErrorBoundary>
 );
 
-export const CriticalErrorBoundary: React.FC<{ children: ReactNode }> = ({ children }) => (
+export const CriticalErrorBoundary: FC<{ children: ReactNode }> = ({ children }) => (
   <ErrorBoundary level="critical">
     {children}
   </ErrorBoundary>

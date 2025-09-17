@@ -12,6 +12,7 @@ import { getCurrencySymbol, formatCurrencyForRegion } from '../utils/regions';
 import { TransactionSkeleton } from './ui/loading';
 import { useTransactions } from '../hooks/useTransactions';
 import { NotificationBell } from './ui/notification-bell';
+import { apiClient } from '../utils/apiClient';
 
 const quickActions = [
   { id: 'send', icon: Send, label: 'Send', color: 'bg-blue-500' },
@@ -21,7 +22,7 @@ const quickActions = [
 ];
 
 interface HomeScreenProps {
-  onNavigate: (tab: string) => void;
+  onNavigate: (tab: string, data?: any) => void;
 }
 
 export function HomeScreen({ onNavigate }: HomeScreenProps) {

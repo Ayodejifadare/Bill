@@ -17,15 +17,22 @@ export async function fetchFriends(): Promise<Friend[]> {
   if (inflight) return inflight;
   inflight = apiClient('/friends')
     .then((data) => {
-      friendsCache = Array.isArray(data.friends)
-        ? data.friends.filter((f: Friend) => f.status === 'active')
-        : [];
+      const raw = Array.isArray(data.friends) ? data.friends : [];
+      // Normalize server payloads that don't include a status field
+      const normalized: Friend[] = raw.map((f: any) => ({
+        id: String(f.id),
+        name: f.name,
+        avatar: f.avatar,
+        phoneNumber: f.phoneNumber || f.phone,
+        status: (f.status as Friend['status']) || 'active',
+      }));
+      friendsCache = normalized.filter((f) => f.status === 'active');
       return friendsCache;
     })
     .finally(() => {
       inflight = null;
     });
-  return inflight;
+  return inflight!;
 }
 
 export function invalidateFriendsCache() {
@@ -72,4 +79,3 @@ export function useFriends() {
 
   return { friends, loading, error, refetch: load };
 }
-

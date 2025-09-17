@@ -55,6 +55,7 @@ export function RequestMoney({ onNavigate, prefillData }: RequestMoneyProps) {
   const [recurringDayOfWeek, setRecurringDayOfWeek] = useState('monday');
   const [groups, setGroups] = useState<Group[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+  const [methodsLoading, setMethodsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { friends } = useFriends();
 
@@ -90,34 +91,71 @@ export function RequestMoney({ onNavigate, prefillData }: RequestMoneyProps) {
   }, [loadGroups]);
 
   useEffect(() => {
-    const needsRouting = requiresRoutingNumber(appSettings.region);
-    const methods: PaymentMethod[] = (userProfile.linkedBankAccounts || []).map(acc => ({
-      id: acc.id,
-      type: 'bank',
-      bankName: acc.bankName,
-      accountNumber: acc.accountNumber,
-      accountHolderName: acc.accountName,
-      routingNumber: needsRouting ? acc.routingNumber : undefined,
-      sortCode: !needsRouting ? acc.routingNumber : undefined,
-      accountType: acc.accountType,
-      isDefault: acc.isDefault,
-    }));
-    setPaymentMethods(methods);
-    const defaultMethod = methods.find(m => m.isDefault) || null;
-    setSelectedPaymentMethod(prev => {
-      if (prev && methods.some(m => m.id === prev.id)) {
-        return prev;
+    let cancelled = false;
+    async function loadMethods() {
+      try {
+        setMethodsLoading(true);
+        // Prefer server-backed methods for parity with SplitBill
+        const data = await apiClient('/payment-methods');
+        if (cancelled) return;
+        const methods = Array.isArray((data as any).paymentMethods)
+          ? (data as any).paymentMethods
+          : data;
+        const mapped: PaymentMethod[] = methods.map((method: any) => ({
+          id: String(method.id),
+          type: method.type,
+          bankName: method.bank || method.bankName,
+          bank: method.bank,
+          accountNumber: method.accountNumber,
+          accountHolderName: method.accountName || method.accountHolderName,
+          accountName: method.accountName,
+          sortCode: method.sortCode,
+          routingNumber: method.routingNumber,
+          accountType: method.accountType,
+          provider: method.provider,
+          phoneNumber: method.phoneNumber,
+          isDefault: method.isDefault,
+        }));
+        setPaymentMethods(mapped);
+        const defaultMethod = mapped.find(m => m.isDefault) || mapped[0] || null;
+        setSelectedPaymentMethod(prev => {
+          if (prev && mapped.some(m => m.id === prev.id)) return prev;
+          return defaultMethod;
+        });
+      } catch (err) {
+        // Fallback to locally linked bank accounts if server fails
+        const needsRouting = requiresRoutingNumber(appSettings.region);
+        const fallback: PaymentMethod[] = (userProfile?.linkedBankAccounts || []).map(acc => ({
+          id: acc.id,
+          type: 'bank',
+          bankName: acc.bankName,
+          accountNumber: acc.accountNumber,
+          accountHolderName: acc.accountName,
+          routingNumber: needsRouting ? acc.routingNumber : undefined,
+          sortCode: !needsRouting ? acc.routingNumber : undefined,
+          accountType: acc.accountType,
+          isDefault: acc.isDefault,
+        }));
+        if (!cancelled) {
+          setPaymentMethods(fallback);
+          const def = fallback.find(m => m.isDefault) || fallback[0] || null;
+          setSelectedPaymentMethod(def);
+        }
+      } finally {
+        if (!cancelled) setMethodsLoading(false);
       }
-      return defaultMethod;
-    });
-  }, [userProfile.linkedBankAccounts, appSettings.region]);
+    }
+    loadMethods();
+    return () => { cancelled = true };
+  }, [appSettings.region, userProfile?.linkedBankAccounts]);
 
   useEffect(() => {
     if (!prefillData) return;
     if (prefillData.amount) setAmount(prefillData.amount);
     if (prefillData.message) setMessage(prefillData.message);
-    if (prefillData.friendId && friends.length > 0) {
-      const friend = friends.find(f => f.id === prefillData.friendId);
+    const fid = (prefillData as any).friendId || (prefillData as any).recipientId;
+    if (fid && friends.length > 0) {
+      const friend = friends.find(f => f.id === String(fid));
       if (friend) setSelectedFriends([friend]);
     }
   }, [prefillData, friends]);
@@ -424,6 +462,7 @@ Recipients: ${selectedFriends.map(f => f.name).join(', ')}`;
             methods={paymentMethods}
             selectedId={selectedPaymentMethod?.id || null}
             onSelect={setSelectedPaymentMethod}
+            loading={methodsLoading}
             onManage={() => onNavigate('payment-methods')}
           />
         </CardContent>
