@@ -14,6 +14,7 @@ import { ShareSheet } from './ui/share-sheet';
 import { createDeepLink } from './ShareUtils';
 import { PageLoading } from './ui/loading';
 import { apiClient } from '../utils/apiClient';
+import { formatDueDate } from '../utils/formatDueDate';
 
 interface BillSplitDetailsScreenProps {
   billSplitId: string | null;
@@ -63,6 +64,29 @@ interface BillSplit {
 }
 
 const billSplitCache = new Map<string, BillSplit>();
+
+const formatBillSplitDate = (dateString?: string) => {
+  if (!dateString) {
+    return '';
+  }
+
+  const relative = formatDueDate(dateString);
+  if (relative) {
+    return relative;
+  }
+
+  const parsed = new Date(dateString);
+  if (Number.isNaN(parsed.getTime())) {
+    return '';
+  }
+
+  const now = new Date();
+  return parsed.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: parsed.getFullYear() === now.getFullYear() ? undefined : 'numeric',
+  });
+};
 
 async function getBillSplit(id: string): Promise<BillSplit> {
   const data = await apiClient(`/bill-splits/${id}`);
@@ -217,6 +241,8 @@ export function BillSplitDetailsScreen({ billSplitId, onNavigate }: BillSplitDet
   const paidParticipants = billSplit.participants.filter(p => p.status === 'paid');
   const totalPaid = paidParticipants.reduce((sum, p) => sum + p.amount, 0);
   const progressPercentage = (totalPaid / billSplit.totalAmount) * 100;
+  const formattedBillDate = formatBillSplitDate(billSplit.date);
+  const detailsCardDate = formattedBillDate || '—';
 
   const handleEdit = () => {
     if (billSplitId) {
@@ -280,7 +306,7 @@ export function BillSplitDetailsScreen({ billSplitId, onNavigate }: BillSplitDet
     amount: billSplit.totalAmount,
     description: billSplit.note,
     participantNames: billSplit.participants.map(p => p.name),
-    dueDate: billSplit.date,
+    dueDate: formattedBillDate,
     status: billSplit.status,
     deepLink: createDeepLink('bill-split', billSplit.id)
   } : null;
@@ -581,7 +607,7 @@ export function BillSplitDetailsScreen({ billSplitId, onNavigate }: BillSplitDet
                   <Calendar className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
                   <span className="text-sm text-muted-foreground">Date</span>
                 </div>
-                <span className="text-sm text-right ml-3">{billSplit.date}</span>
+                <span className="text-sm text-right ml-3">{detailsCardDate}</span>
               </div>
               
               <div className="flex items-start justify-between">

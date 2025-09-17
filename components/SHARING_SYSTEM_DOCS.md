@@ -87,7 +87,7 @@ interface ShareData {
   amount: number;
   description?: string;
   participantNames?: string[];
-  dueDate?: string;
+  dueDate?: string; // Pass a user-friendly string; ISO dates are formatted automatically
   status?: string;
   groupName?: string;
   paymentMethod?: string;
@@ -188,6 +188,7 @@ import { ShareUtils } from './ShareUtils';
 1. **Include deep links** for better user experience
 2. **Provide meaningful descriptions** for context
 3. **Format amounts** according to user's region
+4. **Normalize due dates** into user-facing strings before sharing
 
 ### Error Handling
 
