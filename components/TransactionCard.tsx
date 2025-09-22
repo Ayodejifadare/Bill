@@ -129,8 +129,8 @@ export function TransactionCard({ transaction, onNavigate, onClick }: Transactio
     };
   };
 
-  const getInitials = (name: string) =>
-    name
+  const getInitials = (name?: string) =>
+    String(name || '')
       .split(' ')
       .filter(Boolean)
       .map(n => n[0])
@@ -139,7 +139,8 @@ export function TransactionCard({ transaction, onNavigate, onClick }: Transactio
       .toUpperCase();
 
   const userInfo = getUserInfo();
-  const avatarFallback = transaction.avatarFallback || getInitials(userInfo.name);
+  const safeName = userInfo?.name || (transaction.type === 'bill_split' ? 'Bill Split' : 'Unknown');
+  const avatarFallback = transaction.avatarFallback || getInitials(safeName);
 
 
   const handleClick = () => {
@@ -167,7 +168,7 @@ export function TransactionCard({ transaction, onNavigate, onClick }: Transactio
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between mb-1">
-              <p className="font-medium truncate pr-2">{userInfo.name}</p>
+              <p className="font-medium truncate pr-2">{safeName}</p>
               <div className="flex flex-col items-end gap-1 flex-shrink-0">
                 <p className={`font-medium text-sm ${getAmountColor()}`}>
                   {getAmountPrefix()}{fmt(transaction.amount)}
