@@ -3,12 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <!-- Preconnect to speed up first requests -->
-    <link rel="preconnect" href="/api" crossorigin>
-    <link rel="preconnect" href="/uploads" crossorigin>
-    <!-- Hint the browser to prioritize the app bundle -->
-    <!-- For ESM entrypoints, prefer modulepreload or let Vite handle it -->
-    <link rel="modulepreload" href="/src/main.tsx">
+    <!-- Note: Avoid root-relative preconnect/modulepreload hints that collide with local folders during Vite build. -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
