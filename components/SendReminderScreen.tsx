@@ -225,9 +225,9 @@ export function SendReminderScreen({
             status,
             avatar: buildAvatarInitials(avatarSource),
             lastReminder,
-          } satisfies Participant;
+          } as Participant;
         })
-        .filter((participant): participant is Participant => Boolean(participant));
+        .filter(Boolean) as Participant[];
     },
     [buildAvatarInitials, userProfile?.id]
   );
@@ -728,7 +728,7 @@ export function SendReminderScreen({
               </div>
               <Checkbox 
                 checked={includePaymentDetails}
-                onCheckedChange={setIncludePaymentDetails}
+                onCheckedChange={(checked) => setIncludePaymentDetails(checked === true)}
                 className="flex-shrink-0 mt-1"
               />
             </div>
@@ -742,7 +742,7 @@ export function SendReminderScreen({
               </div>
               <Checkbox 
                 checked={scheduleReminder}
-                onCheckedChange={setScheduleReminder}
+                onCheckedChange={(checked) => setScheduleReminder(checked === true)}
                 className="flex-shrink-0 mt-1"
               />
             </div>

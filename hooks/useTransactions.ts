@@ -12,6 +12,7 @@ export interface Transaction {
   type: TransactionType;
   amount: number;
   description: string;
+  category?: string;
   user?: TransactionUser;
   recipient?: TransactionUser;
   sender?: TransactionUser;
@@ -195,4 +196,3 @@ export function useTransactions(initialOptions: UseTransactionsOptions = {}): Us
     refetch: fetchTransactions,
   };
 }
-

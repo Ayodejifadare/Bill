@@ -453,7 +453,8 @@ export function SplitBill({ onNavigate, groupId, prefillFriendId }: SplitBillPro
     
     let currentParticipants = participants;
     if (splitMethod === 'equal') {
-      currentParticipants = calculateEqualSplit(participants);
+      const equalized = calculateEqualSplit(participants);
+      currentParticipants = equalized ?? participants;
     }
 
     // Final normalization and de-duplication of participants by user id
@@ -548,76 +549,49 @@ export function SplitBill({ onNavigate, groupId, prefillFriendId }: SplitBillPro
       return;
     }
 
+    const totalValue = parseFloat(totalAmount || '0');
+    const totalFmt = formatCurrencyForRegion(appSettings.region, Number.isFinite(totalValue) ? totalValue : 0);
     const myShare = participants.find(p => p.friend.id === 'me')?.amount || 0;
+    const myShareFmt = myShare > 0 ? formatCurrencyForRegion(appSettings.region, myShare) : undefined;
 
-    // Region-aware early builder (overrides legacy block below)
-    const total = parseFloat(totalAmount || '0');
-    const totalFmt = formatCurrencyForRegion(appSettings.region, isNaN(total) ? 0 : total);
-    const myShareFmt = myShare > 0 ? formatCurrencyForRegion(appSettings.region, myShare) : '';
-    let built = `Split Bill: ${billName || 'Untitled Bill'}\nTotal Amount: ${totalFmt}`;
-    if (description) built += `\nDescription: ${description}`;
-    if (myShare > 0) built += `\nYour Share: ${myShareFmt}`;
-    built += `\nSend payment to:`;
+    const lines: string[] = [];
+    lines.push(`Split Bill: ${billName || 'Untitled Bill'}`, `Total Amount: ${totalFmt}`);
+    if (description) lines.push(`Description: ${description}`);
+    if (myShareFmt) lines.push(`Your Share: ${myShareFmt}`);
+    lines.push('Send payment to:');
+
     if (selectedPaymentMethod.type === 'bank') {
       const label = getBankIdentifierLabel(appSettings.region);
       const idValue = requiresRoutingNumber(appSettings.region)
         ? selectedPaymentMethod.routingNumber
         : selectedPaymentMethod.sortCode;
-      built += `\n${selectedPaymentMethod.bankName}\n- ${selectedPaymentMethod.accountHolderName}\n${label}: ${idValue}\nAccount: ${selectedPaymentMethod.accountNumber}`;
+      lines.push(
+        '',
+        selectedPaymentMethod.bankName ?? 'Bank Account',
+        `Account Name: ${selectedPaymentMethod.accountHolderName ?? 'N/A'}`,
+        `${label}: ${idValue ?? 'N/A'}`,
+        `Account Number: ${selectedPaymentMethod.accountNumber ?? 'N/A'}`,
+      );
     } else {
-      built += `\n${selectedPaymentMethod.provider}\nPhone: ${selectedPaymentMethod.phoneNumber}`;
+      lines.push(
+        '',
+        selectedPaymentMethod.provider ?? 'Mobile Money',
+        `Phone: ${selectedPaymentMethod.phoneNumber ?? 'N/A'}`,
+      );
     }
+
+    const shareText = lines.join('\n');
+
     try {
       if (navigator.share) {
-        await navigator.share({ text: built });
+        await navigator.share({ text: shareText });
         toast.success('Split details shared');
         return;
       }
       throw new Error('Share not supported');
     } catch {
       try {
-        await navigator.clipboard.writeText(built);
-        toast.success('Split details copied to clipboard');
-      } catch {
-        toast.error('Failed to share split details');
-      }
-    }
-    return;
-
-    let splitDetails = `📄 Split Bill: ${billName || 'Untitled Bill'}
-💰 Total Amount: ${formatCurrencyForRegion(appSettings.region, Number(totalAmount || 0))}
-${description ? `📝 Description: ${description}\n` : ''}
-${myShare > 0 ? `👥 Your Share: ${formatCurrencyForRegion(appSettings.region, myShare)}\n` : ''}
-💳 Send payment to:`;
-
-    if (selectedPaymentMethod.type === 'bank') {
-      splitDetails += isNigeria
-        ? `
-🏦 ${selectedPaymentMethod.bankName}
-👤 ${selectedPaymentMethod.accountHolderName}
-🔢 Account: ${selectedPaymentMethod.accountNumber}
-🏷️ Sort Code: ${selectedPaymentMethod.sortCode}`
-        : `
-🏦 ${selectedPaymentMethod.bankName}
-👤 ${selectedPaymentMethod.accountHolderName}
-🔢 Routing: ${selectedPaymentMethod.routingNumber}
-💳 Account: ${selectedPaymentMethod.accountNumber}`;
-    } else {
-      splitDetails += `
-📱 ${selectedPaymentMethod.provider}
-📞 ${selectedPaymentMethod.phoneNumber}`;
-    }
-
-    try {
-      if (navigator.share) {
-        await navigator.share({ text: splitDetails });
-        toast.success('Split details shared');
-        return;
-      }
-      throw new Error('Share not supported');
-    } catch {
-      try {
-        await navigator.clipboard.writeText(splitDetails);
+        await navigator.clipboard.writeText(shareText);
         toast.success('Split details copied to clipboard');
       } catch {
         toast.error('Failed to share split details');

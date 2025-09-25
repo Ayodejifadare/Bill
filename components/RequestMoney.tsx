@@ -245,57 +245,41 @@ export function RequestMoney({ onNavigate, prefillData }: RequestMoneyProps) {
       toast.error('Please complete all required fields');
       return;
     }
-    // Region-aware early builder (overrides legacy block below)
-    const header = `Payment Request: ${formatCurrencyForRegion(appSettings.region, parseFloat(amount))}`;
-    const msgLine = message ? `Message: ${message}` : '';
-    let built = [header, msgLine, 'Send payment to:'].filter(Boolean).join('\n');
+    const formattedAmount = formatCurrencyForRegion(appSettings.region, parseFloat(amount));
+    const lines: string[] = [];
+
+    lines.push(`Payment Request: ${formattedAmount}`);
+    if (message) {
+      lines.push(`Message: ${message}`);
+    }
+    lines.push('Send payment to:');
+
     if (selectedPaymentMethod.type === 'bank') {
       const label = getBankIdentifierLabel(appSettings.region);
       const idValue = requiresRoutingNumber(appSettings.region)
         ? selectedPaymentMethod.routingNumber
         : selectedPaymentMethod.sortCode;
-      built += `\n${selectedPaymentMethod.bankName}\n- ${selectedPaymentMethod.accountHolderName}\n${label}: ${idValue}\nAccount: ${selectedPaymentMethod.accountNumber}`;
+      lines.push(
+        '',
+        selectedPaymentMethod.bankName ?? 'Bank Account',
+        `Account Name: ${selectedPaymentMethod.accountHolderName ?? 'N/A'}`,
+        `${label}: ${idValue ?? 'N/A'}`,
+        `Account Number: ${selectedPaymentMethod.accountNumber ?? 'N/A'}`,
+      );
     } else {
-      built += `\n${selectedPaymentMethod.provider}\nPhone: ${selectedPaymentMethod.phoneNumber}`;
-    }
-    built += `\n\nRecipients: ${selectedFriends.map(f => f.name).join(', ')}`;
-    if (!navigator.clipboard || !navigator.clipboard.writeText) {
-      toast.error('Clipboard not supported. Please copy manually.');
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(built);
-      toast.success('Request details copied to clipboard');
-    } catch {
-      toast.error('Failed to copy request. Please copy manually.');
-    }
-    return;
-
-    let requestDetails = `💰 Payment Request: ${currencySymbol}${amount}
-${message ? `📝 Message: ${message}\n` : ''}
-🏦 Send payment to:`;
-
-    if (selectedPaymentMethod.type === 'bank') {
-      requestDetails += isNigeria 
-        ? `
-${selectedPaymentMethod.bankName}
-👤 ${selectedPaymentMethod.accountHolderName}
-🔢 Account: ${selectedPaymentMethod.accountNumber}
-🏷️ Sort Code: ${selectedPaymentMethod.sortCode}`
-        : `
-${selectedPaymentMethod.bankName}
-👤 ${selectedPaymentMethod.accountHolderName}
-🔢 Routing: ${selectedPaymentMethod.routingNumber}
-💳 Account: ${selectedPaymentMethod.accountNumber}`;
-    } else {
-      requestDetails += `
-📱 ${selectedPaymentMethod.provider}
-📞 ${selectedPaymentMethod.phoneNumber}`;
+      lines.push(
+        '',
+        selectedPaymentMethod.provider ?? 'Mobile Money',
+        `Phone: ${selectedPaymentMethod.phoneNumber ?? 'N/A'}`,
+      );
     }
 
-    requestDetails += `
+    lines.push(
+      '',
+      `Recipients: ${selectedFriends.map(f => f.name).join(', ')}`,
+    );
 
-Recipients: ${selectedFriends.map(f => f.name).join(', ')}`;
+    const details = lines.join('\n');
 
     if (!navigator.clipboard || !navigator.clipboard.writeText) {
       toast.error('Clipboard not supported. Please copy manually.');
@@ -303,7 +287,7 @@ Recipients: ${selectedFriends.map(f => f.name).join(', ')}`;
     }
 
     try {
-      await navigator.clipboard.writeText(requestDetails);
+      await navigator.clipboard.writeText(details);
       toast.success('Request details copied to clipboard');
     } catch (error) {
       toast.error('Failed to copy request. Please copy manually.');
@@ -791,3 +775,4 @@ Recipients: ${selectedFriends.map(f => f.name).join(', ')}`;
     </div>
   );
 }
+

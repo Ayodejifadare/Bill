@@ -37,42 +37,42 @@ export function generateShareText(
       const participantsList = participantNames ? participantNames.join(', ') : 'friends';
       return `*${title}*
 
-💰 Amount: ${formattedAmount}
-  👥 Split with: ${participantsList}${formattedDueDate ? `\n📅 Due: ${formattedDueDate}` : ''}${description ? `\n📝 ${description}` : ''}
+ Amount: ${formattedAmount}
+   Split with: ${participantsList}${formattedDueDate ? `\n Due: ${formattedDueDate}` : ''}${description ? `\n ${description}` : ''}
 
-_Shared via Biltip 🚀_`;
+_Shared via Biltip _`;
 
     case 'payment_request':
       return `*Payment Request*
 
-💸 Amount: ${formattedAmount}
-👤 From: ${userProfile.name}
-  📋 For: ${title}${formattedDueDate ? `\n📅 Due: ${formattedDueDate}` : ''}${description ? `\n📝 ${description}` : ''}
+ Amount: ${formattedAmount}
+ From: ${userProfile.name}
+   For: ${title}${formattedDueDate ? `\n Due: ${formattedDueDate}` : ''}${description ? `\n ${description}` : ''}
 
-_Send via Biltip 🚀_`;
+_Send via Biltip _`;
 
     case 'transaction':
       return `*Transaction Complete*
 
-✅ ${title}: ${formattedAmount}
-📊 Status: ${status || 'Completed'}${shareData.transactionId ? `\n🧾 Ref: ${shareData.transactionId}` : ''}${shareData.paymentMethod ? `\n💳 Via: ${shareData.paymentMethod}` : ''}
+ ${title}: ${formattedAmount}
+ Status: ${status || 'Completed'}${shareData.transactionId ? `\n Ref: ${shareData.transactionId}` : ''}${shareData.paymentMethod ? `\n Via: ${shareData.paymentMethod}` : ''}
 
-_Powered by Biltip 🚀_`;
+_Powered by Biltip _`;
 
     case 'payment_confirmation':
       return `*Payment Sent Successfully!*
 
-💰 Amount: ${formattedAmount}
-👤 To: ${title}${shareData.transactionId ? `\n🧾 Reference: ${shareData.transactionId}` : ''}${shareData.paymentMethod ? `\n💳 Method: ${shareData.paymentMethod}` : ''}
+ Amount: ${formattedAmount}
+ To: ${title}${shareData.transactionId ? `\n Reference: ${shareData.transactionId}` : ''}${shareData.paymentMethod ? `\n Method: ${shareData.paymentMethod}` : ''}
 
-_Paid via Biltip 🚀_`;
+_Paid via Biltip _`;
 
     case 'group_summary':
       return `*${groupName || 'Group'} Expense Summary*
 
-💰 Total: ${formattedAmount}${participantNames ? `\n👥 Members: ${participantNames.join(', ')}` : ''}${description ? `\n📝 ${description}` : ''}
+ Total: ${formattedAmount}${participantNames ? `\n Members: ${participantNames.join(', ')}` : ''}${description ? `\n ${description}` : ''}
 
-_Tracked with Biltip 🚀_`;
+_Tracked with Biltip _`;
 
     default:
       return `Check out this ${title} for ${formattedAmount} on Biltip!`;
@@ -176,9 +176,9 @@ export function QuickShareButton({
     const formattedAmount = fmt(shareData.amount);
     return `*${shareData.title}*
 
-💰 ${formattedAmount}${shareData.description ? `\n📝 ${shareData.description}` : ''}
+ ${formattedAmount}${shareData.description ? `\n ${shareData.description}` : ''}
 
-_Shared via Biltip 🚀_`;
+_Shared via Biltip _`;
   };
 
   return (

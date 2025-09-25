@@ -151,6 +151,36 @@ export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps
           </Button>
           <h2 className="text-xl font-semibold">Bill Payment</h2>
         </div>
+        <Card className="max-w-md mx-auto">
+          <CardContent className="p-6 text-center space-y-3">
+            <AlertTriangle className="h-10 w-10 mx-auto text-warning" />
+            <p className="font-medium">Payment method unavailable</p>
+            <p className="text-sm text-muted-foreground">
+              The bill does not have payment details yet. Please ask the creator to add one or refresh the bill.
+            </p>
+            <Button onClick={() => onNavigate('bill-split-details', { billSplitId: bill.id })}>
+              View Bill Details
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!bill.paymentMethod) {
+    return (
+      <div className="min-h-screen bg-background px-4 py-6">
+        <div className="flex items-center space-x-4 mb-6">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => onNavigate('bills')}
+            className="min-h-[44px] min-w-[44px] -ml-2"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <h2 className="text-xl font-semibold">Bill Payment</h2>
+        </div>
         <div className="flex flex-col items-center justify-center text-center py-12 space-y-4">
           <AlertTriangle className="h-10 w-10 text-warning" />
           <div className="space-y-2">
@@ -173,7 +203,12 @@ export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps
 
   const formattedBillDate = formatBillDate(bill.date);
   const copyPaymentDetails = async () => {
-    const { paymentMethod } = bill;
+    const paymentMethod = bill?.paymentMethod;
+
+    if (!paymentMethod) {
+      toast.error('Payment details unavailable');
+      return;
+    }
 
     if (!navigator.clipboard || !navigator.clipboard.writeText) {
       toast.error('Clipboard not supported. Please copy manually.');
@@ -185,11 +220,11 @@ export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps
         const usesRouting = requiresRoutingNumber(appSettings.region);
         const label = getBankIdentifierLabel(appSettings.region);
         const idValue = usesRouting ? paymentMethod.routingNumber : paymentMethod.sortCode;
-        const bankInfo = `${paymentMethod.bankName}\nAccount Name: ${paymentMethod.accountHolderName}\n${label}: ${idValue ?? ''}\nAccount Number: ${paymentMethod.accountNumber}`;
+        const bankInfo = `${paymentMethod.bankName ?? ''}\nAccount Name: ${paymentMethod.accountHolderName ?? ''}\n${label}: ${idValue ?? ''}\nAccount Number: ${paymentMethod.accountNumber ?? ''}`;
         await navigator.clipboard.writeText(bankInfo);
         toast.success('Bank account details copied to clipboard');
       } else {
-        const mobileInfo = `${paymentMethod.provider}\nPhone Number: ${paymentMethod.phoneNumber}`;
+        const mobileInfo = `${paymentMethod.provider ?? ''}\nPhone Number: ${paymentMethod.phoneNumber ?? ''}`;
         await navigator.clipboard.writeText(mobileInfo);
         toast.success('Mobile money details copied to clipboard');
       }
@@ -199,11 +234,13 @@ export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps
   };
 
   const copyAmount = () => {
+    if (!bill) return;
     navigator.clipboard.writeText(bill.yourShare.toFixed(2));
     toast.success('Amount copied to clipboard');
   };
 
   const copyReference = async () => {
+    if (!bill) return;
     try {
       // Prefer server-side reference for reconciliation
       const data = await apiClient(`/api/bill-splits/${bill.id}/reference`, { method: 'POST' });

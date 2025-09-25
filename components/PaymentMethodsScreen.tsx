@@ -442,27 +442,40 @@ export function PaymentMethodsScreen({ onNavigate }: PaymentMethodsScreenProps) 
               </CardContent>
             </Card>
           ) : (
-            paymentMethods.map((method) =>
-              method.type === 'bank' ? (
-                <BankAccountCard
-                  key={method.id}
-                  account={method}
-                  onSetDefault={handleSetDefault}
-                  onDelete={handleDeleteMethod}
-                  onEdit={(account) => handleEditMethod(account as PaymentMethod)}
-                  variant="personal"
-                />
-              ) : (
+            paymentMethods.map((method) => {
+              if (method.type === 'bank') {
+                return (
+                  <BankAccountCard
+                    key={method.id}
+                    account={method}
+                    onSetDefault={handleSetDefault}
+                    onDelete={handleDeleteMethod}
+                    onEdit={(account) => handleEditMethod(account as PaymentMethod)}
+                    variant="personal"
+                  />
+                );
+              }
+
+              if (!method.provider || !method.phoneNumber) {
+                return null;
+              }
+
+              return (
                 <MobileMoneyCard
                   key={method.id}
-                  account={method}
+                  account={{
+                    id: method.id,
+                    provider: method.provider,
+                    phoneNumber: method.phoneNumber,
+                    isDefault: method.isDefault,
+                  }}
                   onSetDefault={handleSetDefault}
                   onDelete={handleDeleteMethod}
                   onEdit={(account) => handleEditMethod(account as PaymentMethod)}
                   variant="personal"
                 />
-              )
-            )
+              );
+            })
           )}
         </div>
 

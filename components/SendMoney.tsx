@@ -48,7 +48,8 @@ export function SendMoney({ onNavigate, prefillData }: SendMoneyProps) {
   const [message, setMessage] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [showGroupSelection, setShowGroupSelection] = useState(false);
-  const { friends, refetch: refetchFriends } = useFriends();
+  const { friends: baseFriends, refetch: refetchFriends } = useFriends();
+  const friends = baseFriends as Friend[];
 
   useEffect(() => {
     const handleRefresh = () => refetchFriends();
@@ -150,44 +151,49 @@ export function SendMoney({ onNavigate, prefillData }: SendMoneyProps) {
       toast.error('Please complete all required fields');
       return;
     }
-    // Region-aware early builder (overrides legacy block below)
+
     const amt = formatCurrencyForRegion(appSettings.region, parseFloat(amount));
-    let details = `Send Payment: ${amt}\nTo: ${selectedFriend.name}`;
-    if (message) details += `\nMessage: ${message}`;
+    let details = `Send Payment: ${amt}
+To: ${selectedFriend.name}`;
+    if (message) details += `
+Message: ${message}`;
+
     if (selectedPaymentMethod.type === 'bank') {
       const label = getBankIdentifierLabel(appSettings.region);
       const idValue = requiresRoutingNumber(appSettings.region)
         ? selectedPaymentMethod.routingNumber
         : selectedPaymentMethod.sortCode;
-      details += `\n\nBank Details:\n${selectedPaymentMethod.bankName}\n- ${selectedPaymentMethod.accountHolderName}\n${label}: ${idValue}\nAccount: ${selectedPaymentMethod.accountNumber}`;
-    } else {
-      details += `\n\nMobile Money:\n${selectedPaymentMethod.provider}\nPhone: ${selectedPaymentMethod.phoneNumber}`;
-    }
-    details += `\n\nContact: ${selectedFriend.phoneNumber || 'Phone not available'}`;
-    navigator.clipboard.writeText(details);
-    toast.success('Payment details copied to clipboard');
-    return;
-    const paymentMethod = selectedPaymentMethod;
-    let paymentDetails = `💸 Send Payment: ${formatCurrencyForRegion(appSettings.region, parseFloat(amount))}\n👤 To: ${selectedFriend.name}\n${message ? `📝 Message: ${message}\n` : ''}`;
+      details += `
 
-    if (paymentMethod.type === 'bank') {
-      paymentDetails += `🏦 Bank Details:\n${paymentMethod.bankName}\n👤 ${paymentMethod.accountHolderName}\n`;
-      if (paymentMethod.routingNumber) {
-        paymentDetails += `🔢 Routing: ${paymentMethod.routingNumber}\n`;
-      }
-      if (paymentMethod.sortCode) {
-        paymentDetails += `🏷️ Sort Code: ${paymentMethod.sortCode}\n`;
-      }
-      paymentDetails += `💳 Account: ${paymentMethod.accountNumber}`;
+Bank Details:
+${selectedPaymentMethod.bankName}
+- ${selectedPaymentMethod.accountHolderName}
+${label}: ${idValue}
+Account: ${selectedPaymentMethod.accountNumber}`;
     } else {
-      paymentDetails += `📱 Mobile Money:\n${paymentMethod.provider}\n📞 ${paymentMethod.phoneNumber}`;
+      details += `
+
+Mobile Money:
+${selectedPaymentMethod.provider}
+Phone: ${selectedPaymentMethod.phoneNumber}`;
     }
 
-    paymentDetails += `\n📱 ${selectedFriend.phoneNumber || 'Phone not available'}`;
+    details += `
 
-    navigator.clipboard.writeText(paymentDetails);
-    toast.success('Payment details copied to clipboard');
+Contact: ${selectedFriend.phoneNumber || 'Phone not available'}`;
+
+    if (!navigator.clipboard || !navigator.clipboard.writeText) {
+      toast.error('Clipboard not supported. Please copy manually.');
+      return;
+    }
+
+    navigator.clipboard
+      .writeText(details)
+      .then(() => toast.success('Payment details copied to clipboard'))
+      .catch(() => toast.error('Failed to copy payment details. Please copy manually.'));
   };
+
+
 
 
   return (

@@ -28,7 +28,7 @@ import { formatCurrencyForRegion } from '../utils/regions';
 import { ProfileSkeleton } from './ui/profile-skeleton';
 
 interface ProfileScreenProps {
-  onNavigate: (tab: string) => void;
+  onNavigate: (tab: string, data?: any) => void;
   onLogout?: () => void;
 }
 

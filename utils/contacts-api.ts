@@ -165,8 +165,12 @@ class ContactsAPI {
 
       if (typeof window !== 'undefined' && (window as any).cordova?.plugins?.contacts) {
         // Cordova implementation with runtime permission request
-        const permissions = window.cordova.plugins.permissions;
-        if (permissions?.requestPermission) {
+        const cordova = (window as any).cordova;
+        const permissions = cordova?.plugins?.permissions;
+        if (!permissions) {
+          return { granted: false, denied: true, prompt: false };
+        }
+        if (permissions.requestPermission) {
           const permission = permissions.CONTACTS || permissions.READ_CONTACTS;
           return new Promise(resolve => {
             permissions.requestPermission(
@@ -220,7 +224,8 @@ class ContactsAPI {
       }
 
       // Cordova implementation
-      if ('cordova' in window && window.cordova?.plugins?.contacts) {
+      const cordova = (window as any).cordova;
+      if ('cordova' in window && cordova?.plugins?.contacts) {
         return new Promise((resolve, reject) => {
           const options = {
             filter: '',
@@ -228,7 +233,7 @@ class ContactsAPI {
             desiredFields: ['displayName', 'name', 'phoneNumbers', 'emails']
           };
           
-          window.cordova.plugins.contacts.find(
+          cordova.plugins.contacts.find(
             ['displayName', 'name', 'phoneNumbers', 'emails'],
             (contacts: any[]) => {
               resolve(this.normalizeContacts(contacts));
@@ -285,11 +290,15 @@ class ContactsAPI {
             return contacts;
           }
         } catch (error) {
-          if (error.name === 'SecurityError') {
+          if (error instanceof DOMException && error.name === 'SecurityError') {
             console.warn('File picker not available in cross-origin context, falling back to file input');
             throw new Error('CROSS_ORIGIN_RESTRICTION');
           }
-          console.warn('File picker cancelled or failed:', error);
+          if (error instanceof Error) {
+            console.warn('File picker cancelled or failed:', error);
+          } else {
+            console.warn('File picker cancelled or failed:', error);
+          }
           throw error;
         }
       }

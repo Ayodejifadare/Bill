@@ -11,6 +11,7 @@ import { TransactionCard } from './TransactionCard';
 import { useUserProfile } from './UserProfileContext';
 import { formatCurrencyForRegion } from '../utils/regions';
 import { useTransactions, Transaction } from '../hooks/useTransactions';
+import type { TransactionType } from '../shared/transactions';
 
 interface TransactionHistoryScreenProps {
   onNavigate: (tab: string, data?: any) => void;
@@ -61,7 +62,7 @@ export function TransactionHistoryScreen({ onNavigate, backTo = 'home' }: Transa
     };
   }, [selectedTimeFilter]);
 
-  const type = useMemo(() => {
+  const type: TransactionType | undefined = useMemo(() => {
     switch (selectedTypeFilter) {
       case 'Sent':
         return 'sent';

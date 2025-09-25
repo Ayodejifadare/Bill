@@ -16,9 +16,80 @@ export function SettingsScreen({ onNavigate }: SettingsScreenProps) {
   const { theme, setTheme, actualTheme } = useTheme();
   const { saveSettings, userProfile, updateUserProfile } = useUserProfile();
 
-  const [preferences, setPreferences] = useState(userProfile.preferences);
+  type PreferencesState = {
+    notifications: boolean;
+    emailAlerts: boolean;
+    whatsappAlerts: boolean;
+    darkMode: boolean;
+    biometrics: boolean;
+    notificationSettings: Record<string, unknown>;
+  };
+
+  const fallbackPreferences: PreferencesState = {
+    notifications: false,
+    emailAlerts: false,
+    whatsappAlerts: false,
+    darkMode: false,
+    biometrics: false,
+    notificationSettings: {},
+  };
+
+  type SettingsState = {
+    notifications: {
+      pushNotifications: boolean;
+      emailNotifications: boolean;
+      whatsappNotifications: boolean;
+      smsNotifications: boolean;
+      transactionAlerts: boolean;
+      friendRequests: boolean;
+      billReminders: boolean;
+    };
+    privacy: {
+      biometricAuth: boolean;
+      twoFactorAuth: boolean;
+      publicProfile: boolean;
+      shareActivity: boolean;
+    };
+    preferences: {
+      language: string;
+      currency: string;
+      dateFormat: string;
+    };
+  };
+
+  const initialPreferences: PreferencesState = userProfile
+    ? { ...userProfile.preferences }
+    : fallbackPreferences;
+
+  const toSettingsState = (prefs: PreferencesState): SettingsState => ({
+    notifications: {
+      pushNotifications: prefs.notifications,
+      emailNotifications: prefs.emailAlerts,
+      whatsappNotifications: prefs.whatsappAlerts,
+      smsNotifications: true,
+      transactionAlerts: true,
+      friendRequests: true,
+      billReminders: true,
+    },
+    privacy: {
+      biometricAuth: prefs.biometrics,
+      twoFactorAuth: false,
+      publicProfile: false,
+      shareActivity: true,
+    },
+    preferences: {
+      language: 'en',
+      currency: 'USD',
+      dateFormat: 'MM/DD/YYYY',
+    },
+  });
+
+  const [preferences, setPreferences] = useState<PreferencesState>(initialPreferences);
+  const [settings, setSettings] = useState<SettingsState>(() => toSettingsState(initialPreferences));
+
   useEffect(() => {
-    setPreferences(userProfile.preferences);
+    if (!userProfile) return;
+    setPreferences({ ...userProfile.preferences });
     setSettings(prev => ({
       ...prev,
       notifications: {
@@ -32,41 +103,18 @@ export function SettingsScreen({ onNavigate }: SettingsScreenProps) {
         biometricAuth: userProfile.preferences.biometrics,
       },
     }));
-  }, [userProfile.preferences]);
+  }, [userProfile]);
 
-  const updatePreference = (key: keyof typeof preferences, value: boolean) => {
+  const updatePreference = (key: keyof PreferencesState, value: boolean) => {
     const newPrefs = {
       ...preferences,
       [key]: value,
-    };
+    } as PreferencesState;
     setPreferences(newPrefs);
-    updateUserProfile({ preferences: newPrefs });
+    void updateUserProfile({ preferences: newPrefs });
   };
-  
-  const [settings, setSettings] = useState({
-    notifications: {
-      pushNotifications: userProfile.preferences.notifications,
-      emailNotifications: userProfile.preferences.emailAlerts,
-      whatsappNotifications: userProfile.preferences.whatsappAlerts,
-      smsNotifications: true,
-      transactionAlerts: true,
-      friendRequests: true,
-      billReminders: true,
-    },
-    privacy: {
-      biometricAuth: userProfile.preferences.biometrics,
-      twoFactorAuth: false,
-      publicProfile: false,
-      shareActivity: true,
-    },
-    preferences: {
-      language: 'en',
-      currency: 'USD',
-      dateFormat: 'MM/DD/YYYY',
-    },
-  });
 
-  const updateSetting = (category: keyof typeof settings, key: string, value: boolean | string) => {
+  const updateSetting = (category: keyof SettingsState, key: string, value: boolean | string) => {
     setSettings(prev => ({
       ...prev,
       [category]: {
@@ -76,10 +124,45 @@ export function SettingsScreen({ onNavigate }: SettingsScreenProps) {
     }));
   };
 
+  type UserSettingsPayload = {
+    notifications: Record<string, boolean>;
+    privacy: Record<string, boolean>;
+    preferences: Record<string, string | boolean>;
+  };
+
+  const toUserSettingsPayload = (state: SettingsState): UserSettingsPayload => ({
+    notifications: { ...state.notifications },
+    privacy: { ...state.privacy },
+    preferences: { ...state.preferences },
+  });
+
+  const fromUserSettingsPayload = (payload: UserSettingsPayload): SettingsState => ({
+    notifications: {
+      pushNotifications: Boolean(payload.notifications.pushNotifications),
+      emailNotifications: Boolean(payload.notifications.emailNotifications),
+      whatsappNotifications: Boolean(payload.notifications.whatsappNotifications),
+      smsNotifications: Boolean(payload.notifications.smsNotifications),
+      transactionAlerts: Boolean(payload.notifications.transactionAlerts),
+      friendRequests: Boolean(payload.notifications.friendRequests),
+      billReminders: Boolean(payload.notifications.billReminders),
+    },
+    privacy: {
+      biometricAuth: Boolean(payload.privacy.biometricAuth),
+      twoFactorAuth: Boolean(payload.privacy.twoFactorAuth),
+      publicProfile: Boolean(payload.privacy.publicProfile),
+      shareActivity: Boolean(payload.privacy.shareActivity),
+    },
+    preferences: {
+      language: String(payload.preferences.language ?? 'en'),
+      currency: String(payload.preferences.currency ?? 'USD'),
+      dateFormat: String(payload.preferences.dateFormat ?? 'MM/DD/YYYY'),
+    },
+  });
+
   const handleSave = async () => {
-    const updated = await saveSettings(settings);
+    const updated = await saveSettings(toUserSettingsPayload(settings));
     if (updated) {
-      setSettings(updated);
+      setSettings(fromUserSettingsPayload(updated as UserSettingsPayload));
     }
   };
 

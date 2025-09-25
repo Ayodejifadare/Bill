@@ -39,6 +39,8 @@ export interface ExternalAccount {
 let groupsCache: Group[] | null = null;
 const externalAccountsCache = new Map<string, ExternalAccount[]>();
 
+export type { Friend } from '../hooks/useFriends';
+
 export async function fetchFriends(): Promise<Friend[]> {
   return fetchFriendsApi();
 }
@@ -47,7 +49,12 @@ export async function fetchGroups(): Promise<Group[]> {
   if (groupsCache) return groupsCache;
 
   const data = await apiClient('/groups');
-  groupsCache = Array.isArray(data.groups) ? data.groups : data;
+  const rawGroups = Array.isArray((data as any)?.groups)
+    ? (data as any).groups
+    : Array.isArray(data)
+      ? data
+      : [];
+  groupsCache = rawGroups as Group[];
   return groupsCache;
 }
 

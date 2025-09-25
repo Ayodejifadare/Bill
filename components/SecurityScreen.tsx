@@ -39,6 +39,23 @@ interface SecurityScreenProps {
 
 export function SecurityScreen({ onNavigate }: SecurityScreenProps) {
   const { userProfile } = useUserProfile();
+
+  if (!userProfile) {
+    return (
+      <div className="p-4 space-y-4">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => onNavigate('profile')}
+          className="p-2"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+        <p className="text-sm text-muted-foreground">Loading security settings…</p>
+      </div>
+    );
+  }
+
   const userId = userProfile.id;
 
   const [securitySettings, setSecuritySettings] = useState({

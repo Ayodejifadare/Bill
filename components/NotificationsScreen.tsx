@@ -32,6 +32,14 @@ interface NotificationsScreenProps {
   onNavigate: (tab: string) => void;
 }
 
+interface NotificationsResponse {
+  notifications?: Notification[];
+}
+
+interface NotificationSettingsResponse {
+  settings?: NotificationSettings;
+}
+
 interface NotificationSettings {
   whatsapp: {
     enabled: boolean;
@@ -96,14 +104,14 @@ export function NotificationsScreen({ onNavigate }: NotificationsScreenProps) {
   const [loadingNotifications, setLoadingNotifications] = useState(false);
   const [notificationsError, setNotificationsError] = useState<string | null>(null);
 
-  const fetchNotifications = async (currentFilter = filter) => {
+  const fetchNotifications = async (currentFilter: 'all' | 'unread' = filter) => {
     setLoadingNotifications(true);
     try {
       const endpoint =
         currentFilter === 'unread'
           ? '/api/notifications?filter=unread'
           : '/api/notifications';
-      const data = await apiClientWithRetry(endpoint);
+      const data = await apiClientWithRetry<NotificationsResponse>(endpoint);
       if (Array.isArray(data?.notifications)) {
         const formatted = data.notifications.map((n: Notification) => ({
           ...n,
@@ -126,9 +134,12 @@ export function NotificationsScreen({ onNavigate }: NotificationsScreenProps) {
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const data = await apiClientWithRetry('/api/notification-settings');
+        const data = await apiClientWithRetry<NotificationSettingsResponse>('/api/notification-settings');
         if (data?.settings) {
-          setNotificationSettings(data.settings);
+          setNotificationSettings({
+            ...defaultNotificationSettings,
+            ...data.settings,
+          });
         }
       } catch (error) {
         console.error('Error fetching notification settings:', error);
@@ -285,7 +296,7 @@ export function NotificationsScreen({ onNavigate }: NotificationsScreenProps) {
           <Alert variant="destructive">
             <AlertDescription className="space-y-2">
               <span>{notificationsError}</span>
-              <Button size="sm" variant="outline" onClick={fetchNotifications}>
+              <Button size="sm" variant="outline" onClick={() => fetchNotifications()}>
                 Retry
               </Button>
             </AlertDescription>

@@ -61,7 +61,9 @@ export function SetupRecurringPaymentScreen({
       const formatted: PaymentMethod[] = methods.map((m: ApiPaymentMethod) => ({
         id: m.id,
         type: m.type,
-        name: m.type === 'bank' ? m.bank || m.bankName || '' : m.provider || '',
+        name: m.type === 'bank'
+          ? m.bank || m.accountName || 'Bank Account'
+          : m.provider || 'Mobile Money',
         details:
           m.type === 'bank'
             ? `****${(m.accountNumber || '').slice(-4)}`
@@ -250,7 +252,7 @@ export function SetupRecurringPaymentScreen({
     }
     
     const monthlyAmount = amount * multiplier;
-    return `≈ ${fmt(monthlyAmount)} per ${period}`;
+    return `~ ${fmt(monthlyAmount)} per ${period}`;
   };
 
   const selectedPaymentMethod = paymentMethods.find(pm => pm.id === formData.paymentMethod);
