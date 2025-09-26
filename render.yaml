@@ -16,9 +16,11 @@ services:
     plan: free
     region: oregon
     rootDir: server
-    buildCommand: npm ci && npx prisma generate
-    preDeployCommand: npx prisma migrate deploy
-    startCommand: node server.js
+    buildCommand: |
+      npm ci
+      cd server && npm ci && npm run build
+    startCommand: |
+      cd server && npm run start
     autoDeploy: true
     healthCheckPath: /api/health
     disk:
