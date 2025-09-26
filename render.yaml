@@ -10,6 +10,7 @@ services:
     name: biltip-redis
     plan: free
     maxmemoryPolicy: noeviction
+    ipAllowList: []
 
   - type: web
     name: biltip-api
@@ -20,7 +21,8 @@ services:
     buildCommand: npm ci && npx prisma generate
     startCommand: npx prisma migrate deploy && node server.js
     autoDeploy: true
-    healthCheckPath: /api/health
+    deploy:
+      healthCheckPath: /api/health
     envVars:
       - key: NODE_VERSION
         value: 20.11.1
