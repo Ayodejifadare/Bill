@@ -20,12 +20,7 @@ services:
     buildCommand: npm ci && npx prisma generate
     startCommand: npx prisma migrate deploy && node server.js
     autoDeploy: true
-    disk:
-      name: uploads
-      mountPath: /opt/render/project/src/server/uploads
-      sizeGB: 1
-    deploy:
-      healthCheckPath: /api/health
+    healthCheckPath: /api/health
     envVars:
       - key: NODE_VERSION
         value: 20.11.1
