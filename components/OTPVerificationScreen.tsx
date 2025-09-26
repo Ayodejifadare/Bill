@@ -15,7 +15,7 @@ interface OTPVerificationScreenProps {
   name?: string;
   onSuccess: (data: { token: string; user: any }) => void;
   onBack: () => void;
-  demoOTP?: string; // For demo purposes
+  demoOTP?: string | number; // For demo purposes
 }
 
 export function OTPVerificationScreen({ 
@@ -53,23 +53,35 @@ export function OTPVerificationScreen({
 
   // Auto-fill OTP for demo purposes
   useEffect(() => {
-    if (demoOTP && demoOTP.length === 6) {
-      devAuthConfig.log('Auto-filling OTP from server response', { demoOTP });
-      const otpArray = demoOTP.split('').slice(0, 6);
+    const normalizedDemoOtp =
+      typeof demoOTP === 'string'
+        ? demoOTP.trim()
+        : typeof demoOTP === 'number'
+          ? String(demoOTP).padStart(6, '0')
+          : '';
+
+    if (normalizedDemoOtp.length === 6) {
+      devAuthConfig.log('Auto-filling OTP from server response', { demoOTP: normalizedDemoOtp });
+      const otpArray = normalizedDemoOtp.split('').slice(0, 6);
       setOtp(otpArray);
       // Auto-focus last input
       setTimeout(() => {
         inputRefs.current[5]?.focus();
       }, 100);
-    } else if (devAuthConfig.shouldShowOTPDebug() && devAuthConfig.getMockOTP()) {
-      // Fallback to dev config OTP if no demo OTP provided
-      const mockOTP = devAuthConfig.getMockOTP();
-      devAuthConfig.log('Auto-filling OTP from dev config', { mockOTP });
-      const otpArray = mockOTP.padEnd(6, '0').split('').slice(0, 6);
-      setOtp(otpArray);
-      setTimeout(() => {
-        inputRefs.current[5]?.focus();
-      }, 100);
+      return;
+    }
+
+    if (devAuthConfig.shouldShowOTPDebug()) {
+      const rawMockOtp = devAuthConfig.getMockOTP();
+      const mockOTP = typeof rawMockOtp === 'string' ? rawMockOtp : String(rawMockOtp ?? '');
+      if (mockOTP) {
+        devAuthConfig.log('Auto-filling OTP from dev config', { mockOTP });
+        const otpArray = mockOTP.padEnd(6, '0').split('').slice(0, 6);
+        setOtp(otpArray);
+        setTimeout(() => {
+          inputRefs.current[5]?.focus();
+        }, 100);
+      }
     }
   }, [demoOTP]);
 

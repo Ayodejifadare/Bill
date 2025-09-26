@@ -73,7 +73,7 @@ export function LoginScreen({ onLogin, onShowRegister }: LoginScreenProps) {
   const [otp] = useState('');
   const [, setIsVerifying] = useState(false);
   const [showOtpScreen, setShowOtpScreen] = useState(false);
-  const [otpContext, setOtpContext] = useState<{ phone: string; region: string; demoOTP?: string } | null>(null);
+  const [otpContext, setOtpContext] = useState<{ phone: string; region: string; demoOTP?: string | number } | null>(null);
   const [, setError] = useState('');
 
   const selectedCountry = countryOptions.find(c => c.code === country);
