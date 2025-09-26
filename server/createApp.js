@@ -104,6 +104,11 @@ export default function createApp({ enableSchedulers = true } = {}) {
     next()
   })
 
+  // Lightweight health check before protected routes so Render can verify the service
+  app.get('/api/health', (req, res) => {
+    res.json({ status: 'OK', timestamp: new Date().toISOString(), uptime: process.uptime() })
+  })
+
   // Routes
   app.use('/api/auth', authRoutes)
   app.use('/api', authenticate)
@@ -123,20 +128,4 @@ export default function createApp({ enableSchedulers = true } = {}) {
   app.use('/api/receipts', receiptRoutes)
   app.use('/api', spendingInsightsRoutes)
   app.use('/api', transferRoutes)
-
-  app.get('/api/health', (req, res) => {
-    res.json({ status: 'OK', timestamp: new Date().toISOString(), uptime: process.uptime() })
-  })
-
-  app.use((err, req, res, next) => {
-    console.error(err.stack)
-    res.status(500).json({ error: 'Something went wrong!', message: process.env.NODE_ENV === 'development' ? err.message : undefined })
-  })
-
-  app.use('*', (req, res) => {
-    res.status(404).json({ error: 'Route not found' })
-  })
-
-  return { app, prisma }
-}
 
