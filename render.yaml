@@ -23,10 +23,7 @@ services:
       cd server && npm run start
     autoDeploy: true
     healthCheckPath: /api/health
-    disk:
-      name: uploads
-      mountPath: /opt/render/project/src/server/uploads
-      sizeGB: 1
+    
     envVars:
       - key: NODE_VERSION
         value: 20.11.1
