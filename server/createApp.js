@@ -53,7 +53,7 @@ export default function createApp({ enableSchedulers = true } = {}) {
   // Background jobs only in long-lived environments
   if (enableSchedulers && process.env.ENABLE_SCHEDULERS !== 'false') {
     initSchedulers(prisma)
-    // Periodic cleanup – in serverless it’s best handled by a cron job instead
+    // Periodic cleanup is handled here; serverless deployments should disable schedulers
     setInterval(() => cleanupExpiredCodes(prisma), 60 * 60 * 1000)
   }
 
@@ -93,7 +93,7 @@ export default function createApp({ enableSchedulers = true } = {}) {
   app.use(express.urlencoded({ extended: true, limit: '10mb' }))
   app.use('/uploads', express.static(path.join(process.cwd(), UPLOAD_DIR), {
     maxAge: '7d',
-    setHeaders: (res, filePath) => {
+    setHeaders: (res) => {
       res.setHeader('Cache-Control', 'public, max-age=604800, immutable')
     }
   }))
@@ -102,6 +102,11 @@ export default function createApp({ enableSchedulers = true } = {}) {
   app.use((req, res, next) => {
     req.prisma = prisma
     next()
+  })
+
+  // Lightweight health check before protected routes so Render can verify the service
+  app.get('/api/health', (req, res) => {
+    res.json({ status: 'OK', timestamp: new Date().toISOString(), uptime: process.uptime() })
   })
 
   // Routes
@@ -124,10 +129,6 @@ export default function createApp({ enableSchedulers = true } = {}) {
   app.use('/api', spendingInsightsRoutes)
   app.use('/api', transferRoutes)
 
-  app.get('/api/health', (req, res) => {
-    res.json({ status: 'OK', timestamp: new Date().toISOString(), uptime: process.uptime() })
-  })
-
   app.use((err, req, res, next) => {
     console.error(err.stack)
     res.status(500).json({ error: 'Something went wrong!', message: process.env.NODE_ENV === 'development' ? err.message : undefined })
@@ -139,4 +140,3 @@ export default function createApp({ enableSchedulers = true } = {}) {
 
   return { app, prisma }
 }
-
