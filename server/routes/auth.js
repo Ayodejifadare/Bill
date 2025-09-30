@@ -174,7 +174,9 @@ router.post('/register', [
         password: hashedPassword,
         firstName,
         lastName,
-        phone
+        phone,
+        // Ensure new accounts pass onboarding gate until full onboarding flow exists
+        onboardingCompleted: true
       },
       select: {
         id: true,

@@ -10,6 +10,7 @@ import { PageLoading } from './components/ui/loading';
 import { toast } from 'sonner';
 import { saveAuth, loadAuth, clearAuth } from './utils/auth';
 import { apiClient } from './utils/apiClient';
+import { authService } from './services/auth';
 
 // Lazy load components for code splitting
 import { HomeScreen } from './components/HomeScreen';
@@ -37,6 +38,7 @@ const UpcomingPaymentsScreen = lazy(() => import('./components/UpcomingPaymentsS
 const PaymentFlowScreen = lazy(() => import('./components/PaymentFlowScreen').then(m => ({ default: m.PaymentFlowScreen })));
 const TransactionHistoryScreen = lazy(() => import('./components/TransactionHistoryScreen').then(m => ({ default: m.TransactionHistoryScreen })));
 const SpendingInsightsScreen = lazy(() => import('./components/SpendingInsightsScreen').then(m => ({ default: m.SpendingInsightsScreen })));
+const OTPVerificationScreen = lazy(() => import('./components/OTPVerificationScreen').then(m => ({ default: m.OTPVerificationScreen })));
 
 // Lazy load group-related screens
 const CreateGroupScreen = lazy(() => import('./components/CreateGroupScreen').then(m => ({ default: m.CreateGroupScreen })));
@@ -272,6 +274,7 @@ function AppContent() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showLogin, setShowLogin] = useState(true);
   const [isInitializing, setIsInitializing] = useState(true);
+  const [pendingOTP, setPendingOTP] = useState<null | { phone: string; region: string; isNewUser: boolean; name?: string; demoOTP?: string }>(null);
   const DEBUG_NAV = false;
   
   // Performance monitoring
@@ -536,24 +539,27 @@ function AppContent() {
         body: JSON.stringify(userData),
       });
 
-      const token = data?.token;
       const user = data?.user;
-      if (!token || !user) {
+      if (!user || !userData?.phone) {
         throw new Error('Invalid registration response');
       }
 
-      const authData = {
-        token,
-        expiresAt: Date.now() + (7 * 24 * 60 * 60 * 1000), // 7 days
-        loginTime: new Date().toISOString(),
+      const phone: string = user.phone || String(userData.phone);
+      const region: 'NG' | 'US' = phone.startsWith('+234') ? 'NG' : 'US';
+
+      // Request OTP for phone verification right after signup
+      const otpReq = await authService.sendOTP(phone, region);
+
+      // Move to OTP verification screen; do not log in yet
+      setPendingOTP({
+        phone,
+        region,
         isNewUser: true,
-      };
+        name: user.name,
+        demoOTP: otpReq?.otp,
+      });
 
-      saveAuth({ auth: authData, user });
-
-      setIsAuthenticated(true);
-      dispatch({ type: 'SET_TAB', payload: 'home' });
-      toast.success(`Welcome to Biltip, ${user.name}! Account created successfully.`);
+      toast.success('We sent you a verification code to continue');
     } catch (error) {
       console.error('Registration error:', error);
       toast.error('Registration failed. Please try again.');
@@ -594,6 +600,37 @@ function AppContent() {
 
   // Show authentication screens if not logged in
   if (!isAuthenticated) {
+    if (pendingOTP) {
+      const onOtpSuccess = ({ token, user }: { token: string; user: any }) => {
+        const authData = {
+          token,
+          expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
+          loginTime: new Date().toISOString(),
+          isNewUser: pendingOTP.isNewUser,
+        } as const;
+        saveAuth({ auth: authData, user });
+        setPendingOTP(null);
+        setIsAuthenticated(true);
+        dispatch({ type: 'SET_TAB', payload: 'home' });
+      };
+      return (
+        <div className="min-h-screen bg-background">
+          <PageErrorBoundary onRetry={() => window.location.reload()}>
+            <Suspense fallback={<MemoizedPageLoading />}>
+              <OTPVerificationScreen
+                phone={pendingOTP.phone}
+                region={pendingOTP.region}
+                isNewUser={pendingOTP.isNewUser}
+                name={pendingOTP.name}
+                demoOTP={pendingOTP.demoOTP}
+                onSuccess={onOtpSuccess}
+                onBack={() => setPendingOTP(null)}
+              />
+            </Suspense>
+          </PageErrorBoundary>
+        </div>
+      );
+    }
     if (showLogin) {
       return (
         <div className="min-h-screen bg-background">
@@ -607,20 +644,19 @@ function AppContent() {
           </PageErrorBoundary>
         </div>
       );
-    } else {
-      return (
-        <div className="min-h-screen bg-background">
-          <PageErrorBoundary onRetry={() => window.location.reload()}>
-            <Suspense fallback={<MemoizedPageLoading />}>
-              <RegisterScreen 
-                onRegister={handleRegister}
-                onShowLogin={() => setShowLogin(true)}
-              />
-            </Suspense>
-          </PageErrorBoundary>
-        </div>
-      );
     }
+    return (
+      <div className="min-h-screen bg-background">
+        <PageErrorBoundary onRetry={() => window.location.reload()}>
+          <Suspense fallback={<MemoizedPageLoading />}>
+            <RegisterScreen 
+              onRegister={handleRegister}
+              onShowLogin={() => setShowLogin(true)}
+            />
+          </Suspense>
+        </PageErrorBoundary>
+      </div>
+    );
   }
 
   const renderPrimaryTab = (tab: string) => {
