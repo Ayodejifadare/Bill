@@ -60,15 +60,24 @@ export default function createApp({ enableSchedulers = true } = {}) {
   // Middleware
   app.use(helmet())
 
+  const normalizeOrigin = (value) => (value ? value.replace(/\/$/, '') : '')
   const defaultFrontend = 'http://localhost:4000'
-  const configuredFrontend = process.env.FRONTEND_URL || defaultFrontend
-  const devOrigins = [configuredFrontend, 'http://localhost:4000', 'http://localhost:3000']
+  const configuredFrontend = normalizeOrigin(process.env.FRONTEND_URL) || defaultFrontend
+  const additionalFrontendOrigins = (process.env.FRONTEND_URLS || '')
+    .split(',')
+    .map((origin) => normalizeOrigin(origin.trim()))
+    .filter(Boolean)
+  const allowedProdOrigins = Array.from(new Set([configuredFrontend, ...additionalFrontendOrigins]))
+  const devOrigins = Array.from(new Set([...allowedProdOrigins, normalizeOrigin('http://localhost:4000'), normalizeOrigin('http://localhost:3000')]))
   app.use(cors({
     origin: (origin, callback) => {
       if (!origin) return callback(null, true)
-      const allowed = process.env.NODE_ENV === 'development'
-        ? devOrigins.includes(origin)
-        : origin === configuredFrontend
+      const normalizedOrigin = normalizeOrigin(origin)
+      const allowedOrigins = process.env.NODE_ENV === 'development' ? devOrigins : allowedProdOrigins
+      const allowed = allowedOrigins.includes(normalizedOrigin)
+      if (!allowed && process.env.NODE_ENV !== 'production') {
+        console.warn(`[CORS] Blocked origin ${origin}`)
+      }
       callback(null, allowed)
     },
     credentials: true
