@@ -27,6 +27,34 @@ const mockRoutes: Array<{ test: RegExp; handler: MockHandler }> = [
   { test: /^\/bill-splits(\/|$)/, handler: mockBillSplits },
 ];
 
+function joinUrl(base: string, resource: string): string {
+  // Absolute resource wins
+  if (/^https?:\/\//i.test(resource)) return resource;
+
+  // Normalize base (remove trailing slashes)
+  const baseNorm = (base || '').replace(/\/+$/, '');
+
+  // If base is absolute, preserve its pathname when joining
+  const isAbsoluteBase = /^https?:\/\//i.test(baseNorm);
+  if (isAbsoluteBase) {
+    const u = new URL(baseNorm);
+    const basePath = u.pathname.replace(/\/+$/, '');
+    // If resource already includes the basePath prefix, avoid duplicating it
+    const resPath = resource.startsWith('/') ? resource : `/${resource}`;
+    const finalPath = resPath.startsWith(basePath + '/') || resPath === basePath
+      ? resPath
+      : `${basePath}${resPath}`;
+    return `${u.origin}${finalPath}`;
+  }
+
+  // Relative base (e.g., '/api'): ensure exactly one slash between base and resource
+  const left = baseNorm || '';
+  const right = resource.replace(/^\/+/, '');
+  const joined = `${left}/${right}`;
+  // Collapse multiple slashes in the path (but leave protocol intact — not applicable here)
+  return joined.replace(/\/{2,}/g, '/');
+}
+
 export async function apiClient(
   input: RequestInfo | URL,
   init: RequestInit = {}
@@ -84,11 +112,7 @@ export async function apiClient(
     : input instanceof URL
       ? input.pathname + input.search
       : String(input);
-  const url = resource.startsWith('http')
-    ? resource
-    : resource.startsWith(apiBaseUrl)
-      ? resource
-      : `${apiBaseUrl}${resource}`;
+  const url = joinUrl(apiBaseUrl, resource);
 
   if (useMockApi) {
     const path = resource.startsWith('http')
