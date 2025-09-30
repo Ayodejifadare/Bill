@@ -5,6 +5,7 @@ import type { MatchedContact } from '../components/contact-sync/types';
 import { toast } from 'sonner';
 import { apiClient } from './apiClient';
 import { useMockApi } from './config';
+import { getRegionConfig } from './regions';
 
 export type ContactErrorCode =
   | 'permission-denied'
@@ -31,6 +32,163 @@ export function showContactError(
     fallback ||
     String(typeOrMessage);
   toast.error(message);
+}
+
+const APP_SETTINGS_KEY = 'biltip-app-settings';
+const USER_STORAGE_KEY = 'biltip_user';
+const DEFAULT_REGION = 'US';
+
+function getPreferredRegionCode(): string {
+  if (typeof window === 'undefined') return DEFAULT_REGION;
+  try {
+    const stored = localStorage.getItem(APP_SETTINGS_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (parsed?.region && typeof parsed.region === 'string') {
+        return String(parsed.region).toUpperCase();
+      }
+    }
+  } catch {
+    // ignore parsing errors
+  }
+
+  try {
+    const storedUser = localStorage.getItem(USER_STORAGE_KEY);
+    if (storedUser) {
+      const parsed = JSON.parse(storedUser);
+      if (parsed?.region && typeof parsed.region === 'string') {
+        return String(parsed.region).toUpperCase();
+      }
+    }
+  } catch {
+    // ignore parsing errors
+  }
+
+  return DEFAULT_REGION;
+}
+
+function normalizePhoneForMatch(phone: string | undefined | null, regionCode?: string): string | null {
+  if (!phone || typeof phone !== 'string') return null;
+  let sanitized = phone.trim();
+  if (!sanitized) return null;
+
+  sanitized = sanitized.replace(/[^0-9+]/g, '');
+  if (!sanitized) return null;
+
+  if (sanitized.startsWith('00')) {
+    sanitized = '+' + sanitized.slice(2);
+  }
+
+  if (sanitized.startsWith('+')) {
+    const digits = sanitized.replace(/[^0-9]/g, '');
+    return digits ? `+${digits}` : null;
+  }
+
+  const digitsOnly = sanitized.replace(/\D/g, '');
+  if (!digitsOnly) return null;
+
+  const region = (regionCode || getPreferredRegionCode()).toUpperCase();
+  const dialCode = getRegionConfig(region).phoneCountryCode || '+1';
+
+  if (digitsOnly.length === 10 && dialCode === '+1') {
+    return dialCode + digitsOnly;
+  }
+
+  if (digitsOnly.length >= 10 && digitsOnly.startsWith('0')) {
+    return dialCode + digitsOnly.slice(1);
+  }
+
+  if (!digitsOnly.startsWith(dialCode.replace('+', ''))) {
+    return `${dialCode}${digitsOnly}`;
+  }
+
+  return `+${digitsOnly}`;
+}
+
+type ContactMatchKey = string;
+
+interface PreparedContact {
+  payload: {
+    id?: string;
+    name?: string;
+    displayName?: string;
+    phoneNumbers?: string[];
+    emails?: string[];
+    phone?: string;
+    phoneNumber?: string;
+  };
+  original: Contact;
+  keys: Set<ContactMatchKey>;
+  primaryPhone?: string;
+  primaryEmail?: string;
+  displayName: string;
+}
+
+function buildContactKeys(contact: PreparedContact): ContactMatchKey[] {
+  return Array.from(contact.keys);
+}
+
+function prepareContactForMatching(contact: Contact, region: string, index: number): PreparedContact {
+  const normalizedPhones = new Set<string>();
+  const rawPhoneCandidates: string[] = [];
+
+  const addPhoneCandidate = (value?: string) => {
+    if (!value || typeof value !== 'string') return;
+    const trimmed = value.trim();
+    if (!trimmed) return;
+    rawPhoneCandidates.push(trimmed);
+    const normalized = normalizePhoneForMatch(trimmed, region);
+    if (normalized) {
+      normalizedPhones.add(normalized);
+    }
+  };
+
+  if (Array.isArray(contact.phoneNumbers)) {
+    contact.phoneNumbers.forEach(addPhoneCandidate);
+  }
+
+  addPhoneCandidate((contact as any).phone);
+  addPhoneCandidate((contact as any).phoneNumber);
+
+  const normalizedEmails = new Set<string>();
+  if (Array.isArray(contact.emails)) {
+    contact.emails.forEach(email => {
+      if (typeof email === 'string' && email.trim()) {
+        normalizedEmails.add(email.trim().toLowerCase());
+      }
+    });
+  }
+
+  const keys = new Set<ContactMatchKey>();
+  normalizedPhones.forEach(phone => keys.add(`phone:${phone}`));
+  normalizedEmails.forEach(email => keys.add(`email:${email}`));
+
+  const primaryPhone = rawPhoneCandidates.find(Boolean);
+  const primaryEmail = Array.from(normalizedEmails)[0];
+
+  const payloadPhones = Array.from(normalizedPhones);
+  const payloadEmails = Array.from(normalizedEmails);
+
+  const payload = {
+    id: contact.id,
+    name: contact.name,
+    displayName: contact.displayName,
+    phoneNumbers: payloadPhones.length ? payloadPhones : undefined,
+    emails: payloadEmails.length ? payloadEmails : undefined,
+    phone: payloadPhones[0],
+    phoneNumber: payloadPhones[0]
+  };
+
+  const displayName = contact.displayName || contact.name || `Contact ${index + 1}`;
+
+  return {
+    payload,
+    original: contact,
+    keys,
+    primaryPhone,
+    primaryEmail,
+    displayName
+  };
 }
 
 export interface Contact {
@@ -534,58 +692,105 @@ class ContactsAPI {
 
   // Match contacts with existing users by calling the backend
   async matchContacts(contacts: Contact[]): Promise<MatchedContact[]> {
+    const region = getPreferredRegionCode();
+    const prepared = contacts.map((contact, index) => prepareContactForMatching(contact, region, index));
+    const payloadContacts = prepared.map(item => item.payload);
+
+    const buildResults = (entries: any[]): MatchedContact[] => {
+      const matchedKeySet = new Set<ContactMatchKey>();
+
+      const matchedContacts = entries.map((entry, idx): MatchedContact => {
+        const phoneCandidates: string[] = [];
+        if (Array.isArray(entry.phoneNumbers)) {
+          entry.phoneNumbers.forEach((phone: string) => {
+            if (typeof phone === 'string') {
+              phoneCandidates.push(phone);
+            }
+          });
+        }
+        if (typeof entry.phone === 'string') {
+          phoneCandidates.push(entry.phone);
+        }
+        if (typeof entry.phoneNumber === 'string') {
+          phoneCandidates.push(entry.phoneNumber);
+        }
+
+        phoneCandidates.forEach(raw => {
+          const normalized = normalizePhoneForMatch(raw, region);
+          if (normalized) {
+            matchedKeySet.add(`phone:${normalized}`);
+          }
+        });
+
+        if (entry.email) {
+          const normalizedEmail = String(entry.email).trim().toLowerCase();
+          if (normalizedEmail) {
+            matchedKeySet.add(`email:${normalizedEmail}`);
+          }
+        }
+
+        const status = entry.status === 'existing_user' ? 'existing_user' : 'not_on_app';
+        const displayPhone = phoneCandidates.find(Boolean) || '';
+        const identifier = entry.userId || entry.id || entry.contactId || displayPhone || `matched_${idx}`;
+
+        return {
+          id: String(identifier),
+          name: entry.name || entry.displayName || entry.username || `Contact ${idx + 1}`,
+          phone: displayPhone,
+          email: entry.email || undefined,
+          status,
+          userId: entry.userId,
+          username: entry.username,
+          mutualFriends: typeof entry.mutualFriends === 'number' ? entry.mutualFriends : undefined,
+          avatar: entry.avatar
+        };
+      });
+
+      const inviteSet = new Set<ContactMatchKey>();
+      const inviteContacts: MatchedContact[] = [];
+
+      prepared.forEach((item, idx) => {
+        const itemKeys = buildContactKeys(item);
+        if (itemKeys.length === 0) return;
+        const hasMatch = itemKeys.some(key => matchedKeySet.has(key));
+        if (hasMatch) return;
+
+        const uniqueKey = itemKeys[0] || `contact_${idx}`;
+        if (inviteSet.has(uniqueKey)) return;
+        inviteSet.add(uniqueKey);
+
+        inviteContacts.push({
+          id: item.original.id || uniqueKey,
+          name: item.displayName,
+          phone: item.primaryPhone || item.payload.phone || item.payload.phoneNumber || '',
+          email: item.primaryEmail,
+          status: 'not_on_app'
+        });
+      });
+
+      return [...matchedContacts, ...inviteContacts];
+    };
+
     if (useMockApi) {
       const data = await apiClient('/contacts/match', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contacts })
+        body: JSON.stringify({ contacts: payloadContacts })
       });
 
       const results = Array.isArray(data?.contacts) ? data.contacts : [];
-
-      return results.map((c: any, index: number): MatchedContact => ({
-        id: c.id || c.contactId || contacts[index]?.id || `contact_${index}`,
-        name: c.name || c.displayName || contacts[index]?.name || 'Unknown',
-        phone:
-          c.phone ||
-          c.phoneNumber ||
-          c.phoneNumbers?.[0] ||
-          contacts[index]?.phoneNumbers?.[0] ||
-          '',
-        email: c.email || c.emails?.[0] || contacts[index]?.emails?.[0],
-        status: c.status === 'existing_user' ? 'existing_user' : 'not_on_app',
-        userId: c.userId,
-        username: c.username,
-        mutualFriends: typeof c.mutualFriends === 'number' ? c.mutualFriends : undefined,
-        avatar: c.avatar
-      }));
+      return buildResults(results);
     }
 
     try {
       const data = await apiClient('/contacts/match', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contacts })
+        body: JSON.stringify({ contacts: payloadContacts })
       });
 
       const results = Array.isArray(data?.contacts) ? data.contacts : [];
-
-      return results.map((c: any, index: number): MatchedContact => ({
-        id: c.id || c.contactId || contacts[index]?.id || `contact_${index}`,
-        name: c.name || c.displayName || contacts[index]?.name || 'Unknown',
-        phone:
-          c.phone ||
-          c.phoneNumber ||
-          c.phoneNumbers?.[0] ||
-          contacts[index]?.phoneNumbers?.[0] ||
-          '',
-        email: c.email || c.emails?.[0] || contacts[index]?.emails?.[0],
-        status: c.status === 'existing_user' ? 'existing_user' : 'not_on_app',
-        userId: c.userId,
-        username: c.username,
-        mutualFriends: typeof c.mutualFriends === 'number' ? c.mutualFriends : undefined,
-        avatar: c.avatar
-      }));
+      return buildResults(results);
     } catch (error: any) {
       console.error('Failed to match contacts:', error);
       if (error instanceof Error) {
@@ -604,22 +809,9 @@ export const contactsAPI = ContactsAPI.getInstance();
 // WhatsApp utility functions
 export class WhatsAppAPI {
   private static formatPhoneNumber(phone: string): string {
-    // Remove all non-digits
-    const digits = phone.replace(/\D/g, '');
-    
-    // If it doesn't start with a country code, assume it's a local number
-    // You might want to adjust this based on your user base
-    if (digits.length === 10 && !digits.startsWith('1')) {
-      // Assume US/Canada number if 10 digits without country code
-      return '1' + digits;
-    }
-    
-    // Remove leading + or 00
-    if (digits.startsWith('00')) {
-      return digits.substring(2);
-    }
-    
-    return digits;
+    const region = getPreferredRegionCode();
+    const normalized = normalizePhoneForMatch(phone, region) || phone;
+    return normalized.replace(/\D/g, '');
   }
 
   static generateInviteMessage(userName?: string): string {
