@@ -39,8 +39,14 @@ function joinUrl(base: string, resource: string): string {
   if (isAbsoluteBase) {
     const u = new URL(baseNorm);
     const basePath = u.pathname.replace(/\/+$/, '');
+    const baseHasApi = /(^|\/)api(\/|$)/.test(basePath);
+    // Ensure resource has a leading slash
+    let resPath = resource.startsWith('/') ? resource : `/${resource}`;
+    // If base path doesn't include '/api' and resource doesn't start with it, prefix '/api'
+    if (!baseHasApi && !resPath.startsWith('/api/')) {
+      resPath = `/api${resPath}`;
+    }
     // If resource already includes the basePath prefix, avoid duplicating it
-    const resPath = resource.startsWith('/') ? resource : `/${resource}`;
     const finalPath = resPath.startsWith(basePath + '/') || resPath === basePath
       ? resPath
       : `${basePath}${resPath}`;
