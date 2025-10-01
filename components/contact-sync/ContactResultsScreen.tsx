@@ -18,6 +18,7 @@ interface ContactResultsScreenProps extends ContactSyncScreenProps {
   setIsInviting: (value: boolean) => void;
   onRetrySync?: () => void;
   syncMethod?: 'contacts' | 'file' | 'demo';
+  updateMatchedContacts: (updater: (prev: MatchedContact[]) => MatchedContact[]) => void;
 }
 
 export function ContactResultsScreen({
@@ -28,7 +29,8 @@ export function ContactResultsScreen({
   isInviting,
   setIsInviting,
   onRetrySync,
-  syncMethod = 'contacts'
+  syncMethod = 'contacts',
+  updateMatchedContacts
 }: ContactResultsScreenProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<ActiveTab>('on_app');
@@ -81,17 +83,30 @@ export function ContactResultsScreen({
     );
   };
 
-  const handleAddAllFriends = () => {
+  const handleAddAllFriends = async () => {
     const selectedFriends = existingUsers.filter(contact => 
       selectedContacts.has(contact.id)
     );
-    
-    selectedFriends.forEach(contact => {
-      handleSendFriendRequest(contact);
-    });
-    
-    // Clear selections
-    setSelectedContacts(new Set());
+
+    if (selectedFriends.length === 0) {
+      return;
+    }
+
+    setIsInviting(true);
+    try {
+      for (const contact of selectedFriends) {
+        const result = await handleSendFriendRequest(contact);
+        if (result.success) {
+          updateMatchedContacts(prev => prev.map(item =>
+            item.id === contact.id ? { ...item, status: 'pending' } : item
+          ));
+        }
+      }
+    } finally {
+      setIsInviting(false);
+      // Clear selections
+      setSelectedContacts(new Set());
+    }
   };
 
   const getSyncMethodBadge = () => {

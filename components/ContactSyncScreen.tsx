@@ -306,6 +306,7 @@ export function ContactSyncScreen({ onNavigate }: ContactSyncScreenProps) {
           setIsInviting={setIsInviting}
           onRetrySync={handleRetrySync}
           syncMethod={syncMethod}
+          updateMatchedContacts={setMatchedContacts}
         />
       );
 

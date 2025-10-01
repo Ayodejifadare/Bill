@@ -243,12 +243,27 @@ export function AddFriendScreen({ onNavigate }: AddFriendScreenProps) {
     }
 
     const selectedFriends = syncedContacts.filter(contact =>
-      selectedContacts.includes(contact.id)
+      selectedContacts.includes(contact.id) &&
+      contact.status === 'existing_user' &&
+      Boolean(contact.userId)
     );
+
+    if (selectedFriends.length === 0) {
+      showContactError('Select at least one friend already on Biltip');
+      return;
+    }
+
+    if (selectedFriends.length !== selectedContacts.length) {
+      toast.info('Only contacts already on Biltip can receive friend requests.');
+    }
 
     let allSucceeded = true;
 
     for (const friend of selectedFriends) {
+      if (!friend.userId) {
+        continue;
+      }
+
       const contactForRequest = {
         id: friend.id,
         name: friend.name,
