@@ -132,8 +132,42 @@ router.post('/match', async (req, res) => {
       return res.json({ contacts: [] })
     }
 
+    const [friendships, outgoingRequests] = await Promise.all([
+      req.prisma.friendship.findMany({
+        where: {
+          OR: [
+            { user1Id: req.userId },
+            { user2Id: req.userId }
+          ]
+        },
+        select: { user1Id: true, user2Id: true }
+      }),
+      req.prisma.friendRequest.findMany({
+        where: {
+          senderId: req.userId,
+          status: 'PENDING'
+        },
+        select: { receiverId: true }
+      })
+    ])
+
+    const excludedIds = new Set([req.userId])
+    friendships.forEach(f => {
+      excludedIds.add(f.user1Id === req.userId ? f.user2Id : f.user1Id)
+      excludedIds.add(f.user1Id)
+      excludedIds.add(f.user2Id)
+    })
+    outgoingRequests.forEach(r => excludedIds.add(r.receiverId))
+
+    const where = {
+      OR: whereClauses,
+      NOT: Array.from(excludedIds).length > 0
+        ? { id: { in: Array.from(excludedIds) } }
+        : undefined
+    }
+
     const users = await req.prisma.user.findMany({
-      where: { OR: whereClauses },
+      where,
       select: { id: true, name: true, email: true, phone: true, avatar: true }
     })
 

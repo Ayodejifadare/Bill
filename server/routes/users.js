@@ -395,7 +395,19 @@ router.get('/:id/settings', async (req, res) => {
       twoFactorAuth: !!user.twoFactorEnabled,
       biometricAuth: !!user.biometricEnabled,
     }
-    const preferences = user.preferenceSettings || {}
+    let preferences = {}
+    if (user.preferenceSettings) {
+      if (typeof user.preferenceSettings === 'string') {
+        try {
+          preferences = JSON.parse(user.preferenceSettings)
+        } catch (error) {
+          console.warn('Failed to parse stored preferenceSettings JSON:', error)
+          preferences = {}
+        }
+      } else if (typeof user.preferenceSettings === 'object') {
+        preferences = user.preferenceSettings
+      }
+    }
     if (user.region) preferences.region = user.region
     if (user.currency) preferences.currency = user.currency
 
@@ -420,7 +432,11 @@ router.put('/:id/settings', async (req, res) => {
       if (privacy.biometricAuth !== undefined) data.biometricEnabled = !!privacy.biometricAuth
     }
     if (preferences) {
-      data.preferenceSettings = preferences
+      try {
+        data.preferenceSettings = { set: JSON.stringify(preferences) }
+      } catch {
+        data.preferenceSettings = { set: JSON.stringify({}) }
+      }
       if (preferences.region !== undefined) data.region = preferences.region
       if (preferences.currency !== undefined) data.currency = preferences.currency
     }
@@ -456,7 +472,19 @@ router.put('/:id/settings', async (req, res) => {
       twoFactorAuth: !!updatedUser.twoFactorEnabled,
       biometricAuth: !!updatedUser.biometricEnabled,
     }
-    const preferencesOut = updatedUser.preferenceSettings || {}
+    let preferencesOut = {}
+    if (updatedUser.preferenceSettings) {
+      if (typeof updatedUser.preferenceSettings === 'string') {
+        try {
+          preferencesOut = JSON.parse(updatedUser.preferenceSettings)
+        } catch (error) {
+          console.warn('Failed to parse updated preferenceSettings JSON:', error)
+          preferencesOut = {}
+        }
+      } else if (typeof updatedUser.preferenceSettings === 'object') {
+        preferencesOut = updatedUser.preferenceSettings
+      }
+    }
     if (updatedUser.region) preferencesOut.region = updatedUser.region
     if (updatedUser.currency) preferencesOut.currency = updatedUser.currency
 

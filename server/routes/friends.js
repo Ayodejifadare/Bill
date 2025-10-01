@@ -123,6 +123,10 @@ router.post('/request', [
 
     const { receiverId } = req.body
 
+    if (receiverId === req.userId) {
+      return res.status(400).json({ error: 'Cannot send friend request to yourself' })
+    }
+
     // Check if receiver exists
     const receiver = await req.prisma.user.findUnique({
       where: { id: receiverId }
