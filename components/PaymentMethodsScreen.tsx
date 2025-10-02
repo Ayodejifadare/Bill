@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import { useUserProfile } from './UserProfileContext';
 import { getBankDirectoryForRegion } from '../utils/banks';
 import { getMobileMoneyProviders } from '../utils/providers';
-import { getCurrencyCode, getRegionConfig, requiresRoutingNumber, validateBankAccountNumber, getBankAccountLength } from '../utils/regions';
+import { getRegionConfig, requiresRoutingNumber, validateBankAccountNumber, getBankAccountLength } from '../utils/regions';
 import { BankAccountCard } from './BankAccountCard';
 import { MobileMoneyCard } from './MobileMoneyCard';
 import {
@@ -29,7 +29,7 @@ interface PaymentMethodsScreenProps {
 // Bank directory is centralized in utils/banks; providers in utils/providers
 
 export function PaymentMethodsScreen({ onNavigate }: PaymentMethodsScreenProps) {
-  const { appSettings, updateAppSettings } = useUserProfile();
+  const { appSettings } = useUserProfile();
   const banks = getBankDirectoryForRegion(appSettings.region);
   const providers = getMobileMoneyProviders(appSettings.region);
   const phoneCountryCode = getRegionConfig(appSettings.region).phoneCountryCode;
@@ -199,15 +199,6 @@ export function PaymentMethodsScreen({ onNavigate }: PaymentMethodsScreenProps) 
     setFormData(prev => ({ ...prev, bank: bankName }));
   };
 
-  const handleRegionChange = (region: string) => {
-    updateAppSettings({ 
-      region, 
-      currency: getCurrencyCode(region)
-    });
-    // Clear current payment methods when switching regions
-    setPaymentMethods([]);
-    toast.success(`Switched to ${region === 'NG' ? 'Nigeria' : 'United States'}`);
-  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -232,17 +223,6 @@ export function PaymentMethodsScreen({ onNavigate }: PaymentMethodsScreenProps) 
           </div>
           
           <div className="flex gap-3 items-center">
-            {/* Region Selector */}
-            <Select value={appSettings.region} onValueChange={handleRegionChange}>
-              <SelectTrigger className="w-18 sm:w-20 h-10">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="NG">🇳🇬 NG</SelectItem>
-                <SelectItem value="US">🇺🇸 US</SelectItem>
-              </SelectContent>
-            </Select>
-            
             <Dialog
               open={isAddingMethod}
               onOpenChange={(open) => {

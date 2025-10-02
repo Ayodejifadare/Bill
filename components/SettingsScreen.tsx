@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { ArrowLeft, Bell, Shield, Smartphone, Moon, Sun, Monitor, Globe, CreditCard, Eye, MessageCircle } from 'lucide-react';
 import { useTheme } from './ThemeContext';
 import { useUserProfile } from './UserProfileContext';
+import { resolveRegionFromCurrency } from '../utils/regions';
 
 interface SettingsScreenProps {
   onNavigate: (tab: string) => void;
@@ -14,7 +15,7 @@ interface SettingsScreenProps {
 
 export function SettingsScreen({ onNavigate }: SettingsScreenProps) {
   const { theme, setTheme, actualTheme } = useTheme();
-  const { saveSettings, userProfile, updateUserProfile } = useUserProfile();
+  const { saveSettings, userProfile, updateUserProfile, appSettings, updateAppSettings } = useUserProfile();
 
   type PreferencesState = {
     notifications: boolean;
@@ -79,7 +80,7 @@ export function SettingsScreen({ onNavigate }: SettingsScreenProps) {
     },
     preferences: {
       language: 'en',
-      currency: 'USD',
+      currency: (appSettings.currency || 'USD').toUpperCase(),
       dateFormat: 'MM/DD/YYYY',
     },
   });
@@ -104,6 +105,21 @@ export function SettingsScreen({ onNavigate }: SettingsScreenProps) {
       },
     }));
   }, [userProfile]);
+
+  useEffect(() => {
+    setSettings(prev => {
+      if (prev.preferences.currency === appSettings.currency) {
+        return prev;
+      }
+      return {
+        ...prev,
+        preferences: {
+          ...prev.preferences,
+          currency: (appSettings.currency || 'USD').toUpperCase(),
+        },
+      };
+    });
+  }, [appSettings.currency]);
 
   const updatePreference = (key: keyof PreferencesState, value: boolean) => {
     const newPrefs = {
@@ -154,16 +170,34 @@ export function SettingsScreen({ onNavigate }: SettingsScreenProps) {
     },
     preferences: {
       language: String(payload.preferences.language ?? 'en'),
-      currency: String(payload.preferences.currency ?? 'USD'),
+      currency: String(payload.preferences.currency ?? appSettings.currency ?? 'USD').toUpperCase(),
       dateFormat: String(payload.preferences.dateFormat ?? 'MM/DD/YYYY'),
     },
   });
 
+  const syncCurrencyToAppSettings = (currencyCode?: string) => {
+    if (!currencyCode) return;
+    const normalized = currencyCode.toUpperCase();
+    const resolvedRegion = resolveRegionFromCurrency(normalized);
+    const updates: { currency: string; region?: string } = { currency: normalized };
+    if (resolvedRegion && resolvedRegion !== appSettings.region) {
+      updates.region = resolvedRegion;
+    }
+    if (normalized === appSettings.currency && !updates.region) {
+      return;
+    }
+    updateAppSettings(updates);
+  };
+
   const handleSave = async () => {
     const updated = await saveSettings(toUserSettingsPayload(settings));
     if (updated) {
-      setSettings(fromUserSettingsPayload(updated as UserSettingsPayload));
+      const nextState = fromUserSettingsPayload(updated as UserSettingsPayload);
+      setSettings(nextState);
+      syncCurrencyToAppSettings(nextState.preferences.currency);
+      return;
     }
+    syncCurrencyToAppSettings(settings.preferences.currency);
   };
 
   return (

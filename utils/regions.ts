@@ -149,6 +149,13 @@ export function resolveRegionFromLocale(locale: string | undefined | null): Regi
   return DEFAULT_REGION.code;
 }
 
+export function resolveRegionFromCurrency(currency: string | undefined | null): RegionCode | undefined {
+  if (!currency) return undefined;
+  const normalized = currency.toUpperCase();
+  const match = Object.values(REGION_MAP).find(region => region.currencyCode === normalized);
+  return match?.code;
+}
+
 // Feature helpers
 export function requiresRoutingNumber(region: RegionCode | undefined | null): boolean {
   return getRegionConfig(region).features.requiresRoutingNumber;
