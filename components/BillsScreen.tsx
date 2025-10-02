@@ -226,8 +226,8 @@ export function BillsScreen({ onNavigate, groupId }: BillsScreenProps) {
                     </>
                   )}
   
-                  {/* Reorder/Reuse buttons - always show for completed bills, show for pending if you're the creator */}
-                  {(bill.status === 'completed' || bill.createdBy === 'You') && (
+                  {/* Reorder/Reuse buttons - only show once the bill is completed */}
+                  {bill.status === 'completed' && (
                     <>
                       <Button
                         size="sm"
