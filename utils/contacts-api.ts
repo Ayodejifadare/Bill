@@ -415,9 +415,8 @@ class ContactsAPI {
         }
       }
 
-      // For demo/web testing, return mock data if no real contacts available
-      // This allows the demo to work even when file import fails
-      return this.getMockContacts();
+      // Fallback: only return mock data in explicit mock mode
+      return useMockApi ? this.getMockContacts() : [];
       
     } catch (error) {
       console.error('Failed to get contacts:', error);
