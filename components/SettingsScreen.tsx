@@ -8,6 +8,7 @@ import { ArrowLeft, Bell, Shield, Smartphone, Moon, Sun, Monitor, Globe, CreditC
 import { useTheme } from './ThemeContext';
 import { useUserProfile } from './UserProfileContext';
 import { resolveRegionFromCurrency } from '../utils/regions';
+import { toast } from 'sonner';
 
 interface SettingsScreenProps {
   onNavigate: (tab: string) => void;
@@ -87,6 +88,7 @@ export function SettingsScreen({ onNavigate }: SettingsScreenProps) {
 
   const [preferences, setPreferences] = useState<PreferencesState>(initialPreferences);
   const [settings, setSettings] = useState<SettingsState>(() => toSettingsState(initialPreferences));
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (!userProfile) return;
@@ -190,14 +192,26 @@ export function SettingsScreen({ onNavigate }: SettingsScreenProps) {
   };
 
   const handleSave = async () => {
-    const updated = await saveSettings(toUserSettingsPayload(settings));
-    if (updated) {
-      const nextState = fromUserSettingsPayload(updated as UserSettingsPayload);
-      setSettings(nextState);
-      syncCurrencyToAppSettings(nextState.preferences.currency);
-      return;
+    const selectedCurrency = settings.preferences.currency;
+    setIsSaving(true);
+    try {
+      const updated = await saveSettings(toUserSettingsPayload(settings));
+      if (updated) {
+        const nextState = fromUserSettingsPayload(updated as UserSettingsPayload);
+        setSettings(nextState);
+        syncCurrencyToAppSettings(nextState.preferences.currency);
+        toast.success('Settings saved');
+        return;
+      }
+      syncCurrencyToAppSettings(selectedCurrency);
+      toast.success('Settings updated');
+    } catch (error) {
+      console.error('Failed to save settings', error);
+      syncCurrencyToAppSettings(selectedCurrency);
+      toast.error('Failed to save settings');
+    } finally {
+      setIsSaving(false);
     }
-    syncCurrencyToAppSettings(settings.preferences.currency);
   };
 
   return (
@@ -516,8 +530,8 @@ export function SettingsScreen({ onNavigate }: SettingsScreenProps) {
         </Card>
 
         {/* Save Changes */}
-        <Button className="w-full h-12" onClick={handleSave}>
-          Save Changes
+        <Button className="w-full h-12" onClick={handleSave} disabled={isSaving} aria-busy={isSaving}>
+          {isSaving ? 'Saving...' : 'Save Changes'}
         </Button>
       </div>
     </div>
