@@ -39,7 +39,7 @@ interface AddFriendScreenProps {
 }
 
 export function AddFriendScreen({ onNavigate }: AddFriendScreenProps) {
-  const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
+  const [selectedContacts, setSelectedContacts] = useState<Set<string>>(() => new Set());
   const [searchQuery, setSearchQuery] = useState('');
   const [inviteMethod, setInviteMethod] = useState<'whatsapp' | 'sms' | 'email'>('whatsapp');
   const [inviteData, setInviteData] = useState({
@@ -58,6 +58,9 @@ export function AddFriendScreen({ onNavigate }: AddFriendScreenProps) {
   const [syncProgress, setSyncProgress] = useState(0);
   const [showSyncPrompt, setShowSyncPrompt] = useState(true);
   const [contactSubTab, setContactSubTab] = useState<'on_app' | 'invite'>('on_app');
+  const VISIBLE_BATCH = 50;
+  const [visibleOnAppCount, setVisibleOnAppCount] = useState(VISIBLE_BATCH);
+  const [visibleInviteCount, setVisibleInviteCount] = useState(VISIBLE_BATCH);
   
   // Progressive disclosure states
   const [showInvitePreview, setShowInvitePreview] = useState(false);
@@ -182,28 +185,47 @@ export function AddFriendScreen({ onNavigate }: AddFriendScreenProps) {
     }
   }, [searchQuery, contactSubTab, existingUsers, inviteableContacts, hasSyncedContacts, activeMode]);
   
+  useEffect(() => {
+    if (contactSubTab === 'on_app') {
+      setVisibleOnAppCount(VISIBLE_BATCH);
+    } else {
+      setVisibleInviteCount(VISIBLE_BATCH);
+    }
+  }, [contactSubTab, searchQuery, existingUsers.length, inviteableContacts.length]);
+  
   const getDisplayContacts = () => {
     if (!hasSyncedContacts || activeMode !== 'contacts') return [];
-    return filteredContacts;
+    if (contactSubTab === 'on_app') {
+      return filteredContacts.slice(0, visibleOnAppCount);
+    }
+    return filteredContacts.slice(0, visibleInviteCount);
   };
 
   const displayContacts = getDisplayContacts();
 
   // Get selected contacts for display
   const getSelectedContacts = () => {
-    return syncedContacts.filter(contact => selectedContacts.includes(contact.id));
+    return syncedContacts.filter(contact => selectedContacts.has(contact.id));
   };
 
   const handleContactToggle = (contactId: string) => {
-    setSelectedContacts(prev =>
-      prev.includes(contactId)
-        ? prev.filter(id => id !== contactId)
-        : [...prev, contactId]
-    );
+    setSelectedContacts(prev => {
+      const next = new Set(prev);
+      if (next.has(contactId)) {
+        next.delete(contactId);
+      } else {
+        next.add(contactId);
+      }
+      return next;
+    });
   };
 
   const handleRemoveSelected = (contactId: string) => {
-    setSelectedContacts(prev => prev.filter(id => id !== contactId));
+    setSelectedContacts(prev => {
+      const next = new Set(prev);
+      next.delete(contactId);
+      return next;
+    });
   };
 
   const handleSyncContacts = async () => {
@@ -232,18 +254,18 @@ export function AddFriendScreen({ onNavigate }: AddFriendScreenProps) {
     setSyncedContacts([]);
     setHasSyncedContacts(false);
     setShowSyncPrompt(true);
-    setSelectedContacts([]);
+    setSelectedContacts(new Set());
     localStorage.removeItem('biltip_contacts_synced');
   };
 
   const handleAddSelectedContacts = async () => {
-    if (selectedContacts.length === 0) {
+    if (selectedContacts.size === 0) {
       showContactError('Please select at least one contact to add');
       return;
     }
 
     const selectedFriends = syncedContacts.filter(contact =>
-      selectedContacts.includes(contact.id) &&
+      selectedContacts.has(contact.id) &&
       contact.status === 'existing_user' &&
       Boolean(contact.userId)
     );
@@ -253,7 +275,7 @@ export function AddFriendScreen({ onNavigate }: AddFriendScreenProps) {
       return;
     }
 
-    if (selectedFriends.length !== selectedContacts.length) {
+    if (selectedFriends.length !== selectedContacts.size) {
       toast.info('Only contacts already on Biltip can receive friend requests.');
     }
 
@@ -292,13 +314,13 @@ export function AddFriendScreen({ onNavigate }: AddFriendScreenProps) {
     }
 
     if (allSucceeded) {
-      setSelectedContacts([]);
+      setSelectedContacts(new Set());
     }
   };
 
   const handleInviteContacts = () => {
     const selectedContactsList = inviteableContacts.filter(contact => 
-      selectedContacts.includes(contact.id)
+      selectedContacts.has(contact.id)
     );
     
     if (selectedContactsList.length === 0) return;
@@ -315,7 +337,7 @@ export function AddFriendScreen({ onNavigate }: AddFriendScreenProps) {
     });
     
     toast.success(`Sent ${selectedContactsList.length} WhatsApp invitation${selectedContactsList.length !== 1 ? 's' : ''}!`);
-    setSelectedContacts([]);
+    setSelectedContacts(new Set());
   };
 
   const handleSingleInvite = (contact: Contact) => {
@@ -450,18 +472,18 @@ export function AddFriendScreen({ onNavigate }: AddFriendScreenProps) {
               </div>
               
               {/* Action Button when contacts selected in search mode */}
-              {selectedContacts.length > 0 && (
+              {selectedContacts.size > 0 && (
                 <Button
                   onClick={contactSubTab === 'on_app' ? handleAddSelectedContacts : handleInviteContacts}
                   size="sm"
                   className={`min-h-[44px] ml-2 ${contactSubTab === 'invite' ? 'bg-green-600 hover:bg-green-700 text-white' : ''}`}
                 >
                   {contactSubTab === 'on_app' ? (
-                    <>Add ({selectedContacts.length})</>
+                    <>Add ({selectedContacts.size})</>
                   ) : (
                     <>
                       <MessageCircle className="h-4 w-4 mr-1" />
-                      WhatsApp ({selectedContacts.length})
+                      WhatsApp ({selectedContacts.size})
                     </>
                   )}
                 </Button>
@@ -522,22 +544,22 @@ export function AddFriendScreen({ onNavigate }: AddFriendScreenProps) {
                 </DropdownMenu>
                 
                 {/* Action Button when contacts selected */}
-                {selectedContacts.length > 0 && (
-                  <Button
-                    onClick={contactSubTab === 'on_app' ? handleAddSelectedContacts : handleInviteContacts}
-                    size="sm"
-                    className={`min-h-[44px] ${contactSubTab === 'invite' ? 'bg-green-600 hover:bg-green-700 text-white' : ''}`}
-                  >
-                    {contactSubTab === 'on_app' ? (
-                      <>Add ({selectedContacts.length})</>
-                    ) : (
-                      <>
-                        <MessageCircle className="h-4 w-4 mr-1" />
-                        WhatsApp ({selectedContacts.length})
-                      </>
-                    )}
-                  </Button>
-                )}
+              {selectedContacts.size > 0 && (
+                <Button
+                  onClick={contactSubTab === 'on_app' ? handleAddSelectedContacts : handleInviteContacts}
+                  size="sm"
+                  className={`min-h-[44px] ${contactSubTab === 'invite' ? 'bg-green-600 hover:bg-green-700 text-white' : ''}`}
+                >
+                  {contactSubTab === 'on_app' ? (
+                    <>Add ({selectedContacts.size})</>
+                  ) : (
+                    <>
+                      <MessageCircle className="h-4 w-4 mr-1" />
+                      WhatsApp ({selectedContacts.size})
+                    </>
+                  )}
+                </Button>
+              )}
               </div>
             </>
           )}
@@ -545,7 +567,7 @@ export function AddFriendScreen({ onNavigate }: AddFriendScreenProps) {
       </div>
 
       {/* WhatsApp-Style Selected Contacts Bar - Sticky Full Width */}
-      {selectedContacts.length > 0 && (
+      {selectedContacts.size > 0 && (
         <div className="sticky top-[73px] w-full z-10 border-b border-border bg-background">
           <div className="px-4 py-3">
             <ScrollArea className="w-full">
@@ -586,7 +608,7 @@ export function AddFriendScreen({ onNavigate }: AddFriendScreenProps) {
         </div>
       )}
 
-      <div className={`px-4 ${selectedContacts.length > 0 ? 'pt-6' : 'py-6'} space-y-6 pb-8`}>
+      <div className={`px-4 ${selectedContacts.size > 0 ? 'pt-6' : 'py-6'} space-y-6 pb-8`}>
         {/* Search Results Info */}
         {(isSearchMode || searchQuery) && activeMode === 'contacts' && (
           <div className="text-sm text-muted-foreground px-1 search-info-fade-in">
@@ -741,7 +763,7 @@ export function AddFriendScreen({ onNavigate }: AddFriendScreenProps) {
                           <Card 
                             key={contact.id} 
                             className={`transition-all cursor-pointer min-h-[72px] ${
-                              selectedContacts.includes(contact.id)
+                              selectedContacts.has(contact.id)
                                 ? 'bg-primary/5 border-primary/30' 
                                 : 'hover:bg-accent/50'
                             }`}
@@ -750,7 +772,7 @@ export function AddFriendScreen({ onNavigate }: AddFriendScreenProps) {
                             <CardContent className="p-4">
                               <div className="flex items-center space-x-3">
                                 <Checkbox
-                                  checked={selectedContacts.includes(contact.id)}
+                                  checked={selectedContacts.has(contact.id)}
                                   onChange={() => handleContactToggle(contact.id)}
                                   className="min-h-[20px] min-w-[20px]"
                                 />
@@ -820,6 +842,18 @@ export function AddFriendScreen({ onNavigate }: AddFriendScreenProps) {
                         </Card>
                       )}
                     </div>
+                    {contactSubTab === 'on_app' && filteredContacts.length > visibleOnAppCount && (
+                      <div className="text-center pt-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setVisibleOnAppCount(count => count + VISIBLE_BATCH)}
+                          className="min-h-[40px]"
+                        >
+                          Load More Contacts
+                        </Button>
+                      </div>
+                    )}
                   </TabsContent>
 
                   <TabsContent value="invite" className="space-y-4 mt-4">
@@ -830,7 +864,7 @@ export function AddFriendScreen({ onNavigate }: AddFriendScreenProps) {
                           <Card 
                             key={contact.id}
                             className={`transition-all cursor-pointer min-h-[72px] ${
-                              selectedContacts.includes(contact.id)
+                              selectedContacts.has(contact.id)
                                 ? 'bg-green-50 border-green-200 dark:bg-green-950/20' 
                                 : 'hover:bg-accent/50'
                             }`}
@@ -839,7 +873,7 @@ export function AddFriendScreen({ onNavigate }: AddFriendScreenProps) {
                             <CardContent className="p-4">
                               <div className="flex items-center space-x-3">
                                 <Checkbox
-                                  checked={selectedContacts.includes(contact.id)}
+                                  checked={selectedContacts.has(contact.id)}
                                   onChange={() => handleContactToggle(contact.id)}
                                   className="min-h-[20px] min-w-[20px]"
                                 />
@@ -914,6 +948,18 @@ export function AddFriendScreen({ onNavigate }: AddFriendScreenProps) {
                         </Card>
                       )}
                     </div>
+                    {contactSubTab === 'invite' && filteredContacts.length > visibleInviteCount && (
+                      <div className="text-center pt-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setVisibleInviteCount(count => count + VISIBLE_BATCH)}
+                          className="min-h-[40px]"
+                        >
+                          Load More Contacts
+                        </Button>
+                      </div>
+                    )}
                   </TabsContent>
                 </Tabs>
               </div>

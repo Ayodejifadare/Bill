@@ -126,21 +126,9 @@ export function useTransactions(initialOptions: UseTransactionsOptions = {}): Us
         if (current.minAmount !== undefined) params.append('minAmount', String(current.minAmount));
         if (current.maxAmount !== undefined) params.append('maxAmount', String(current.maxAmount));
         if (current.keyword) params.append('keyword', current.keyword);
+        params.append('includeSummary', 'true');
 
-        const summaryParams = new URLSearchParams();
-        if (current.startDate) summaryParams.append('startDate', current.startDate);
-        if (current.endDate) summaryParams.append('endDate', current.endDate);
-        if (current.type) summaryParams.append('type', current.type);
-        if (current.status) summaryParams.append('status', current.status);
-        if (current.category) summaryParams.append('category', current.category);
-        if (current.minAmount !== undefined) summaryParams.append('minAmount', String(current.minAmount));
-        if (current.maxAmount !== undefined) summaryParams.append('maxAmount', String(current.maxAmount));
-        if (current.keyword) summaryParams.append('keyword', current.keyword);
-
-        const [data, summaryData] = await Promise.all([
-          apiClient(`/api/transactions?${params.toString()}`),
-          apiClient(`/api/transactions/summary?${summaryParams.toString()}`),
-        ]);
+        const data = await apiClient(`/api/transactions?${params.toString()}`);
         const fetched = Array.isArray(data?.transactions) ? data.transactions : [];
         setTransactions(fetched);
         setHasMore(Boolean(data?.hasMore));
@@ -148,9 +136,9 @@ export function useTransactions(initialOptions: UseTransactionsOptions = {}): Us
         setTotal(data?.total ?? 0);
         setPageCount(data?.pageCount ?? 0);
         setSummary({
-          totalSent: summaryData?.totalSent ?? 0,
-          totalReceived: summaryData?.totalReceived ?? 0,
-          netFlow: summaryData?.netFlow ?? 0,
+          totalSent: data?.totalSent ?? 0,
+          totalReceived: data?.totalReceived ?? 0,
+          netFlow: data?.netFlow ?? 0,
         });
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch transactions');

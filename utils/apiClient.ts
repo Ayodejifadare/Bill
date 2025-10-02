@@ -27,6 +27,64 @@ const mockRoutes: Array<{ test: RegExp; handler: MockHandler }> = [
   { test: /^\/bill-splits(\/|$)/, handler: mockBillSplits },
 ];
 
+let cachedAuthString: string | null | undefined;
+let cachedToken: string | null = null;
+let cachedUserString: string | null | undefined;
+let cachedUserId: string | null = null;
+
+function resetAuthCache() {
+  cachedAuthString = undefined;
+  cachedToken = null;
+  cachedUserString = undefined;
+  cachedUserId = null;
+}
+
+function readAuthToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  const authString = window.localStorage.getItem('biltip_auth');
+  if (authString === cachedAuthString) {
+    return cachedToken;
+  }
+
+  cachedAuthString = authString;
+  if (!authString) {
+    cachedToken = null;
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(authString);
+    cachedToken = typeof parsed?.token === 'string' ? parsed.token : null;
+  } catch {
+    cachedToken = null;
+  }
+
+  return cachedToken;
+}
+
+function readStoredUserId(): string | null {
+  if (typeof window === 'undefined') return null;
+  const userString = window.localStorage.getItem('biltip_user');
+  if (userString === cachedUserString) {
+    return cachedUserId;
+  }
+
+  cachedUserString = userString;
+  if (!userString) {
+    cachedUserId = null;
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(userString);
+    cachedUserId = parsed?.id ? String(parsed.id) : null;
+  } catch {
+    cachedUserId = null;
+  }
+
+  return cachedUserId;
+}
+
 function joinUrl(base: string, resource: string): string {
   // Absolute resource wins
   if (/^https?:\/\//i.test(resource)) return resource;
@@ -65,10 +123,7 @@ export async function apiClient(
   input: RequestInfo | URL,
   init: RequestInit = {}
 ) {
-  const storedAuth = typeof window !== 'undefined' ? localStorage.getItem('biltip_auth') : null;
-  const token = storedAuth ? (() => {
-    try { return JSON.parse(storedAuth).token as string | null; } catch { return null; }
-  })() : null;
+  const token = readAuthToken();
 
   const headers: Record<string, string> = {
     ...(init.headers as Record<string, string> | undefined),
@@ -88,6 +143,7 @@ export async function apiClient(
     if (token) {
       console.warn('Invalid auth token, Authorization header omitted');
       clearAuth();
+      resetAuthCache();
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('session-expired'));
       }
@@ -97,16 +153,7 @@ export async function apiClient(
   // Dev-mode auth bypass using backend's x-user-id hook
   if (!headers['Authorization'] && useDevAuth) {
     // Prefer explicit env user id, else fall back to stored user id
-    let xUserId = devUserId;
-    if (!xUserId && typeof window !== 'undefined') {
-      try {
-        const rawUser = localStorage.getItem('biltip_user');
-        if (rawUser) {
-          const parsed = JSON.parse(rawUser);
-          if (parsed?.id) xUserId = String(parsed.id);
-        }
-      } catch {/* ignore */}
-    }
+    let xUserId = devUserId || readStoredUserId();
     if (xUserId) {
       headers['x-user-id'] = xUserId;
     }
@@ -145,6 +192,7 @@ export async function apiClient(
       // If server says we're unauthorized, clear auth and notify app
       if (response.status === 401) {
         clearAuth();
+        resetAuthCache();
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('session-expired'));
         }

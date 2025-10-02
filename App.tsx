@@ -1,4 +1,4 @@
-import { useState, useReducer, Suspense, useCallback, memo, useEffect, useRef } from 'react';
+import { useState, useReducer, Suspense, useCallback, memo, useEffect, useRef, ReactNode } from 'react';
 import { lazy } from 'react';
 import { UserProfileProvider } from './components/UserProfileContext';
 import { BottomNavigation } from './components/BottomNavigation';
@@ -270,6 +270,7 @@ function AppContent() {
   const [mountedPrimaryTabs, setMountedPrimaryTabs] = useState<string[]>(() => (
     PRIMARY_TABS.has(initialState.activeTab) ? [initialState.activeTab] : []
   ));
+  const tabCacheRef = useRef<Map<string, ReactNode>>(new Map());
   const lastPrimaryTabRef = useRef<string>(initialState.activeTab);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showLogin, setShowLogin] = useState(true);
@@ -319,6 +320,7 @@ function AppContent() {
     if (!isAuthenticated) {
       setMountedPrimaryTabs(PRIMARY_TABS.has(initialState.activeTab) ? [initialState.activeTab] : []);
       lastPrimaryTabRef.current = initialState.activeTab;
+      tabCacheRef.current.clear();
       return;
     }
 
@@ -336,7 +338,11 @@ function AppContent() {
       performance.mark('navigation-start');
       
       if (DEBUG_NAV) console.log('Navigation:', tab, data);
-      
+
+      if (PRIMARY_TABS.has(tab)) {
+        tabCacheRef.current.delete(tab);
+      }
+
       // Clear previous state
       dispatch({ type: 'CLEAR_PREVIOUS_STATE', payload: navState.activeTab });
       
@@ -792,11 +798,21 @@ function AppContent() {
       return (
         <>
           <div style={{ display: isPrimaryTab ? 'block' : 'none' }}>
-            {mountedPrimaryTabs.map((tab) => (
-              <div key={tab} style={{ display: tab === activePrimaryTab ? 'block' : 'none' }}>
-                {renderPrimaryTab(tab)}
-              </div>
-            ))}
+            {mountedPrimaryTabs.map((tab) => {
+              const isActiveTab = tab === activePrimaryTab;
+              let content: ReactNode | undefined = tabCacheRef.current.get(tab);
+
+              if (isActiveTab || !content) {
+                content = renderPrimaryTab(tab);
+                tabCacheRef.current.set(tab, content);
+              }
+
+              return (
+                <div key={tab} style={{ display: isActiveTab ? 'block' : 'none' }}>
+                  {content}
+                </div>
+              );
+            })}
           </div>
           {!isPrimaryTab && renderSecondaryContent()}
         </>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ArrowLeft, Users, Search, MessageCircle, UserPlus, CheckCircle, RefreshCw, Share2 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Card, CardContent } from '../ui/card';
@@ -34,13 +34,19 @@ export function ContactResultsScreen({
 }: ContactResultsScreenProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<ActiveTab>('on_app');
+  const VISIBLE_BATCH = 50;
+  const [visibleOnAppCount, setVisibleOnAppCount] = useState(VISIBLE_BATCH);
+  const [visibleInviteCount, setVisibleInviteCount] = useState(VISIBLE_BATCH);
 
   const filteredContacts = filterContacts(matchedContacts, searchQuery);
   const existingUsers = filteredContacts.filter(c => c.status === 'existing_user');
   const inviteableContacts = filteredContacts.filter(c => c.status === 'not_on_app');
 
   const getDisplayContacts = () => {
-    return activeTab === 'on_app' ? existingUsers : inviteableContacts;
+    if (activeTab === 'on_app') {
+      return existingUsers.slice(0, visibleOnAppCount);
+    }
+    return inviteableContacts.slice(0, visibleInviteCount);
   };
 
   const displayContacts = getDisplayContacts();
@@ -108,6 +114,11 @@ export function ContactResultsScreen({
       setSelectedContacts(new Set());
     }
   };
+
+  useEffect(() => {
+    setVisibleOnAppCount(VISIBLE_BATCH);
+    setVisibleInviteCount(VISIBLE_BATCH);
+  }, [searchQuery, matchedContacts.length]);
 
   const getSyncMethodBadge = () => {
     switch (syncMethod) {
@@ -275,8 +286,8 @@ export function ContactResultsScreen({
 
             {/* Friends List */}
             <div className="space-y-3">
-              {existingUsers.length > 0 ? (
-                existingUsers.map((contact) => (
+              {displayContacts.length > 0 ? (
+                displayContacts.map((contact) => (
                   <Card 
                     key={contact.id} 
                     className={`transition-all cursor-pointer min-h-[72px] ${
@@ -347,6 +358,18 @@ export function ContactResultsScreen({
                 </Card>
               )}
             </div>
+            {activeTab === 'on_app' && existingUsers.length > visibleOnAppCount && (
+              <div className="text-center pt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setVisibleOnAppCount(count => count + VISIBLE_BATCH)}
+                  className="min-h-[40px]"
+                >
+                  Load More Contacts
+                </Button>
+              </div>
+            )}
           </TabsContent>
 
           {/* Invite Tab */}
@@ -398,8 +421,8 @@ export function ContactResultsScreen({
 
             {/* Inviteable Contacts List */}
             <div className="space-y-3">
-              {inviteableContacts.length > 0 ? (
-                inviteableContacts.map((contact) => (
+              {displayContacts.length > 0 ? (
+                displayContacts.map((contact) => (
                   <Card 
                     key={contact.id}
                     className={`transition-all cursor-pointer min-h-[72px] ${
@@ -475,6 +498,18 @@ export function ContactResultsScreen({
                 </Card>
               )}
             </div>
+            {activeTab === 'invite' && inviteableContacts.length > visibleInviteCount && (
+              <div className="text-center pt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setVisibleInviteCount(count => count + VISIBLE_BATCH)}
+                  className="min-h-[40px]"
+                >
+                  Load More Contacts
+                </Button>
+              </div>
+            )}
           </TabsContent>
         </Tabs>
 
