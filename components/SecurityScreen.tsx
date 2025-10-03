@@ -6,7 +6,7 @@ import { Input } from './ui/input';
 import { Switch } from './ui/switch';
 import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import {
   ArrowLeft, 
   Shield, 
@@ -257,8 +257,11 @@ export function SecurityScreen({ onNavigate }: SecurityScreenProps) {
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Change Password</DialogTitle>
-              </DialogHeader>
+              <DialogTitle>Change Password</DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground">
+                Set a new password to keep your account secure.
+              </DialogDescription>
+            </DialogHeader>
               <div className="space-y-4">
                 <div className="space-y-2">
                   <label className="text-sm">Current Password</label>
@@ -505,3 +508,6 @@ export function SecurityScreen({ onNavigate }: SecurityScreenProps) {
     </div>
   );
 }
+
+
+

@@ -7,7 +7,7 @@ import { Badge } from './ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from './ui/alert-dialog';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from './ui/sheet';
@@ -557,6 +557,9 @@ export function GroupDetailsScreen({ groupId, onNavigate, onGroupNavigation: _on
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Edit Group</DialogTitle>
+            <DialogDescription className="text-sm text-muted-foreground">
+              Update the group details so everyone stays in sync.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
@@ -686,4 +689,6 @@ export function GroupDetailsScreen({ groupId, onNavigate, onGroupNavigation: _on
     </div>
   );
 }
+
+
 
