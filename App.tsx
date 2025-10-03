@@ -537,7 +537,7 @@ function AppContent() {
     try {
       setIsInitializing(true);
 
-      const data = await apiClient('/api/auth/register', {
+      const data = await apiClient('/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -577,7 +577,7 @@ function AppContent() {
 
   const handleLogout = useCallback(async () => {
     try {
-      await apiClient('/api/auth/logout', { method: 'POST' });
+      await apiClient('/auth/logout', { method: 'POST' });
     } catch (error) {
       console.error('Logout error:', error);
     }
