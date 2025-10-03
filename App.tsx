@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { saveAuth, loadAuth, clearAuth } from './utils/auth';
 import { apiClient } from './utils/apiClient';
 import { authService } from './services/auth';
+import { resolveRegionForSignup } from './utils/regions';
 
 // Lazy load components for code splitting
 import { HomeScreen } from './components/HomeScreen';
@@ -551,7 +552,7 @@ function AppContent() {
       }
 
       const phone: string = user.phone || String(userData.phone);
-      const region: 'NG' | 'US' = phone.startsWith('+234') ? 'NG' : 'US';
+      const region = resolveRegionForSignup(userData?.country, phone);
 
       // Request OTP for phone verification right after signup
       const otpReq = await authService.sendOTP(phone, region);

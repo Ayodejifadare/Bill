@@ -156,6 +156,25 @@ export function resolveRegionFromCurrency(currency: string | undefined | null): 
   return match?.code;
 }
 
+export function resolveRegionForSignup(country: string | undefined | null, phone: string | undefined | null): RegionCode {
+  const normalizedCountry = country?.toUpperCase();
+  if (normalizedCountry && REGION_MAP[normalizedCountry]) {
+    return REGION_MAP[normalizedCountry].code;
+  }
+
+  const normalizedPhone = phone?.replace(/[^\d+]/g, '') ?? '';
+  if (normalizedPhone.startsWith('+234')) return 'NG';
+  if (normalizedPhone.startsWith('+44')) return 'GB';
+  if (normalizedPhone.startsWith('+61')) return 'AU';
+  if (normalizedPhone.startsWith('+353')) return 'EU';
+  if (normalizedPhone.startsWith('+1')) {
+    // Default North American region when country is unknown.
+    return 'US';
+  }
+
+  return DEFAULT_REGION.code;
+}
+
 // Feature helpers
 export function requiresRoutingNumber(region: RegionCode | undefined | null): boolean {
   return getRegionConfig(region).features.requiresRoutingNumber;
