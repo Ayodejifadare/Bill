@@ -6,6 +6,7 @@ import { Checkbox } from './ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Eye, EyeOff, Mail, Lock, User, ArrowLeft } from 'lucide-react';
 import { useUserProfile } from './UserProfileContext';
+import { normalizePhoneNumber } from '../utils/phone';
 
 interface RegisterScreenProps {
   onRegister: (data: any) => Promise<void> | void;
@@ -78,11 +79,13 @@ export function RegisterScreen({ onRegister, onShowLogin }: RegisterScreenProps)
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const selectedCountry = countryOptions.find(c => c.code === formData.country);
+  const exampleLocalNumber = selectedCountry?.code === 'NG'
+    ? '8012345678'
+    : selectedCountry?.code === 'GB'
+      ? '7123456789'
+      : '5551234567';
 
-  const formatPhone = () => {
-    const digits = formData.phone.replace(/\D/g, '').replace(/^0+/, '');
-    return selectedCountry ? `${selectedCountry.phonePrefix}${digits}` : `+${digits}`;
-  };
+  const formatPhone = () => normalizePhoneNumber(formData.phone, selectedCountry?.phonePrefix);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -263,14 +266,14 @@ export function RegisterScreen({ onRegister, onShowLogin }: RegisterScreenProps)
                 <Input
                   id="phone"
                   type="tel"
-                  placeholder={selectedCountry ? `${selectedCountry.phonePrefix}8012345678` : '+15551234567'}
+                  placeholder={selectedCountry ? `e.g. ${exampleLocalNumber} or ${selectedCountry.phonePrefix}${exampleLocalNumber}` : 'e.g. +15551234567'}
                   value={formData.phone}
                   onChange={(e) => updateFormData('phone', e.target.value)}
                   className="h-10"
                 />
                 {selectedCountry && (
                   <p className="text-xs text-muted-foreground">
-                    Enter number in international format, e.g. {selectedCountry.phonePrefix}8012345678
+                    Enter your number with or without the country code. Examples: {exampleLocalNumber}, {selectedCountry.phonePrefix}{exampleLocalNumber}
                   </p>
                 )}
                 {errors.phone && <p className="text-xs text-destructive">{errors.phone}</p>}

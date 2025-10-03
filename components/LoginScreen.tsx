@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { saveAuth } from '../utils/auth';
 import { apiClient } from '../utils/apiClient';
 import { Separator } from './ui/separator';
+import { normalizePhoneNumber } from '../utils/phone';
 
 interface LoginScreenProps {
   onLogin: (authData: any) => void;
@@ -77,6 +78,13 @@ export function LoginScreen({ onLogin, onShowRegister }: LoginScreenProps) {
   const [, setError] = useState('');
 
   const selectedCountry = countryOptions.find(c => c.code === country);
+  const exampleLocalNumber = selectedCountry?.code === 'NG'
+    ? '8012345678'
+    : selectedCountry?.code === 'GB'
+      ? '7123456789'
+      : '5551234567';
+
+  const normalizePhoneInput = () => normalizePhoneNumber(phoneNumber, selectedCountry?.phonePrefix);
 
   const handleSendCode = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,10 +100,10 @@ export function LoginScreen({ onLogin, onShowRegister }: LoginScreenProps) {
     }
 
     try {
-      // Normalize phone to E.164-style: remove non-digits and leading zeros
-      const raw = phoneNumber.replace(/\D/g, '');
-      const national = raw.replace(/^0+/, '');
-      const normalizedPhone = `${selectedCountry?.phonePrefix}${national}`;
+      const normalizedPhone = normalizePhoneInput();
+      if (!normalizedPhone) {
+        throw new Error('Enter a valid phone number');
+      }
       const res = await apiClient('/auth/request-otp', {
         method: 'POST',
         headers: {
@@ -121,10 +129,10 @@ export function LoginScreen({ onLogin, onShowRegister }: LoginScreenProps) {
     setIsVerifying(true);
     setError('');
     try {
-      // Normalize phone to E.164-style: remove non-digits and leading zeros
-      const raw = phoneNumber.replace(/\D/g, '');
-      const national = raw.replace(/^0+/, '');
-      const normalizedPhone = `${selectedCountry?.phonePrefix}${national}`;
+      const normalizedPhone = normalizePhoneInput();
+      if (!normalizedPhone) {
+        throw new Error('Enter a valid phone number');
+      }
       const data = await apiClient('/auth/verify-otp', {
         method: 'POST',
         headers: {
@@ -220,12 +228,17 @@ export function LoginScreen({ onLogin, onShowRegister }: LoginScreenProps) {
                 <Input
                   id="phoneNumber"
                   type="tel"
-                  placeholder={selectedCountry?.code === 'NG' ? '08000000000' : '(555) 123-4567'}
+                  placeholder={selectedCountry ? `e.g. ${exampleLocalNumber} or ${selectedCountry.phonePrefix}${exampleLocalNumber}` : 'e.g. +15551234567'}
                   value={phoneNumber}
                   onChange={(e) => setPhoneNumber(e.target.value)}
                   className="h-10"
                   required
                 />
+                {selectedCountry && (
+                  <p className="text-xs text-muted-foreground">
+                    Enter your number with or without the country code. Examples: {exampleLocalNumber}, {selectedCountry.phonePrefix}{exampleLocalNumber}
+                  </p>
+                )}
               </div>
             </div>
 
