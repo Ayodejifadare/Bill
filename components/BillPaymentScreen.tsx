@@ -269,10 +269,10 @@ export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps
       setPaymentStatus('sent');
       toast.success('Payment marked as sent! The bill creator will be notified.');
 
-      // Navigate back to bills screen after a short delay
+      // Navigate to the bill split details after a short delay for better UX
       setTimeout(() => {
-        onNavigate('bills');
-      }, 2000);
+        onNavigate('bill-split-details', { billSplitId: bill.id });
+      }, 1500);
     } catch (error) {
       console.error('Failed to mark payment as sent', error);
       toast.error('Failed to mark payment as sent');

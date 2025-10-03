@@ -150,9 +150,13 @@ export function PaymentFlowScreen({ paymentRequest, onNavigate }: PaymentFlowScr
       setPaymentStatus('sent');
       toast.success('Payment marked as sent! The recipient will be notified.');
 
-      // Navigate back to home screen after a short delay
+      // Navigate to relevant details after a short delay
       setTimeout(() => {
-        onNavigate('home');
+        if (reqId) {
+          onNavigate('transaction-details', { transactionId: reqId });
+        } else {
+          onNavigate('home');
+        }
       }, 1500);
     } catch (error) {
       console.error('Failed to mark payment as sent', error)

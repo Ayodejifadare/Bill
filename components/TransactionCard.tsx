@@ -146,7 +146,26 @@ export function TransactionCard({ transaction, onNavigate, onClick }: Transactio
   const handleClick = () => {
     if (onClick) {
       onClick();
-    } else if (onNavigate) {
+      return;
+    }
+    if (onNavigate) {
+      // If this is a pending payment request directed to the user, go straight to payment flow
+      if (transaction.type === 'request' && transaction.status === 'pending') {
+        const recipientName = transaction.recipient?.name || transaction.user?.name || 'Recipient';
+        const recipientId = transaction.recipient?.name || transaction.user?.name || recipientName;
+        onNavigate('payment-flow', {
+          paymentRequest: {
+            id: transaction.id,
+            amount: transaction.amount,
+            description: transaction.description,
+            recipient: recipientName,
+            recipientId,
+            requestId: transaction.id,
+          }
+        });
+        return;
+      }
+      // Default: open transaction details
       onNavigate('transaction-details', { transactionId: transaction.id });
     }
   };

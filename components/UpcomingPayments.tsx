@@ -107,9 +107,21 @@ export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
               className="p-4 hover:bg-muted/50 transition-colors cursor-pointer"
               onClick={() => {
                 if (payment.type === 'bill_split' && payment.billSplitId) {
-                  onNavigate('bill-split-details', { billSplitId: payment.billSplitId });
-                } else if (payment.type === 'request' && payment.requestId) {
-                  onNavigate('transaction-details', { transactionId: payment.requestId });
+                  // Take the user straight into the payment flow for better UX
+                  onNavigate('pay-bill', { billId: payment.billSplitId });
+                } else if (payment.type === 'request') {
+                  // Direct money request – open the simplified payment flow
+                  onNavigate('payment-flow', {
+                    paymentRequest: {
+                      id: `upcoming-${payment.id}`,
+                      amount: payment.amount,
+                      description: payment.title,
+                      recipient: payment.organizer.name,
+                      recipientId: payment.organizer.id ?? payment.organizer.name,
+                      requestId: payment.requestId || payment.id,
+                      dueDate: payment.dueDate,
+                    }
+                  });
                 }
               }}
             >

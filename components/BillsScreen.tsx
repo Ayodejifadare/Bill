@@ -123,11 +123,19 @@ export function BillsScreen({ onNavigate, groupId }: BillsScreenProps) {
         <div className="space-y-4">
           {filteredBills.map((bill) => {
             const formattedBillDate = formatBillDate(bill.date);
+            const you = bill.participants?.find((p: any) => p?.name === 'You');
+            const requiresYourPayment = bill.status === 'pending' && you && you.paid === false && bill.yourShare > 0;
             return (
               <Card
                 key={bill.id}
                 className="p-4 cursor-pointer hover:bg-muted/50 transition-colors"
-                onClick={() => onNavigate('bill-split-details', { billSplitId: bill.id })}
+                onClick={() => {
+                  if (requiresYourPayment) {
+                    onNavigate('pay-bill', { billId: bill.id });
+                  } else {
+                    onNavigate('bill-split-details', { billSplitId: bill.id });
+                  }
+                }}
                 >
                 <div className="space-y-3">
                   {/* Header */}

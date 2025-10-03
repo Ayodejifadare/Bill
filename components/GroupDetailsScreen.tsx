@@ -420,7 +420,17 @@ export function GroupDetailsScreen({ groupId, onNavigate, onGroupNavigation: _on
                         status,
                         sender: { name: paidBy, avatar: 'PB' }
                       }}
-                      onClick={() => onNavigate('transaction-details', { transactionId: id })}
+                      onClick={() => {
+                        if (transactionType === 'bill_split') {
+                          if (status === 'pending') {
+                            onNavigate('pay-bill', { billId: id });
+                          } else {
+                            onNavigate('bill-split-details', { billSplitId: id });
+                          }
+                        } else {
+                          onNavigate('transaction-details', { transactionId: id });
+                        }
+                      }}
                     />
                   );
                 })}
