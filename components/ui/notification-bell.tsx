@@ -4,6 +4,7 @@ import { EventSourcePolyfill } from 'event-source-polyfill';
 import { Button } from './button';
 import { Alert, AlertDescription } from './alert';
 import { apiClientWithRetry } from '../../utils/apiClientWithRetry';
+import { apiBaseUrl } from '../../utils/config';
 
 interface NotificationBellProps {
   onClick: () => void;
@@ -39,11 +40,26 @@ export function NotificationBell({ onClick }: NotificationBellProps) {
     });
   };
 
+  function buildSseUrl(): string {
+    const resource = '/notifications/stream';
+    const base = apiBaseUrl || '/api';
+    const isAbs = /^https?:\/\//i.test(base);
+    if (isAbs) {
+      const u = new URL(base);
+      const basePath = u.pathname.replace(/\/+$/, '');
+      const baseHasApi = /(^|\/)api(\/|$)/.test(basePath);
+      const path = `${baseHasApi ? '' : '/api'}${resource}`;
+      return `${u.origin}${basePath}${path}`;
+    }
+    return `${base.replace(/\/+$/, '')}${resource}`;
+  }
+
   const connectSSE = () => {
     const storedAuth = localStorage.getItem('biltip_auth');
     const token = storedAuth ? JSON.parse(storedAuth).token : null;
     if (token && typeof window !== 'undefined') {
-      const es = new EventSourcePolyfill('/api/notifications/stream', {
+      const url = buildSseUrl();
+      const es = new EventSourcePolyfill(url, {
         headers: { Authorization: `Bearer ${token}` },
       });
       es.onmessage = (event) => {

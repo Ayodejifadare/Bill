@@ -505,6 +505,33 @@ function AppContent() {
     }
   }, [navState.currentGroupId, handleNavigate]);
 
+  // Auto-resolve legacy onboarding gate for affected users
+  useEffect(() => {
+    const handler = async (_e: Event) => {
+      try {
+        // Fetch current user id via auth route (not gated by onboarding)
+        const me = await apiClient('/auth/me');
+        const id = me?.user?.id;
+        if (!id) return;
+
+        // Complete onboarding via allowed endpoint
+        await apiClient(`/api/users/${id}/onboarding`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ onboardingCompleted: true }),
+        });
+
+        toast.success('Your account is now ready to use.');
+      } catch (err) {
+        console.error('Auto-onboarding completion failed:', err);
+        toast.error('Please complete onboarding to continue.');
+      }
+    };
+
+    window.addEventListener('onboarding-required' as any, handler as any);
+    return () => window.removeEventListener('onboarding-required' as any, handler as any);
+  }, []);
+
   const handleLogin = useCallback((authResponse?: any) => {
     try {
       setIsInitializing(true);
