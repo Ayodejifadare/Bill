@@ -75,7 +75,7 @@ export function LoginScreen({ onLogin, onShowRegister }: LoginScreenProps) {
   const [, setIsVerifying] = useState(false);
   const [showOtpScreen, setShowOtpScreen] = useState(false);
   const [otpContext, setOtpContext] = useState<{ phone: string; region: string; demoOTP?: string | number } | null>(null);
-  const [, setError] = useState('');
+  const [error, setError] = useState<string>('');
 
   const selectedCountry = countryOptions.find(c => c.code === country);
   const exampleLocalNumber = selectedCountry?.code === 'NG'
@@ -89,7 +89,6 @@ export function LoginScreen({ onLogin, onShowRegister }: LoginScreenProps) {
   const handleSendCode = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setError('');
 
     // Set user region based on selected country
     if (selectedCountry) {
@@ -116,6 +115,7 @@ export function LoginScreen({ onLogin, onShowRegister }: LoginScreenProps) {
       setCodeSent(true);
       setOtpContext({ phone: normalizedPhone, region: selectedCountry?.region || 'US', demoOTP: (res && res.otp) || undefined });
       setShowOtpScreen(true);
+      setError('');
     } catch (error: any) {
       console.error('OTP request error:', error);
       setError(error.message || 'Failed to send code');
@@ -127,7 +127,6 @@ export function LoginScreen({ onLogin, onShowRegister }: LoginScreenProps) {
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsVerifying(true);
-    setError('');
     try {
       const normalizedPhone = normalizePhoneInput();
       if (!normalizedPhone) {
@@ -149,6 +148,7 @@ export function LoginScreen({ onLogin, onShowRegister }: LoginScreenProps) {
         loginTime: new Date().toISOString(),
       };
       saveAuth({ auth: authData, user: data.user });
+      setError('');
       onLogin({ token: data.token, user: data.user });
     } catch (error: any) {
       console.error('OTP verification error:', error);
@@ -248,9 +248,9 @@ export function LoginScreen({ onLogin, onShowRegister }: LoginScreenProps) {
               </p>
             )}
 
-
-
-
+            {error && (
+              <p className="text-sm text-destructive">{error}</p>
+            )}
 
             {/* Send OTP Button */}
             <Button
