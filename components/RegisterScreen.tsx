@@ -78,6 +78,24 @@ export function RegisterScreen({ onRegister, onShowLogin }: RegisterScreenProps)
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  const clearErrorsFor = (keys: string[] = []) => {
+    setErrors(prev => {
+      const updatedErrors = { ...prev };
+
+      if (updatedErrors.api) {
+        delete updatedErrors.api;
+      }
+
+      keys.forEach((key) => {
+        if (updatedErrors[key]) {
+          delete updatedErrors[key];
+        }
+      });
+
+      return updatedErrors;
+    });
+  };
+
   const selectedCountry = countryOptions.find(c => c.code === formData.country);
   const exampleLocalNumber = selectedCountry?.code === 'NG'
     ? '8012345678'
@@ -116,6 +134,8 @@ export function RegisterScreen({ onRegister, onShowLogin }: RegisterScreenProps)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    clearErrorsFor();
+
     if (!validateForm()) return;
 
     setIsLoading(true);
@@ -144,7 +164,7 @@ export function RegisterScreen({ onRegister, onShowLogin }: RegisterScreenProps)
         acceptMarketing,
       });
     } catch (error: any) {
-      setErrors({ api: error.message || 'Registration failed' });
+      setErrors(prev => ({ ...prev, api: error.message || 'Registration failed' }));
     } finally {
       setIsLoading(false);
     }
@@ -152,10 +172,7 @@ export function RegisterScreen({ onRegister, onShowLogin }: RegisterScreenProps)
 
   const updateFormData = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    // Clear error when user starts typing
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: '' }));
-    }
+    clearErrorsFor([field]);
   };
 
   return (
@@ -180,6 +197,11 @@ export function RegisterScreen({ onRegister, onShowLogin }: RegisterScreenProps)
 
         {/* Registration Form */}
         <Card className="p-6">
+          {errors.api && (
+            <div className="mb-4 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+              {errors.api}
+            </div>
+          )}
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Name Fields */}
             <div className="grid grid-cols-2 gap-3">
@@ -348,7 +370,11 @@ export function RegisterScreen({ onRegister, onShowLogin }: RegisterScreenProps)
                 <Checkbox
                   id="terms"
                   checked={acceptTerms}
-                  onCheckedChange={(checked) => setAcceptTerms(checked as boolean)}
+                  onCheckedChange={(checked) => {
+                    const isChecked = checked as boolean;
+                    setAcceptTerms(isChecked);
+                    clearErrorsFor(['terms']);
+                  }}
                 />
                 <label htmlFor="terms" className="text-sm leading-5">
                   I agree to the{' '}
@@ -367,7 +393,10 @@ export function RegisterScreen({ onRegister, onShowLogin }: RegisterScreenProps)
                 <Checkbox
                   id="marketing"
                   checked={acceptMarketing}
-                  onCheckedChange={(checked) => setAcceptMarketing(checked as boolean)}
+                  onCheckedChange={(checked) => {
+                    setAcceptMarketing(checked as boolean);
+                    clearErrorsFor();
+                  }}
                 />
                 <label htmlFor="marketing" className="text-sm leading-5">
                   I'd like to receive marketing updates and promotions
