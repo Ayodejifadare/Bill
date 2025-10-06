@@ -139,7 +139,7 @@ export function SpendingInsightsScreen({ onNavigate, backTo = 'home' }: Spending
       setLoading(true);
       setError(null);
       try {
-        const data = await apiClient(`/api/spending-insights?period=${encodeURIComponent(selectedPeriod)}`);
+        const data = await apiClient(`/spending-insights?period=${encodeURIComponent(selectedPeriod)}`);
         setSpendingData(data);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch spending insights');

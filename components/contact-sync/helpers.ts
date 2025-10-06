@@ -86,7 +86,7 @@ export const handleSendFriendRequest = async (
   contact: MatchedContact
 ): Promise<{ success: boolean; data?: any; error?: string }> => {
   try {
-    const data = await apiClient('/api/friends/request', {
+    const data = await apiClient('/friends/request', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

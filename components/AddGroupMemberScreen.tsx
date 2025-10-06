@@ -69,7 +69,7 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
       setSyncProgress(20);
       const deviceContacts = await contactsAPI.getContacts();
       setSyncProgress(50);
-      const data = await apiClient(`/api/groups/${groupId}/potential-members`, {
+      const data = await apiClient(`/groups/${groupId}/potential-members`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ contacts: deviceContacts })
@@ -263,7 +263,7 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
     setIsInviting(true);
 
     try {
-      await apiClient(`/api/groups/${groupId}/invite`, {
+      await apiClient(`/groups/${groupId}/invite`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ method: 'whatsapp', contacts: selectedContactsList })
@@ -293,7 +293,7 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
   const handleSingleInvite = async (contact: Contact) => {
     setIsInviting(true);
     try {
-      await apiClient(`/api/groups/${groupId}/invite`, {
+      await apiClient(`/groups/${groupId}/invite`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ method: 'whatsapp', contacts: [contact] })
@@ -337,7 +337,7 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
     const methodName = inviteMethod === 'whatsapp' ? 'WhatsApp' : inviteMethod === 'sms' ? 'SMS' : 'Email';
 
     try {
-      await apiClient(`/api/groups/${groupId}/invite`, {
+      await apiClient(`/groups/${groupId}/invite`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ method: inviteMethod, contact: inviteData })

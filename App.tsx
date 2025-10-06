@@ -515,7 +515,7 @@ function AppContent() {
         if (!id) return;
 
         // Complete onboarding via allowed endpoint
-        await apiClient(`/api/users/${id}/onboarding`, {
+        await apiClient(`/users/${id}/onboarding`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ onboardingCompleted: true }),

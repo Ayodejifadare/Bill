@@ -86,7 +86,7 @@ export function NotificationBell({ onClick }: NotificationBellProps) {
       setErrorCount(0);
     }
     try {
-      const data = await apiClientWithRetry('/api/notifications/unread');
+      const data = await apiClientWithRetry('/notifications/unread');
       setUnread((data as any)?.count || 0);
       setError(null);
       setErrorCount(0);

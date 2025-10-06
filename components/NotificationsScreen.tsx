@@ -109,8 +109,8 @@ export function NotificationsScreen({ onNavigate }: NotificationsScreenProps) {
     try {
       const endpoint =
         currentFilter === 'unread'
-          ? '/api/notifications?filter=unread'
-          : '/api/notifications';
+          ? '/notifications?filter=unread'
+          : '/notifications';
       const data = await apiClientWithRetry<NotificationsResponse>(endpoint);
       if (Array.isArray(data?.notifications)) {
         const formatted = data.notifications.map((n: Notification) => ({
@@ -134,7 +134,7 @@ export function NotificationsScreen({ onNavigate }: NotificationsScreenProps) {
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const data = await apiClientWithRetry<NotificationSettingsResponse>('/api/notification-settings');
+        const data = await apiClientWithRetry<NotificationSettingsResponse>('/notification-settings');
         if (data?.settings) {
           setNotificationSettings({
             ...defaultNotificationSettings,
@@ -150,7 +150,7 @@ export function NotificationsScreen({ onNavigate }: NotificationsScreenProps) {
 
   const saveSettings = async (settings: NotificationSettings) => {
     try {
-      await apiClientWithRetry('/api/notification-settings', {
+      await apiClientWithRetry('/notification-settings', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -213,7 +213,7 @@ export function NotificationsScreen({ onNavigate }: NotificationsScreenProps) {
 
   const markAsRead = async (id: string) => {
     try {
-      await apiClientWithRetry(`/api/notifications/${id}/read`, {
+      await apiClientWithRetry(`/notifications/${id}/read`, {
         method: 'PATCH',
       });
       await fetchNotifications(filter);
@@ -224,7 +224,7 @@ export function NotificationsScreen({ onNavigate }: NotificationsScreenProps) {
 
   const markAllAsRead = async () => {
     try {
-      await apiClientWithRetry('/api/notifications/mark-all-read', {
+      await apiClientWithRetry('/notifications/mark-all-read', {
         method: 'PATCH',
       });
       await fetchNotifications(filter);

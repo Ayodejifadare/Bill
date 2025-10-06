@@ -81,7 +81,7 @@ export function MemberInviteScreen({ groupId, onNavigate }: MemberInviteScreenPr
 
     const fetchInvites = async () => {
       try {
-        const data = await apiClient(`/api/groups/${groupId}/invites`);
+        const data = await apiClient(`/groups/${groupId}/invites`);
         setPendingInvites(Array.isArray(data.invites) ? data.invites : []);
       } catch (err) {
         setPendingInvites([]);
@@ -91,7 +91,7 @@ export function MemberInviteScreen({ groupId, onNavigate }: MemberInviteScreenPr
 
     const fetchLinks = async () => {
       try {
-        const data = await apiClient(`/api/groups/${groupId}/invite-links`);
+        const data = await apiClient(`/groups/${groupId}/invite-links`);
         setInviteLinks(Array.isArray(data.links) ? data.links : []);
       } catch (err) {
         setInviteLinks([]);
@@ -105,7 +105,7 @@ export function MemberInviteScreen({ groupId, onNavigate }: MemberInviteScreenPr
 
   const handleResendInvite = async (inviteId: string) => {
     try {
-      const data = await apiClient(`/api/groups/${groupId}/invites/${inviteId}/resend`, {
+      const data = await apiClient(`/groups/${groupId}/invites/${inviteId}/resend`, {
         method: 'POST'
       });
       if (data.invite) {
@@ -120,7 +120,7 @@ export function MemberInviteScreen({ groupId, onNavigate }: MemberInviteScreenPr
 
   const handleCancelInvite = async (inviteId: string) => {
     try {
-      await apiClient(`/api/groups/${groupId}/invites/${inviteId}`, { method: 'DELETE' });
+      await apiClient(`/groups/${groupId}/invites/${inviteId}`, { method: 'DELETE' });
       const invite = pendingInvites.find(i => i.id === inviteId);
       setPendingInvites(prev => prev.filter(i => i.id !== inviteId));
       toast.success(`Invitation cancelled for ${invite?.name || invite?.contact}`);
@@ -131,7 +131,7 @@ export function MemberInviteScreen({ groupId, onNavigate }: MemberInviteScreenPr
 
   const handleCreateInviteLink = async () => {
     try {
-      const data = await apiClient(`/api/groups/${groupId}/invite-links`, {
+      const data = await apiClient(`/groups/${groupId}/invite-links`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -243,7 +243,7 @@ export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps
     if (!bill) return;
     try {
       // Prefer server-side reference for reconciliation
-      const data = await apiClient(`/api/bill-splits/${bill.id}/reference`, { method: 'POST' });
+      const data = await apiClient(`/bill-splits/${bill.id}/reference`, { method: 'POST' });
       const reference = data?.reference || `Biltip-${bill.id}-${Date.now()}`;
       await navigator.clipboard.writeText(reference);
       toast.success('Payment reference copied to clipboard');

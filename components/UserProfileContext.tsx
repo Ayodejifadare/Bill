@@ -141,8 +141,8 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
       const userId = getStoredUserId() || userProfile?.id;
       if (!userId) return;
       const [profileData, statsData] = await Promise.all([
-        apiClient(`/api/users/${userId}`),
-        apiClient(`/api/users/${userId}/stats`).catch(() => ({ stats: defaultStats }))
+        apiClient(`/users/${userId}`),
+        apiClient(`/users/${userId}/stats`).catch(() => ({ stats: defaultStats }))
       ]);
       const fetched = profileData.user;
       const stats = statsData?.stats ?? defaultStats;
@@ -225,7 +225,7 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
       if (bio !== undefined) payload.bio = bio;
       if (preferences !== undefined) payload.preferences = preferences;
 
-      await apiClient(`/api/users/${userId}`, {
+      await apiClient(`/users/${userId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -255,7 +255,7 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
       try {
         const userId = userProfile?.id || getStoredUserId();
         if (!userId) return;
-        await apiClient(`/api/users/${userId}`, {
+        await apiClient(`/users/${userId}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -276,7 +276,7 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
       const userId = userProfile?.id || getStoredUserId();
       if (!userId) return;
 
-      const data = await apiClient(`/api/users/${userId}/settings`, {
+      const data = await apiClient(`/users/${userId}/settings`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

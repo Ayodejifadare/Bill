@@ -83,7 +83,7 @@ export function SecurityScreen({ onNavigate }: SecurityScreenProps) {
 
   const fetchLogs = async () => {
     try {
-      const data = await apiClient(`/api/users/${userId}/security-logs`);
+      const data = await apiClient(`/users/${userId}/security-logs`);
       setActivities(
         data.logs.map((l: any) => ({
           id: l.id,
@@ -102,7 +102,7 @@ export function SecurityScreen({ onNavigate }: SecurityScreenProps) {
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const data = await apiClient(`/api/users/${userId}`);
+      const data = await apiClient(`/users/${userId}`);
         setSecuritySettings(prev => ({
           ...prev,
           twoFactorAuth: data.user.twoFactorEnabled,
@@ -120,7 +120,7 @@ export function SecurityScreen({ onNavigate }: SecurityScreenProps) {
     setSecuritySettings(prev => ({ ...prev, [key]: value }));
     try {
       if (key === 'twoFactorAuth') {
-        await apiClient(`/api/users/${userId}/two-factor`, {
+        await apiClient(`/users/${userId}/two-factor`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -128,7 +128,7 @@ export function SecurityScreen({ onNavigate }: SecurityScreenProps) {
           body: JSON.stringify({ enabled: value }),
         });
       } else if (key === 'biometricAuth') {
-        await apiClient(`/api/users/${userId}/biometric`, {
+        await apiClient(`/users/${userId}/biometric`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -148,7 +148,7 @@ export function SecurityScreen({ onNavigate }: SecurityScreenProps) {
       return;
     }
     try {
-      await apiClient(`/api/users/${userId}/change-password`, {
+      await apiClient(`/users/${userId}/change-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -170,7 +170,7 @@ export function SecurityScreen({ onNavigate }: SecurityScreenProps) {
 
   const handleLogoutOthers = async () => {
     try {
-      const data = await apiClient(`/api/users/${userId}/logout-others`, {
+      const data = await apiClient(`/users/${userId}/logout-others`, {
         method: 'POST',
       });
       const storedAuth = localStorage.getItem('biltip_auth');

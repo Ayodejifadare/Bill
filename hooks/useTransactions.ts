@@ -128,7 +128,7 @@ export function useTransactions(initialOptions: UseTransactionsOptions = {}): Us
         if (current.keyword) params.append('keyword', current.keyword);
         params.append('includeSummary', 'true');
 
-        const data = await apiClient(`/api/transactions?${params.toString()}`);
+        const data = await apiClient(`/transactions?${params.toString()}`);
         const fetched = Array.isArray(data?.transactions) ? data.transactions : [];
         setTransactions(fetched);
         setHasMore(Boolean(data?.hasMore));

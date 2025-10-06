@@ -63,8 +63,8 @@ export function CreateGroupScreen({ onNavigate, initialSelectedFriendIds = [] }:
     const loadFriends = async () => {
       try {
         const endpoint = searchQuery.trim()
-          ? `/api/friends/search?q=${encodeURIComponent(searchQuery)}`
-          : '/api/friends';
+          ? `/friends/search?q=${encodeURIComponent(searchQuery)}`
+          : '/friends';
         const data = await apiClient(endpoint);
         const list: Friend[] = data.friends || data.users || [];
         if (!isCancelled) {

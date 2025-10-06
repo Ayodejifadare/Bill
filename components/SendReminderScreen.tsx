@@ -259,7 +259,7 @@ export function SendReminderScreen({
     setBillLoading(true);
     setBillError(null);
     try {
-      const data = await apiClient(`/api/bill-splits/${billSplitId}`);
+      const data = await apiClient(`/bill-splits/${billSplitId}`);
       const billSplit = data?.billSplit ?? data;
       if (!billSplit) {
         throw new Error('Bill split not found');
@@ -454,7 +454,7 @@ export function SendReminderScreen({
 
     setSendingReminders(true);
     try {
-      const response: unknown = await apiClient(`/api/bill-splits/${billSplitId}/reminders`, {
+      const response: unknown = await apiClient(`/bill-splits/${billSplitId}/reminders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

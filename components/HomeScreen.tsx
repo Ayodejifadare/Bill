@@ -52,7 +52,7 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
     const run = () => {
       (async () => {
         try {
-          const data = await apiClient('/api/transactions/counts');
+          const data = await apiClient('/transactions/counts');
           setCounts({ all: data?.total ?? 0, sent: data?.sent ?? 0, received: data?.received ?? 0 });
         } catch {
           // Keep counts at 0 on failure

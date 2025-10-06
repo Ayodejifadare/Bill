@@ -44,7 +44,7 @@ export function RecurringPaymentsScreen({ onNavigate }: RecurringPaymentsScreenP
 
   const fetchRecurringPayments = useCallback(async () => {
     try {
-      const data: RecurringPayment[] = await apiClient('/api/recurring-payments');
+      const data: RecurringPayment[] = await apiClient('/recurring-payments');
       setRecurringPayments(data || []);
     } catch (err) {
       console.error('Failed to load recurring payments', err);
@@ -59,7 +59,7 @@ export function RecurringPaymentsScreen({ onNavigate }: RecurringPaymentsScreenP
 
   const createPayment = useCallback(async (data: Partial<RecurringPayment>) => {
     try {
-      await apiClient('/api/recurring-payments', {
+      await apiClient('/recurring-payments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -75,7 +75,7 @@ export function RecurringPaymentsScreen({ onNavigate }: RecurringPaymentsScreenP
 
   const updatePayment = useCallback(async (id: string, data: Partial<RecurringPayment>) => {
     try {
-      await apiClient(`/api/recurring-payments/${id}`, {
+      await apiClient(`/recurring-payments/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -136,7 +136,7 @@ export function RecurringPaymentsScreen({ onNavigate }: RecurringPaymentsScreenP
   const deletePayment = async () => {
     if (selectedPayment) {
       try {
-        await apiClient(`/api/recurring-payments/${selectedPayment}`, { method: 'DELETE' });
+        await apiClient(`/recurring-payments/${selectedPayment}`, { method: 'DELETE' });
         toast.success('Recurring payment deleted');
         setShowDeleteDialog(false);
         setSelectedPayment(null);

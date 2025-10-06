@@ -61,7 +61,7 @@ export function RequestMoney({ onNavigate, prefillData }: RequestMoneyProps) {
 
   const loadGroups = useCallback(async () => {
     try {
-      const data = await apiClient('/api/groups');
+      const data = await apiClient('/groups');
       const groupsData: Group[] = (data.groups || []).map((g: {
         id: string;
         name: string;

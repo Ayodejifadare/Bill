@@ -84,7 +84,7 @@ export function GroupDetailsScreen({ groupId, onNavigate, onGroupNavigation: _on
     const fetchGroup = async () => {
       if (!groupId) return;
       try {
-        const data = await apiClient(`/api/groups/${groupId}`);
+        const data = await apiClient(`/groups/${groupId}`);
         // Normalize missing numeric member fields to 0 to prevent runtime errors
         const normalizedMembers = Array.isArray(data.group?.members)
           ? data.group.members.map((m: any) => ({
@@ -119,7 +119,7 @@ export function GroupDetailsScreen({ groupId, onNavigate, onGroupNavigation: _on
   const saveEdits = async () => {
     if (!group) return;
     try {
-      const data = await apiClient(`/api/groups/${group.id}`, {
+      const data = await apiClient(`/groups/${group.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: editName, description: editDescription })
@@ -194,7 +194,7 @@ export function GroupDetailsScreen({ groupId, onNavigate, onGroupNavigation: _on
 
   const handleLeaveGroup = async () => {
     try {
-      await apiClient(`/api/groups/${group.id}/leave`, { method: 'POST' });
+      await apiClient(`/groups/${group.id}/leave`, { method: 'POST' });
       toast.success('Left group successfully');
       onNavigate('friends');
     } catch {
@@ -204,7 +204,7 @@ export function GroupDetailsScreen({ groupId, onNavigate, onGroupNavigation: _on
 
   const handleRemoveMember = async (memberId: string) => {
     try {
-      await apiClient(`/api/groups/${group.id}/members/${memberId}`, { method: 'DELETE' });
+      await apiClient(`/groups/${group.id}/members/${memberId}`, { method: 'DELETE' });
       setGroup(prev => prev ? { ...prev, members: prev.members.filter(m => m.id !== memberId), totalMembers: prev.totalMembers - 1 } : prev);
       toast.success('Removed member from group');
       setShowRemoveMemberDialog(false);
@@ -218,7 +218,7 @@ export function GroupDetailsScreen({ groupId, onNavigate, onGroupNavigation: _on
 
   const loadMoreTransactions = async () => {
     try {
-      const data = await apiClient(`/api/groups/${group.id}/transactions?page=${page + 1}`);
+      const data = await apiClient(`/groups/${group.id}/transactions?page=${page + 1}`);
       const newTx = Array.isArray(data.transactions) ? data.transactions : [];
       setTransactions(prev => [...prev, ...newTx]);
       setPage(p => p + 1);

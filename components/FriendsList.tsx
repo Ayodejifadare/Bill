@@ -54,8 +54,8 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
     let friendsFailed = false;
     let requestsFailed = false;
 
-    const friendsPromise = apiClient('/api/friends');
-    const requestsPromise = apiClient('/api/friends/requests');
+    const friendsPromise = apiClient('/friends');
+    const requestsPromise = apiClient('/friends/requests');
 
     try {
       const friendRes = await friendsPromise;
@@ -108,7 +108,7 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
 
     try {
       setSummaryError(null);
-      const summaryRes = await apiClient('/api/friends/summary');
+      const summaryRes = await apiClient('/friends/summary');
       setSummary({
         owedToUser: summaryRes?.owedToUser ?? 0,
         userOwes: summaryRes?.userOwes ?? 0,
@@ -137,7 +137,7 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
 
   async function handleAcceptRequest(requestId: string) {
     try {
-      await apiClient(`/api/friends/requests/${requestId}/accept`, {
+      await apiClient(`/friends/requests/${requestId}/accept`, {
         method: 'POST'
       });
       toast.success('Friend request accepted');
@@ -150,7 +150,7 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
 
   async function handleDeclineRequest(requestId: string) {
     try {
-      await apiClient(`/api/friends/requests/${requestId}/decline`, {
+      await apiClient(`/friends/requests/${requestId}/decline`, {
         method: 'POST'
       });
       toast.success('Friend request declined');
@@ -163,7 +163,7 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
 
   async function handleCancelRequest(requestId: string) {
     try {
-      await apiClient(`/api/friends/requests/${requestId}`, {
+      await apiClient(`/friends/requests/${requestId}`, {
         method: 'DELETE'
       });
       toast.success('Friend request cancelled');

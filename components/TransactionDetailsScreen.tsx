@@ -98,7 +98,7 @@ export function TransactionDetailsScreen({ transactionId, onNavigate }: Transact
       setLoading(true);
       setError(null);
       try {
-        const data = await apiClient(`/api/transactions/${transactionId}`);
+        const data = await apiClient(`/transactions/${transactionId}`);
         const tx = mapTransaction(data.transaction || data);
         setTransaction(tx);
       } catch (err) {

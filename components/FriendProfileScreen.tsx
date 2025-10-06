@@ -83,7 +83,7 @@ export function FriendProfileScreen({ friendId, onNavigate }: FriendProfileScree
     if (!friendId) return;
     const load = async () => {
       try {
-        const data = await apiClient(`/api/friends/${friendId}`);
+        const data = await apiClient(`/friends/${friendId}`);
         setFriend(data.friend);
         setTransactions(data.transactions || []);
         setSharedGroups(data.sharedGroups || []);
@@ -186,7 +186,7 @@ export function FriendProfileScreen({ friendId, onNavigate }: FriendProfileScree
 
   const handleRemoveFriend = async () => {
     try {
-      await apiClient(`/api/friends/${friend.id}`, {
+      await apiClient(`/friends/${friend.id}`, {
         method: 'DELETE'
       });
       toast.success('Friend removed');

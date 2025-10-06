@@ -123,7 +123,7 @@ export function PaymentFlowScreen({ paymentRequest, onNavigate }: PaymentFlowScr
     try {
       let reference: string | null = null;
       if ((paymentRequest as any)?.billSplitId) {
-        const data = await apiClient(`/api/bill-splits/${(paymentRequest as any).billSplitId}/reference`, { method: 'POST' });
+        const data = await apiClient(`/bill-splits/${(paymentRequest as any).billSplitId}/reference`, { method: 'POST' });
         reference = data?.reference || null;
       }
       const refToCopy = reference || `Biltip-${paymentRequest.id}-${Date.now()}`;
@@ -145,7 +145,7 @@ export function PaymentFlowScreen({ paymentRequest, onNavigate }: PaymentFlowScr
       // If this flow has a corresponding request transaction id, update it on the server
       const reqId = (paymentRequest as any)?.requestId as string | undefined
       if (reqId) {
-        await apiClient(`/api/transactions/${reqId}/mark-sent`, { method: 'POST' })
+        await apiClient(`/transactions/${reqId}/mark-sent`, { method: 'POST' })
       }
       setPaymentStatus('sent');
       toast.success('Payment marked as sent! The recipient will be notified.');

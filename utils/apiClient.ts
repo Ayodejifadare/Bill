@@ -112,6 +112,10 @@ function joinUrl(base: string, resource: string): string {
   }
 
   // Relative base (e.g., '/api'): ensure exactly one slash between base and resource
+  // If resource already starts with '/api', avoid duplicating when base is also '/api'.
+  if (resource.startsWith('/api/')) {
+    return resource.replace(/\/{2,}/g, '/');
+  }
   const left = baseNorm || '';
   const right = resource.replace(/^\/+/, '');
   const joined = `${left}/${right}`;

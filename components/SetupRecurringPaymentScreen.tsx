@@ -77,7 +77,7 @@ export function SetupRecurringPaymentScreen({
 
   const loadFriends = useCallback(async () => {
     try {
-      const data: { friends?: Friend[] } = await apiClient('/api/friends');
+      const data: { friends?: Friend[] } = await apiClient('/friends');
       const friendsData: Friend[] = (data.friends || []).map((f) => ({
         id: f.id,
         name: f.name,
@@ -127,7 +127,7 @@ export function SetupRecurringPaymentScreen({
     if (editMode && paymentId) {
       const fetchPayment = async () => {
         try {
-          const data = await apiClient(`/api/recurring-payments/${paymentId}`);
+          const data = await apiClient(`/recurring-payments/${paymentId}`);
           setFormData(prev => ({
             ...prev,
             title: data.title ?? '',
@@ -203,14 +203,14 @@ export function SetupRecurringPaymentScreen({
 
     try {
       if (editMode && paymentId) {
-        await apiClient(`/api/recurring-payments/${paymentId}`, {
+        await apiClient(`/recurring-payments/${paymentId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
         toast.success('Recurring payment updated successfully');
       } else {
-        await apiClient('/api/recurring-payments', {
+        await apiClient('/recurring-payments', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),

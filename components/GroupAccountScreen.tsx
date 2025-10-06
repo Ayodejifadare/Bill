@@ -81,7 +81,7 @@ export function GroupAccountScreen({ groupId, onNavigate }: GroupAccountScreenPr
   const fetchAccounts = async () => {
     if (!groupId) return;
     try {
-      const data = await apiClient(`/api/groups/${groupId}/accounts`);
+      const data = await apiClient(`/groups/${groupId}/accounts`);
       const accounts = (data.accounts || []).map((a: any) => ({
         ...a,
         createdDate: a.createdDate || a.createdAt,
@@ -100,7 +100,7 @@ export function GroupAccountScreen({ groupId, onNavigate }: GroupAccountScreenPr
     }
     setIsGroupLoading(true);
     try {
-      const data = await apiClient(`/api/groups/${groupId}`);
+      const data = await apiClient(`/groups/${groupId}`);
       if (data?.group) {
         setGroup({
           id: data.group.id,
@@ -221,7 +221,7 @@ export function GroupAccountScreen({ groupId, onNavigate }: GroupAccountScreenPr
             })
       };
 
-      await apiClient(`/api/groups/${groupId}/accounts`, {
+      await apiClient(`/groups/${groupId}/accounts`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -240,7 +240,7 @@ export function GroupAccountScreen({ groupId, onNavigate }: GroupAccountScreenPr
   const handleSetDefault = async (accountId: string) => {
     if (!groupId) return;
     try {
-      await apiClient(`/api/groups/${groupId}/accounts/${accountId}`, {
+      await apiClient(`/groups/${groupId}/accounts/${accountId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isDefault: true })
@@ -255,7 +255,7 @@ export function GroupAccountScreen({ groupId, onNavigate }: GroupAccountScreenPr
   const handleDeleteMethod = async (accountId: string) => {
     if (!groupId) return;
     try {
-      await apiClient(`/api/groups/${groupId}/accounts/${accountId}`, {
+      await apiClient(`/groups/${groupId}/accounts/${accountId}`, {
         method: 'DELETE'
       });
       setGroupAccounts(prev => prev.filter(account => account.id !== accountId));

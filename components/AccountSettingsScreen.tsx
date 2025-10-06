@@ -82,7 +82,7 @@ export function AccountSettingsScreen({ onNavigate }: AccountSettingsScreenProps
     try {
       const formData = new FormData();
       formData.append('avatar', file);
-      const data = await apiClient(`/api/users/${userProfile.id}/avatar`, {
+      const data = await apiClient(`/users/${userProfile.id}/avatar`, {
         method: 'POST',
         body: formData,
       });

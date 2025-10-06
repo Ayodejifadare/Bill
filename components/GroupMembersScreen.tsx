@@ -72,8 +72,8 @@ export function GroupMembersScreen({ groupId, onNavigate }: GroupMembersScreenPr
       if (!groupId) return;
       try {
         const [membersData, invitesData] = await Promise.all([
-          apiClient(`/api/groups/${groupId!}/members`),
-          apiClient(`/api/groups/${groupId!}/invites`)
+          apiClient(`/groups/${groupId!}/members`),
+          apiClient(`/groups/${groupId!}/invites`)
         ]);
         setMembers(Array.isArray(membersData.members) ? membersData.members : []);
         setPendingInvites(Array.isArray(invitesData.invites) ? invitesData.invites : []);
@@ -130,7 +130,7 @@ export function GroupMembersScreen({ groupId, onNavigate }: GroupMembersScreenPr
       return;
     }
     try {
-      await apiClient(`/api/groups/${groupId!}/members/${memberId}`, { method: 'DELETE' });
+      await apiClient(`/groups/${groupId!}/members/${memberId}`, { method: 'DELETE' });
       setMembers(prev => prev.filter(m => m.id !== memberId));
       toast.success(`${member?.name} removed from group`);
     } catch {
@@ -140,7 +140,7 @@ export function GroupMembersScreen({ groupId, onNavigate }: GroupMembersScreenPr
 
   const handleMakeAdmin = async (memberId: string) => {
     try {
-      await apiClient(`/api/groups/${groupId!}/members/${memberId}/promote`, { method: 'POST' });
+      await apiClient(`/groups/${groupId!}/members/${memberId}/promote`, { method: 'POST' });
       setMembers(prev => prev.map(m =>
         m.id === memberId
           ? {
@@ -164,7 +164,7 @@ export function GroupMembersScreen({ groupId, onNavigate }: GroupMembersScreenPr
 
   const handleRemoveAdmin = async (memberId: string) => {
     try {
-      await apiClient(`/api/groups/${groupId!}/members/${memberId}/demote`, { method: 'POST' });
+      await apiClient(`/groups/${groupId!}/members/${memberId}/demote`, { method: 'POST' });
       setMembers(prev => prev.map(m =>
         m.id === memberId
           ? {
@@ -207,7 +207,7 @@ export function GroupMembersScreen({ groupId, onNavigate }: GroupMembersScreenPr
     const invite = pendingInvites.find(i => i.id === inviteId);
     updateInviteActionState(inviteId, { canceling: true });
     try {
-      await apiClient(`/api/groups/${groupId}/invites/${inviteId}`, { method: 'DELETE' });
+      await apiClient(`/groups/${groupId}/invites/${inviteId}`, { method: 'DELETE' });
       setPendingInvites(prev => prev.filter(i => i.id !== inviteId));
       toast.success(`Invitation to ${getInviteDisplayName(invite)} cancelled`);
     } catch (error) {
@@ -223,7 +223,7 @@ export function GroupMembersScreen({ groupId, onNavigate }: GroupMembersScreenPr
     const existingInvite = pendingInvites.find(i => i.id === inviteId);
     updateInviteActionState(inviteId, { resending: true });
     try {
-      const data = await apiClient(`/api/groups/${groupId}/invites/${inviteId}/resend`, {
+      const data = await apiClient(`/groups/${groupId}/invites/${inviteId}/resend`, {
         method: 'POST'
       });
       if (data?.invite) {
