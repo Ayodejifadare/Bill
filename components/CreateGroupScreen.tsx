@@ -109,18 +109,22 @@ export function CreateGroupScreen({ onNavigate, initialSelectedFriendIds = [] }:
   };
 
   const handleCreateGroup = async () => {
-    if (selectedFriends.size === 0) {
-      toast.error('Please select at least one friend');
+    if (!groupName.trim()) {
+      toast.error('Please enter a group name');
       return;
     }
 
     try {
-      const newGroup = await createGroup({
+      const payload: any = {
         name: groupName,
         description: groupDescription,
-        color: selectedColor,
-        memberIds: Array.from(selectedFriends)
-      });
+        color: selectedColor
+      };
+      if (selectedFriends.size > 0) {
+        payload.memberIds = Array.from(selectedFriends);
+      }
+
+      const newGroup = await createGroup(payload);
       toast.success(`Group "${groupName}" created successfully!`);
       const newGroupId = newGroup?.id;
       if (newGroupId) {
@@ -296,7 +300,7 @@ export function CreateGroupScreen({ onNavigate, initialSelectedFriendIds = [] }:
             <Button variant="ghost" size="sm" onClick={() => setStep(1)}>
               <ArrowLeft className="h-4 w-4" />
             </Button>
-            <h2>Add Members</h2>
+            <h2>Add Members (Optional)</h2>
           </div>
         </div>
       </div>
@@ -317,7 +321,7 @@ export function CreateGroupScreen({ onNavigate, initialSelectedFriendIds = [] }:
             <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs sm:text-sm font-medium">
               2
             </div>
-            <span className="text-xs sm:text-sm font-medium hidden sm:inline">Add Members</span>
+            <span className="text-xs sm:text-sm font-medium hidden sm:inline">Add Members (Optional)</span>
             <span className="text-xs font-medium sm:hidden">Members</span>
           </div>
         </div>
@@ -424,7 +428,6 @@ export function CreateGroupScreen({ onNavigate, initialSelectedFriendIds = [] }:
           <Button 
             className="flex-1 order-1 sm:order-2" 
             onClick={handleCreateGroup}
-            disabled={selectedFriends.size === 0}
           >
             Create Group
           </Button>

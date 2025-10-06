@@ -225,20 +225,23 @@ router.post('/', authenticate, async (req, res) => {
     }
 
     if (memberIds !== undefined) {
-      if (!Array.isArray(memberIds) || memberIds.length === 0) {
+      if (!Array.isArray(memberIds)) {
         return res
           .status(400)
-          .json({ error: 'memberIds must be a non-empty array' })
+          .json({ error: 'memberIds must be an array if provided' })
       }
 
-      const validCount = await req.prisma.user.count({
-        where: { id: { in: memberIds } }
-      })
+      // If provided but empty, treat as no additional members and skip validation
+      if (memberIds.length > 0) {
+        const validCount = await req.prisma.user.count({
+          where: { id: { in: memberIds } }
+        })
 
-      if (validCount !== memberIds.length) {
-        return res
-          .status(400)
-          .json({ error: 'All memberIds must correspond to existing users' })
+        if (validCount !== memberIds.length) {
+          return res
+            .status(400)
+            .json({ error: 'All memberIds must correspond to existing users' })
+        }
       }
     }
 

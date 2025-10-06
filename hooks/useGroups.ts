@@ -19,7 +19,7 @@ interface CreateGroupPayload {
   name: string;
   description: string;
   color: string;
-  memberIds: string[];
+  memberIds?: string[];
 }
 
 interface UseGroupsResult {
