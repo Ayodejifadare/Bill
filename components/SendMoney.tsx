@@ -315,7 +315,7 @@ Contact: ${selectedFriend.phoneNumber || 'Phone not available'}`;
                                 <Avatar className="h-6 w-6">
                                   <AvatarImage src={friend.avatar} />
                                   <AvatarFallback className="text-xs">
-                                    {friend.name.split(' ').map(n => n[0]).join('')}
+                                    {getInitials(friend.name)}
                                   </AvatarFallback>
                                 </Avatar>
                                 <span className="text-sm">{friend.name}</span>
@@ -347,7 +347,7 @@ Contact: ${selectedFriend.phoneNumber || 'Phone not available'}`;
                       <Avatar className="h-10 w-10">
                         <AvatarImage src={selectedFriend.avatar} />
                         <AvatarFallback>
-                          {selectedFriend.name.split(' ').map(n => n[0]).join('')}
+                          {getInitials(selectedFriend.name)}
                         </AvatarFallback>
                       </Avatar>
                       <div>
@@ -391,7 +391,7 @@ Contact: ${selectedFriend.phoneNumber || 'Phone not available'}`;
                       <Avatar className="h-10 w-10">
                         <AvatarImage src={friend.avatar} />
                         <AvatarFallback>
-                          {friend.name.split(' ').map(n => n[0]).join('')}
+                          {getInitials(friend.name)}
                         </AvatarFallback>
                       </Avatar>
                       <div>
@@ -561,3 +561,4 @@ Contact: ${selectedFriend.phoneNumber || 'Phone not available'}`;
     </div>
   );
 }
+import { getInitials } from '../utils/name';

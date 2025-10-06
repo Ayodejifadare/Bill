@@ -22,6 +22,17 @@ function normalizePhone (input = '') {
   return `+${national}`
 }
 
+function deriveRegionCurrencyFromPhone(key = '') {
+  const p = String(key)
+  if (p.startsWith('+234')) return { region: 'NG', currency: 'NGN' }
+  if (p.startsWith('+44')) return { region: 'GB', currency: 'GBP' }
+  if (p.startsWith('+61')) return { region: 'AU', currency: 'AUD' }
+  if (p.startsWith('+353')) return { region: 'EU', currency: 'EUR' }
+  if (p.startsWith('+1')) return { region: 'US', currency: 'USD' }
+  // Default to Nigeria if unknown to avoid USD fallback for new markets
+  return { region: 'NG', currency: 'NGN' }
+}
+
 // Request OTP
 router.post('/request-otp', [
   body('phone').matches(/^\+?[1-9]\d{7,14}$/)
@@ -85,9 +96,7 @@ router.post('/verify-otp', [
     let user = await req.prisma.user.findFirst({ where: { phone: key } })
     if (!user) {
       if (process.env.NODE_ENV === 'development' || process.env.AUTO_CREATE_USER_ON_OTP === 'true') {
-        const isNG = key.startsWith('+234')
-        const region = isNG ? 'NG' : 'US'
-        const currency = isNG ? 'NGN' : 'USD'
+        const { region, currency } = deriveRegionCurrencyFromPhone(key)
         const email = `otp_${key.replace(/\D/g, '')}@demo.local`
         try {
           user = await req.prisma.user.create({
@@ -167,6 +176,7 @@ router.post('/register', [
     const hashedPassword = await bcrypt.hash(password, 12)
 
     // Create user
+    const { region, currency } = deriveRegionCurrencyFromPhone(normalizePhone(phone))
     const user = await req.prisma.user.create({
       data: {
         email,
@@ -175,6 +185,8 @@ router.post('/register', [
         firstName,
         lastName,
         phone,
+        region,
+        currency,
         // Ensure new accounts pass onboarding gate until full onboarding flow exists
         onboardingCompleted: true
       },

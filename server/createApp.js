@@ -45,6 +45,8 @@ export default function createApp({ enableSchedulers = true } = {}) {
   }
 
   const app = express()
+  // Ensure correct protocol (https) behind proxies (Vercel/Render/NGINX)
+  app.set('trust proxy', 1)
   const UPLOAD_DIR = process.env.AVATAR_UPLOAD_DIR || 'uploads'
 
   // Initialize Prisma Client
@@ -58,7 +60,8 @@ export default function createApp({ enableSchedulers = true } = {}) {
   }
 
   // Middleware
-  app.use(helmet())
+  // Allow cross-origin loading of static assets like avatars from /uploads
+  app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }))
 
   const normalizeOrigin = (value) => (value ? value.replace(/\/$/, '') : '')
   const defaultFrontend = 'http://localhost:4000'
@@ -104,6 +107,8 @@ export default function createApp({ enableSchedulers = true } = {}) {
     maxAge: '7d',
     setHeaders: (res) => {
       res.setHeader('Cache-Control', 'public, max-age=604800, immutable')
+      // Explicitly permit cross-origin resource loading for images/files
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin')
     }
   }))
 

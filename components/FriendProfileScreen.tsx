@@ -252,7 +252,7 @@ export function FriendProfileScreen({ friendId, onNavigate }: FriendProfileScree
           <div className="flex items-center space-x-4">
             <Avatar className="h-16 w-16">
               <AvatarFallback className="text-xl">
-                {friend.name.split(' ').map(n => n[0]).join('')}
+                {getInitials(friend.name)}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1">
@@ -470,3 +470,4 @@ export function FriendProfileScreen({ friendId, onNavigate }: FriendProfileScree
     </div>
   );
 }
+import { getInitials } from '../utils/name';

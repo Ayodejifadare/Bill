@@ -186,7 +186,7 @@ export function BillsScreen({ onNavigate, groupId }: BillsScreenProps) {
                       <div key={index} className="relative">
                         <Avatar className={`h-8 w-8 border-2 ${participant.paid ? 'border-green-500' : 'border-yellow-500'}`}>
                           <AvatarFallback className="text-xs">
-                            {participant.name.split(' ').map(n => n[0]).join('')}
+                            {getInitials(participant.name)}
                           </AvatarFallback>
                         </Avatar>
                         {participant.paid && (
@@ -290,3 +290,4 @@ export function BillsScreen({ onNavigate, groupId }: BillsScreenProps) {
   );
 }
 
+import { getInitials } from '../utils/name';

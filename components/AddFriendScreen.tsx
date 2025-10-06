@@ -578,7 +578,7 @@ export function AddFriendScreen({ onNavigate }: AddFriendScreenProps) {
                       <Avatar className={`h-12 w-12 border-2 ${contactSubTab === 'invite' ? 'border-green-300' : 'border-primary/30'}`}>
                         <AvatarImage src={contact.avatar} />
                         <AvatarFallback className="text-xs">
-                          {contact.name.split(' ').map(n => n[0]).join('')}
+                          {getInitials(contact.name)}
                         </AvatarFallback>
                       </Avatar>
                       
@@ -598,7 +598,7 @@ export function AddFriendScreen({ onNavigate }: AddFriendScreenProps) {
                     
                     {/* Name */}
                     <p className="text-xs text-center max-w-[60px] truncate">
-                      {contact.name.split(' ')[0]}
+                      {(contact.name || '').split(' ')[0]}
                     </p>
                   </div>
                 ))}
@@ -780,7 +780,7 @@ export function AddFriendScreen({ onNavigate }: AddFriendScreenProps) {
                                 <Avatar className="h-12 w-12">
                                   <AvatarImage src={contact.avatar} />
                                   <AvatarFallback>
-                                    {contact.name.split(' ').map(n => n[0]).join('')}
+                                    {getInitials(contact.name)}
                                   </AvatarFallback>
                                 </Avatar>
                                 
@@ -880,7 +880,7 @@ export function AddFriendScreen({ onNavigate }: AddFriendScreenProps) {
                                 
                                 <Avatar className="h-12 w-12">
                                   <AvatarFallback>
-                                    {contact.name.split(' ').map(n => n[0]).join('')}
+                                    {getInitials(contact.name)}
                                   </AvatarFallback>
                                 </Avatar>
                                 
@@ -1138,3 +1138,4 @@ export function AddFriendScreen({ onNavigate }: AddFriendScreenProps) {
     </div>
   );
 }
+import { getInitials } from '../utils/name';

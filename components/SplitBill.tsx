@@ -96,6 +96,13 @@ export function SplitBill({ onNavigate, groupId, prefillFriendId }: SplitBillPro
   // Personal payment methods fetched from API
   const [personalMethods, setPersonalMethods] = useState<PaymentMethod[]>([]);
 
+  // Safe initials helper to avoid runtime errors when name is missing
+  const getInitials = (name?: string) => {
+    const parts = (name || '').trim().split(/\s+/).filter(Boolean)
+    if (parts.length === 0) return 'U'
+    return parts.map(n => n[0]).slice(0, 2).join('').toUpperCase()
+  }
+
   useEffect(() => {
     let cancelled = false;
     async function loadPaymentMethods() {
@@ -845,7 +852,7 @@ export function SplitBill({ onNavigate, groupId, prefillFriendId }: SplitBillPro
                   <Avatar className="h-10 w-10">
                     <AvatarImage src={participant.friend.avatar} />
                     <AvatarFallback>
-                      {participant.friend.name.split(' ').map(n => n[0]).join('')}
+                      {getInitials(participant.friend.name)}
                     </AvatarFallback>
                   </Avatar>
                   
@@ -976,7 +983,7 @@ export function SplitBill({ onNavigate, groupId, prefillFriendId }: SplitBillPro
                     <Avatar className="h-8 w-8 mr-3">
                       <AvatarImage src={friend.avatar} />
                       <AvatarFallback className="text-xs">
-                        {friend.name.split(' ').map(n => n[0]).join('')}
+                        {getInitials(friend.name)}
                       </AvatarFallback>
                     </Avatar>
                     <div className="text-left flex-1 min-w-0">

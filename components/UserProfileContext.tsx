@@ -157,7 +157,9 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
         address: fetched.address,
         bio: fetched.bio,
         avatar: fetched.avatar,
-        joinDate: fetched.createdAt ? new Date(fetched.createdAt).toLocaleDateString() : prev?.joinDate,
+        joinDate: fetched.createdAt
+          ? new Date(fetched.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+          : prev?.joinDate,
         kycStatus: fetched.kycStatus ?? 'pending',
 
         stats,

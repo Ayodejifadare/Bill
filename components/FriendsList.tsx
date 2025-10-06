@@ -236,7 +236,7 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
                     <div className="flex items-center space-x-3">
                       <Avatar className="h-12 w-12">
                         <AvatarFallback>
-                          {friend.name.split(' ').map(n => n[0]).join('')}
+                          {getInitials(friend.name)}
                         </AvatarFallback>
                       </Avatar>
                       <div>
@@ -305,7 +305,7 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
                   >
                     <Avatar className="h-12 w-12">
                       <AvatarFallback>
-                        {friend.name.split(' ').map(n => n[0]).join('')}
+                        {getInitials(friend.name)}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1">
@@ -379,3 +379,4 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
   );
 }
 
+import { getInitials } from '../utils/name';

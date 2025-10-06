@@ -74,7 +74,7 @@ export function TransactionDetailsScreen({ transactionId, onNavigate }: Transact
       user: {
         id: user.id,
         name: user.name || 'Unknown',
-        avatar: user.avatar || (user.name ? user.name.split(' ').map((n: string) => n[0]).join('') : ''),
+        avatar: user.avatar || getInitials(user.name),
         phone: user.phone || user.phoneNumber,
       },
       date: data.date || data.createdAt || new Date().toISOString(),
@@ -569,3 +569,4 @@ export function TransactionDetailsScreen({ transactionId, onNavigate }: Transact
     </div>
   );
 }
+import { getInitials } from '../utils/name';

@@ -7,6 +7,7 @@ import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
 import { ArrowLeft, Edit, Mail, Phone, MapPin, Calendar, Shield, Camera } from 'lucide-react';
 import { useUserProfile } from './UserProfileContext';
+import { getInitials } from '../utils/name';
 import { apiClient } from '../utils/apiClient';
 
 interface AccountSettingsScreenProps {
@@ -25,8 +26,8 @@ export function AccountSettingsScreen({ onNavigate }: AccountSettingsScreenProps
   const [isEditing, setIsEditing] = useState(false);
 
   const profileToState = () => ({
-    firstName: userProfile.firstName || userProfile.name.split(' ')[0] || '',
-    lastName: userProfile.lastName || userProfile.name.split(' ').slice(1).join(' ') || '',
+    firstName: userProfile.firstName || (userProfile.name || '').split(' ')[0] || '',
+    lastName: userProfile.lastName || (userProfile.name || '').split(' ').slice(1).join(' ') || '',
     email: userProfile.email || '',
     phone: userProfile.phone || '',
     dateOfBirth: userProfile.dateOfBirth || '',
@@ -136,7 +137,7 @@ export function AccountSettingsScreen({ onNavigate }: AccountSettingsScreenProps
             <Avatar className="h-20 w-20">
               {userData.avatar && <AvatarImage src={userData.avatar} />}
               <AvatarFallback className="text-xl">
-                {userData.firstName[0]}{userData.lastName[0]}
+                {getInitials(`${userData.firstName} ${userData.lastName}`)}
               </AvatarFallback>
             </Avatar>
             {isEditing && (
@@ -167,7 +168,7 @@ export function AccountSettingsScreen({ onNavigate }: AccountSettingsScreenProps
                 Verified
               </Badge>
               <Badge variant="secondary">
-                Member since March 2023
+                Member since {userProfile.joinDate || ''}
               </Badge>
             </div>
           </div>

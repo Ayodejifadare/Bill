@@ -532,6 +532,23 @@ function AppContent() {
     return () => window.removeEventListener('onboarding-required' as any, handler as any);
   }, []);
 
+  // Global session-expired handler to avoid crashes after inactivity
+  useEffect(() => {
+    const onSessionExpired = () => {
+      try {
+        clearAuth();
+        setIsAuthenticated(false);
+        setShowLogin(true);
+        toast.error('Your session expired. Please log in again.');
+        dispatch({ type: 'SET_TAB', payload: 'login' });
+      } catch (e) {
+        console.error('session-expired handling error:', e);
+      }
+    };
+    window.addEventListener('session-expired' as any, onSessionExpired as any);
+    return () => window.removeEventListener('session-expired' as any, onSessionExpired as any);
+  }, []);
+
   const handleLogin = useCallback((authResponse?: any) => {
     try {
       setIsInitializing(true);

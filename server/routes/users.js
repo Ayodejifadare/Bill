@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken'
 import bcrypt from 'bcryptjs'
 import { body, validationResult } from 'express-validator'
 import multer from 'multer'
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
 import path from 'path'
 import fs from 'fs'
 import { updateNotificationPreference, defaultSettings } from './notifications.js'
@@ -16,17 +17,34 @@ if (!JWT_SECRET) {
 const router = express.Router()
 
 const uploadDir = process.env.AVATAR_UPLOAD_DIR || 'uploads'
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const dest = path.join(process.cwd(), uploadDir)
-    fs.mkdirSync(dest, { recursive: true })
-    cb(null, dest)
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname)
-    cb(null, `${req.userId}-${Date.now()}${ext}`)
-  }
-})
+const useS3 = (process.env.AVATAR_STORAGE || '').toLowerCase() === 's3' || !!process.env.AWS_S3_BUCKET
+
+let s3Client = null
+if (useS3) {
+  s3Client = new S3Client({
+    region: process.env.AWS_S3_REGION || 'us-east-1',
+    credentials: process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY
+      ? {
+          accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+        }
+      : undefined
+  })
+}
+
+const storage = useS3
+  ? multer.memoryStorage()
+  : multer.diskStorage({
+      destination: (req, file, cb) => {
+        const dest = path.join(process.cwd(), uploadDir)
+        fs.mkdirSync(dest, { recursive: true })
+        cb(null, dest)
+      },
+      filename: (req, file, cb) => {
+        const ext = path.extname(file.originalname)
+        cb(null, `${req.userId}-${Date.now()}${ext}`)
+      }
+    })
 const upload = multer({ storage })
 
 router.use(authenticate)
@@ -244,7 +262,39 @@ router.post('/:id/avatar', upload.single('avatar'), async (req, res) => {
       return res.status(400).json({ error: 'No file uploaded' })
     }
 
-    const url = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`
+    let url
+    if (useS3 && s3Client) {
+      const region = process.env.AWS_S3_REGION || 'us-east-1'
+      const bucket = process.env.AWS_S3_BUCKET
+      if (!bucket) {
+        return res.status(500).json({ error: 'S3 bucket not configured' })
+      }
+      const prefix = (process.env.S3_PREFIX || 'uploads/avatars').replace(/^\/+|\/+$/g, '')
+      const ext = path.extname(req.file.originalname || '') || '.jpg'
+      const key = `${prefix}/${req.params.id}-${Date.now()}${ext}`
+
+      await s3Client.send(new PutObjectCommand({
+        Bucket: bucket,
+        Key: key,
+        Body: req.file.buffer,
+        ContentType: req.file.mimetype || 'image/jpeg',
+        ACL: 'public-read'
+      }))
+
+      const publicBase = (process.env.S3_PUBLIC_BASE_URL || '').replace(/\/$/, '')
+      const base = publicBase || `https://${bucket}.s3.${region}.amazonaws.com`
+      url = `${base}/${key}`
+    } else {
+      // Local disk fallback
+      // Build a stable, https URL for the uploaded avatar
+      const forwardedProto = (req.headers['x-forwarded-proto'] || '').toString().split(',')[0].trim()
+      const detectedProto = forwardedProto || req.protocol || 'http'
+      const host = req.get('host')
+      const forceHttps = (process.env.FORCE_HTTPS ?? 'true') !== 'false'
+      const protocol = forceHttps ? 'https' : detectedProto
+      const base = process.env.PUBLIC_BASE_URL || `${protocol}://${host}`
+      url = `${base}/uploads/${req.file.filename}`
+    }
 
     await req.prisma.user.update({
       where: { id: req.params.id },

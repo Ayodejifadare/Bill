@@ -338,7 +338,7 @@ export function SetupRecurringPaymentScreen({
                     <div className="flex items-center space-x-2">
                       <Avatar className="h-6 w-6">
                         <AvatarFallback className="text-xs">
-                          {friend.avatar || friend.name.split(' ').map(n => n[0]).join('').slice(0,2)}
+                          {friend.avatar || getInitials(friend.name)}
                         </AvatarFallback>
                       </Avatar>
                       <span>{friend.name}</span>
@@ -553,7 +553,7 @@ export function SetupRecurringPaymentScreen({
                 <div className="flex items-center space-x-2">
                   <Avatar className="h-6 w-6">
                     <AvatarFallback className="text-xs">
-                      {selectedFriend.avatar || selectedFriend.name.split(' ').map(n => n[0]).join('').slice(0,2)}
+                      {selectedFriend.avatar || getInitials(selectedFriend.name)}
                     </AvatarFallback>
                   </Avatar>
                   <span className="font-medium">{selectedFriend.name}</span>
@@ -610,3 +610,4 @@ export function SetupRecurringPaymentScreen({
     </div>
   );
 }
+import { getInitials } from '../utils/name';

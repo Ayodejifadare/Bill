@@ -129,7 +129,7 @@ export function ProfileScreen({ onNavigate, onLogout }: ProfileScreenProps) {
             <div className="flex items-center space-x-4">
               <Avatar className="h-16 w-16">
                 <AvatarFallback className="bg-primary text-primary-foreground text-xl">
-                  {userProfile.name.split(' ').map(n => n[0]).join('')}
+                  {getInitials(userProfile.name)}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1">
@@ -302,3 +302,4 @@ export function ProfileScreen({ onNavigate, onLogout }: ProfileScreenProps) {
     </div>
   );
 }
+import { getInitials } from '../utils/name';

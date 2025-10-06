@@ -308,7 +308,7 @@ export function ContactResultsScreen({
                         <Avatar className="h-12 w-12">
                           <AvatarImage src={contact.avatar} />
                           <AvatarFallback>
-                            {contact.name.split(' ').map(n => n[0]).join('')}
+                            {getInitials(contact.name)}
                           </AvatarFallback>
                         </Avatar>
                         
@@ -442,7 +442,7 @@ export function ContactResultsScreen({
                         
                         <Avatar className="h-12 w-12">
                           <AvatarFallback>
-                            {contact.name.split(' ').map(n => n[0]).join('')}
+                            {getInitials(contact.name)}
                           </AvatarFallback>
                         </Avatar>
                         
@@ -565,3 +565,4 @@ export function ContactResultsScreen({
     </div>
   );
 }
+import { getInitials } from '../../utils/name';

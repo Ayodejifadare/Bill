@@ -505,7 +505,7 @@ export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps
                     <div className="flex items-center gap-3 min-w-0 flex-1">
                       <Avatar className="h-8 w-8 flex-shrink-0">
                         <AvatarFallback className="text-xs">
-                          {participant.name.split(' ').map(n => n[0]).join('')}
+                          {getInitials(participant.name)}
                         </AvatarFallback>
                       </Avatar>
                       <span className="text-sm truncate">{participant.name}</span>
@@ -585,3 +585,4 @@ export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps
 }
 
 
+import { getInitials } from '../utils/name';

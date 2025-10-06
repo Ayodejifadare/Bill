@@ -569,7 +569,7 @@ export function RequestMoney({ onNavigate, prefillData }: RequestMoneyProps) {
                     <Avatar className="h-10 w-10">
                       <AvatarImage src={friend.avatar} />
                       <AvatarFallback>
-                        {friend.name.split(' ').map(n => n[0]).join('')}
+                        {getInitials(friend.name)}
                       </AvatarFallback>
                     </Avatar>
                     <div>
@@ -776,3 +776,4 @@ export function RequestMoney({ onNavigate, prefillData }: RequestMoneyProps) {
   );
 }
 
+import { getInitials } from '../utils/name';

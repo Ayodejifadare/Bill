@@ -415,7 +415,7 @@ export function GroupMembersScreen({ groupId, onNavigate }: GroupMembersScreenPr
                           <AvatarImage src={(member as any).avatar} />
                         ) : null}
                         <AvatarFallback>
-                          {member.name.split(' ').map(n => n[0]).join('')}
+                          {getInitials(member.name)}
                         </AvatarFallback>
                       </Avatar>
                       {member.status === 'active' && (
@@ -506,3 +506,4 @@ export function GroupMembersScreen({ groupId, onNavigate }: GroupMembersScreenPr
     </div>
   );
 }
+import { getInitials } from '../utils/name';

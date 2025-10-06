@@ -37,42 +37,42 @@ export function useGroups(): UseGroupsResult {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const mapRawGroup = useCallback((g: any): Group => {
+    const getInitials = (name: string | undefined): string => {
+      return (name || '')
+        .split(/\s+/)
+        .map(n => n[0])
+        .filter(Boolean)
+        .slice(0, 2)
+        .join('')
+        .toUpperCase();
+    };
+    const membersRaw = Array.isArray(g.members) ? g.members : [];
+    const members: string[] = membersRaw.map((m: any) =>
+      typeof m === 'string' ? m : getInitials(m?.name)
+    );
+    return {
+      id: g.id,
+      name: g.name,
+      description: g.description || '',
+      memberCount: typeof g.memberCount === 'number' ? g.memberCount : members.length,
+      totalSpent: typeof g.totalSpent === 'number' ? g.totalSpent : 0,
+      recentActivity: g.recentActivity || '',
+      members,
+      isAdmin: Boolean(g.isAdmin),
+      lastActive: g.lastActive ?? null,
+      pendingBills: typeof g.pendingBills === 'number' ? g.pendingBills : 0,
+      color: g.color || ''
+    } as Group;
+  }, []);
+
   const fetchGroups = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const data = await apiClient('/groups');
       const rawGroups = Array.isArray(data.groups) ? data.groups : [];
-
-      const getInitials = (name: string | undefined): string => {
-        return (name || '')
-          .split(/\s+/)
-          .map(n => n[0])
-          .filter(Boolean)
-          .slice(0, 2)
-          .join('')
-          .toUpperCase();
-      };
-
-      const mapped = rawGroups.map((g: any) => {
-        const membersRaw = Array.isArray(g.members) ? g.members : [];
-        const members: string[] = membersRaw.map((m: any) =>
-          typeof m === 'string' ? m : getInitials(m?.name)
-        );
-        return {
-          id: g.id,
-          name: g.name,
-          description: g.description || '',
-          memberCount: typeof g.memberCount === 'number' ? g.memberCount : members.length,
-          totalSpent: typeof g.totalSpent === 'number' ? g.totalSpent : 0,
-          recentActivity: g.recentActivity || '',
-          members,
-          isAdmin: Boolean(g.isAdmin),
-          lastActive: g.lastActive ?? null,
-          pendingBills: typeof g.pendingBills === 'number' ? g.pendingBills : 0,
-          color: g.color || ''
-        } as Group;
-      });
+      const mapped = rawGroups.map((g: any) => mapRawGroup(g));
       setGroups(mapped);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch groups');
@@ -80,7 +80,7 @@ export function useGroups(): UseGroupsResult {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [mapRawGroup]);
 
   useEffect(() => {
     fetchGroups();
@@ -123,16 +123,18 @@ export function useGroups(): UseGroupsResult {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      const newGroup: Group | undefined = data.group || data;
-      if (newGroup) {
-        setGroups(prev => [...prev, newGroup]);
+      const raw = data.group || data;
+      const mapped = raw ? mapRawGroup(raw) : undefined;
+      if (mapped) {
+        setGroups(prev => [...prev, mapped]);
+        try { window.dispatchEvent(new Event('groupsUpdated')); } catch {}
       }
-      return newGroup;
+      return mapped;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create group');
       throw err;
     }
-  }, []);
+  }, [mapRawGroup]);
 
   return { groups, loading, error, refetch: fetchGroups, joinGroup, leaveGroup, createGroup };
 }

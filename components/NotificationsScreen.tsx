@@ -361,7 +361,7 @@ export function NotificationsScreen({ onNavigate }: NotificationsScreenProps) {
                     {notification.user ? (
                       <Avatar className="h-10 w-10 mt-1">
                         <AvatarFallback>
-                          {notification.user.name.split(' ').map(n => n[0]).join('')}
+                          {getInitials(notification.user?.name)}
                         </AvatarFallback>
                       </Avatar>
                     ) : (
@@ -657,3 +657,4 @@ export function NotificationsScreen({ onNavigate }: NotificationsScreenProps) {
     </div>
   );
 }
+import { getInitials } from '../utils/name';
