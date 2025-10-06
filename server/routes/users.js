@@ -3,7 +3,6 @@ import jwt from 'jsonwebtoken'
 import bcrypt from 'bcryptjs'
 import { body, validationResult } from 'express-validator'
 import multer from 'multer'
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
 import path from 'path'
 import fs from 'fs'
 import { updateNotificationPreference, defaultSettings } from './notifications.js'
@@ -19,17 +18,27 @@ const router = express.Router()
 const uploadDir = process.env.AVATAR_UPLOAD_DIR || 'uploads'
 const useS3 = (process.env.AVATAR_STORAGE || '').toLowerCase() === 's3' || !!process.env.AWS_S3_BUCKET
 
-let s3Client = null
-if (useS3) {
-  s3Client = new S3Client({
-    region: process.env.AWS_S3_REGION || 'us-east-1',
-    credentials: process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY
-      ? {
-          accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
-        }
-      : undefined
-  })
+let s3ClientPromise = null
+const getS3Client = async () => {
+  if (!useS3) {
+    throw new Error('S3 storage not enabled')
+  }
+  if (!s3ClientPromise) {
+    s3ClientPromise = (async () => {
+      const { S3Client, PutObjectCommand } = await import('@aws-sdk/client-s3')
+      const client = new S3Client({
+        region: process.env.AWS_S3_REGION || 'us-east-1',
+        credentials: process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY
+          ? {
+              accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+              secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+            }
+          : undefined
+      })
+      return { client, PutObjectCommand }
+    })()
+  }
+  return s3ClientPromise
 }
 
 const storage = useS3
@@ -263,27 +272,33 @@ router.post('/:id/avatar', upload.single('avatar'), async (req, res) => {
     }
 
     let url
-    if (useS3 && s3Client) {
-      const region = process.env.AWS_S3_REGION || 'us-east-1'
-      const bucket = process.env.AWS_S3_BUCKET
-      if (!bucket) {
-        return res.status(500).json({ error: 'S3 bucket not configured' })
+    if (useS3) {
+      try {
+        const { client, PutObjectCommand } = await getS3Client()
+        const region = process.env.AWS_S3_REGION || 'us-east-1'
+        const bucket = process.env.AWS_S3_BUCKET
+        if (!bucket) {
+          return res.status(500).json({ error: 'S3 bucket not configured' })
+        }
+        const prefix = (process.env.S3_PREFIX || 'uploads/avatars').replace(/^\/+|\/+$/g, '')
+        const ext = path.extname(req.file.originalname || '') || '.jpg'
+        const key = `${prefix}/${req.params.id}-${Date.now()}${ext}`
+
+        await client.send(new PutObjectCommand({
+          Bucket: bucket,
+          Key: key,
+          Body: req.file.buffer,
+          ContentType: req.file.mimetype || 'image/jpeg',
+          ACL: 'public-read'
+        }))
+
+        const publicBase = (process.env.S3_PUBLIC_BASE_URL || '').replace(/\/$/, '')
+        const base = publicBase || `https://${bucket}.s3.${region}.amazonaws.com`
+        url = `${base}/${key}`
+      } catch (error) {
+        console.error('S3 avatar upload failed:', error)
+        return res.status(500).json({ error: 'Avatar upload failed. Ensure AWS SDK is installed or disable S3 storage.' })
       }
-      const prefix = (process.env.S3_PREFIX || 'uploads/avatars').replace(/^\/+|\/+$/g, '')
-      const ext = path.extname(req.file.originalname || '') || '.jpg'
-      const key = `${prefix}/${req.params.id}-${Date.now()}${ext}`
-
-      await s3Client.send(new PutObjectCommand({
-        Bucket: bucket,
-        Key: key,
-        Body: req.file.buffer,
-        ContentType: req.file.mimetype || 'image/jpeg',
-        ACL: 'public-read'
-      }))
-
-      const publicBase = (process.env.S3_PUBLIC_BASE_URL || '').replace(/\/$/, '')
-      const base = publicBase || `https://${bucket}.s3.${region}.amazonaws.com`
-      url = `${base}/${key}`
     } else {
       // Local disk fallback
       // Build a stable, https URL for the uploaded avatar
