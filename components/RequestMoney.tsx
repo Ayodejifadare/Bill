@@ -41,8 +41,6 @@ export function RequestMoney({ onNavigate, prefillData }: RequestMoneyProps) {
   const { appSettings, userProfile } = useUserProfile();
   const currencySymbol = getCurrencySymbol(appSettings.region);
   // Legacy variable for unreachable code block (safe to remove when legacy block is deleted)
-  const isNigeria = appSettings.region === 'NG';
-  
   const [selectedFriends, setSelectedFriends] = useState<Friend[]>([]);
   const [amount, setAmount] = useState('');
   const [message, setMessage] = useState('');

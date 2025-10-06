@@ -127,7 +127,11 @@ export function useGroups(): UseGroupsResult {
       const mapped = raw ? mapRawGroup(raw) : undefined;
       if (mapped) {
         setGroups(prev => [...prev, mapped]);
-        try { window.dispatchEvent(new Event('groupsUpdated')); } catch {}
+        try {
+          window.dispatchEvent(new Event('groupsUpdated'));
+        } catch (error) {
+          console.warn('groupsUpdated dispatch failed', error);
+        }
       }
       return mapped;
     } catch (err) {

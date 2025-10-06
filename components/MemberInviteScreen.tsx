@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-import { Avatar, AvatarFallback } from './ui/avatar';
 import { ScreenHeader } from './ui/screen-header';
 import { EmptyState } from './ui/empty-state';
 import { FilterTabs } from './ui/filter-tabs';

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, type ChangeEvent } from 'react';
+import { useState, useEffect, useRef, useMemo, type ChangeEvent } from 'react';
 import { Card } from './ui/card';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
@@ -16,6 +16,28 @@ interface AccountSettingsScreenProps {
 
 export function AccountSettingsScreen({ onNavigate }: AccountSettingsScreenProps) {
   const { userProfile, updateUserProfile, refreshUserProfile } = useUserProfile();
+  const profileSnapshot = useMemo(() => ({
+    firstName: userProfile?.firstName || (userProfile?.name || '').split(' ')[0] || '',
+    lastName: userProfile?.lastName || (userProfile?.name || '').split(' ').slice(1).join(' ') || '',
+    email: userProfile?.email || '',
+    phone: userProfile?.phone || '',
+    dateOfBirth: userProfile?.dateOfBirth || '',
+    address: userProfile?.address || '',
+    bio: userProfile?.bio || '',
+    avatar: userProfile?.avatar || '',
+  }), [userProfile]);
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [userData, setUserData] = useState(profileSnapshot);
+  const [originalData, setOriginalData] = useState(profileSnapshot);
+
+  useEffect(() => {
+    setUserData(profileSnapshot);
+    setOriginalData(profileSnapshot);
+  }, [profileSnapshot]);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   if (!userProfile) {
     return (
       <div className="p-4">
@@ -23,28 +45,6 @@ export function AccountSettingsScreen({ onNavigate }: AccountSettingsScreenProps
       </div>
     );
   }
-  const [isEditing, setIsEditing] = useState(false);
-
-  const profileToState = () => ({
-    firstName: userProfile.firstName || (userProfile.name || '').split(' ')[0] || '',
-    lastName: userProfile.lastName || (userProfile.name || '').split(' ').slice(1).join(' ') || '',
-    email: userProfile.email || '',
-    phone: userProfile.phone || '',
-    dateOfBirth: userProfile.dateOfBirth || '',
-    address: userProfile.address || '',
-    bio: userProfile.bio || '',
-    avatar: userProfile.avatar || '',
-  });
-
-  const [userData, setUserData] = useState(profileToState());
-  const [originalData, setOriginalData] = useState(profileToState());
-
-  useEffect(() => {
-    const data = profileToState();
-    setUserData(data);
-    setOriginalData(data);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userProfile]);
 
   const handleSave = async () => {
     await updateUserProfile({
@@ -70,8 +70,6 @@ export function AccountSettingsScreen({ onNavigate }: AccountSettingsScreenProps
   const updateField = (field: string, value: string) => {
     setUserData(prev => ({ ...prev, [field]: value }));
   };
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handlePhotoSelect = () => {
     fileInputRef.current?.click();

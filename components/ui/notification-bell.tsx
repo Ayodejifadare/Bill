@@ -14,7 +14,7 @@ export function NotificationBell({ onClick }: NotificationBellProps) {
   const [unread, setUnread] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [_errorCount, setErrorCount] = useState(0);
+  const [, setErrorCount] = useState(0);
 
   const pollTimeout = useRef<number | null>(null);
   const esRef = useRef<EventSource | null>(null);

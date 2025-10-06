@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useUserProfile } from './UserProfileContext';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
@@ -39,24 +39,7 @@ interface SecurityScreenProps {
 
 export function SecurityScreen({ onNavigate }: SecurityScreenProps) {
   const { userProfile } = useUserProfile();
-
-  if (!userProfile) {
-    return (
-      <div className="p-4 space-y-4">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => onNavigate('profile')}
-          className="p-2"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <p className="text-sm text-muted-foreground">Loading security settings…</p>
-      </div>
-    );
-  }
-
-  const userId = userProfile.id;
+  const userId = userProfile?.id ?? '';
 
   const [securitySettings, setSecuritySettings] = useState({
     twoFactorAuth: false,
@@ -81,7 +64,8 @@ export function SecurityScreen({ onNavigate }: SecurityScreenProps) {
     confirm: false,
   });
 
-  const fetchLogs = async () => {
+  const fetchLogs = useCallback(async () => {
+    if (!userId) return;
     try {
       const data = await apiClient(`/users/${userId}/security-logs`);
       setActivities(
@@ -97,12 +81,13 @@ export function SecurityScreen({ onNavigate }: SecurityScreenProps) {
     } catch (e) {
       console.error('Fetch logs error', e);
     }
-  };
+  }, [userId]);
 
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-      const data = await apiClient(`/users/${userId}`);
+        if (!userId) return;
+        const data = await apiClient(`/users/${userId}`);
         setSecuritySettings(prev => ({
           ...prev,
           twoFactorAuth: data.user.twoFactorEnabled,
@@ -114,9 +99,10 @@ export function SecurityScreen({ onNavigate }: SecurityScreenProps) {
       }
     };
     fetchSettings();
-  }, [userId]);
+  }, [userId, fetchLogs]);
 
   const updateSetting = async (key: string, value: boolean | string) => {
+    if (!userId) return;
     setSecuritySettings(prev => ({ ...prev, [key]: value }));
     try {
       if (key === 'twoFactorAuth') {
@@ -148,6 +134,7 @@ export function SecurityScreen({ onNavigate }: SecurityScreenProps) {
       return;
     }
     try {
+      if (!userId) return;
       await apiClient(`/users/${userId}/change-password`, {
         method: 'POST',
         headers: {
@@ -170,6 +157,7 @@ export function SecurityScreen({ onNavigate }: SecurityScreenProps) {
 
   const handleLogoutOthers = async () => {
     try {
+      if (!userId) return;
       const data = await apiClient(`/users/${userId}/logout-others`, {
         method: 'POST',
       });
@@ -185,6 +173,22 @@ export function SecurityScreen({ onNavigate }: SecurityScreenProps) {
   };
 
   const securityScore = 85; // Mock security score
+
+  if (!userProfile) {
+    return (
+      <div className="p-4 space-y-4">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => onNavigate('profile')}
+          className="p-2"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+        <p className="text-sm text-muted-foreground">Loading security settings…</p>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 space-y-6 pb-20">

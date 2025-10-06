@@ -1,5 +1,5 @@
 // Ambient shims for test and env globals used in the project
-declare var global: any;
+declare const global: any;
 interface ImportMetaEnv {
   MODE: string;
 }

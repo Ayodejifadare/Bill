@@ -7,11 +7,14 @@ interface MemoryMetrics {
   timestamp: number;
 }
 
+type CleanupTask = () => void;
+type MemoryObserver = (metrics: MemoryMetrics) => void;
+
 class MemoryManager {
   private static instance: MemoryManager;
   private metrics: MemoryMetrics[] = [];
-  private observers: Set<Function> = new Set();
-  private cleanupTasks: Set<Function> = new Set();
+  private observers: Set<MemoryObserver> = new Set();
+  private cleanupTasks: Set<CleanupTask> = new Set();
   private monitoringInterval?: NodeJS.Timeout;
 
   static getInstance(): MemoryManager {
@@ -86,7 +89,7 @@ class MemoryManager {
   }
 
   // Register a cleanup task
-  registerCleanupTask(cleanupFn: Function) {
+  registerCleanupTask(cleanupFn: CleanupTask) {
     this.cleanupTasks.add(cleanupFn);
     
     // Return unregister function
@@ -151,7 +154,7 @@ class MemoryManager {
   }
 
   // Add memory usage observer
-  addObserver(observer: Function) {
+  addObserver(observer: MemoryObserver) {
     this.observers.add(observer);
     
     // Return unsubscribe function
@@ -285,7 +288,7 @@ export const memoryOptimization = {
     return ((...args: any[]) => {
       const later = () => {
         timeout = null;
-        if (!immediate) func.apply(null, args);
+        if (!immediate) func(...args);
       };
       
       const callNow = immediate && !timeout;
@@ -293,7 +296,7 @@ export const memoryOptimization = {
       if (timeout) clearTimeout(timeout);
       timeout = setTimeout(later, wait);
       
-      if (callNow) func.apply(null, args);
+      if (callNow) func(...args);
     }) as T;
   },
 
@@ -306,7 +309,7 @@ export const memoryOptimization = {
     
     return ((...args: any[]) => {
       if (!inThrottle) {
-        func.apply(null, args);
+        func(...args);
         inThrottle = true;
         setTimeout(() => inThrottle = false, limit);
       }

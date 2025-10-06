@@ -22,7 +22,6 @@ export async function handle(path: string, _init?: RequestInit) {
 
   if (/^\/(api\/)?users\/[^/]+\/payment-methods$/.test(path)) {
     const parts = path.split('/');
-    const id = parts[parts.length - 2];
     return [
       {
         id: 'pm-bank-1',

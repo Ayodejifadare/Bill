@@ -201,7 +201,6 @@ export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps
     );
   }
 
-  const formattedBillDate = formatBillDate(bill.date);
   const copyPaymentDetails = async () => {
     const paymentMethod = bill?.paymentMethod;
 

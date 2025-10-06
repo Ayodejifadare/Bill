@@ -157,7 +157,7 @@ export async function apiClient(
   // Dev-mode auth bypass using backend's x-user-id hook
   if (!headers['Authorization'] && useDevAuth) {
     // Prefer explicit env user id, else fall back to stored user id
-    let xUserId = devUserId || readStoredUserId();
+    const xUserId = devUserId || readStoredUserId();
     if (xUserId) {
       headers['x-user-id'] = xUserId;
     }

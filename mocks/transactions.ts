@@ -35,7 +35,7 @@ function makeList() {
   ];
 }
 
-export async function handle(path: string, init?: RequestInit) {
+export async function handle(path: string, _init?: RequestInit) {
   if (path.startsWith('/api/transactions/summary')) {
     return {
       totalSent: 120.0,
@@ -71,4 +71,3 @@ export async function handle(path: string, init?: RequestInit) {
     pageCount: 1,
   };
 }
-

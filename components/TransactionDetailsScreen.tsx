@@ -7,7 +7,7 @@ import { Badge } from './ui/badge';
 // import { Separator } from './ui/separator';
 import { toast } from 'sonner';
 import { useUserProfile } from './UserProfileContext';
-import { getCurrencySymbol, requiresRoutingNumber, getBankIdentifierLabel, formatBankAccountForRegion, formatCurrencyForRegion } from '../utils/regions';
+import { requiresRoutingNumber, getBankIdentifierLabel, formatBankAccountForRegion, formatCurrencyForRegion } from '../utils/regions';
 import { ShareSheet } from './ui/share-sheet';
 import { createDeepLink } from './ShareUtils';
 import { apiClient } from '../utils/apiClient';
@@ -62,7 +62,6 @@ export function TransactionDetailsScreen({ transactionId, onNavigate }: Transact
   const [transaction, setTransaction] = useState<TransactionDetails | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const currencySymbol = getCurrencySymbol(appSettings.region);
 
   const mapTransaction = (data: any): TransactionDetails => {
     const user = data.user || data.sender || data.receiver || {};
@@ -272,9 +271,6 @@ export function TransactionDetailsScreen({ transactionId, onNavigate }: Transact
       toast.error('Unable to copy details. Please try again or copy manually from the displayed information.');
     }
   };
-
-  const formatAccountNumber = (accountNumber: string) =>
-    formatBankAccountForRegion(appSettings.region, accountNumber);
 
   return (
     <div className="pb-20">

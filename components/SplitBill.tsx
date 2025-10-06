@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import {
   ArrowLeft,
-  Plus,
   Minus,
   Users,
   Building2,
@@ -17,7 +16,6 @@ import { Label } from './ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Textarea } from './ui/textarea';
-import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
 import { Switch } from './ui/switch';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
@@ -52,8 +50,6 @@ export function SplitBill({ onNavigate, groupId, prefillFriendId }: SplitBillPro
   const { appSettings, userProfile } = useUserProfile();
   const currencySymbol = getCurrencySymbol(appSettings.region);
   // Legacy variable for unreachable code block (safe to remove when legacy block is deleted)
-  const isNigeria = appSettings.region === 'NG';
-  
   const [billName, setBillName] = useState('');
   const [totalAmount, setTotalAmount] = useState('');
   const [description, setDescription] = useState('');
@@ -79,7 +75,6 @@ export function SplitBill({ onNavigate, groupId, prefillFriendId }: SplitBillPro
 
   // Progressive disclosure states - recurring expanded by default
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
-  const [showRecurringOptions, setShowRecurringOptions] = useState(true); // Changed to true
   const [showSplitDetails, setShowSplitDetails] = useState(false);
 
   // Current user data
@@ -535,7 +530,11 @@ export function SplitBill({ onNavigate, groupId, prefillFriendId }: SplitBillPro
 
       // Notify group lists to refresh
       if (typeof window !== 'undefined') {
-        try { window.dispatchEvent(new Event('groupsUpdated')); } catch {}
+        try {
+          window.dispatchEvent(new Event('groupsUpdated'));
+        } catch (error) {
+          console.warn('groupsUpdated dispatch failed', error);
+        }
       }
       // Navigate back after success
       if (groupId) {
@@ -1040,11 +1039,6 @@ export function SplitBill({ onNavigate, groupId, prefillFriendId }: SplitBillPro
               checked={isRecurring}
               onCheckedChange={(checked) => {
                 setIsRecurring(checked);
-                if (!checked) {
-                  setShowRecurringOptions(false);
-                } else {
-                  setShowRecurringOptions(true);
-                }
               }}
             />
           </div>

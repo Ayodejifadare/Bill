@@ -254,7 +254,8 @@ const usePerformanceMonitoring = () => {
     // Performance observer for monitoring navigation timing
     if ('PerformanceObserver' in window) {
       const observer = new PerformanceObserver((list) => {
-        for (const _entry of list.getEntries()) {
+        for (const entry of list.getEntries()) {
+          void entry;
           // Intentionally no logging; enable here if needed
         }
       });

@@ -98,7 +98,11 @@ export function withErrorHandling(handler: ServerlessHandler): ServerlessHandler
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Internal server error';
       // Best-effort logging in serverless environments
-      try { console.error('[serverless]', message, err); } catch {}
+      try {
+        console.error('[serverless]', message, err);
+      } catch (logError) {
+        // ignore logging failures in restricted environments
+      }
       return json({ error: message }, { status: 500 });
     }
   };
@@ -129,4 +133,3 @@ export function createServerlessFunction(handler: ServerlessHandler, cors?: Cors
  *   return { status: 405, headers: { Allow: 'GET, POST' }, body: { error: 'Method Not Allowed' } };
  * }, { origin: '*', methods: ['GET', 'POST', 'OPTIONS'] });
  */
-

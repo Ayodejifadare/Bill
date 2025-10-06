@@ -5,10 +5,8 @@ import { Button } from './ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Smartphone } from 'lucide-react';
 import { useUserProfile } from './UserProfileContext';
-import { InputOTP, InputOTPGroup, InputOTPSlot } from './ui/input-otp';
 import OTPVerificationScreen from './OTPVerificationScreen';
 import { toast } from 'sonner';
-import { saveAuth } from '../utils/auth';
 import { apiClient } from '../utils/apiClient';
 import { Separator } from './ui/separator';
 import { normalizePhoneNumber } from '../utils/phone';
@@ -70,9 +68,6 @@ export function LoginScreen({ onLogin, onShowRegister }: LoginScreenProps) {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [country, setCountry] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [, setCodeSent] = useState(false);
-  const [otp] = useState('');
-  const [, setIsVerifying] = useState(false);
   const [showOtpScreen, setShowOtpScreen] = useState(false);
   const [otpContext, setOtpContext] = useState<{ phone: string; region: string; demoOTP?: string | number } | null>(null);
   const [error, setError] = useState<string>('');
@@ -112,7 +107,6 @@ export function LoginScreen({ onLogin, onShowRegister }: LoginScreenProps) {
           phone: normalizedPhone
         })
       });
-      setCodeSent(true);
       setOtpContext({ phone: normalizedPhone, region: selectedCountry?.region || 'US', demoOTP: (res && res.otp) || undefined });
       setShowOtpScreen(true);
       setError('');
@@ -121,40 +115,6 @@ export function LoginScreen({ onLogin, onShowRegister }: LoginScreenProps) {
       setError(error.message || 'Failed to send code');
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsVerifying(true);
-    try {
-      const normalizedPhone = normalizePhoneInput();
-      if (!normalizedPhone) {
-        throw new Error('Enter a valid phone number');
-      }
-      const data = await apiClient('/auth/verify-otp', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          phone: normalizedPhone,
-          otp
-        })
-      });
-      const authData = {
-        token: data.token,
-        expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
-        loginTime: new Date().toISOString(),
-      };
-      saveAuth({ auth: authData, user: data.user });
-      setError('');
-      onLogin({ token: data.token, user: data.user });
-    } catch (error: any) {
-      console.error('OTP verification error:', error);
-      setError(error.message || 'OTP verification failed');
-    } finally {
-      setIsVerifying(false);
     }
   };
 

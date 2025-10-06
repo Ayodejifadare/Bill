@@ -3,7 +3,7 @@ import { Share2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { ShareSheet } from './ui/share-sheet';
 import { useUserProfile } from './UserProfileContext';
-import { formatCurrencyForRegion, getCurrencySymbol } from '../utils/regions';
+import { formatCurrencyForRegion } from '../utils/regions';
 import { formatDueDate } from '../utils/formatDueDate';
 
 export interface ShareData {
@@ -33,7 +33,7 @@ export function generateShareText(
   const formattedDueDate = dueDate ? (formatDueDate(dueDate) || dueDate) : '';
   
   switch (type) {
-    case 'bill_split':
+    case 'bill_split': {
       const participantsList = participantNames ? participantNames.join(', ') : 'friends';
       return `*${title}*
 
@@ -41,8 +41,9 @@ export function generateShareText(
    Split with: ${participantsList}${formattedDueDate ? `\n Due: ${formattedDueDate}` : ''}${description ? `\n ${description}` : ''}
 
 _Shared via Biltip _`;
+    }
 
-    case 'payment_request':
+    case 'payment_request': {
       return `*Payment Request*
 
  Amount: ${formattedAmount}
@@ -50,29 +51,33 @@ _Shared via Biltip _`;
    For: ${title}${formattedDueDate ? `\n Due: ${formattedDueDate}` : ''}${description ? `\n ${description}` : ''}
 
 _Send via Biltip _`;
+    }
 
-    case 'transaction':
+    case 'transaction': {
       return `*Transaction Complete*
 
  ${title}: ${formattedAmount}
  Status: ${status || 'Completed'}${shareData.transactionId ? `\n Ref: ${shareData.transactionId}` : ''}${shareData.paymentMethod ? `\n Via: ${shareData.paymentMethod}` : ''}
 
 _Powered by Biltip _`;
+    }
 
-    case 'payment_confirmation':
+    case 'payment_confirmation': {
       return `*Payment Sent Successfully!*
 
  Amount: ${formattedAmount}
  To: ${title}${shareData.transactionId ? `\n Reference: ${shareData.transactionId}` : ''}${shareData.paymentMethod ? `\n Method: ${shareData.paymentMethod}` : ''}
 
 _Paid via Biltip _`;
+    }
 
-    case 'group_summary':
+    case 'group_summary': {
       return `*${groupName || 'Group'} Expense Summary*
 
  Total: ${formattedAmount}${participantNames ? `\n Members: ${participantNames.join(', ')}` : ''}${description ? `\n ${description}` : ''}
 
 _Tracked with Biltip _`;
+    }
 
     default:
       return `Check out this ${title} for ${formattedAmount} on Biltip!`;
@@ -113,7 +118,7 @@ interface ShareUtilsProps {
 
 export function ShareUtils({ 
   shareData, 
-  onNavigate,
+  onNavigate: _onNavigate,
   buttonText = 'Share',
   variant = 'default',
   size = 'lg',
@@ -121,7 +126,6 @@ export function ShareUtils({
 }: ShareUtilsProps) {
   const { userProfile, appSettings } = useUserProfile();
   const fmt = (n: number) => formatCurrencyForRegion(appSettings.region, n);
-  const currencySymbol = getCurrencySymbol(appSettings.region);
   const [showShareSheet, setShowShareSheet] = useState(false);
 
   const shareText = generateShareText(shareData, fmt, userProfile);

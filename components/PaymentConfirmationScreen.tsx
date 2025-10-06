@@ -8,7 +8,7 @@ import { Separator } from './ui/separator';
 import { toast } from 'sonner';
 import { ShareSheet } from './ui/share-sheet';
 import { useUserProfile } from './UserProfileContext';
-import { formatCurrencyForRegion, getCurrencySymbol } from '../utils/regions';
+import { formatCurrencyForRegion } from '../utils/regions';
 
 interface PaymentConfirmationScreenProps {
   paymentRequest: {
@@ -44,7 +44,6 @@ export function PaymentConfirmationScreen({
 }: PaymentConfirmationScreenProps) {
   const { appSettings } = useUserProfile();
   const fmt = (n: number) => formatCurrencyForRegion(appSettings.region, n);
-  const currencySymbol = getCurrencySymbol(appSettings.region);
 
   const [paymentResult] = useState<PaymentResult>({
     transactionId: `TXN${Date.now()}`,
