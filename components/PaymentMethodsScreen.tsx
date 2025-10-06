@@ -23,12 +23,13 @@ import {
 } from '@/api/payment-methods';
 
 interface PaymentMethodsScreenProps {
-  onNavigate: (screen: string) => void;
+  onNavigate: (screen: string, data?: any) => void;
+  backTo?: string;
 }
 
 // Bank directory is centralized in utils/banks; providers in utils/providers
 
-export function PaymentMethodsScreen({ onNavigate }: PaymentMethodsScreenProps) {
+export function PaymentMethodsScreen({ onNavigate, backTo = 'profile' }: PaymentMethodsScreenProps) {
   const { appSettings } = useUserProfile();
   const banks = getBankDirectoryForRegion(appSettings.region);
   const providers = getMobileMoneyProviders(appSettings.region);
@@ -206,10 +207,10 @@ export function PaymentMethodsScreen({ onNavigate }: PaymentMethodsScreenProps) 
       <div className="sticky top-0 bg-background/95 backdrop-blur-sm border-b border-border z-10">
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-3 min-w-0 flex-1">
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => onNavigate('settings')} 
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onNavigate(backTo)}
               className="min-h-[44px] min-w-[44px] -ml-2"
             >
               <ArrowLeft className="h-5 w-5" />

@@ -193,6 +193,9 @@ const navigationReducer = (state: NavigationState, action: NavigationAction): Na
         case 'transaction-history':
           newState.historyBackTo = null;
           break;
+        case 'payment-methods':
+          newState.historyBackTo = null;
+          break;
         case 'transaction-details':
           newState.selectedTransactionId = null;
           break;
@@ -436,6 +439,10 @@ function AppContent() {
             dispatch({ type: 'SET_HISTORY_BACK_TO', payload: (data && (data as any).from) ? (data as any).from : navState.activeTab });
             break;
         }
+      }
+      if (tab === 'payment-methods') {
+        const backTarget = (data && (data as any).from) ? (data as any).from : navState.activeTab || 'profile';
+        dispatch({ type: 'SET_HISTORY_BACK_TO', payload: backTarget });
       }
       // If navigating to primary tabs without explicit group context, clear lingering group state
       if ((tab === 'bills' || tab === 'split') && (!data || !data.groupId)) {
@@ -753,7 +760,7 @@ function AppContent() {
         case 'account-settings':
           return <AccountSettingsScreen onNavigate={handleNavigate} />;
         case 'payment-methods':
-          return <PaymentMethodsScreen onNavigate={handleNavigate} />;
+          return <PaymentMethodsScreen onNavigate={handleNavigate} backTo={navState.historyBackTo || 'profile'} />;
         case 'security':
           return <SecurityScreen onNavigate={handleNavigate} />;
         case 'kyc-verification':
