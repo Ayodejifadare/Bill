@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
-import { ArrowLeft, Search, UserPlus, Send, Mail, MessageCircle, Phone, Users, ChevronDown, ChevronUp, CheckCircle, RefreshCw, Zap, X, MoreVertical } from 'lucide-react';
+﻿import { useState, useEffect, useMemo } from 'react';
+import { ArrowLeft, Search, UserPlus, Send, Mail, MessageCircle, Phone, Users, ChevronDown, ChevronUp, CheckCircle, RefreshCw, Clock, Zap, X, MoreVertical } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -17,7 +17,10 @@ import { Progress } from './ui/progress';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { toast } from 'sonner';
 import { contactsAPI, showContactError } from '../utils/contacts-api';
+import { lookupUserByIdentifier, LookupUserResult, LookupIdentifierType, LookupRelationshipStatus } from '../utils/users-api';
+import type { MatchedContact } from './contact-sync/types';
 import { handleSendFriendRequest } from './contact-sync/helpers';
+import { getInitials } from '../utils/name';
 
 interface Contact {
   id: string;
@@ -32,11 +35,57 @@ interface Contact {
   isOnApp?: boolean;
   userId?: string;
   isFriend?: boolean;
+  matchedBy?: string | null;
+  relationshipStatus?: LookupRelationshipStatus;
+  isLookupResult?: boolean;
 }
 
 interface AddFriendScreenProps {
   onNavigate: (screen: string, data?: any) => void;
 }
+
+
+const determineLookupType = (value: string): LookupIdentifierType | undefined => {
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  if (trimmed.includes('@')) return 'email';
+  const numericCandidate = trimmed.replace(/[^0-9+]/g, '');
+  if (numericCandidate.length >= 7 && /^[-+()0-9\s.]+$/.test(trimmed)) {
+    return 'phone';
+  }
+  if (/^[a-zA-Z0-9._-]{3,}$/.test(trimmed)) {
+    return 'username';
+  }
+  return undefined;
+};
+
+const mapRelationshipStatusToContactStatus = (status: LookupRelationshipStatus): Contact['status'] => {
+  switch (status) {
+    case 'friends':
+      return 'friends';
+    case 'pending_outgoing':
+    case 'pending_incoming':
+      return 'pending';
+    default:
+      return 'existing_user';
+  }
+};
+
+const getRelationshipMessage = (status: LookupRelationshipStatus): string => {
+  switch (status) {
+    case 'friends':
+      return 'You are already connected on Biltip.';
+    case 'pending_outgoing':
+      return 'Friend request sent. Waiting for them to respond.';
+    case 'pending_incoming':
+      return 'This user sent you a friend request. Review it from the requests tab.';
+    case 'self':
+      return 'This is your account.';
+    case 'none':
+    default:
+      return 'Send a friend request to connect on Biltip.';
+  }
+};
 
 export function AddFriendScreen({ onNavigate }: AddFriendScreenProps) {
   const [selectedContacts, setSelectedContacts] = useState<Set<string>>(() => new Set());
@@ -61,6 +110,45 @@ export function AddFriendScreen({ onNavigate }: AddFriendScreenProps) {
   const VISIBLE_BATCH = 50;
   const [visibleOnAppCount, setVisibleOnAppCount] = useState(VISIBLE_BATCH);
   const [visibleInviteCount, setVisibleInviteCount] = useState(VISIBLE_BATCH);
+  const [lookupState, setLookupState] = useState<{
+    status: 'idle' | 'loading' | 'success' | 'error';
+    result: LookupUserResult | null;
+    error?: string;
+  }>({ status: 'idle', result: null });
+
+  const [lookupActionLoading, setLookupActionLoading] = useState(false);
+
+  useEffect(() => {
+    const query = searchQuery.trim();
+
+    if (!query || query.length < 2) {
+      setLookupState({ status: 'idle', result: null });
+      return;
+    }
+
+    let cancelled = false;
+    const lookupType = determineLookupType(query);
+
+    setLookupState({ status: 'loading', result: null });
+
+    const timer = setTimeout(async () => {
+      try {
+        const response = await lookupUserByIdentifier(query, lookupType);
+        if (cancelled) return;
+        setLookupState({ status: 'success', result: response });
+      } catch (error) {
+        if (cancelled) return;
+        const message = error instanceof Error ? error.message : 'Unable to search Biltip directory.';
+        setLookupState({ status: 'error', result: null, error: message });
+      }
+    }, 500);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [searchQuery]);
+
   
   // Progressive disclosure states
   const [showInvitePreview, setShowInvitePreview] = useState(false);
@@ -203,12 +291,128 @@ export function AddFriendScreen({ onNavigate }: AddFriendScreenProps) {
 
   const displayContacts = getDisplayContacts();
 
+  const renderLookupActionButton = () => {
+    if (!lookupContact) return null;
+
+    switch (lookupContact.relationshipStatus) {
+      case 'friends':
+        return (
+          <Button variant="outline" disabled className="min-h-[36px]">
+            Friends
+          </Button>
+        );
+      case 'pending_outgoing':
+        return (
+          <Button variant="outline" disabled className="min-h-[36px]">
+            <Clock className="h-4 w-4 mr-2 text-muted-foreground" />
+            Request sent
+          </Button>
+        );
+      case 'pending_incoming':
+        return (
+          <Button variant="outline" disabled className="min-h-[36px]">
+            <Mail className="h-4 w-4 mr-2" />
+            Awaiting your response
+          </Button>
+        );
+      case 'self':
+        return (
+          <Button variant="outline" disabled className="min-h-[36px]">
+            That's you
+          </Button>
+        );
+      default:
+        return (
+          <Button className="min-h-[36px]" onClick={handleLookupFriendRequest} disabled={lookupActionLoading}>
+            {lookupActionLoading ? (<Clock className="mr-2 h-4 w-4 animate-pulse" />) : (<UserPlus className="mr-2 h-4 w-4" />)}
+            Add friend
+          </Button>
+        );
+    }
+  };
+
+  const renderLookupCard = () => {
+    if (!lookupContact) return null;
+
+    const relationshipMessage = getRelationshipMessage(lookupContact.relationshipStatus ?? 'none');
+
+    return (
+      <Card className="border border-dashed border-primary/40 bg-primary/5">
+        <CardContent className="p-4 flex items-start gap-3">
+          <Avatar className="h-12 w-12">
+            <AvatarImage src={lookupContact.avatar} />
+            <AvatarFallback>{getInitials(lookupContact.name)}</AvatarFallback>
+          </Avatar>
+          <div className="flex-1 min-w-0 space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="font-medium text-base truncate">{lookupContact.name}</p>
+              {getStatusBadge(lookupContact.status ?? 'existing_user')}
+              {lookupContact.matchedBy && (
+                <Badge variant="outline" className="text-xs">
+                  Matched by {lookupContact.matchedBy}
+                </Badge>
+              )}
+            </div>
+            <div className="space-y-1 text-sm text-muted-foreground">
+              {lookupContact.email && <p>{lookupContact.email}</p>}
+              {lookupContact.phoneNumber && <p>{lookupContact.phoneNumber}</p>}
+            </div>
+            <p className="text-xs text-muted-foreground">{relationshipMessage}</p>
+          </div>
+          <div className="flex-shrink-0">
+            {renderLookupActionButton()}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
+  const lookupContact = useMemo(() => {
+    if (lookupState.status !== 'success' || !lookupState.result) {
+      return null;
+    }
+    const result = lookupState.result;
+    if (!result || result.relationshipStatus === 'self') {
+      return null;
+    }
+    if (existingUsers.some(contact => contact.userId === result.id)) {
+      return null;
+    }
+    const contactStatus = mapRelationshipStatusToContactStatus(result.relationshipStatus);
+    const matchedBy = result.matchedBy ?? determineLookupType(searchQuery.trim()) ?? null;
+    return {
+      id: `lookup-${result.id}`,
+      name: result.name,
+      username: result.email ?? undefined,
+      email: result.email ?? undefined,
+      phoneNumber: result.phone ?? undefined,
+      avatar: result.avatar ?? undefined,
+      status: contactStatus,
+      isOnApp: true,
+      userId: result.id,
+      relationshipStatus: result.relationshipStatus,
+      matchedBy,
+      isLookupResult: true,
+    } as Contact;
+  }, [lookupState, existingUsers, searchQuery]);
+
+  const shouldShowLookupCard = Boolean(
+    searchQuery.trim() &&
+    contactSubTab === 'on_app' &&
+    lookupState.status === 'success' &&
+    lookupContact
+  );
+
+  const isLookupLoading = lookupState.status === 'loading' && searchQuery.trim().length >= 2;
+  const lookupErrorMessage = lookupState.status === 'error' ? lookupState.error : undefined;
+
   // Get selected contacts for display
   const getSelectedContacts = () => {
     return syncedContacts.filter(contact => selectedContacts.has(contact.id));
   };
 
   const handleContactToggle = (contactId: string) => {
+
     setSelectedContacts(prev => {
       const next = new Set(prev);
       if (next.has(contactId)) {
@@ -218,6 +422,44 @@ export function AddFriendScreen({ onNavigate }: AddFriendScreenProps) {
       }
       return next;
     });
+  };
+
+
+  const handleLookupFriendRequest = async () => {
+    if (!lookupContact || !lookupContact.userId) return;
+
+    setLookupActionLoading(true);
+    try {
+      const requestPayload: MatchedContact = {
+        id: lookupContact.userId,
+        userId: lookupContact.userId,
+        name: lookupContact.name,
+        phone: lookupContact.phoneNumber || '',
+        email: lookupContact.email,
+        username: lookupContact.username,
+        status: 'existing_user',
+        avatar: lookupContact.avatar,
+      };
+      const result = await handleSendFriendRequest(requestPayload);
+      if (result.success) {
+        setLookupState(prev =>
+          prev.result
+            ? {
+                status: 'success',
+                result: {
+                  ...prev.result,
+                  relationshipStatus: 'pending_outgoing',
+                },
+              }
+            : prev
+        );
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to send friend request';
+      toast.error(message);
+    } finally {
+      setLookupActionLoading(false);
+    }
   };
 
   const handleRemoveSelected = (contactId: string) => {
@@ -756,6 +998,27 @@ export function AddFriendScreen({ onNavigate }: AddFriendScreenProps) {
                   </TabsList>
 
                   <TabsContent value="on_app" className="space-y-4 mt-4">
+                    {searchQuery.trim() && (
+                      <div className="space-y-3">
+                        {isLookupLoading && (
+                          <Card className="border-dashed border-muted">
+                            <CardContent className="p-4 flex items-center gap-3">
+                              <Clock className="h-4 w-4 text-muted-foreground" />
+                              <div>
+                                <p className="text-sm font-medium">Searching Biltip directory…</p>
+                                <p className="text-xs text-muted-foreground break-all">Looking for “{searchQuery.trim()}”</p>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        )}
+                        {lookupErrorMessage && (
+                          <Alert variant="destructive">
+                            <AlertDescription>{lookupErrorMessage}</AlertDescription>
+                          </Alert>
+                        )}
+                        {shouldShowLookupCard && renderLookupCard()}
+                      </div>
+                    )}
                     {/* Friends List */}
                     <div className="space-y-3">
                       {displayContacts.length > 0 ? (
@@ -806,7 +1069,7 @@ export function AddFriendScreen({ onNavigate }: AddFriendScreenProps) {
                           </Card>
                         ))
                       ) : searchQuery ? (
-                        <Card>
+                        (shouldShowLookupCard || isLookupLoading) ? null : (<Card>
                           <CardContent className="p-8 text-center">
                             <Search className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                             <h3 className="font-medium mb-2">No results found</h3>
@@ -821,7 +1084,7 @@ export function AddFriendScreen({ onNavigate }: AddFriendScreenProps) {
                               Clear Search
                             </Button>
                           </CardContent>
-                        </Card>
+                        </Card>)
                       ) : (
                         <Card>
                           <CardContent className="p-8 text-center">
@@ -912,7 +1175,7 @@ export function AddFriendScreen({ onNavigate }: AddFriendScreenProps) {
                           </Card>
                         ))
                       ) : searchQuery ? (
-                        <Card>
+                        (shouldShowLookupCard || isLookupLoading) ? null : (<Card>
                           <CardContent className="p-8 text-center">
                             <Search className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                             <h3 className="font-medium mb-2">No results found</h3>
@@ -927,7 +1190,7 @@ export function AddFriendScreen({ onNavigate }: AddFriendScreenProps) {
                               Clear Search
                             </Button>
                           </CardContent>
-                        </Card>
+                        </Card>)
                       ) : (
                         <Card>
                           <CardContent className="p-8 text-center">
@@ -1138,4 +1401,4 @@ export function AddFriendScreen({ onNavigate }: AddFriendScreenProps) {
     </div>
   );
 }
-import { getInitials } from '../utils/name';
+
