@@ -68,6 +68,7 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
         lastTransaction?: Friend['lastTransaction'];
         status?: Friend['status'];
         requestId?: string;
+        direction?: Friend['direction'];
       }) => ({
         id: f.id,
         name: f.name,
@@ -76,7 +77,7 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
         avatar: f.avatar,
         lastTransaction: f.lastTransaction,
         requestId: f.requestId,
-        direction: f.status === 'pending' ? 'incoming' : undefined,
+        direction: f.direction ?? (f.status === 'pending' ? 'incoming' : undefined),
       }));
     } catch (err) {
       console.error('Failed to load friends', err);

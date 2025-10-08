@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import {
   ArrowLeft,
   Minus,
@@ -157,7 +157,7 @@ export function SplitBill({ onNavigate, groupId, prefillFriendId }: SplitBillPro
           const group = fetchedGroups.find((g) => g.id === groupId);
           const groupMembers = group ? group.members : [];
           // Exclude the current user from groupParticipants to avoid duplication
-          const filteredMembers = groupMembers.filter((m) => m.id !== currentUser.id);
+          const filteredMembers = groupMembers.filter((m) => m.id !== (userProfile?.id ?? currentUser.id));
           const groupParticipants = filteredMembers.map((friend) => ({
             friend,
             amount: 0,
@@ -1174,7 +1174,7 @@ export function SplitBill({ onNavigate, groupId, prefillFriendId }: SplitBillPro
           className="w-full min-h-[52px] text-base"
           disabled={submitting || !billName || !totalAmount || participants.length === 0 || !selectedPaymentMethod}
         >
-          {submitting ? 'Creating…' : (isRecurring ? (
+          {submitting ? 'Creatingâ€¦' : (isRecurring ? (
             <>
               <Repeat className="h-5 w-5 mr-2" />
               Create Recurring Split
@@ -1192,7 +1192,7 @@ export function SplitBill({ onNavigate, groupId, prefillFriendId }: SplitBillPro
             </p>
             {Math.abs(getTotalSplit() - parseFloat(totalAmount)) > 0.01 && (
               <p className="text-xs text-destructive mt-1">
-                ⚠️ Split amounts don't match total
+                âš ï¸ Split amounts don't match total
               </p>
             )}
           </div>
@@ -1203,3 +1203,4 @@ export function SplitBill({ onNavigate, groupId, prefillFriendId }: SplitBillPro
     </div>
   );
 }
+

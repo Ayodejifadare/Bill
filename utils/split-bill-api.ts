@@ -37,6 +37,22 @@ export interface ExternalAccount {
 
 // Simple caches to prevent duplicate network calls
 let groupsCache: Group[] | null = null;
+const groupMembersCache = new Map<string, Friend[]>();
+
+const mapGroupMemberToFriend = (member: any): Friend | null => {
+  if (!member) return null;
+  const user = member.user ?? member;
+  const id = user?.id ?? member?.userId ?? member?.id;
+  if (!id) return null;
+  const name = user?.name ?? member?.name ?? 'Unnamed member';
+  return {
+    id: String(id),
+    name,
+    avatar: user?.avatar ?? member?.avatar ?? undefined,
+    phoneNumber: user?.phone ?? user?.phoneNumber ?? member?.phone ?? member?.phoneNumber ?? undefined,
+    status: 'active',
+  };
+};
 const externalAccountsCache = new Map<string, ExternalAccount[]>();
 
 export type { Friend } from '../hooks/useFriends';
@@ -54,10 +70,50 @@ export async function fetchGroups(): Promise<Group[]> {
     : Array.isArray(data)
       ? data
       : [];
-  groupsCache = rawGroups as Group[];
+
+  const normalized = await Promise.all(
+    rawGroups.map(async (group: any) => {
+      const groupId = String(group.id);
+      const members =
+        Array.isArray(group?.members) &&
+        group.members.some((member: any) => typeof (member as any)?.id === 'string')
+          ? (group.members as Friend[])
+          : await fetchGroupMembers(groupId);
+
+      return {
+        id: groupId,
+        name: group.name || 'Untitled group',
+        members,
+        color: group.color || 'bg-blue-500',
+      } as Group;
+    })
+  );
+
+  groupsCache = normalized;
   return groupsCache;
 }
 
+export async function fetchGroupMembers(groupId: string): Promise<Friend[]> {
+  if (groupMembersCache.has(groupId)) {
+    return groupMembersCache.get(groupId)!;
+  }
+
+  try {
+    const data = await apiClient(`/groups/${groupId}`);
+    const group = (data as any)?.group ?? data;
+    const members = Array.isArray(group?.members)
+      ? (group.members as any[])
+          .map((member) => mapMemberToFriend(member))
+          .filter((member): member is Friend => Boolean(member))
+      : [];
+    groupMembersCache.set(groupId, members);
+    return members;
+  } catch (error) {
+    console.error('Failed to fetch group members for', groupId, error);
+    groupMembersCache.set(groupId, []);
+    return [];
+  }
+}
 export async function fetchExternalAccounts(
   groupId: string
 ): Promise<ExternalAccount[]> {
