@@ -31,9 +31,9 @@ describe('fetchFriends', () => {
   it('reuses inflight promise and filters inactive statuses', async () => {
     const response = {
       friends: [
-        { id: '1', name: 'Active Alice', status: 'active' },
-        { id: '2', name: 'Pending Pam', status: 'pending' },
-        { id: '3', name: 'Blocked Ben', status: 'blocked' },
+        { id: '1', name: 'Active Alice', status: 'active', phoneNumber: '+11111111111' },
+        { id: '2', name: 'Pending Pam', status: 'pending', phoneNumber: '+12222222222' },
+        { id: '3', name: 'Blocked Ben', status: 'blocked', phoneNumber: '+13333333333' },
       ],
     };
 
@@ -47,7 +47,7 @@ describe('fetchFriends', () => {
     const [friends, sameFriends] = await Promise.all([firstCall, secondCall]);
 
     const expected: Friend[] = [
-      { id: '1', name: 'Active Alice', avatar: undefined, phoneNumber: undefined, status: 'active' },
+      { id: '1', name: 'Active Alice', avatar: undefined, phoneNumber: '+11111111111', status: 'active' },
     ];
 
     expect(friends).toEqual(expected);
@@ -60,7 +60,7 @@ describe('fetchFriends', () => {
 
     apiClientMock.mockResolvedValueOnce({
       friends: [
-        { id: '1', name: 'Cached Casey', status: 'active' },
+        { id: '1', name: 'Cached Casey', status: 'active', phoneNumber: '+14444444444' },
       ],
     });
 
@@ -75,7 +75,7 @@ describe('fetchFriends', () => {
 
     apiClientMock.mockResolvedValueOnce({
       friends: [
-        { id: '2', name: 'Fresh Frankie', status: 'active' },
+        { id: '2', name: 'Fresh Frankie', status: 'active', phoneNumber: '+15555555555' },
       ],
     });
 
@@ -87,7 +87,7 @@ describe('fetchFriends', () => {
     const refreshed = await fetchFriends();
 
     const expected: Friend[] = [
-      { id: '2', name: 'Fresh Frankie', avatar: undefined, phoneNumber: undefined, status: 'active' },
+      { id: '2', name: 'Fresh Frankie', avatar: undefined, phoneNumber: '+15555555555', status: 'active' },
     ];
 
     expect(refreshed).toEqual(expected);
@@ -101,7 +101,7 @@ describe('useFriends', () => {
   it('returns cached data immediately', async () => {
     apiClientMock.mockResolvedValueOnce({
       friends: [
-        { id: '1', name: 'Cached Carly', status: 'active' },
+        { id: '1', name: 'Cached Carly', status: 'active', phoneNumber: '+16666666666' },
       ],
     });
 
@@ -120,7 +120,7 @@ describe('useFriends', () => {
   it('fetches friends when cache is empty', async () => {
     apiClientMock.mockResolvedValueOnce({
       friends: [
-        { id: '1', name: 'Fetched Fiona', status: 'active' },
+        { id: '1', name: 'Fetched Fiona', status: 'active', phoneNumber: '+17777777777' },
       ],
     });
 
@@ -132,7 +132,7 @@ describe('useFriends', () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     const expected: Friend[] = [
-      { id: '1', name: 'Fetched Fiona', avatar: undefined, phoneNumber: undefined, status: 'active' },
+      { id: '1', name: 'Fetched Fiona', avatar: undefined, phoneNumber: '+17777777777', status: 'active' },
     ];
 
     expect(result.current.friends).toEqual(expected);
