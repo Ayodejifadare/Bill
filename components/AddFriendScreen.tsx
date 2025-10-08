@@ -203,28 +203,36 @@ export function AddFriendScreen({ onNavigate }: AddFriendScreenProps) {
     switch (lookupContact.relationshipStatus) {
       case 'friends':
         return (
-          <Button variant="outline" disabled className="min-h-[36px]">
-            Friends
+          <Button
+            variant="outline"
+            className="min-h-[36px]"
+            onClick={() =>
+              lookupContact.userId &&
+              onNavigate('friend-profile', { friendId: lookupContact.userId })
+            }
+          >
+            <Users className="h-4 w-4 mr-2" />
+            View profile
           </Button>
         );
       case 'pending_outgoing':
         return (
           <Button variant="outline" disabled className="min-h-[36px]">
             <Clock className="h-4 w-4 mr-2 text-muted-foreground" />
-            Request sent
+            Awaiting their response
           </Button>
         );
       case 'pending_incoming':
         return (
           <Button variant="outline" disabled className="min-h-[36px]">
             <Mail className="h-4 w-4 mr-2" />
-            Awaiting your response
+            Review in requests
           </Button>
         );
       case 'self':
         return (
           <Button variant="outline" disabled className="min-h-[36px]">
-            That's you
+            This is you
           </Button>
         );
       default:
@@ -252,6 +260,11 @@ export function AddFriendScreen({ onNavigate }: AddFriendScreenProps) {
           <div className="flex-1 min-w-0 space-y-2">
             <div className="flex flex-wrap items-center gap-2">
               <p className="font-medium text-base truncate">{lookupContact.name}</p>
+              {lookupContact.relationshipStatus === 'self' && (
+                <Badge variant="secondary" className="text-xs">
+                  This is you
+                </Badge>
+              )}
               {getStatusBadge(lookupContact.status ?? 'existing_user')}
               {lookupContact.matchedBy && (
                 <Badge variant="outline" className="text-xs">
@@ -278,10 +291,10 @@ export function AddFriendScreen({ onNavigate }: AddFriendScreenProps) {
       return null;
     }
     const result = lookupState.result;
-    if (!result || result.relationshipStatus === 'self') {
+    if (!result) {
       return null;
     }
-    if (existingUsers.some(contact => contact.userId === result.id)) {
+    if (result.relationshipStatus !== 'self' && existingUsers.some(contact => contact.userId === result.id)) {
       return null;
     }
     const contactStatus = mapRelationshipStatusToContactStatus(result.relationshipStatus);
