@@ -118,9 +118,11 @@ describe('Friend routes', () => {
     await prisma.user.create({ data: { id: 'a1', email: 'a1@example.com', name: 'A1' } })
     await prisma.user.create({ data: { id: 'a2', email: 'a2@example.com', name: 'A2' } })
     await prisma.user.create({ data: { id: 'a3', email: 'a3@example.com', name: 'A3' } })
+    await prisma.user.create({ data: { id: 'a4', email: 'a4@example.com', name: 'A4' } })
 
     await prisma.friendship.create({ data: { user1Id: 'a1', user2Id: 'a2' } })
     await prisma.friendship.create({ data: { user1Id: 'a1', user2Id: 'a3' } })
+    await prisma.friendship.create({ data: { user1Id: 'a1', user2Id: 'a4' } })
 
     await prisma.transaction.create({
       data: {
@@ -141,6 +143,16 @@ describe('Friend routes', () => {
       }
     })
 
+    await prisma.transaction.create({
+      data: {
+        amount: 5,
+        senderId: 'a1',
+        receiverId: 'a4',
+        type: 'SEND',
+        status: 'PENDING'
+      }
+    })
+
     const res = await request(app)
       .get('/friends')
       .set('Authorization', `Bearer ${sign('a1')}`)
@@ -148,7 +160,9 @@ describe('Friend routes', () => {
     expect(res.status).toBe(200)
     const withTx = res.body.friends.find(f => f.id === 'a2')
     const withoutTx = res.body.friends.find(f => f.id === 'a3')
+    const userOwes = res.body.friends.find(f => f.id === 'a4')
     expect(withTx.lastTransaction).toEqual({ amount: 20, type: 'owed' })
+    expect(userOwes.lastTransaction).toEqual({ amount: 5, type: 'owes' })
     expect(withoutTx.lastTransaction).toBeUndefined()
   })
 

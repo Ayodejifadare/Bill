@@ -44,11 +44,21 @@ router.get('/', async (req, res) => {
       })
     ])
 
-    const friends = friendships.map(friendship => {
+    const friends = await Promise.all(friendships.map(async friendship => {
       const friend =
         friendship.user1Id === req.userId ? friendship.user2 : friendship.user1
 
-      return {
+      const lastTransaction = await req.prisma.transaction.findFirst({
+        where: {
+          OR: [
+            { senderId: req.userId, receiverId: friend.id },
+            { senderId: friend.id, receiverId: req.userId }
+          ]
+        },
+        orderBy: { createdAt: 'desc' }
+      })
+
+      const baseFriend = {
         id: friend.id,
         name: friend.name,
         avatar: friend.avatar,
@@ -57,7 +67,19 @@ router.get('/', async (req, res) => {
         status: 'active',
         phoneNumber: friend.phone
       }
-    })
+
+      if (!lastTransaction) {
+        return baseFriend
+      }
+
+      return {
+        ...baseFriend,
+        lastTransaction: {
+          amount: lastTransaction.amount,
+          type: lastTransaction.senderId === req.userId ? 'owes' : 'owed'
+        }
+      }
+    }))
 
     const pendingRequests = [
       ...incomingRequests.map(request => ({
