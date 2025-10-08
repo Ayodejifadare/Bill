@@ -20,6 +20,7 @@ describe('Friend routes', () => {
 
   beforeAll(() => {
     process.env.DATABASE_URL = `file:${dbPath}`
+    process.env.DIRECT_URL = process.env.DATABASE_URL
     execSync('npx prisma migrate deploy', {
       cwd: path.join(__dirname, '..'),
       stdio: 'inherit'
@@ -56,10 +57,10 @@ describe('Friend routes', () => {
   })
 
   it('lists active friends along with incoming and outgoing pending requests', async () => {
-    await prisma.user.create({ data: { id: 'u1', email: 'u1@example.com', name: 'User 1' } })
-    await prisma.user.create({ data: { id: 'u2', email: 'u2@example.com', name: 'User 2' } })
-    await prisma.user.create({ data: { id: 'u3', email: 'u3@example.com', name: 'User 3' } })
-    await prisma.user.create({ data: { id: 'u4', email: 'u4@example.com', name: 'User 4' } })
+    await prisma.user.create({ data: { id: 'u1', email: 'u1@example.com', name: 'User 1', phone: '+10000000001' } })
+    await prisma.user.create({ data: { id: 'u2', email: 'u2@example.com', name: 'User 2', phone: '+10000000002' } })
+    await prisma.user.create({ data: { id: 'u3', email: 'u3@example.com', name: 'User 3', phone: '+10000000003' } })
+    await prisma.user.create({ data: { id: 'u4', email: 'u4@example.com', name: 'User 4', phone: '+10000000004' } })
     await prisma.friendship.create({ data: { user1Id: 'u1', user2Id: 'u2' } })
     const incoming = await prisma.friendRequest.create({ data: { senderId: 'u3', receiverId: 'u1' } })
     const outgoing = await prisma.friendRequest.create({ data: { senderId: 'u1', receiverId: 'u4' } })
@@ -74,19 +75,22 @@ describe('Friend routes', () => {
     const pendingIncoming = res.body.friends.find(f => f.id === 'u3')
     const pendingOutgoing = res.body.friends.find(f => f.id === 'u4')
     expect(active.status).toBe('active')
+    expect(active.phoneNumber).toBe('+10000000002')
     expect(active.requestId).toBeUndefined()
     expect(pendingIncoming.status).toBe('pending')
     expect(pendingIncoming.requestId).toBe(incoming.id)
     expect(pendingIncoming.direction).toBe('incoming')
+    expect(pendingIncoming.phoneNumber).toBe('+10000000003')
     expect(pendingOutgoing.status).toBe('pending')
     expect(pendingOutgoing.requestId).toBe(outgoing.id)
     expect(pendingOutgoing.direction).toBe('outgoing')
+    expect(pendingOutgoing.phoneNumber).toBe('+10000000004')
   })
 
   it('searches friends by query', async () => {
-    await prisma.user.create({ data: { id: 's1', email: 's1@example.com', name: 'Alice' } })
-    await prisma.user.create({ data: { id: 's2', email: 's2@example.com', name: 'Bob' } })
-    await prisma.user.create({ data: { id: 's3', email: 's3@example.com', name: 'Charlie' } })
+    await prisma.user.create({ data: { id: 's1', email: 's1@example.com', name: 'Alice', phone: '+20000000001' } })
+    await prisma.user.create({ data: { id: 's2', email: 's2@example.com', name: 'Bob', phone: '+20000000002' } })
+    await prisma.user.create({ data: { id: 's3', email: 's3@example.com', name: 'Charlie', phone: '+20000000003' } })
     await prisma.friendship.create({ data: { user1Id: 's1', user2Id: 's2' } })
     await prisma.friendship.create({ data: { user1Id: 's1', user2Id: 's3' } })
 
@@ -97,6 +101,7 @@ describe('Friend routes', () => {
     expect(res.status).toBe(200)
     expect(res.body.friends).toHaveLength(1)
     expect(res.body.friends[0].id).toBe('s2')
+    expect(res.body.friends[0].phoneNumber).toBe('+20000000002')
   })
 
   it('returns 400 for empty search query', async () => {

@@ -127,8 +127,8 @@ router.get('/search', async (req, res) => {
         ]
       },
       include: {
-        user1: { select: { id: true, name: true, email: true, avatar: true } },
-        user2: { select: { id: true, name: true, email: true, avatar: true } }
+        user1: { select: { id: true, name: true, email: true, avatar: true, phone: true } },
+        user2: { select: { id: true, name: true, email: true, avatar: true, phone: true } }
       }
     })
 
