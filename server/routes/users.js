@@ -7,6 +7,22 @@ import path from 'path'
 import fs from 'fs'
 import { updateNotificationPreference, defaultSettings } from './notifications.js'
 import authenticate from '../middleware/auth.js'
+import { buildPhoneVariants } from '../utils/phone.js'
+
+const VALID_LOOKUP_TYPES = new Set(['email', 'phone', 'username'])
+const USERNAME_PATTERN = /^[a-zA-Z0-9._-]{3,}$/
+const PHONE_CANDIDATE_PATTERN = /^[-+()0-9\s.]+$/
+
+function inferLookupType(value) {
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  if (trimmed.includes('@') && trimmed.split('@')[1]) return 'email'
+  const numericCandidate = trimmed.replace(/[^0-9+]/g, '')
+  if (numericCandidate.length >= 7 && PHONE_CANDIDATE_PATTERN.test(trimmed)) return 'phone'
+  const noPrefix = trimmed.startsWith('@') ? trimmed.slice(1) : trimmed
+  if (USERNAME_PATTERN.test(noPrefix)) return 'username'
+  return null
+}
 
 const { JWT_SECRET } = process.env
 if (!JWT_SECRET) {
@@ -637,6 +653,115 @@ router.post('/:id/biometric', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' })
   }
 })
+
+router.get('/lookup', async (req, res) => {
+  try {
+    const rawIdentifier = typeof req.query.identifier === 'string' ? req.query.identifier.trim() : ''
+    if (!rawIdentifier) {
+      return res.status(400).json({ error: 'Identifier is required' })
+    }
+
+    const rawType = typeof req.query.type === 'string' ? req.query.type.trim().toLowerCase() : undefined
+    if (rawType && !VALID_LOOKUP_TYPES.has(rawType)) {
+      return res.status(400).json({ error: 'Invalid lookup type' })
+    }
+
+    const lookupType = rawType ?? inferLookupType(rawIdentifier) ?? 'email'
+    const selectFields = { id: true, name: true, email: true, phone: true, avatar: true }
+
+    let user = null
+    if (lookupType === 'email') {
+      user = await req.prisma.user.findFirst({
+        where: { email: { equals: rawIdentifier, mode: 'insensitive' } },
+        select: selectFields
+      })
+    } else if (lookupType === 'phone') {
+      const currentUser = await req.prisma.user.findUnique({
+        where: { id: req.userId },
+        select: { region: true }
+      })
+      const variants = new Set(buildPhoneVariants(rawIdentifier, currentUser?.region || 'US'))
+      const digitsOnly = rawIdentifier.replace(/\D/g, '')
+      if (digitsOnly) {
+        variants.add(digitsOnly)
+        variants.add(`+${digitsOnly}`)
+      }
+      const phoneClauses = Array.from(variants)
+        .filter(Boolean)
+        .map(value => ({ phone: value }))
+      if (!phoneClauses.length) {
+        return res.json({ user: null })
+      }
+      user = await req.prisma.user.findFirst({
+        where: { OR: phoneClauses },
+        select: selectFields
+      })
+    } else if (lookupType === 'username') {
+      const normalized = rawIdentifier.replace(/^@/, '').trim()
+      if (!normalized) {
+        return res.status(400).json({ error: 'Identifier is required' })
+      }
+      user = await req.prisma.user.findFirst({
+        where: {
+          OR: [
+            { email: { equals: normalized, mode: 'insensitive' } },
+            { email: { startsWith: `${normalized}@`, mode: 'insensitive' } },
+            { name: { equals: normalized, mode: 'insensitive' } },
+            { name: { contains: normalized, mode: 'insensitive' } },
+            { id: normalized }
+          ]
+        },
+        select: selectFields
+      })
+    }
+
+    if (!user) {
+      return res.json({ user: null })
+    }
+
+    let relationshipStatus = 'none'
+    if (user.id === req.userId) {
+      relationshipStatus = 'self'
+    } else {
+      const [friendship, outgoingRequest, incomingRequest] = await Promise.all([
+        req.prisma.friendship.findFirst({
+          where: {
+            OR: [
+              { user1Id: req.userId, user2Id: user.id },
+              { user1Id: user.id, user2Id: req.userId }
+            ]
+          }
+        }),
+        req.prisma.friendRequest.findFirst({
+          where: { senderId: req.userId, receiverId: user.id, status: 'PENDING' }
+        }),
+        req.prisma.friendRequest.findFirst({
+          where: { senderId: user.id, receiverId: req.userId, status: 'PENDING' }
+        })
+      ])
+
+      if (friendship) relationshipStatus = 'friends'
+      else if (outgoingRequest) relationshipStatus = 'pending_outgoing'
+      else if (incomingRequest) relationshipStatus = 'pending_incoming'
+    }
+
+    res.json({
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        avatar: user.avatar,
+        relationshipStatus,
+        matchedBy: lookupType
+      }
+    })
+  } catch (error) {
+    console.error('Lookup user error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
 
 // Get security logs
 router.get('/:id/security-logs', async (req, res) => {

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @vitest-environment node
  */
 import express from 'express'
@@ -31,6 +31,7 @@ describe('User routes', () => {
     await prisma.transaction.deleteMany()
     await prisma.billSplitParticipant.deleteMany()
     await prisma.billSplit.deleteMany()
+    await prisma.friendRequest.deleteMany()
     await prisma.friendship.deleteMany()
     await prisma.user.deleteMany()
     app = express()
@@ -159,4 +160,71 @@ describe('User routes', () => {
       friends: 2
     })
   })
+  it('looks up a user by email and returns relationship metadata', async () => {
+    await prisma.user.createMany({
+      data: [
+        { id: 'lu1', email: 'lu1@example.com', name: 'Lookup 1' },
+        { id: 'lu2', email: 'lu2@example.com', name: 'Lookup 2' }
+      ]
+    })
+
+    const res = await request(app)
+      .get('/users/lookup?identifier=lu2@example.com&type=email')
+      .set('Authorization', `Bearer ${sign('lu1')}`)
+
+    expect(res.status).toBe(200)
+    expect(res.body.user).toMatchObject({
+      id: 'lu2',
+      email: 'lu2@example.com',
+      relationshipStatus: 'none',
+      matchedBy: 'email'
+    })
+  })
+
+  it('reports friendship status in lookup responses', async () => {
+    await prisma.user.createMany({
+      data: [
+        { id: 'fu1', email: 'fu1@example.com', name: 'Friend User 1' },
+        { id: 'fu2', email: 'fu2@example.com', name: 'Friend User 2' }
+      ]
+    })
+    await prisma.friendship.create({ data: { user1Id: 'fu1', user2Id: 'fu2' } })
+
+    const res = await request(app)
+      .get('/users/lookup?identifier=fu2@example.com&type=email')
+      .set('Authorization', `Bearer ${sign('fu1')}`)
+
+    expect(res.status).toBe(200)
+    expect(res.body.user.relationshipStatus).toBe('friends')
+    expect(res.body.user.matchedBy).toBe('email')
+  })
+
+  it('reports pending friend request direction', async () => {
+    await prisma.user.createMany({
+      data: [
+        { id: 'pu1', email: 'pu1@example.com', name: 'Pending Sender' },
+        { id: 'pu2', email: 'pu2@example.com', name: 'Pending Receiver' }
+      ]
+    })
+    await prisma.friendRequest.create({ data: { senderId: 'pu1', receiverId: 'pu2' } })
+
+    const res = await request(app)
+      .get('/users/lookup?identifier=pu2@example.com&type=email')
+      .set('Authorization', `Bearer ${sign('pu1')}`)
+
+    expect(res.status).toBe(200)
+    expect(res.body.user.relationshipStatus).toBe('pending_outgoing')
+  })
+
+  it('returns null when lookup target does not exist', async () => {
+    await prisma.user.create({ data: { id: 'nu1', email: 'nu1@example.com', name: 'Lookup Owner' } })
+
+    const res = await request(app)
+      .get('/users/lookup?identifier=missing@example.com&type=email')
+      .set('Authorization', `Bearer ${sign('nu1')}`)
+
+    expect(res.status).toBe(200)
+    expect(res.body.user).toBeNull()
+  })
+
 })
