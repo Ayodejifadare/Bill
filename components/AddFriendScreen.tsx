@@ -16,7 +16,7 @@ import { Alert, AlertDescription } from './ui/alert';
 import { Progress } from './ui/progress';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { toast } from 'sonner';
-import { contactsAPI, showContactError } from '../utils/contacts-api';
+import { showContactError } from '../utils/contacts-api';
 import { lookupUserByIdentifier, LookupUserResult, LookupIdentifierType, LookupRelationshipStatus } from '../utils/users-api';
 import type { MatchedContact } from './contact-sync/types';
 import { handleSendFriendRequest } from './contact-sync/helpers';
@@ -153,64 +153,13 @@ export function AddFriendScreen({ onNavigate }: AddFriendScreenProps) {
   // Progressive disclosure states
   const [showInvitePreview, setShowInvitePreview] = useState(false);
   const syncDeviceContacts = async () => {
-    try {
-      setSyncProgress(40);
-      const contacts = await contactsAPI.getContacts();
-      setSyncProgress(70);
-      const matched = await contactsAPI.matchContacts(contacts);
-
-      const mappedContacts: Contact[] = matched.map((c: any) => ({
-        id: c.id,
-        name: c.name,
-        username: c.username,
-        phoneNumber: c.phone,
-        email: c.email,
-        mutualFriends: c.mutualFriends,
-        status: c.status,
-        isOnApp: c.status === 'existing_user',
-        userId: c.userId,
-        isAlreadyFriend: false,
-        isFriend: false,
-      }));
-
-      setSyncProgress(100);
-      setSyncedContacts(mappedContacts);
-      setHasSyncedContacts(true);
-      setShowSyncPrompt(false);
-      localStorage.setItem('biltip_contacts_synced', 'true');
-
-      const existing = mappedContacts.filter(c => c.status === 'existing_user').length;
-      const inviteable = mappedContacts.filter(c => c.status === 'not_on_app').length;
-      toast.success(`Found ${existing} friends on Biltip and ${inviteable} contacts to invite!`);
-    } catch (error) {
-      console.error('Contact sync failed:', error);
-      showContactError('network-failure');
-    }
+    setSyncedContacts([]);
+    setHasSyncedContacts(false);
+    setShowSyncPrompt(true);
+    setSelectedContacts(new Set());
+    setSyncProgress(0);
+    toast.info('Contact syncing is not available on the web.');
   };
-
-  // Initialize contacts based on existing permission
-  useEffect(() => {
-    const init = async () => {
-      try {
-        const status = await contactsAPI.checkPermissionStatus();
-        if (status.granted) {
-          setIsSyncing(true);
-          setSyncProgress(0);
-          await syncDeviceContacts();
-        } else if (status.denied) {
-          showContactError('permission-denied');
-        } else {
-          showContactError('Contact access not available. Please try importing a contact file.');
-        }
-      } catch (err) {
-        console.error('Permission check failed:', err);
-      } finally {
-        setIsSyncing(false);
-      }
-    };
-
-    init();
-  }, []);
 
   const existingUsers = syncedContacts.filter(c => c.status === 'existing_user');
   const inviteableContacts = syncedContacts.filter(c => c.status === 'not_on_app');
@@ -475,18 +424,7 @@ export function AddFriendScreen({ onNavigate }: AddFriendScreenProps) {
     setSyncProgress(0);
 
     try {
-      setSyncProgress(10);
-      const permission = await contactsAPI.requestPermission();
-
-      if (!permission.granted) {
-        showContactError('permission-denied');
-        return;
-      }
-
       await syncDeviceContacts();
-    } catch (error) {
-      console.error('Contact sync failed:', error);
-      showContactError('network-failure');
     } finally {
       setIsSyncing(false);
     }
