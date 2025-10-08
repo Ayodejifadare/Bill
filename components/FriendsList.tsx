@@ -178,22 +178,29 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
     <div>
       <ScreenHeader
         title="Friends"
-        rightAction={
-          <Button size="sm" onClick={() => onNavigate('add-friend')}>
-            <UserPlus className="h-4 w-4 mr-2" />
-            Add Friend
-          </Button>
-        }
         className="-mx-4 mb-6"
       />
 
       {/* Content Container */}
       <div className="py-4 space-y-6 pb-20">
-        <SearchInput
-          placeholder="Search friends..."
-          value={searchQuery}
-          onChange={setSearchQuery}
-        />
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <SearchInput
+            placeholder="Search friends..."
+            value={searchQuery}
+            onChange={setSearchQuery}
+            className="w-full sm:max-w-sm"
+          />
+          <div className="flex items-center gap-2 sm:justify-end">
+            <Button
+              size="sm"
+              className="w-full sm:w-auto"
+              onClick={() => onNavigate('add-friend')}
+            >
+              <UserPlus className="h-4 w-4 mr-2" />
+              Add Friend
+            </Button>
+          </div>
+        </div>
 
         {/* Groups Section */}
         <GroupSection onNavigate={onNavigate} />
@@ -201,7 +208,7 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
         <Separator />
 
         {/* Quick Stats */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Card className="p-4 text-center">
             <p className="text-2xl text-success">{formatCurrencyForRegion(appSettings.region, summary.owedToUser)}</p>
             <p className="text-sm text-muted-foreground">You're owed</p>
