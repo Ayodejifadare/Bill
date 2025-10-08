@@ -55,24 +55,32 @@ describe('Friend routes', () => {
     if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath)
   })
 
-  it('lists friends including pending requests', async () => {
+  it('lists active friends along with incoming and outgoing pending requests', async () => {
     await prisma.user.create({ data: { id: 'u1', email: 'u1@example.com', name: 'User 1' } })
     await prisma.user.create({ data: { id: 'u2', email: 'u2@example.com', name: 'User 2' } })
     await prisma.user.create({ data: { id: 'u3', email: 'u3@example.com', name: 'User 3' } })
+    await prisma.user.create({ data: { id: 'u4', email: 'u4@example.com', name: 'User 4' } })
     await prisma.friendship.create({ data: { user1Id: 'u1', user2Id: 'u2' } })
-    const fr = await prisma.friendRequest.create({ data: { senderId: 'u3', receiverId: 'u1' } })
+    const incoming = await prisma.friendRequest.create({ data: { senderId: 'u3', receiverId: 'u1' } })
+    const outgoing = await prisma.friendRequest.create({ data: { senderId: 'u1', receiverId: 'u4' } })
 
     const res = await request(app)
       .get('/friends')
       .set('Authorization', `Bearer ${sign('u1')}`)
 
     expect(res.status).toBe(200)
-    expect(res.body.friends).toHaveLength(2)
+    expect(res.body.friends).toHaveLength(3)
     const active = res.body.friends.find(f => f.id === 'u2')
-    const pending = res.body.friends.find(f => f.id === 'u3')
+    const pendingIncoming = res.body.friends.find(f => f.id === 'u3')
+    const pendingOutgoing = res.body.friends.find(f => f.id === 'u4')
     expect(active.status).toBe('active')
-    expect(pending.status).toBe('pending')
-    expect(pending.requestId).toBe(fr.id)
+    expect(active.requestId).toBeUndefined()
+    expect(pendingIncoming.status).toBe('pending')
+    expect(pendingIncoming.requestId).toBe(incoming.id)
+    expect(pendingIncoming.direction).toBe('incoming')
+    expect(pendingOutgoing.status).toBe('pending')
+    expect(pendingOutgoing.requestId).toBe(outgoing.id)
+    expect(pendingOutgoing.direction).toBe('outgoing')
   })
 
   it('searches friends by query', async () => {

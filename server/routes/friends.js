@@ -22,10 +22,27 @@ router.get('/', async (req, res) => {
         ]
       },
       include: {
-        user1: { select: { id: true, name: true, email: true, avatar: true } },
-        user2: { select: { id: true, name: true, email: true, avatar: true } }
+        user1: { select: { id: true, name: true, email: true, avatar: true, phone: true } },
+        user2: { select: { id: true, name: true, email: true, avatar: true, phone: true } }
       }
     })
+
+    const [incomingRequests, outgoingRequests] = await Promise.all([
+      req.prisma.friendRequest.findMany({
+        where: { receiverId: req.userId, status: 'PENDING' },
+        include: {
+          sender: { select: { id: true, name: true, email: true, avatar: true, phone: true } },
+          receiver: { select: { id: true, name: true, email: true, avatar: true, phone: true } }
+        }
+      }),
+      req.prisma.friendRequest.findMany({
+        where: { senderId: req.userId, status: 'PENDING' },
+        include: {
+          sender: { select: { id: true, name: true, email: true, avatar: true, phone: true } },
+          receiver: { select: { id: true, name: true, email: true, avatar: true, phone: true } }
+        }
+      })
+    ])
 
     const friends = friendships.map(friendship => {
       const friend =
@@ -42,7 +59,30 @@ router.get('/', async (req, res) => {
       }
     })
 
-    res.json({ friends })
+    const pendingRequests = [
+      ...incomingRequests.map(request => ({
+        id: request.sender.id,
+        name: request.sender.name,
+        avatar: request.sender.avatar,
+        email: request.sender.email,
+        status: 'pending',
+        requestId: request.id,
+        direction: 'incoming',
+        phoneNumber: request.sender.phone
+      })),
+      ...outgoingRequests.map(request => ({
+        id: request.receiver.id,
+        name: request.receiver.name,
+        avatar: request.receiver.avatar,
+        email: request.receiver.email,
+        status: 'pending',
+        requestId: request.id,
+        direction: 'outgoing',
+        phoneNumber: request.receiver.phone
+      }))
+    ]
+
+    res.json({ friends: [...friends, ...pendingRequests] })
   } catch (error) {
     console.error('Get friends error:', error)
     res.status(500).json({ error: 'Internal server error' })
