@@ -108,4 +108,4 @@ server/uploads
 # Prisma SQLite databases
 server/dev.db
 server/prisma/dev.db*
-server/prisma/test.db*
+server/prisma/test.db*server/prisma/friends-test.db
