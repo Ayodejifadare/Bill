@@ -128,6 +128,127 @@ router.get('/search', async (req, res) => {
   }
 })
 
+// Lookup users by identifier
+router.get('/lookup', async (req, res) => {
+  try {
+    const rawIdentifier = typeof req.query.identifier === 'string' ? req.query.identifier.trim() : ''
+    if (!rawIdentifier) {
+      return res.status(400).json({ error: 'Identifier is required' })
+    }
+
+    const rawType = typeof req.query.type === 'string' ? req.query.type.trim().toLowerCase() : undefined
+    if (rawType && !VALID_LOOKUP_TYPES.has(rawType)) {
+      return res.status(400).json({ error: 'Invalid lookup type' })
+    }
+
+    const lookupType = rawType ?? inferLookupType(rawIdentifier) ?? 'email'
+    const selectFields = { id: true, name: true, email: true, phone: true, avatar: true }
+
+    let user = null
+    if (lookupType === 'email') {
+      user = await req.prisma.user.findFirst({
+        where: { email: { equals: rawIdentifier, mode: 'insensitive' } },
+        select: selectFields
+      })
+    } else if (lookupType === 'phone') {
+      const currentUser = await req.prisma.user.findUnique({
+        where: { id: req.userId },
+        select: { region: true }
+      })
+      const variants = new Set(buildPhoneVariants(rawIdentifier, currentUser?.region || 'US'))
+      const digitsOnly = rawIdentifier.replace(/\D/g, '')
+      if (digitsOnly) {
+        variants.add(digitsOnly)
+        variants.add(`+${digitsOnly}`)
+      }
+      const phoneClauses = Array.from(variants)
+        .filter(Boolean)
+        .map(value => ({ phone: value }))
+      if (!phoneClauses.length) {
+        return res.json({ user: null })
+      }
+      user = await req.prisma.user.findFirst({
+        where: { OR: phoneClauses },
+        select: selectFields
+      })
+    } else if (lookupType === 'username') {
+      const normalized = rawIdentifier.replace(/^@/, '').trim()
+      if (!normalized) {
+        return res.status(400).json({ error: 'Identifier is required' })
+      }
+      user = await req.prisma.user.findFirst({
+        where: {
+          OR: [
+            { email: { equals: normalized, mode: 'insensitive' } },
+            { email: { startsWith: `${normalized}@`, mode: 'insensitive' } },
+            { name: { equals: normalized, mode: 'insensitive' } },
+            { name: { contains: normalized, mode: 'insensitive' } },
+            { id: normalized }
+          ]
+        },
+        select: selectFields
+      })
+    }
+
+    if (!user) {
+      return res.json({ user: null })
+    }
+
+    let relationshipStatus = 'none'
+    if (user.id === req.userId) {
+      relationshipStatus = 'self'
+    } else {
+      const [friendship, outgoingRequest, incomingRequest] = await Promise.all([
+        req.prisma.friendship.findFirst({
+          where: {
+            OR: [
+              { user1Id: req.userId, user2Id: user.id },
+              { user1Id: user.id, user2Id: req.userId }
+            ]
+          }
+        }),
+        req.prisma.friendRequest.findFirst({
+          where: {
+            senderId: req.userId,
+            receiverId: user.id,
+            status: 'PENDING'
+          }
+        }),
+        req.prisma.friendRequest.findFirst({
+          where: {
+            senderId: user.id,
+            receiverId: req.userId,
+            status: 'PENDING'
+          }
+        })
+      ])
+
+      if (friendship) {
+        relationshipStatus = 'friends'
+      } else if (outgoingRequest) {
+        relationshipStatus = 'pending_outgoing'
+      } else if (incomingRequest) {
+        relationshipStatus = 'pending_incoming'
+      }
+    }
+
+    res.json({
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        avatar: user.avatar,
+        relationshipStatus,
+        matchedBy: lookupType
+      }
+    })
+  } catch (error) {
+    console.error('Lookup user error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
 // Get payment methods for a specific user
 router.get('/:id/payment-methods', async (req, res) => {
   try {

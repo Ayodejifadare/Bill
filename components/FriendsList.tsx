@@ -179,28 +179,21 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
       <ScreenHeader
         title="Friends"
         className="-mx-4 mb-6"
+        rightAction={(
+          <Button size="sm" onClick={() => onNavigate('add-friend')}>
+            <UserPlus className="h-4 w-4 mr-2" />
+            Add Friend
+          </Button>
+        )}
       />
 
       {/* Content Container */}
       <div className="py-4 space-y-6 pb-20">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <SearchInput
-            placeholder="Search friends..."
-            value={searchQuery}
-            onChange={setSearchQuery}
-            className="w-full sm:max-w-sm"
-          />
-          <div className="flex items-center gap-2 sm:justify-end">
-            <Button
-              size="sm"
-              className="w-full sm:w-auto"
-              onClick={() => onNavigate('add-friend')}
-            >
-              <UserPlus className="h-4 w-4 mr-2" />
-              Add Friend
-            </Button>
-          </div>
-        </div>
+        <SearchInput
+          placeholder="Search friends..."
+          value={searchQuery}
+          onChange={setSearchQuery}
+        />
 
         {/* Groups Section */}
         <GroupSection onNavigate={onNavigate} />
@@ -208,7 +201,7 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
         <Separator />
 
         {/* Quick Stats */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-2 gap-4">
           <Card className="p-4 text-center">
             <p className="text-2xl text-success">{formatCurrencyForRegion(appSettings.region, summary.owedToUser)}</p>
             <p className="text-sm text-muted-foreground">You're owed</p>
@@ -243,7 +236,7 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
                     <div className="flex items-center space-x-3">
                       <Avatar className="h-12 w-12">
                         <AvatarFallback>
-                          {getInitials(friend.name)}
+                          {friend.name.split(' ').map(n => n[0]).join('')}
                         </AvatarFallback>
                       </Avatar>
                       <div>
@@ -286,7 +279,7 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
         )}
 
         {/* Add Friends Suggestion */}
-        {activeFriends.length === 0 && pendingFriends.length === 0 && searchQuery.trim() === '' && (
+        {activeFriends.length < 3 && searchQuery.trim() === '' && (
           <Card className="p-4 border-dashed border-2 border-muted hover:border-primary/50 transition-colors cursor-pointer" onClick={() => onNavigate('add-friend')}>
             <div className="text-center">
               <UserPlus className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
@@ -312,7 +305,7 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
                   >
                     <Avatar className="h-12 w-12">
                       <AvatarFallback>
-                        {getInitials(friend.name)}
+                        {friend.name.split(' ').map(n => n[0]).join('')}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1">
@@ -386,4 +379,9 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
   );
 }
 
-import { getInitials } from '../utils/name';
+
+
+
+
+
+
