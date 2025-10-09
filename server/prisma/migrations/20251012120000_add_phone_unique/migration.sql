@@ -27,32 +27,33 @@ LOCK TABLE
   "verification_codes"
 IN SHARE ROW EXCLUSIVE MODE;
 
--- Build the duplicate-user map by selecting all non-canonical accounts into a temporary
--- table that we can reuse across the rest of the migration.
-CREATE TEMP TABLE duplicate_user_map AS
-SELECT
-  phone,
-  canonical_id,
-  id AS duplicate_id
-FROM (
-  SELECT
-    id,
-    phone,
-    FIRST_VALUE(id) OVER (
-      PARTITION BY phone
-      ORDER BY "createdAt" ASC, id ASC
-    ) AS canonical_id,
-    ROW_NUMBER() OVER (
-      PARTITION BY phone
-      ORDER BY "createdAt" ASC, id ASC
-    ) AS rn
-  FROM "users"
-  WHERE phone IS NOT NULL
-) ranked_users
-WHERE rn > 1;
+-- Build the duplicate-user map inline with each statement so that it is visible to the
+-- Prisma migration runner for the entire script.
 
 -- Tables with user-based uniqueness need conflicting duplicate rows removed prior to
 -- rewriting their foreign keys to the canonical user.
+WITH duplicate_user_map AS (
+  SELECT
+    phone,
+    canonical_id,
+    id AS duplicate_id
+  FROM (
+    SELECT
+      id,
+      phone,
+      FIRST_VALUE(id) OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS canonical_id,
+      ROW_NUMBER() OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS rn
+    FROM "users"
+    WHERE phone IS NOT NULL
+  ) ranked_users
+  WHERE rn > 1
+)
 DELETE FROM "notification_preferences" np
 USING duplicate_user_map dup
 WHERE np."userId" = dup.duplicate_id
@@ -62,6 +63,28 @@ WHERE np."userId" = dup.duplicate_id
     WHERE existing."userId" = dup.canonical_id
   );
 
+WITH duplicate_user_map AS (
+  SELECT
+    phone,
+    canonical_id,
+    id AS duplicate_id
+  FROM (
+    SELECT
+      id,
+      phone,
+      FIRST_VALUE(id) OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS canonical_id,
+      ROW_NUMBER() OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS rn
+    FROM "users"
+    WHERE phone IS NOT NULL
+  ) ranked_users
+  WHERE rn > 1
+)
 DELETE FROM "verification_codes" vc
 USING duplicate_user_map dup
 WHERE vc."userId" = dup.duplicate_id
@@ -72,6 +95,28 @@ WHERE vc."userId" = dup.duplicate_id
       AND existing."type" = vc."type"
   );
 
+WITH duplicate_user_map AS (
+  SELECT
+    phone,
+    canonical_id,
+    id AS duplicate_id
+  FROM (
+    SELECT
+      id,
+      phone,
+      FIRST_VALUE(id) OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS canonical_id,
+      ROW_NUMBER() OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS rn
+    FROM "users"
+    WHERE phone IS NOT NULL
+  ) ranked_users
+  WHERE rn > 1
+)
 DELETE FROM "bill_split_participants" bsp
 USING duplicate_user_map dup
 WHERE bsp."userId" = dup.duplicate_id
@@ -82,6 +127,28 @@ WHERE bsp."userId" = dup.duplicate_id
       AND existing."userId" = dup.canonical_id
   );
 
+WITH duplicate_user_map AS (
+  SELECT
+    phone,
+    canonical_id,
+    id AS duplicate_id
+  FROM (
+    SELECT
+      id,
+      phone,
+      FIRST_VALUE(id) OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS canonical_id,
+      ROW_NUMBER() OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS rn
+    FROM "users"
+    WHERE phone IS NOT NULL
+  ) ranked_users
+  WHERE rn > 1
+)
 DELETE FROM "friend_requests" fr
 USING duplicate_user_map dup
 WHERE fr."senderId" = dup.duplicate_id
@@ -92,6 +159,28 @@ WHERE fr."senderId" = dup.duplicate_id
       AND existing."receiverId" = fr."receiverId"
   );
 
+WITH duplicate_user_map AS (
+  SELECT
+    phone,
+    canonical_id,
+    id AS duplicate_id
+  FROM (
+    SELECT
+      id,
+      phone,
+      FIRST_VALUE(id) OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS canonical_id,
+      ROW_NUMBER() OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS rn
+    FROM "users"
+    WHERE phone IS NOT NULL
+  ) ranked_users
+  WHERE rn > 1
+)
 DELETE FROM "friend_requests" fr
 USING duplicate_user_map dup
 WHERE fr."receiverId" = dup.duplicate_id
@@ -102,6 +191,28 @@ WHERE fr."receiverId" = dup.duplicate_id
       AND existing."senderId" = fr."senderId"
   );
 
+WITH duplicate_user_map AS (
+  SELECT
+    phone,
+    canonical_id,
+    id AS duplicate_id
+  FROM (
+    SELECT
+      id,
+      phone,
+      FIRST_VALUE(id) OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS canonical_id,
+      ROW_NUMBER() OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS rn
+    FROM "users"
+    WHERE phone IS NOT NULL
+  ) ranked_users
+  WHERE rn > 1
+)
 DELETE FROM "friendships" f
 USING duplicate_user_map dup
 WHERE f."user1Id" = dup.duplicate_id
@@ -112,6 +223,28 @@ WHERE f."user1Id" = dup.duplicate_id
       AND existing."user2Id" = f."user2Id"
   );
 
+WITH duplicate_user_map AS (
+  SELECT
+    phone,
+    canonical_id,
+    id AS duplicate_id
+  FROM (
+    SELECT
+      id,
+      phone,
+      FIRST_VALUE(id) OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS canonical_id,
+      ROW_NUMBER() OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS rn
+    FROM "users"
+    WHERE phone IS NOT NULL
+  ) ranked_users
+  WHERE rn > 1
+)
 DELETE FROM "friendships" f
 USING duplicate_user_map dup
 WHERE f."user2Id" = dup.duplicate_id
@@ -122,6 +255,28 @@ WHERE f."user2Id" = dup.duplicate_id
       AND existing."user1Id" = f."user1Id"
   );
 
+WITH duplicate_user_map AS (
+  SELECT
+    phone,
+    canonical_id,
+    id AS duplicate_id
+  FROM (
+    SELECT
+      id,
+      phone,
+      FIRST_VALUE(id) OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS canonical_id,
+      ROW_NUMBER() OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS rn
+    FROM "users"
+    WHERE phone IS NOT NULL
+  ) ranked_users
+  WHERE rn > 1
+)
 DELETE FROM "group_members" gm
 USING duplicate_user_map dup
 WHERE gm."userId" = dup.duplicate_id
@@ -133,128 +288,653 @@ WHERE gm."userId" = dup.duplicate_id
   );
 
 -- Rewrite foreign key references from duplicate user ids to the canonical id.
+WITH duplicate_user_map AS (
+  SELECT
+    phone,
+    canonical_id,
+    id AS duplicate_id
+  FROM (
+    SELECT
+      id,
+      phone,
+      FIRST_VALUE(id) OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS canonical_id,
+      ROW_NUMBER() OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS rn
+    FROM "users"
+    WHERE phone IS NOT NULL
+  ) ranked_users
+  WHERE rn > 1
+)
 UPDATE "transactions" t
 SET "senderId" = dup.canonical_id
 FROM duplicate_user_map dup
 WHERE t."senderId" = dup.duplicate_id;
 
+WITH duplicate_user_map AS (
+  SELECT
+    phone,
+    canonical_id,
+    id AS duplicate_id
+  FROM (
+    SELECT
+      id,
+      phone,
+      FIRST_VALUE(id) OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS canonical_id,
+      ROW_NUMBER() OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS rn
+    FROM "users"
+    WHERE phone IS NOT NULL
+  ) ranked_users
+  WHERE rn > 1
+)
 UPDATE "transactions" t
 SET "receiverId" = dup.canonical_id
 FROM duplicate_user_map dup
 WHERE t."receiverId" = dup.duplicate_id;
 
+WITH duplicate_user_map AS (
+  SELECT
+    phone,
+    canonical_id,
+    id AS duplicate_id
+  FROM (
+    SELECT
+      id,
+      phone,
+      FIRST_VALUE(id) OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS canonical_id,
+      ROW_NUMBER() OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS rn
+    FROM "users"
+    WHERE phone IS NOT NULL
+  ) ranked_users
+  WHERE rn > 1
+)
 UPDATE "payment_requests" pr
 SET "senderId" = dup.canonical_id
 FROM duplicate_user_map dup
 WHERE pr."senderId" = dup.duplicate_id;
 
+WITH duplicate_user_map AS (
+  SELECT
+    phone,
+    canonical_id,
+    id AS duplicate_id
+  FROM (
+    SELECT
+      id,
+      phone,
+      FIRST_VALUE(id) OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS canonical_id,
+      ROW_NUMBER() OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS rn
+    FROM "users"
+    WHERE phone IS NOT NULL
+  ) ranked_users
+  WHERE rn > 1
+)
 UPDATE "payment_requests" pr
 SET "receiverId" = dup.canonical_id
 FROM duplicate_user_map dup
 WHERE pr."receiverId" = dup.duplicate_id;
 
+WITH duplicate_user_map AS (
+  SELECT
+    phone,
+    canonical_id,
+    id AS duplicate_id
+  FROM (
+    SELECT
+      id,
+      phone,
+      FIRST_VALUE(id) OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS canonical_id,
+      ROW_NUMBER() OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS rn
+    FROM "users"
+    WHERE phone IS NOT NULL
+  ) ranked_users
+  WHERE rn > 1
+)
 UPDATE "bill_splits" bs
 SET "createdBy" = dup.canonical_id
 FROM duplicate_user_map dup
 WHERE bs."createdBy" = dup.duplicate_id;
 
+WITH duplicate_user_map AS (
+  SELECT
+    phone,
+    canonical_id,
+    id AS duplicate_id
+  FROM (
+    SELECT
+      id,
+      phone,
+      FIRST_VALUE(id) OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS canonical_id,
+      ROW_NUMBER() OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS rn
+    FROM "users"
+    WHERE phone IS NOT NULL
+  ) ranked_users
+  WHERE rn > 1
+)
 UPDATE "bill_split_participants" bsp
 SET "userId" = dup.canonical_id
 FROM duplicate_user_map dup
 WHERE bsp."userId" = dup.duplicate_id;
 
+WITH duplicate_user_map AS (
+  SELECT
+    phone,
+    canonical_id,
+    id AS duplicate_id
+  FROM (
+    SELECT
+      id,
+      phone,
+      FIRST_VALUE(id) OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS canonical_id,
+      ROW_NUMBER() OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS rn
+    FROM "users"
+    WHERE phone IS NOT NULL
+  ) ranked_users
+  WHERE rn > 1
+)
 UPDATE "bill_split_reminders" bsr
 SET "senderId" = dup.canonical_id
 FROM duplicate_user_map dup
 WHERE bsr."senderId" = dup.duplicate_id;
 
+WITH duplicate_user_map AS (
+  SELECT
+    phone,
+    canonical_id,
+    id AS duplicate_id
+  FROM (
+    SELECT
+      id,
+      phone,
+      FIRST_VALUE(id) OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS canonical_id,
+      ROW_NUMBER() OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS rn
+    FROM "users"
+    WHERE phone IS NOT NULL
+  ) ranked_users
+  WHERE rn > 1
+)
 UPDATE "bill_split_reminders" bsr
 SET "recipientId" = dup.canonical_id
 FROM duplicate_user_map dup
 WHERE bsr."recipientId" = dup.duplicate_id;
 
+WITH duplicate_user_map AS (
+  SELECT
+    phone,
+    canonical_id,
+    id AS duplicate_id
+  FROM (
+    SELECT
+      id,
+      phone,
+      FIRST_VALUE(id) OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS canonical_id,
+      ROW_NUMBER() OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS rn
+    FROM "users"
+    WHERE phone IS NOT NULL
+  ) ranked_users
+  WHERE rn > 1
+)
 UPDATE "friend_requests" fr
 SET "senderId" = dup.canonical_id
 FROM duplicate_user_map dup
 WHERE fr."senderId" = dup.duplicate_id;
 
+WITH duplicate_user_map AS (
+  SELECT
+    phone,
+    canonical_id,
+    id AS duplicate_id
+  FROM (
+    SELECT
+      id,
+      phone,
+      FIRST_VALUE(id) OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS canonical_id,
+      ROW_NUMBER() OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS rn
+    FROM "users"
+    WHERE phone IS NOT NULL
+  ) ranked_users
+  WHERE rn > 1
+)
 UPDATE "friend_requests" fr
 SET "receiverId" = dup.canonical_id
 FROM duplicate_user_map dup
 WHERE fr."receiverId" = dup.duplicate_id;
 
+WITH duplicate_user_map AS (
+  SELECT
+    phone,
+    canonical_id,
+    id AS duplicate_id
+  FROM (
+    SELECT
+      id,
+      phone,
+      FIRST_VALUE(id) OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS canonical_id,
+      ROW_NUMBER() OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS rn
+    FROM "users"
+    WHERE phone IS NOT NULL
+  ) ranked_users
+  WHERE rn > 1
+)
 UPDATE "friendships" f
 SET "user1Id" = dup.canonical_id
 FROM duplicate_user_map dup
 WHERE f."user1Id" = dup.duplicate_id;
 
+WITH duplicate_user_map AS (
+  SELECT
+    phone,
+    canonical_id,
+    id AS duplicate_id
+  FROM (
+    SELECT
+      id,
+      phone,
+      FIRST_VALUE(id) OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS canonical_id,
+      ROW_NUMBER() OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS rn
+    FROM "users"
+    WHERE phone IS NOT NULL
+  ) ranked_users
+  WHERE rn > 1
+)
 UPDATE "friendships" f
 SET "user2Id" = dup.canonical_id
 FROM duplicate_user_map dup
 WHERE f."user2Id" = dup.duplicate_id;
 
+WITH duplicate_user_map AS (
+  SELECT
+    phone,
+    canonical_id,
+    id AS duplicate_id
+  FROM (
+    SELECT
+      id,
+      phone,
+      FIRST_VALUE(id) OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS canonical_id,
+      ROW_NUMBER() OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS rn
+    FROM "users"
+    WHERE phone IS NOT NULL
+  ) ranked_users
+  WHERE rn > 1
+)
 UPDATE "group_members" gm
 SET "userId" = dup.canonical_id
 FROM duplicate_user_map dup
 WHERE gm."userId" = dup.duplicate_id;
 
+WITH duplicate_user_map AS (
+  SELECT
+    phone,
+    canonical_id,
+    id AS duplicate_id
+  FROM (
+    SELECT
+      id,
+      phone,
+      FIRST_VALUE(id) OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS canonical_id,
+      ROW_NUMBER() OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS rn
+    FROM "users"
+    WHERE phone IS NOT NULL
+  ) ranked_users
+  WHERE rn > 1
+)
 UPDATE "group_accounts" ga
 SET "createdById" = dup.canonical_id
 FROM duplicate_user_map dup
 WHERE ga."createdById" = dup.duplicate_id;
 
+WITH duplicate_user_map AS (
+  SELECT
+    phone,
+    canonical_id,
+    id AS duplicate_id
+  FROM (
+    SELECT
+      id,
+      phone,
+      FIRST_VALUE(id) OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS canonical_id,
+      ROW_NUMBER() OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS rn
+    FROM "users"
+    WHERE phone IS NOT NULL
+  ) ranked_users
+  WHERE rn > 1
+)
 UPDATE "group_invites" gi
 SET "invitedBy" = dup.canonical_id
 FROM duplicate_user_map dup
 WHERE gi."invitedBy" = dup.duplicate_id;
 
+WITH duplicate_user_map AS (
+  SELECT
+    phone,
+    canonical_id,
+    id AS duplicate_id
+  FROM (
+    SELECT
+      id,
+      phone,
+      FIRST_VALUE(id) OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS canonical_id,
+      ROW_NUMBER() OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS rn
+    FROM "users"
+    WHERE phone IS NOT NULL
+  ) ranked_users
+  WHERE rn > 1
+)
 UPDATE "group_invite_links" gil
 SET "createdBy" = dup.canonical_id
 FROM duplicate_user_map dup
 WHERE gil."createdBy" = dup.duplicate_id;
 
+WITH duplicate_user_map AS (
+  SELECT
+    phone,
+    canonical_id,
+    id AS duplicate_id
+  FROM (
+    SELECT
+      id,
+      phone,
+      FIRST_VALUE(id) OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS canonical_id,
+      ROW_NUMBER() OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS rn
+    FROM "users"
+    WHERE phone IS NOT NULL
+  ) ranked_users
+  WHERE rn > 1
+)
 UPDATE "notifications" n
 SET "recipientId" = dup.canonical_id
 FROM duplicate_user_map dup
 WHERE n."recipientId" = dup.duplicate_id;
 
+WITH duplicate_user_map AS (
+  SELECT
+    phone,
+    canonical_id,
+    id AS duplicate_id
+  FROM (
+    SELECT
+      id,
+      phone,
+      FIRST_VALUE(id) OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS canonical_id,
+      ROW_NUMBER() OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS rn
+    FROM "users"
+    WHERE phone IS NOT NULL
+  ) ranked_users
+  WHERE rn > 1
+)
 UPDATE "notifications" n
 SET "actorId" = dup.canonical_id
 FROM duplicate_user_map dup
 WHERE n."actorId" = dup.duplicate_id;
 
+WITH duplicate_user_map AS (
+  SELECT
+    phone,
+    canonical_id,
+    id AS duplicate_id
+  FROM (
+    SELECT
+      id,
+      phone,
+      FIRST_VALUE(id) OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS canonical_id,
+      ROW_NUMBER() OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS rn
+    FROM "users"
+    WHERE phone IS NOT NULL
+  ) ranked_users
+  WHERE rn > 1
+)
 UPDATE "notification_preferences" np
 SET "userId" = dup.canonical_id
 FROM duplicate_user_map dup
 WHERE np."userId" = dup.duplicate_id;
 
+WITH duplicate_user_map AS (
+  SELECT
+    phone,
+    canonical_id,
+    id AS duplicate_id
+  FROM (
+    SELECT
+      id,
+      phone,
+      FIRST_VALUE(id) OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS canonical_id,
+      ROW_NUMBER() OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS rn
+    FROM "users"
+    WHERE phone IS NOT NULL
+  ) ranked_users
+  WHERE rn > 1
+)
 UPDATE "payment_methods" pm
 SET "userId" = dup.canonical_id
 FROM duplicate_user_map dup
 WHERE pm."userId" = dup.duplicate_id;
 
+WITH duplicate_user_map AS (
+  SELECT
+    phone,
+    canonical_id,
+    id AS duplicate_id
+  FROM (
+    SELECT
+      id,
+      phone,
+      FIRST_VALUE(id) OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS canonical_id,
+      ROW_NUMBER() OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS rn
+    FROM "users"
+    WHERE phone IS NOT NULL
+  ) ranked_users
+  WHERE rn > 1
+)
 UPDATE "payment_references" pref
 SET "userId" = dup.canonical_id
 FROM duplicate_user_map dup
 WHERE pref."userId" = dup.duplicate_id;
 
+WITH duplicate_user_map AS (
+  SELECT
+    phone,
+    canonical_id,
+    id AS duplicate_id
+  FROM (
+    SELECT
+      id,
+      phone,
+      FIRST_VALUE(id) OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS canonical_id,
+      ROW_NUMBER() OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS rn
+    FROM "users"
+    WHERE phone IS NOT NULL
+  ) ranked_users
+  WHERE rn > 1
+)
 UPDATE "security_logs" sl
 SET "userId" = dup.canonical_id
 FROM duplicate_user_map dup
 WHERE sl."userId" = dup.duplicate_id;
 
+WITH duplicate_user_map AS (
+  SELECT
+    phone,
+    canonical_id,
+    id AS duplicate_id
+  FROM (
+    SELECT
+      id,
+      phone,
+      FIRST_VALUE(id) OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS canonical_id,
+      ROW_NUMBER() OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS rn
+    FROM "users"
+    WHERE phone IS NOT NULL
+  ) ranked_users
+  WHERE rn > 1
+)
 UPDATE "verification_codes" vc
 SET "userId" = dup.canonical_id
 FROM duplicate_user_map dup
 WHERE vc."userId" = dup.duplicate_id;
 
 -- Remove duplicate user accounts now that all references point at the canonical user.
+WITH duplicate_user_map AS (
+  SELECT
+    phone,
+    canonical_id,
+    id AS duplicate_id
+  FROM (
+    SELECT
+      id,
+      phone,
+      FIRST_VALUE(id) OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS canonical_id,
+      ROW_NUMBER() OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS rn
+    FROM "users"
+    WHERE phone IS NOT NULL
+  ) ranked_users
+  WHERE rn > 1
+)
 DELETE FROM "users" u
 USING duplicate_user_map dup
 WHERE u."id" = dup.duplicate_id;
-
--- Clean up the temporary mapping table (it will also drop automatically on commit).
-DROP TABLE duplicate_user_map;
 
 -- Finally, enforce uniqueness on phone numbers.
 CREATE UNIQUE INDEX "users_phone_key" ON "users"("phone");
