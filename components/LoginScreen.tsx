@@ -112,7 +112,19 @@ export function LoginScreen({ onLogin, onShowRegister }: LoginScreenProps) {
       setError('');
     } catch (error: any) {
       console.error('OTP request error:', error);
-      setError(error.message || 'Failed to send code');
+      const message = error?.message || 'Failed to send code';
+      setShowOtpScreen(false);
+      setOtpContext(null);
+
+      const userMissing = /user\s+not\s+found/i.test(message) || /no\s+user/i.test(message);
+
+      if (userMissing) {
+        toast.info('No account found for that number. Let\'s create one!');
+        setError('');
+        onShowRegister();
+      } else {
+        setError(message);
+      }
     } finally {
       setIsLoading(false);
     }
