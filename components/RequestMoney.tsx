@@ -63,16 +63,25 @@ export function RequestMoney({ onNavigate, prefillData }: RequestMoneyProps) {
       const groupsData: Group[] = (data.groups || []).map((g: {
         id: string;
         name: string;
+        // Backend may return `memberIds` (preferred) and also `members` (initials preview)
+        memberIds?: string[];
         members?: string[];
         color?: string;
-      }) => ({
-        id: g.id,
-        name: g.name,
-        members: (g.members || [])
-          .map((id: string) => friends.find(f => f.id === id))
-          .filter(Boolean) as Friend[],
-        color: g.color || 'bg-blue-500',
-      }));
+      }) => {
+        const ids: string[] = Array.isArray(g.memberIds) && g.memberIds.length
+          ? g.memberIds
+          : Array.isArray(g.members)
+            ? g.members
+            : [];
+        return {
+          id: g.id,
+          name: g.name,
+          members: ids
+            .map((id: string) => friends.find(f => f.id === id))
+            .filter(Boolean) as Friend[],
+          color: g.color || 'bg-blue-500',
+        };
+      });
       setGroups(groupsData);
     } catch (err) {
       console.error('Failed to load groups', err);
