@@ -197,6 +197,8 @@ router.get('/', authenticate, async (req, res) => {
           totalSpent: fg.totalSpent || 0,
           // Show description/title of most recent activity
           recentActivity,
+          // Explicit list of member user IDs for programmatic consumption
+          memberIds: g.members.map((m) => m.userId),
           // Initials preview for compact UI
           members: g.members.map((m) => getInitials(m.user.name)),
           isAdmin: fg.isAdmin || false,

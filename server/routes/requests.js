@@ -1,6 +1,7 @@
 import express from 'express'
 import { body, validationResult } from 'express-validator'
 import { computeNextDueDate } from '../utils/recurringRequestScheduler.js'
+import { createNotification } from '../utils/notifications.js'
 import authenticate from '../middleware/auth.js'
 
 const router = express.Router()
@@ -74,6 +75,8 @@ router.post(
               amount,
               description,
               message,
+              // Persist the payment method selected by the sender at creation time
+              paymentMethodId: paymentMethod,
               status: 'PENDING',
               isRecurring,
               recurringFrequency: isRecurring ? recurringFrequency : null,
@@ -81,12 +84,33 @@ router.post(
               recurringDayOfWeek: isRecurring ? recurringDayOfWeek : null,
               nextDueDate
             },
-            select: { id: true, status: true, message: true }
+            include: {
+              sender: { select: { id: true, name: true } },
+              receiver: { select: { id: true } }
+            }
           })
         )
       )
 
-      res.status(201).json({ requests })
+      // Fire notifications to recipients
+      await Promise.all(
+        requests.map((r) =>
+          createNotification(req.prisma, {
+            recipientId: r.receiver.id,
+            actorId: r.sender.id,
+            type: 'payment_request',
+            title: 'Payment request',
+            message: `${r.sender.name} requested payment`,
+            amount: r.amount,
+            actionable: true
+          })
+        )
+      )
+
+      // Respond with a slimmer payload
+      res.status(201).json({
+        requests: requests.map((r) => ({ id: r.id, status: r.status, message: r.message }))
+      })
     } catch (error) {
       console.error('Create payment request error:', error)
       res.status(500).json({ error: 'Internal server error' })
@@ -148,6 +172,16 @@ router.post('/:id/accept', async (req, res) => {
       }
     })
 
+    // Notify the original sender that the request was accepted
+    await createNotification(req.prisma, {
+      recipientId: updated.senderId,
+      actorId: req.userId,
+      type: 'payment_request_accepted',
+      title: 'Payment request accepted',
+      message: 'Your payment request was accepted',
+      amount: updated.amount
+    })
+
     res.json({ request: updated, transaction })
   } catch (error) {
     console.error('Accept payment request error:', error)
@@ -174,9 +208,55 @@ router.post('/:id/decline', async (req, res) => {
       data: { status: 'DECLINED' }
     })
 
+    // Notify the original sender that the request was declined
+    await createNotification(req.prisma, {
+      recipientId: updated.senderId,
+      actorId: req.userId,
+      type: 'payment_request_declined',
+      title: 'Payment request declined',
+      message: 'Your payment request was declined',
+      amount: updated.amount
+    })
+
     res.json({ request: updated })
   } catch (error) {
     console.error('Decline payment request error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+// Cancel payment request (sender only)
+router.delete('/:id', async (req, res) => {
+  try {
+    const { id } = req.params
+    const request = await req.prisma.paymentRequest.findUnique({ where: { id } })
+
+    if (!request || request.senderId !== req.userId) {
+      return res.status(404).json({ error: 'Request not found' })
+    }
+
+    if (request.status !== 'PENDING') {
+      return res.status(400).json({ error: 'Request is not pending' })
+    }
+
+    const updated = await req.prisma.paymentRequest.update({
+      where: { id },
+      data: { status: 'CANCELLED' }
+    })
+
+    // Notify receiver that the request was cancelled
+    await createNotification(req.prisma, {
+      recipientId: updated.receiverId,
+      actorId: req.userId,
+      type: 'payment_request_cancelled',
+      title: 'Payment request cancelled',
+      message: 'The payment request was cancelled',
+      amount: updated.amount
+    })
+
+    res.json({ request: updated })
+  } catch (error) {
+    console.error('Cancel payment request error:', error)
     res.status(500).json({ error: 'Internal server error' })
   }
 })
