@@ -53,6 +53,7 @@ router.get('/upcoming-payments', authenticate, async (req, res) => {
       }
     })
 
+    // Request transactions (after acceptance)
     const requests = await req.prisma.transaction.findMany({
       where: { receiverId: userId, status: 'PENDING' },
       include: {
@@ -65,7 +66,7 @@ router.get('/upcoming-payments', authenticate, async (req, res) => {
       const dueDate = r.createdAt
       return {
         id: r.id,
-        type: 'payment_request',
+        type: 'request',
         title: r.description || 'Payment Request',
         amount: r.amount,
         dueDate: dueDate.toISOString(),
@@ -77,7 +78,33 @@ router.get('/upcoming-payments', authenticate, async (req, res) => {
       }
     })
 
-    let payments = [...billPayments, ...requestPayments]
+    // Direct pending payment requests (before acceptance)
+    const direct = await req.prisma.paymentRequest.findMany({
+      where: { receiverId: userId, status: 'PENDING' },
+      include: {
+        sender: { select: { id: true, name: true, email: true, avatar: true } },
+        receiver: { select: { id: true, name: true, email: true, avatar: true } }
+      }
+    })
+
+    const directRequestPayments = direct.map((r) => {
+      const dueDate = r.nextDueDate || r.createdAt
+      return {
+        id: r.id,
+        type: 'request',
+        title: r.description || 'Payment Request',
+        amount: r.amount,
+        dueDate: dueDate.toISOString(),
+        status: classifyStatus(dueDate),
+        organizer: r.sender,
+        participants: [r.sender, r.receiver],
+        // No transaction exists yet; pass null so payment flow won’t call mark-sent
+        requestId: null,
+        paymentMethod: null
+      }
+    })
+
+    let payments = [...billPayments, ...requestPayments, ...directRequestPayments]
     const { filter } = req.query
     if (filter) {
       payments = payments.filter((p) => p.status === filter)

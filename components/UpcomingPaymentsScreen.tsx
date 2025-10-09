@@ -1,5 +1,4 @@
-import { ArrowLeft, Calendar, AlertCircle, Clock, CreditCard, Users, AlertTriangle, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { ArrowLeft, Calendar, AlertCircle, Clock, CreditCard, Users, AlertTriangle } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Avatar, AvatarFallback } from './ui/avatar';
@@ -11,47 +10,15 @@ import { formatDueDate } from '../utils/formatDueDate';
 import { ListSkeleton } from './ui/loading';
 import { Alert, AlertDescription } from './ui/alert';
 import { useUpcomingPayments } from '../hooks/useUpcomingPayments';
-import { apiClientWithRetry } from '../utils/apiClientWithRetry';
-import { toast } from 'sonner';
 
 interface UpcomingPaymentsScreenProps {
   onNavigate: (tab: string, data?: any) => void;
 }
 
 export function UpcomingPaymentsScreen({ onNavigate }: UpcomingPaymentsScreenProps) {
-  const { appSettings, userProfile } = useUserProfile();
+  const { appSettings } = useUserProfile();
   const fmt = (n: number) => formatCurrencyForRegion(appSettings.region, n);
   const { upcomingPayments, loading, error } = useUpcomingPayments();
-
-  // Lightweight: show a small list of my pending outgoing requests with Cancel buttons
-  const [myRequests, setMyRequests] = useState<Array<{ id: string; amount: number; receiver: { id: string; name: string } }>>([]);
-  const [loadingMyRequests, setLoadingMyRequests] = useState(false);
-
-  const loadMyRequests = async () => {
-    try {
-      if (!userProfile?.id) return;
-      setLoadingMyRequests(true);
-      const data = await apiClientWithRetry('/requests');
-      const all = Array.isArray(data?.requests) ? data.requests : [];
-      const mine = all
-        .filter((r: any) => r.sender?.id === userProfile.id && (r.status === 'PENDING' || r.status === 'pending'))
-        .map((r: any) => ({ id: r.id, amount: r.amount, receiver: r.receiver }));
-      setMyRequests(mine);
-    } catch (e) {
-      // Silent fail to avoid disrupting the main screen
-    } finally {
-      setLoadingMyRequests(false);
-    }
-  };
-
-  useEffect(() => {
-    loadMyRequests();
-    // Refresh when notifications indicate updates
-    const onUpdate = () => loadMyRequests();
-    window.addEventListener('notificationsUpdated', onUpdate as any);
-    return () => window.removeEventListener('notificationsUpdated', onUpdate as any);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userProfile?.id]);
 
   const dueSoonTotal = upcomingPayments
     .filter(p => p.status === 'overdue' || p.status === 'due_soon')
@@ -255,43 +222,6 @@ export function UpcomingPaymentsScreen({ onNavigate }: UpcomingPaymentsScreenPro
         </Card>
       </div>
 
-      {/* My Money Requests (lightweight) */}
-      {myRequests.length > 0 && (
-        <Card className="p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-base font-semibold">Your Money Requests</h3>
-            <Button variant="ghost" size="sm" onClick={loadMyRequests} disabled={loadingMyRequests}>Refresh</Button>
-          </div>
-          <div className="space-y-2">
-            {myRequests.slice(0, 3).map((r) => (
-              <div key={r.id} className="flex items-center justify-between py-1">
-                <div className="text-sm">
-                  <span className="font-medium">{r.receiver?.name || 'Friend'}</span>
-                  <span className="text-muted-foreground"> • {fmt(r.amount)}</span>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={async () => {
-                    try {
-                      await apiClientWithRetry(`/requests/${r.id}`, { method: 'DELETE' });
-                      toast.success('Request cancelled');
-                      loadMyRequests();
-                    } catch (e: any) {
-                      toast.error(e?.message || 'Failed to cancel request');
-                    }
-                  }}
-                >
-                  <X className="h-3 w-3 mr-1" /> Cancel
-                </Button>
-              </div>
-            ))}
-            {myRequests.length > 3 && (
-              <p className="text-xs text-muted-foreground">Only showing 3 most recent pending requests</p>
-            )}
-          </div>
-        </Card>
-      )}
 
       {/* Payments List */}
       <Tabs defaultValue="upcoming" className="w-full">
