@@ -105,6 +105,8 @@ model PaymentRequest {
   recurringDay       Int?
   recurringDayOfWeek Int?
   nextDueDate        DateTime?
+  // Link to the payer's payment method at the time of request (optional)
+  paymentMethodId    String?
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
