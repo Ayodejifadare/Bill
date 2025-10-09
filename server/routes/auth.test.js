@@ -54,15 +54,23 @@ describe('Auth routes - OTP validation', () => {
 
 describe('Auth routes - register', () => {
   let app
+  let findUnique
+  let findFirst
+  let create
 
   beforeEach(() => {
+    findUnique = vi.fn(async () => null)
+    findFirst = vi.fn(async () => null)
+    create = vi.fn(async ({ data }) => ({ ...data, id: 'u1' }))
+
     app = express()
     app.use(express.json())
     app.use((req, res, next) => {
       req.prisma = {
         user: {
-          findUnique: async () => null,
-          create: async ({ data }) => ({ ...data, id: 'u1' })
+          findUnique,
+          findFirst,
+          create
         }
       }
       next()
@@ -89,8 +97,30 @@ describe('Auth routes - register', () => {
       lastName: 'Doe',
       name: 'John Doe'
     })
+    expect(findFirst).toHaveBeenCalledWith({ where: { phone: '+12345678901' } })
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ phone: '+12345678901' })
+    }))
 
     vi.restoreAllMocks()
+  })
+
+  it('rejects registration when phone already exists', async () => {
+    findFirst.mockResolvedValueOnce({ id: 'existing' })
+
+    const res = await request(app)
+      .post('/auth/register')
+      .send({
+        firstName: 'Jane',
+        lastName: 'Roe',
+        email: 'jane@example.com',
+        phone: '+12345678901',
+        password: 'secret123'
+      })
+
+    expect(res.status).toBe(400)
+    expect(res.body).toEqual({ error: 'Phone already registered' })
+    expect(create).not.toHaveBeenCalled()
   })
 })
 

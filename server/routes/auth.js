@@ -160,6 +160,7 @@ router.post('/register', [
     }
 
     const { email, password, firstName, lastName, phone } = req.body
+    const normalizedPhone = normalizePhone(phone)
 
     const name = `${firstName} ${lastName}`.trim()
 
@@ -172,11 +173,19 @@ router.post('/register', [
       return res.status(400).json({ error: 'User already exists' })
     }
 
+    const existingPhoneUser = await req.prisma.user.findFirst({
+      where: { phone: normalizedPhone }
+    })
+
+    if (existingPhoneUser) {
+      return res.status(400).json({ error: 'Phone already registered' })
+    }
+
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12)
 
     // Create user
-    const { region, currency } = deriveRegionCurrencyFromPhone(normalizePhone(phone))
+    const { region, currency } = deriveRegionCurrencyFromPhone(normalizedPhone)
     const user = await req.prisma.user.create({
       data: {
         email,
@@ -184,7 +193,7 @@ router.post('/register', [
         password: hashedPassword,
         firstName,
         lastName,
-        phone,
+        phone: normalizedPhone,
         region,
         currency,
         // Ensure new accounts pass onboarding gate until full onboarding flow exists
