@@ -22,7 +22,7 @@ model User {
   dateOfBirth         DateTime?
   address             String?
   bio                 String?
-  phone               String?
+  phone               String?  @unique
   avatar              String?
   balance             Float     @default(0)
   twoFactorEnabled    Boolean   @default(false)
