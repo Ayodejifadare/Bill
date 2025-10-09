@@ -27,11 +27,14 @@ LOCK TABLE
   "verification_codes"
 IN SHARE ROW EXCLUSIVE MODE;
 
--- Build a CTE that maps duplicate users (by phone number) to the canonical account we will
--- retain. The canonical account is the earliest-created (and then lowest-id) user for a
--- given phone number.
+-- Build the duplicate-user map by selecting all non-canonical accounts into a temporary
+-- table that we can reuse across the rest of the migration.
 CREATE TEMP TABLE duplicate_user_map AS
-WITH ranked_users AS (
+SELECT
+  phone,
+  canonical_id,
+  id AS duplicate_id
+FROM (
   SELECT
     id,
     phone,
@@ -45,16 +48,8 @@ WITH ranked_users AS (
     ) AS rn
   FROM "users"
   WHERE phone IS NOT NULL
-), duplicate_mapping AS (
-  SELECT
-    phone,
-    canonical_id,
-    id AS duplicate_id
-  FROM ranked_users
-  WHERE rn > 1
-)
-SELECT *
-FROM duplicate_mapping;
+) ranked_users
+WHERE rn > 1;
 
 -- Tables with user-based uniqueness need conflicting duplicate rows removed prior to
 -- rewriting their foreign keys to the canonical user.
