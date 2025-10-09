@@ -51,17 +51,25 @@ WITH duplicate_user_map AS (
       ) AS rn
     FROM "users"
     WHERE phone IS NOT NULL
-  ) ranked_users
+) ranked_users
   WHERE rn > 1
+)
+,
+ranked_notification_preferences AS (
+  SELECT
+    np.ctid,
+    ROW_NUMBER() OVER (
+      PARTITION BY COALESCE(dup.canonical_id, np."userId")
+      ORDER BY CASE WHEN dup.duplicate_id IS NULL THEN 0 ELSE 1 END, np."createdAt", np.id
+    ) AS rn
+  FROM "notification_preferences" np
+  LEFT JOIN duplicate_user_map dup
+    ON np."userId" = dup.duplicate_id
 )
 DELETE FROM "notification_preferences" np
-USING duplicate_user_map dup
-WHERE np."userId" = dup.duplicate_id
-  AND EXISTS (
-    SELECT 1
-    FROM "notification_preferences" existing
-    WHERE existing."userId" = dup.canonical_id
-  );
+USING ranked_notification_preferences ranked
+WHERE np.ctid = ranked.ctid
+  AND ranked.rn > 1;
 
 WITH duplicate_user_map AS (
   SELECT
@@ -82,18 +90,26 @@ WITH duplicate_user_map AS (
       ) AS rn
     FROM "users"
     WHERE phone IS NOT NULL
-  ) ranked_users
+) ranked_users
   WHERE rn > 1
+)
+,
+ranked_verification_codes AS (
+  SELECT
+    vc.ctid,
+    ROW_NUMBER() OVER (
+      PARTITION BY COALESCE(dup.canonical_id, vc."userId"), vc."type"
+      ORDER BY CASE WHEN dup.duplicate_id IS NULL THEN 0 ELSE 1 END, vc."expiresAt", vc.id
+    ) AS rn
+  FROM "verification_codes" vc
+  LEFT JOIN duplicate_user_map dup
+    ON vc."userId" = dup.duplicate_id
+  WHERE vc."userId" IS NOT NULL
 )
 DELETE FROM "verification_codes" vc
-USING duplicate_user_map dup
-WHERE vc."userId" = dup.duplicate_id
-  AND EXISTS (
-    SELECT 1
-    FROM "verification_codes" existing
-    WHERE existing."userId" = dup.canonical_id
-      AND existing."type" = vc."type"
-  );
+USING ranked_verification_codes ranked
+WHERE vc.ctid = ranked.ctid
+  AND ranked.rn > 1;
 
 WITH duplicate_user_map AS (
   SELECT
@@ -114,18 +130,25 @@ WITH duplicate_user_map AS (
       ) AS rn
     FROM "users"
     WHERE phone IS NOT NULL
-  ) ranked_users
+) ranked_users
   WHERE rn > 1
+)
+,
+ranked_bill_split_participants AS (
+  SELECT
+    bsp.ctid,
+    ROW_NUMBER() OVER (
+      PARTITION BY bsp."billSplitId", COALESCE(dup.canonical_id, bsp."userId")
+      ORDER BY CASE WHEN dup.duplicate_id IS NULL THEN 0 ELSE 1 END, bsp."id"
+    ) AS rn
+  FROM "bill_split_participants" bsp
+  LEFT JOIN duplicate_user_map dup
+    ON bsp."userId" = dup.duplicate_id
 )
 DELETE FROM "bill_split_participants" bsp
-USING duplicate_user_map dup
-WHERE bsp."userId" = dup.duplicate_id
-  AND EXISTS (
-    SELECT 1
-    FROM "bill_split_participants" existing
-    WHERE existing."billSplitId" = bsp."billSplitId"
-      AND existing."userId" = dup.canonical_id
-  );
+USING ranked_bill_split_participants ranked
+WHERE bsp.ctid = ranked.ctid
+  AND ranked.rn > 1;
 
 WITH duplicate_user_map AS (
   SELECT
@@ -146,18 +169,36 @@ WITH duplicate_user_map AS (
       ) AS rn
     FROM "users"
     WHERE phone IS NOT NULL
-  ) ranked_users
+) ranked_users
   WHERE rn > 1
+)
+,
+ranked_friend_requests_sender AS (
+  SELECT
+    fr.ctid,
+    ROW_NUMBER() OVER (
+      PARTITION BY
+        COALESCE(sender_dup.canonical_id, fr."senderId"),
+        COALESCE(receiver_dup.canonical_id, fr."receiverId")
+      ORDER BY
+        CASE
+          WHEN sender_dup.duplicate_id IS NULL AND receiver_dup.duplicate_id IS NULL THEN 0
+          WHEN sender_dup.duplicate_id IS NULL OR receiver_dup.duplicate_id IS NULL THEN 1
+          ELSE 2
+        END,
+        fr."createdAt",
+        fr.id
+    ) AS rn
+  FROM "friend_requests" fr
+  LEFT JOIN duplicate_user_map sender_dup
+    ON fr."senderId" = sender_dup.duplicate_id
+  LEFT JOIN duplicate_user_map receiver_dup
+    ON fr."receiverId" = receiver_dup.duplicate_id
 )
 DELETE FROM "friend_requests" fr
-USING duplicate_user_map dup
-WHERE fr."senderId" = dup.duplicate_id
-  AND EXISTS (
-    SELECT 1
-    FROM "friend_requests" existing
-    WHERE existing."senderId" = dup.canonical_id
-      AND existing."receiverId" = fr."receiverId"
-  );
+USING ranked_friend_requests_sender ranked
+WHERE fr.ctid = ranked.ctid
+  AND ranked.rn > 1;
 
 WITH duplicate_user_map AS (
   SELECT
@@ -178,18 +219,36 @@ WITH duplicate_user_map AS (
       ) AS rn
     FROM "users"
     WHERE phone IS NOT NULL
-  ) ranked_users
+) ranked_users
   WHERE rn > 1
+)
+,
+ranked_friend_requests_receiver AS (
+  SELECT
+    fr.ctid,
+    ROW_NUMBER() OVER (
+      PARTITION BY
+        COALESCE(sender_dup.canonical_id, fr."senderId"),
+        COALESCE(receiver_dup.canonical_id, fr."receiverId")
+      ORDER BY
+        CASE
+          WHEN sender_dup.duplicate_id IS NULL AND receiver_dup.duplicate_id IS NULL THEN 0
+          WHEN sender_dup.duplicate_id IS NULL OR receiver_dup.duplicate_id IS NULL THEN 1
+          ELSE 2
+        END,
+        fr."createdAt",
+        fr.id
+    ) AS rn
+  FROM "friend_requests" fr
+  LEFT JOIN duplicate_user_map sender_dup
+    ON fr."senderId" = sender_dup.duplicate_id
+  LEFT JOIN duplicate_user_map receiver_dup
+    ON fr."receiverId" = receiver_dup.duplicate_id
 )
 DELETE FROM "friend_requests" fr
-USING duplicate_user_map dup
-WHERE fr."receiverId" = dup.duplicate_id
-  AND EXISTS (
-    SELECT 1
-    FROM "friend_requests" existing
-    WHERE existing."receiverId" = dup.canonical_id
-      AND existing."senderId" = fr."senderId"
-  );
+USING ranked_friend_requests_receiver ranked
+WHERE fr.ctid = ranked.ctid
+  AND ranked.rn > 1;
 
 WITH duplicate_user_map AS (
   SELECT
@@ -210,50 +269,36 @@ WITH duplicate_user_map AS (
       ) AS rn
     FROM "users"
     WHERE phone IS NOT NULL
-  ) ranked_users
+) ranked_users
   WHERE rn > 1
 )
-DELETE FROM "friendships" f
-USING duplicate_user_map dup
-WHERE f."user1Id" = dup.duplicate_id
-  AND EXISTS (
-    SELECT 1
-    FROM "friendships" existing
-    WHERE existing."user1Id" = dup.canonical_id
-      AND existing."user2Id" = f."user2Id"
-  );
-
-WITH duplicate_user_map AS (
+,
+ranked_friendships_user1 AS (
   SELECT
-    phone,
-    canonical_id,
-    id AS duplicate_id
-  FROM (
-    SELECT
-      id,
-      phone,
-      FIRST_VALUE(id) OVER (
-        PARTITION BY phone
-        ORDER BY "createdAt" ASC, id ASC
-      ) AS canonical_id,
-      ROW_NUMBER() OVER (
-        PARTITION BY phone
-        ORDER BY "createdAt" ASC, id ASC
-      ) AS rn
-    FROM "users"
-    WHERE phone IS NOT NULL
-  ) ranked_users
-  WHERE rn > 1
+    f.ctid,
+    ROW_NUMBER() OVER (
+      PARTITION BY
+        COALESCE(user1_dup.canonical_id, f."user1Id"),
+        COALESCE(user2_dup.canonical_id, f."user2Id")
+      ORDER BY
+        CASE
+          WHEN user1_dup.duplicate_id IS NULL AND user2_dup.duplicate_id IS NULL THEN 0
+          WHEN user1_dup.duplicate_id IS NULL OR user2_dup.duplicate_id IS NULL THEN 1
+          ELSE 2
+        END,
+        f."createdAt",
+        f.id
+    ) AS rn
+  FROM "friendships" f
+  LEFT JOIN duplicate_user_map user1_dup
+    ON f."user1Id" = user1_dup.duplicate_id
+  LEFT JOIN duplicate_user_map user2_dup
+    ON f."user2Id" = user2_dup.duplicate_id
 )
 DELETE FROM "friendships" f
-USING duplicate_user_map dup
-WHERE f."user2Id" = dup.duplicate_id
-  AND EXISTS (
-    SELECT 1
-    FROM "friendships" existing
-    WHERE existing."user2Id" = dup.canonical_id
-      AND existing."user1Id" = f."user1Id"
-  );
+USING ranked_friendships_user1 ranked
+WHERE f.ctid = ranked.ctid
+  AND ranked.rn > 1;
 
 WITH duplicate_user_map AS (
   SELECT
@@ -274,18 +319,75 @@ WITH duplicate_user_map AS (
       ) AS rn
     FROM "users"
     WHERE phone IS NOT NULL
-  ) ranked_users
+) ranked_users
   WHERE rn > 1
+)
+,
+ranked_friendships_user2 AS (
+  SELECT
+    f.ctid,
+    ROW_NUMBER() OVER (
+      PARTITION BY
+        COALESCE(user1_dup.canonical_id, f."user1Id"),
+        COALESCE(user2_dup.canonical_id, f."user2Id")
+      ORDER BY
+        CASE
+          WHEN user1_dup.duplicate_id IS NULL AND user2_dup.duplicate_id IS NULL THEN 0
+          WHEN user1_dup.duplicate_id IS NULL OR user2_dup.duplicate_id IS NULL THEN 1
+          ELSE 2
+        END,
+        f."createdAt",
+        f.id
+    ) AS rn
+  FROM "friendships" f
+  LEFT JOIN duplicate_user_map user1_dup
+    ON f."user1Id" = user1_dup.duplicate_id
+  LEFT JOIN duplicate_user_map user2_dup
+    ON f."user2Id" = user2_dup.duplicate_id
+)
+DELETE FROM "friendships" f
+USING ranked_friendships_user2 ranked
+WHERE f.ctid = ranked.ctid
+  AND ranked.rn > 1;
+
+WITH duplicate_user_map AS (
+  SELECT
+    phone,
+    canonical_id,
+    id AS duplicate_id
+  FROM (
+    SELECT
+      id,
+      phone,
+      FIRST_VALUE(id) OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS canonical_id,
+      ROW_NUMBER() OVER (
+        PARTITION BY phone
+        ORDER BY "createdAt" ASC, id ASC
+      ) AS rn
+    FROM "users"
+    WHERE phone IS NOT NULL
+) ranked_users
+  WHERE rn > 1
+)
+,
+ranked_group_members AS (
+  SELECT
+    gm.ctid,
+    ROW_NUMBER() OVER (
+      PARTITION BY gm."groupId", COALESCE(dup.canonical_id, gm."userId")
+      ORDER BY CASE WHEN dup.duplicate_id IS NULL THEN 0 ELSE 1 END, gm."joinedAt", gm."userId"
+    ) AS rn
+  FROM "group_members" gm
+  LEFT JOIN duplicate_user_map dup
+    ON gm."userId" = dup.duplicate_id
 )
 DELETE FROM "group_members" gm
-USING duplicate_user_map dup
-WHERE gm."userId" = dup.duplicate_id
-  AND EXISTS (
-    SELECT 1
-    FROM "group_members" existing
-    WHERE existing."groupId" = gm."groupId"
-      AND existing."userId" = dup.canonical_id
-  );
+USING ranked_group_members ranked
+WHERE gm.ctid = ranked.ctid
+  AND ranked.rn > 1;
 
 -- Rewrite foreign key references from duplicate user ids to the canonical id.
 WITH duplicate_user_map AS (
