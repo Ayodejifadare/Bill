@@ -1,4 +1,4 @@
-export interface CreateRequestPayload {
+﻿export interface CreateRequestPayload {
   amount: number;
   recipients: string[];
   // Can be an ID or a PaymentMethod-like object; we will send the ID to the server
@@ -29,4 +29,13 @@ export async function createRequest(payload: CreateRequestPayload): Promise<void
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
+  if (typeof window !== 'undefined') {
+    try {
+      window.dispatchEvent(new Event('upcomingPaymentsUpdated'));
+      window.dispatchEvent(new Event('notificationsUpdated'));
+    } catch {
+      // no-op
+    }
+  }
 }
+

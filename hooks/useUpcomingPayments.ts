@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+﻿import { useEffect, useState, useCallback } from 'react';
 import { apiClient } from '../utils/apiClient';
 
 export interface PaymentOrganizer {
@@ -52,9 +52,17 @@ export function useUpcomingPayments(): UseUpcomingPaymentsResult {
     }
   }, []);
 
-  useEffect(() => {
+    useEffect(() => {
     fetchUpcomingPayments();
+  }, [fetchUpcomingPayments]);
+
+  useEffect(() => {
+    const onUpdate = () => fetchUpcomingPayments();
+    window.addEventListener('upcomingPaymentsUpdated', onUpdate);
+    return () => window.removeEventListener('upcomingPaymentsUpdated', onUpdate);
   }, [fetchUpcomingPayments]);
 
   return { upcomingPayments, loading, error, refetch: fetchUpcomingPayments };
 }
+
+
