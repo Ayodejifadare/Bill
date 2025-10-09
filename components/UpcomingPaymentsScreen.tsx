@@ -173,7 +173,7 @@ export function UpcomingPaymentsScreen({ onNavigate }: UpcomingPaymentsScreenPro
           <Button variant="ghost" size="sm" onClick={() => onNavigate('home')}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <h2>Upcoming Payments</h2>
+          <h2>Pending Payments</h2>
         </div>
         <ListSkeleton count={4} />
       </div>
@@ -187,7 +187,7 @@ export function UpcomingPaymentsScreen({ onNavigate }: UpcomingPaymentsScreenPro
           <Button variant="ghost" size="sm" onClick={() => onNavigate('home')}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <h2>Upcoming Payments</h2>
+          <h2>Pending Payments</h2>
         </div>
         <Alert variant="destructive">
           <AlertDescription>{error}</AlertDescription>
@@ -203,7 +203,7 @@ export function UpcomingPaymentsScreen({ onNavigate }: UpcomingPaymentsScreenPro
         <Button variant="ghost" size="sm" onClick={() => onNavigate('home')}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <h2>Upcoming Payments</h2>
+        <h2>Pending Payments</h2>
       </div>
 
       {/* Quick Stats */}
@@ -224,14 +224,14 @@ export function UpcomingPaymentsScreen({ onNavigate }: UpcomingPaymentsScreenPro
 
 
       {/* Payments List */}
-      <Tabs defaultValue="upcoming" className="w-full">
+      <Tabs defaultValue="pending" className="w-full">
         <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
-          <TabsTrigger value="overdue">Overdue</TabsTrigger>
           <TabsTrigger value="pending">Pending</TabsTrigger>
+          <TabsTrigger value="overdue">Overdue</TabsTrigger>
+          <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
         </TabsList>
         
-          <TabsContent value="upcoming" className="mt-4">
+          <TabsContent value="pending" className="mt-4">
             <div className="space-y-3">
               {upcomingPayments.filter(p => p.status === 'upcoming' || p.status === 'due_soon').map((payment) => (
                 <PaymentCard key={payment.id} payment={payment} />
@@ -239,7 +239,7 @@ export function UpcomingPaymentsScreen({ onNavigate }: UpcomingPaymentsScreenPro
               {upcomingPayments.filter(p => p.status === 'upcoming' || p.status === 'due_soon').length === 0 && (
                 <div className="text-center py-8">
                   <Calendar className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-                  <p className="text-muted-foreground">No upcoming payments</p>
+                  <p className="text-muted-foreground">No pending payments</p>
                 </div>
               )}
             </div>
@@ -259,15 +259,15 @@ export function UpcomingPaymentsScreen({ onNavigate }: UpcomingPaymentsScreenPro
             </div>
           </TabsContent>
 
-          <TabsContent value="pending" className="mt-4">
+          <TabsContent value="upcoming" className="mt-4">
             <div className="space-y-3">
-              {upcomingPayments.filter(p => p.status === 'pending').map((payment) => (
+              {upcomingPayments.filter(p => p.status === 'upcoming').map((payment) => (
                 <PaymentCard key={payment.id} payment={payment} />
               ))}
-              {upcomingPayments.filter(p => p.status === 'pending').length === 0 && (
+              {upcomingPayments.filter(p => p.status === 'upcoming').length === 0 && (
                 <div className="text-center py-8">
                   <Clock className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-                  <p className="text-muted-foreground">No pending payments</p>
+                  <p className="text-muted-foreground">No upcoming payments</p>
                 </div>
               )}
             </div>

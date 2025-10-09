@@ -883,6 +883,56 @@ function AppContent() {
   const screensThatNeedPadding = new Set(['friends', 'split', 'bills', 'profile']);
   const applyPadding = isAuthenticated && screensThatNeedPadding.has(navState.activeTab);
 
+  // Auto-refresh on resume if session is still valid (no manual reload needed)
+  useEffect(() => {
+    let lastInteraction = Date.now();
+
+    const touch = () => { lastInteraction = Date.now(); };
+    const thresholdMs = 3 * 60 * 1000; // 3 minutes idle threshold
+
+    const softRefresh = () => {
+      try {
+        window.dispatchEvent(new Event('friendsUpdated'));
+        window.dispatchEvent(new Event('notificationsUpdated'));
+        window.dispatchEvent(new Event('upcomingPaymentsUpdated'));
+        window.dispatchEvent(new Event('groupsUpdated'));
+      } catch { /* ignore */ }
+    };
+
+    const maybeRefresh = async () => {
+      const now = Date.now();
+      if (now - lastInteraction < thresholdMs) return;
+      try {
+        // Ping a lightweight, auth-protected endpoint to validate session
+        await apiClient('/notifications/unread');
+        softRefresh();
+        lastInteraction = now;
+      } catch (err) {
+        // If unauthorized, apiClient will already dispatch 'session-expired'
+        // Do nothing here; the app will route user accordingly.
+      }
+    };
+
+    window.addEventListener('focus', maybeRefresh);
+    const visibilityHandler = () => {
+      if (document.visibilityState === 'visible') {
+        maybeRefresh();
+      }
+    };
+    document.addEventListener('visibilitychange', visibilityHandler);
+    window.addEventListener('click', touch);
+    window.addEventListener('keydown', touch);
+    window.addEventListener('touchstart', touch, { passive: true });
+
+    return () => {
+      window.removeEventListener('focus', maybeRefresh);
+      document.removeEventListener('visibilitychange', visibilityHandler);
+      window.removeEventListener('click', touch);
+      window.removeEventListener('keydown', touch);
+      window.removeEventListener('touchstart', touch as any);
+    };
+  }, []);
+
   return (
     <div className="min-h-screen bg-background">
       {/* Network Status Indicator */}

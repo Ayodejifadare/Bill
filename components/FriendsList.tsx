@@ -50,12 +50,9 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
     setError(null);
 
     let friendsData: Friend[] = [];
-    let outgoingRequests: Friend[] = [];
     let friendsFailed = false;
-    let requestsFailed = false;
 
     const friendsPromise = apiClient('/friends');
-    const requestsPromise = apiClient('/friends/requests');
 
     try {
       const friendRes = await friendsPromise;
@@ -84,25 +81,10 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
       friendsFailed = true;
     }
 
-    try {
-      const requestsRes = await requestsPromise;
-      outgoingRequests = (requestsRes.outgoing || []).map((r: any) => ({
-        id: r.receiver.id,
-        name: r.receiver.name,
-        username: r.receiver.email || '',
-        status: 'pending',
-        avatar: r.receiver.avatar,
-        requestId: r.id,
-        direction: 'outgoing',
-      }));
-    } catch (err) {
-      console.error('Failed to load friend requests', err);
-      requestsFailed = true;
-    }
+    // Server already includes incoming and outgoing pending requests
+    setFriends(friendsData);
 
-    setFriends([...friendsData, ...outgoingRequests]);
-
-    if (friendsFailed && requestsFailed) {
+    if (friendsFailed) {
       setError('Failed to load friends. Please try again.');
       return;
     }

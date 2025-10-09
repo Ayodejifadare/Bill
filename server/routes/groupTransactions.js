@@ -18,11 +18,18 @@ router.get('/transactions', async (req, res) => {
     })
     const memberIds = members.map((m) => m.userId)
 
+    // Only show transactions in this group that involve the authenticated user.
+    // This avoids listing a separate row for every participant when a bill is split.
     const transactions = await req.prisma.transaction.findMany({
       where: {
         OR: [
           { senderId: { in: memberIds } },
           { receiverId: { in: memberIds } }
+        ],
+        AND: [
+          { OR: [{ senderId: req.userId }, { receiverId: req.userId }] },
+          // Exclude self-referential entries (payer's own share) for cleaner activity
+          { NOT: { AND: [{ senderId: req.userId }, { receiverId: req.userId }] } }
         ]
       },
       include: {

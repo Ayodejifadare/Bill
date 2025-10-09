@@ -86,14 +86,17 @@ export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3>Upcoming Payments</h3>
+        <h3>Pending Payments</h3>
         <Button variant="ghost" size="sm" onClick={() => onNavigate('upcoming-payments')}>
           See All
         </Button>
       </div>
 
       <div className="space-y-3">
-        {upcomingPayments.slice(0, 2).map((payment) => {
+        {upcomingPayments
+          .filter((payment) => payment.status === 'upcoming' || payment.status === 'due_soon')
+          .slice(0, 2)
+          .map((payment) => {
           const duePhrase = formatDueDate(payment.dueDate);
           const dueText = duePhrase
             ? duePhrase.toLowerCase().startsWith('overdue')

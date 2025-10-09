@@ -95,6 +95,12 @@ export const handleSendFriendRequest = async (
     });
 
     toast.success(`Friend request sent to ${contact.name}!`);
+    try {
+      // Notify any screens listening (e.g., FriendsList) to refresh
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('friendsUpdated'));
+      }
+    } catch {}
     return { success: true, data };
   } catch (error) {
     console.error('Send friend request failed:', error);

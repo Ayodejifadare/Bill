@@ -704,12 +704,16 @@ router.post(
           select: { createdBy: true, title: true }
         })
         if (billSplit && billSplit.createdBy !== req.userId) {
+          // Include participant amount for clearer context
+          const amount = participant.amount
           await createNotification(req.prisma, {
             recipientId: billSplit.createdBy,
             actorId: req.userId,
             type: 'bill_split_payment_sent',
-            title: 'Payment sent',
-            message: `Payment sent for ${billSplit.title}`
+            title: 'Confirm payment received',
+            message: `A participant marked payment as sent for ${billSplit.title}. Please confirm settlement when received.`,
+            amount,
+            actionable: true
           })
         }
       }
