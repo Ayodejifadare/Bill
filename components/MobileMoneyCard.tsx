@@ -1,4 +1,4 @@
-import { AccountCard, AccountCardProps } from './AccountCard';
+import { AccountCard, AccountCardProps } from "./AccountCard";
 
 interface MobileMoneyAccount {
   id: string;
@@ -7,7 +7,8 @@ interface MobileMoneyAccount {
   isDefault: boolean;
 }
 
-export interface MobileMoneyCardProps extends Omit<AccountCardProps, 'account'> {
+export interface MobileMoneyCardProps
+  extends Omit<AccountCardProps, "account"> {
   account: MobileMoneyAccount;
 }
 
@@ -16,7 +17,7 @@ export function MobileMoneyCard({ account, ...rest }: MobileMoneyCardProps) {
     <AccountCard
       account={{
         id: account.id,
-        type: 'mobile_money',
+        type: "mobile_money",
         provider: account.provider,
         phoneNumber: account.phoneNumber,
         isDefault: account.isDefault,

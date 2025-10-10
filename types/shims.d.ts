@@ -9,5 +9,5 @@ interface ImportMeta {
 declare const process: any;
 
 // Vendor modules without type definitions
-declare module '@radix-ui/react-aspect-ratio';
-declare module '@radix-ui/react-context-menu';
+declare module "@radix-ui/react-aspect-ratio";
+declare module "@radix-ui/react-context-menu";

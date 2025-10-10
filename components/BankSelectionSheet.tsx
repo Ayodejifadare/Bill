@@ -1,11 +1,17 @@
-import { useState } from 'react';
-import { Search, X, Building2, Check } from 'lucide-react';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from './ui/sheet';
-import { Input } from './ui/input';
-import { Button } from './ui/button';
-import { ScrollArea } from './ui/scroll-area';
-import { useUserProfile } from './UserProfileContext';
-import { getBanksForRegion } from '../utils/banks';
+import { useState } from "react";
+import { Search, X, Building2, Check } from "lucide-react";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "./ui/sheet";
+import { Input } from "./ui/input";
+import { Button } from "./ui/button";
+import { ScrollArea } from "./ui/scroll-area";
+import { useUserProfile } from "./UserProfileContext";
+import { getBanksForRegion } from "../utils/banks";
 
 interface BankSelectionSheetProps {
   isOpen: boolean;
@@ -14,16 +20,21 @@ interface BankSelectionSheetProps {
   selectedBank?: string;
 }
 
-const FALLBACK_OTHER = 'Other';
+const FALLBACK_OTHER = "Other";
 
-export function BankSelectionSheet({ isOpen, onClose, onSelectBank, selectedBank }: BankSelectionSheetProps) {
-  const [searchQuery, setSearchQuery] = useState('');
+export function BankSelectionSheet({
+  isOpen,
+  onClose,
+  onSelectBank,
+  selectedBank,
+}: BankSelectionSheetProps) {
+  const [searchQuery, setSearchQuery] = useState("");
   const { appSettings } = useUserProfile();
   const regionBanks = getBanksForRegion(appSettings.region);
   const banks = [...regionBanks, FALLBACK_OTHER];
 
-  const filteredBanks = banks.filter(bank =>
-    bank.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredBanks = banks.filter((bank) =>
+    bank.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   const handleSelectBank = (bank: string) => {
@@ -33,7 +44,10 @@ export function BankSelectionSheet({ isOpen, onClose, onSelectBank, selectedBank
 
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
-      <SheetContent side="bottom" className="h-[100vh] max-h-[100vh] rounded-t-none">
+      <SheetContent
+        side="bottom"
+        className="h-[100vh] max-h-[100vh] rounded-t-none"
+      >
         <div className="flex flex-col h-full">
           {/* Fixed Header */}
           <SheetHeader className="flex-shrink-0 pb-6 pt-2">
@@ -71,7 +85,9 @@ export function BankSelectionSheet({ isOpen, onClose, onSelectBank, selectedBank
                       key={bank}
                       variant="ghost"
                       className={`w-full justify-between h-auto p-4 ${
-                        selectedBank === bank ? 'bg-accent border border-primary' : 'hover:bg-muted'
+                        selectedBank === bank
+                          ? "bg-accent border border-primary"
+                          : "hover:bg-muted"
                       }`}
                       onClick={() => handleSelectBank(bank)}
                     >
@@ -88,7 +104,9 @@ export function BankSelectionSheet({ isOpen, onClose, onSelectBank, selectedBank
                   <div className="text-center py-12">
                     <Building2 className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
                     <p className="text-muted-foreground mb-1">No banks found</p>
-                    <p className="text-sm text-muted-foreground">Try searching with a different term</p>
+                    <p className="text-sm text-muted-foreground">
+                      Try searching with a different term
+                    </p>
                   </div>
                 )}
               </div>

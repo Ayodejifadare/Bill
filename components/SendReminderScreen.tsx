@@ -1,23 +1,47 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { ArrowLeft, Send, MessageSquare, Bell, Users, Check, Clock } from 'lucide-react';
-import { Button } from './ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { Textarea } from './ui/textarea';
-import { Label } from './ui/label';
-import { Badge } from './ui/badge';
-import { Avatar, AvatarFallback } from './ui/avatar';
-import { Checkbox } from './ui/checkbox';
-import { RadioGroup, RadioGroupItem } from './ui/radio-group';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { toast } from 'sonner';
-import { useUserProfile } from './UserProfileContext';
-import { formatCurrencyForRegion } from '../utils/regions';
-import { apiClient } from '../utils/apiClient';
+import { useState, useEffect, useCallback, useMemo } from "react";
+import {
+  ArrowLeft,
+  Send,
+  MessageSquare,
+  Bell,
+  Users,
+  Check,
+  Clock,
+} from "lucide-react";
+import { Button } from "./ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "./ui/card";
+import { Textarea } from "./ui/textarea";
+import { Label } from "./ui/label";
+import { Badge } from "./ui/badge";
+import { Avatar, AvatarFallback } from "./ui/avatar";
+import { Checkbox } from "./ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
+import { toast } from "sonner";
+import { useUserProfile } from "./UserProfileContext";
+import { formatCurrencyForRegion } from "../utils/regions";
+import { apiClient } from "../utils/apiClient";
 
 interface SendReminderScreenProps {
   onNavigate: (tab: string, data?: Record<string, unknown>) => void;
   billSplitId?: string | null;
-  paymentType?: 'bill_split' | 'direct_payment' | 'recurring' | 'outstanding_balance';
+  paymentType?:
+    | "bill_split"
+    | "direct_payment"
+    | "recurring"
+    | "outstanding_balance";
   friendId?: string;
   friendName?: string;
   amount?: number;
@@ -27,87 +51,93 @@ interface Participant {
   id: string;
   name: string;
   amount: number;
-  status: 'paid' | 'pending' | 'overdue';
+  status: "paid" | "pending" | "overdue";
   avatar: string;
   lastReminder?: string;
 }
 
 const reminderTemplates = [
   {
-    id: 'friendly',
-    name: 'Friendly Reminder',
-    message: 'Hey! Just a friendly reminder about your payment for "{billTitle}". No rush, but when you get a chance, it would be great to settle up. Thanks! 😊'
+    id: "friendly",
+    name: "Friendly Reminder",
+    message:
+      'Hey! Just a friendly reminder about your payment for "{billTitle}". No rush, but when you get a chance, it would be great to settle up. Thanks! 😊',
   },
   {
-    id: 'urgent',
-    name: 'Urgent Reminder',
-    message: 'Hi there! This is an urgent reminder about your outstanding payment for "{billTitle}". The payment is now overdue. Please settle as soon as possible. Thanks for your understanding.'
+    id: "urgent",
+    name: "Urgent Reminder",
+    message:
+      'Hi there! This is an urgent reminder about your outstanding payment for "{billTitle}". The payment is now overdue. Please settle as soon as possible. Thanks for your understanding.',
   },
   {
-    id: 'professional',
-    name: 'Professional',
-    message: 'Dear {name}, This is a reminder regarding your payment of {amount} for "{billTitle}". Please process your payment at your earliest convenience. Best regards.'
+    id: "professional",
+    name: "Professional",
+    message:
+      'Dear {name}, This is a reminder regarding your payment of {amount} for "{billTitle}". Please process your payment at your earliest convenience. Best regards.',
   },
   {
-    id: 'custom',
-    name: 'Custom Message',
-    message: ''
-  }
+    id: "custom",
+    name: "Custom Message",
+    message: "",
+  },
 ];
 
 export function SendReminderScreen({
   onNavigate,
   billSplitId = null,
-  paymentType = 'bill_split',
+  paymentType = "bill_split",
   friendId,
   friendName,
-  amount
+  amount,
 }: SendReminderScreenProps) {
   const { appSettings, userProfile } = useUserProfile();
   const fmt = (n: number) => formatCurrencyForRegion(appSettings.region, n);
 
-  const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
-  const [reminderType, setReminderType] = useState('friendly');
-  const [customMessage, setCustomMessage] = useState('');
+  const [selectedParticipants, setSelectedParticipants] = useState<string[]>(
+    [],
+  );
+  const [reminderType, setReminderType] = useState("friendly");
+  const [customMessage, setCustomMessage] = useState("");
   const [includePaymentDetails, setIncludePaymentDetails] = useState(true);
   const [scheduleReminder, setScheduleReminder] = useState(false);
-  const [scheduleTime, setScheduleTime] = useState('');
+  const [scheduleTime, setScheduleTime] = useState("");
   const buildAvatarInitials = useCallback((value?: string | null) => {
     if (!value) {
-      return '??';
+      return "??";
     }
     const initials = value
-      .split(' ')
+      .split(" ")
       .filter(Boolean)
       .map((segment) => segment[0])
-      .join('')
+      .join("")
       .slice(0, 2)
       .toUpperCase();
-    return initials || '??';
+    return initials || "??";
   }, []);
 
   const [billTitle, setBillTitle] = useState(() => {
     if (billSplitId) {
-      return 'Payment Reminder';
+      return "Payment Reminder";
     }
     if (friendName) {
       return `Remind ${friendName}`;
     }
-    if (paymentType === 'direct_payment') {
-      return 'Direct Payment Reminder';
+    if (paymentType === "direct_payment") {
+      return "Direct Payment Reminder";
     }
-    return 'Send Payment Reminder';
+    return "Send Payment Reminder";
   });
   const [participants, setParticipants] = useState<Participant[]>(() => {
     if (!billSplitId && friendName) {
-      const fallbackAmount = typeof amount === 'number' && Number.isFinite(amount) ? amount : 0;
+      const fallbackAmount =
+        typeof amount === "number" && Number.isFinite(amount) ? amount : 0;
       const fallbackId = friendId || friendName || `participant-${Date.now()}`;
       return [
         {
           id: String(fallbackId),
           name: friendName,
           amount: fallbackAmount,
-          status: 'pending',
+          status: "pending",
           avatar: buildAvatarInitials(friendName),
         },
       ];
@@ -127,91 +157,92 @@ export function SendReminderScreen({
 
       return rawParticipants
         .map((entry, index) => {
-          if (!entry || typeof entry !== 'object') {
+          if (!entry || typeof entry !== "object") {
             return null;
           }
 
           const participantRecord = entry as Record<string, unknown>;
-          const userValue = participantRecord['user'];
+          const userValue = participantRecord["user"];
           const userRecord =
-            userValue && typeof userValue === 'object'
+            userValue && typeof userValue === "object"
               ? (userValue as Record<string, unknown>)
               : undefined;
 
-          const userIdValue = participantRecord['userId'];
-          const recordIdValue = participantRecord['id'];
-          const userRecordIdValue = userRecord?.['id'];
+          const userIdValue = participantRecord["userId"];
+          const recordIdValue = participantRecord["id"];
+          const userRecordIdValue = userRecord?.["id"];
           const participantIdValue =
-            typeof userIdValue === 'string'
+            typeof userIdValue === "string"
               ? userIdValue
               : userIdValue != null
                 ? String(userIdValue)
-                : typeof recordIdValue === 'string'
+                : typeof recordIdValue === "string"
                   ? recordIdValue
                   : recordIdValue != null
                     ? String(recordIdValue)
-                    : typeof userRecordIdValue === 'string'
+                    : typeof userRecordIdValue === "string"
                       ? userRecordIdValue
                       : userRecordIdValue != null
                         ? String(userRecordIdValue)
                         : undefined;
           const participantId = participantIdValue ?? `participant-${index}`;
 
-          const nameValue = participantRecord['name'];
-          const userNameValue = userRecord?.['name'];
+          const nameValue = participantRecord["name"];
+          const userNameValue = userRecord?.["name"];
           const name =
-            typeof nameValue === 'string' && nameValue
+            typeof nameValue === "string" && nameValue
               ? nameValue
-              : typeof userNameValue === 'string' && userNameValue
+              : typeof userNameValue === "string" && userNameValue
                 ? userNameValue
-                : 'Unknown';
+                : "Unknown";
 
-          const amountRaw = participantRecord['amount'];
-          const shareRaw = participantRecord['share'];
+          const amountRaw = participantRecord["amount"];
+          const shareRaw = participantRecord["share"];
           const amountValue =
-            typeof amountRaw === 'number'
+            typeof amountRaw === "number"
               ? amountRaw
-              : typeof amountRaw === 'string'
+              : typeof amountRaw === "string"
                 ? Number(amountRaw)
-                : typeof shareRaw === 'number'
+                : typeof shareRaw === "number"
                   ? shareRaw
-                  : typeof shareRaw === 'string'
+                  : typeof shareRaw === "string"
                     ? Number(shareRaw)
                     : 0;
           const amount = Number.isFinite(amountValue) ? amountValue : 0;
 
-          const paidRaw = participantRecord['paid'];
-          const isPaidRaw = participantRecord['isPaid'];
-          const statusRaw = participantRecord['status'];
+          const paidRaw = participantRecord["paid"];
+          const isPaidRaw = participantRecord["isPaid"];
+          const statusRaw = participantRecord["status"];
           const paidFlag =
-            typeof paidRaw === 'boolean'
+            typeof paidRaw === "boolean"
               ? paidRaw
-              : typeof isPaidRaw === 'boolean'
+              : typeof isPaidRaw === "boolean"
                 ? isPaidRaw
                 : false;
           const normalizedStatus =
-            typeof statusRaw === 'string' ? statusRaw.toLowerCase() : undefined;
-          const status: Participant['status'] = paidFlag || normalizedStatus === 'paid'
-            ? 'paid'
-            : normalizedStatus === 'overdue'
-              ? 'overdue'
-              : 'pending';
+            typeof statusRaw === "string" ? statusRaw.toLowerCase() : undefined;
+          const status: Participant["status"] =
+            paidFlag || normalizedStatus === "paid"
+              ? "paid"
+              : normalizedStatus === "overdue"
+                ? "overdue"
+                : "pending";
 
-          const lastReminderValue = participantRecord['lastReminder'];
-          const lastReminderAtValue = participantRecord['lastReminderAt'];
+          const lastReminderValue = participantRecord["lastReminder"];
+          const lastReminderAtValue = participantRecord["lastReminderAt"];
           const lastReminder =
-            typeof lastReminderValue === 'string'
+            typeof lastReminderValue === "string"
               ? lastReminderValue
-              : typeof lastReminderAtValue === 'string'
+              : typeof lastReminderAtValue === "string"
                 ? new Date(lastReminderAtValue).toLocaleString()
                 : undefined;
 
           const avatarSource =
-            typeof userRecord?.['name'] === 'string' && userRecord['name']
-              ? String(userRecord['name'])
+            typeof userRecord?.["name"] === "string" && userRecord["name"]
+              ? String(userRecord["name"])
               : name;
 
-          if (name.trim().toLowerCase() === 'you') {
+          if (name.trim().toLowerCase() === "you") {
             return null;
           }
           if (userProfile?.id && participantId === userProfile.id) {
@@ -229,7 +260,7 @@ export function SendReminderScreen({
         })
         .filter(Boolean) as Participant[];
     },
-    [buildAvatarInitials, userProfile?.id]
+    [buildAvatarInitials, userProfile?.id],
   );
 
   const loadBillDetails = useCallback(async () => {
@@ -237,21 +268,27 @@ export function SendReminderScreen({
       setBillLoading(false);
       setBillError(null);
       if (friendName) {
-        const fallbackAmount = typeof amount === 'number' && Number.isFinite(amount) ? amount : 0;
-        const fallbackId = friendId || friendName || `participant-${Date.now()}`;
+        const fallbackAmount =
+          typeof amount === "number" && Number.isFinite(amount) ? amount : 0;
+        const fallbackId =
+          friendId || friendName || `participant-${Date.now()}`;
         setParticipants([
           {
             id: String(fallbackId),
             name: friendName,
             amount: fallbackAmount,
-            status: 'pending',
+            status: "pending",
             avatar: buildAvatarInitials(friendName),
           },
         ]);
         setBillTitle(`Remind ${friendName}`);
       } else {
         setParticipants([]);
-        setBillTitle(paymentType === 'direct_payment' ? 'Direct Payment Reminder' : 'Send Payment Reminder');
+        setBillTitle(
+          paymentType === "direct_payment"
+            ? "Direct Payment Reminder"
+            : "Send Payment Reminder",
+        );
       }
       return;
     }
@@ -262,23 +299,32 @@ export function SendReminderScreen({
       const data = await apiClient(`/bill-splits/${billSplitId}`);
       const billSplit = data?.billSplit ?? data;
       if (!billSplit) {
-        throw new Error('Bill split not found');
+        throw new Error("Bill split not found");
       }
 
       const normalizedTitle =
-        typeof billSplit.title === 'string' && billSplit.title.trim()
+        typeof billSplit.title === "string" && billSplit.title.trim()
           ? billSplit.title
-          : 'Payment Reminder';
+          : "Payment Reminder";
       setBillTitle(normalizedTitle);
       setParticipants(mapParticipantsFromResponse(billSplit.participants));
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to load bill split';
+      const message =
+        error instanceof Error ? error.message : "Failed to load bill split";
       setBillError(message);
       setParticipants([]);
     } finally {
       setBillLoading(false);
     }
-  }, [amount, billSplitId, buildAvatarInitials, friendId, friendName, mapParticipantsFromResponse, paymentType]);
+  }, [
+    amount,
+    billSplitId,
+    buildAvatarInitials,
+    friendId,
+    friendName,
+    mapParticipantsFromResponse,
+    paymentType,
+  ]);
 
   useEffect(() => {
     loadBillDetails();
@@ -293,18 +339,18 @@ export function SendReminderScreen({
     setSelectedParticipants((prev) =>
       prev.filter((id) => {
         const participant = participants.find((p) => p.id === id);
-        return participant && participant.status !== 'paid';
-      })
+        return participant && participant.status !== "paid";
+      }),
     );
   }, [participants]);
 
   const pendingParticipants = useMemo(
-    () => participants.filter((p) => p.status !== 'paid'),
-    [participants]
+    () => participants.filter((p) => p.status !== "paid"),
+    [participants],
   );
   const overdueParticipants = useMemo(
-    () => participants.filter((p) => p.status === 'overdue'),
-    [participants]
+    () => participants.filter((p) => p.status === "overdue"),
+    [participants],
   );
 
   // Auto-select participants with outstanding balances when screen loads
@@ -316,51 +362,58 @@ export function SendReminderScreen({
       const unpaidIds = pendingParticipants.map((p) => p.id);
       setSelectedParticipants(unpaidIds);
       toast.success(
-        `Auto-selected ${unpaidIds.length} participant${unpaidIds.length > 1 ? 's' : ''} with outstanding payments`
+        `Auto-selected ${unpaidIds.length} participant${unpaidIds.length > 1 ? "s" : ""} with outstanding payments`,
       );
       setAutoSelected(true);
     }
   }, [autoSelected, billLoading, billSplitId, pendingParticipants]);
 
   const toggleParticipant = (participantId: string) => {
-    setSelectedParticipants(prev => 
+    setSelectedParticipants((prev) =>
       prev.includes(participantId)
-        ? prev.filter(id => id !== participantId)
-        : [...prev, participantId]
+        ? prev.filter((id) => id !== participantId)
+        : [...prev, participantId],
     );
   };
 
   const selectAllPending = () => {
-    const pendingIds = pendingParticipants.map(p => p.id);
+    const pendingIds = pendingParticipants.map((p) => p.id);
     setSelectedParticipants(pendingIds);
   };
 
   const selectAllOverdue = () => {
-    const overdueIds = overdueParticipants.map(p => p.id);
+    const overdueIds = overdueParticipants.map((p) => p.id);
     setSelectedParticipants(overdueIds);
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'paid':
-        return 'bg-success text-success-foreground';
-      case 'overdue':
-        return 'bg-destructive text-destructive-foreground';
-      case 'pending':
-        return 'bg-warning text-warning-foreground';
+      case "paid":
+        return "bg-success text-success-foreground";
+      case "overdue":
+        return "bg-destructive text-destructive-foreground";
+      case "pending":
+        return "bg-warning text-warning-foreground";
       default:
-        return 'bg-secondary text-secondary-foreground';
+        return "bg-secondary text-secondary-foreground";
     }
   };
 
   const selectedParticipantDetails = useMemo(
-    () => participants.filter((participant) => selectedParticipants.includes(participant.id)),
-    [participants, selectedParticipants]
+    () =>
+      participants.filter((participant) =>
+        selectedParticipants.includes(participant.id),
+      ),
+    [participants, selectedParticipants],
   );
 
   const selectedTotalAmount = useMemo(
-    () => selectedParticipantDetails.reduce((sum, participant) => sum + participant.amount, 0),
-    [selectedParticipantDetails]
+    () =>
+      selectedParticipantDetails.reduce(
+        (sum, participant) => sum + participant.amount,
+        0,
+      ),
+    [selectedParticipantDetails],
   );
 
   const previewParticipant = useMemo(() => {
@@ -373,76 +426,83 @@ export function SendReminderScreen({
   }, [pendingParticipants, participants, selectedParticipantDetails]);
 
   const getPreviewMessage = () => {
-    const template = reminderTemplates.find(t => t.id === reminderType);
-    if (!template) return '';
+    const template = reminderTemplates.find((t) => t.id === reminderType);
+    if (!template) return "";
 
-    if (reminderType === 'custom') {
+    if (reminderType === "custom") {
       return customMessage;
     }
 
     let message = template.message;
-    message = message.replace('{billTitle}', billTitle || 'your bill');
+    message = message.replace("{billTitle}", billTitle || "your bill");
 
-    const fallbackAmount = typeof amount === 'number' && Number.isFinite(amount) ? amount : 28.5;
-    const exampleAmount = selectedParticipants.length <= 1
-      ? (previewParticipant?.amount ?? fallbackAmount)
-      : (selectedTotalAmount || fallbackAmount);
-    message = message.replace('{amount}', fmt(exampleAmount));
+    const fallbackAmount =
+      typeof amount === "number" && Number.isFinite(amount) ? amount : 28.5;
+    const exampleAmount =
+      selectedParticipants.length <= 1
+        ? (previewParticipant?.amount ?? fallbackAmount)
+        : selectedTotalAmount || fallbackAmount;
+    message = message.replace("{amount}", fmt(exampleAmount));
 
-    const nameReplacement = selectedParticipants.length <= 1
-      ? (previewParticipant?.name ?? 'friend')
-      : 'friends';
-    message = message.replace('{name}', nameReplacement);
+    const nameReplacement =
+      selectedParticipants.length <= 1
+        ? (previewParticipant?.name ?? "friend")
+        : "friends";
+    message = message.replace("{name}", nameReplacement);
 
     return message;
   };
 
   const sendReminders = async () => {
     if (selectedParticipants.length === 0) {
-      toast.error('Please select at least one participant');
+      toast.error("Please select at least one participant");
       return;
     }
 
-    if (reminderType === 'custom' && !customMessage.trim()) {
-      toast.error('Please enter a custom message');
+    if (reminderType === "custom" && !customMessage.trim()) {
+      toast.error("Please enter a custom message");
       return;
     }
 
     if (!billSplitId) {
-      if (paymentType && paymentType !== 'bill_split') {
-        toast.error('Reminders for this payment type are not available yet.');
+      if (paymentType && paymentType !== "bill_split") {
+        toast.error("Reminders for this payment type are not available yet.");
       } else {
-        toast.error('A bill split is required to send reminders.');
+        toast.error("A bill split is required to send reminders.");
       }
       return;
     }
 
     if (billError) {
-      toast.error('Resolve the bill split issue before sending reminders.');
+      toast.error("Resolve the bill split issue before sending reminders.");
       return;
     }
 
-    const selectedDetails = participants.filter(p => selectedParticipants.includes(p.id));
+    const selectedDetails = participants.filter((p) =>
+      selectedParticipants.includes(p.id),
+    );
     const totalAmount = selectedDetails.reduce((sum, p) => sum + p.amount, 0);
 
     const templateToSend = (() => {
-      if (reminderType === 'custom') {
+      if (reminderType === "custom") {
         return customMessage.trim();
       }
-      const template = reminderTemplates.find(t => t.id === reminderType);
+      const template = reminderTemplates.find((t) => t.id === reminderType);
       if (!template) {
-        return '';
+        return "";
       }
       let message = template.message;
-      message = message.replace('{billTitle}', billTitle || 'your bill');
-      const amountValue = selectedParticipants.length <= 1
-        ? (selectedDetails[0]?.amount ?? totalAmount)
-        : totalAmount;
-      message = message.replace('{amount}', fmt(amountValue));
-      const nameValue = selectedParticipants.length <= 1
-        ? (selectedDetails[0]?.name ?? 'friend')
-        : 'friends';
-      message = message.replace('{name}', nameValue);
+      message = message.replace("{billTitle}", billTitle || "your bill");
+      const amountValue =
+        selectedParticipants.length <= 1
+          ? (selectedDetails[0]?.amount ?? totalAmount)
+          : totalAmount;
+      message = message.replace("{amount}", fmt(amountValue));
+      const nameValue =
+        selectedParticipants.length <= 1
+          ? (selectedDetails[0]?.name ?? "friend")
+          : "friends";
+      message = message.replace("{name}", nameValue);
       return message;
     })();
 
@@ -454,26 +514,29 @@ export function SendReminderScreen({
 
     setSendingReminders(true);
     try {
-      const response: unknown = await apiClient(`/bill-splits/${billSplitId}/reminders`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
+      const response: unknown = await apiClient(
+        `/bill-splits/${billSplitId}/reminders`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        },
+      );
 
       const reminderResponse =
-        typeof response === 'object' && response !== null
-          ? (response as Record<string, unknown>)['reminders']
+        typeof response === "object" && response !== null
+          ? (response as Record<string, unknown>)["reminders"]
           : undefined;
       const reminders = Array.isArray(reminderResponse) ? reminderResponse : [];
       const reminderLabels = new Map<string, string>();
       reminders.forEach((entry) => {
-        if (!entry || typeof entry !== 'object') {
+        if (!entry || typeof entry !== "object") {
           return;
         }
         const reminderRecord = entry as Record<string, unknown>;
-        const recipientValue = reminderRecord['recipientId'];
+        const recipientValue = reminderRecord["recipientId"];
         const recipientId =
-          typeof recipientValue === 'string'
+          typeof recipientValue === "string"
             ? recipientValue
             : recipientValue != null
               ? String(recipientValue)
@@ -481,28 +544,30 @@ export function SendReminderScreen({
         if (!recipientId) {
           return;
         }
-        const channelsValue = reminderRecord['channels'];
+        const channelsValue = reminderRecord["channels"];
         const channels = Array.isArray(channelsValue)
-          ? channelsValue.filter((channel): channel is string => typeof channel === 'string')
+          ? channelsValue.filter(
+              (channel): channel is string => typeof channel === "string",
+            )
           : [];
         const normalizedChannels = channels
           .map((channel) => {
             const lower = channel.toLowerCase();
             switch (lower) {
-              case 'push':
-                return 'push';
-              case 'email':
-                return 'email';
-              case 'sms':
-                return 'SMS';
+              case "push":
+                return "push";
+              case "email":
+                return "email";
+              case "sms":
+                return "SMS";
               default:
                 return channel;
             }
           })
-          .join(', ');
+          .join(", ");
         const label = normalizedChannels
           ? `just now via ${normalizedChannels}`
-          : 'just now';
+          : "just now";
         reminderLabels.set(recipientId, label);
       });
 
@@ -510,24 +575,31 @@ export function SendReminderScreen({
         setParticipants((prev) =>
           prev.map((participant) =>
             reminderLabels.has(participant.id)
-              ? { ...participant, lastReminder: reminderLabels.get(participant.id) ?? 'just now' }
-              : participant
-          )
+              ? {
+                  ...participant,
+                  lastReminder:
+                    reminderLabels.get(participant.id) ?? "just now",
+                }
+              : participant,
+          ),
         );
-        setSelectedParticipants((prev) => prev.filter((id) => !reminderLabels.has(id)));
+        setSelectedParticipants((prev) =>
+          prev.filter((id) => !reminderLabels.has(id)),
+        );
       }
 
-      const action = scheduleReminder ? 'scheduled' : 'sent';
+      const action = scheduleReminder ? "scheduled" : "sent";
       const reminderCount = reminders.length || selectedParticipants.length;
       toast.success(
-        `Payment reminder ${action} to ${reminderCount} participant${reminderCount === 1 ? '' : 's'} for ${fmt(totalAmount)} total outstanding`
+        `Payment reminder ${action} to ${reminderCount} participant${reminderCount === 1 ? "" : "s"} for ${fmt(totalAmount)} total outstanding`,
       );
 
       setTimeout(() => {
-        onNavigate(billSplitId ? 'bills' : 'home');
+        onNavigate(billSplitId ? "bills" : "home");
       }, 1500);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to send reminders';
+      const message =
+        error instanceof Error ? error.message : "Failed to send reminders";
       toast.error(message);
     } finally {
       setSendingReminders(false);
@@ -539,10 +611,10 @@ export function SendReminderScreen({
       {/* Header - Sticky */}
       <div className="sticky top-0 bg-background/95 backdrop-blur-sm border-b border-border z-10">
         <div className="flex items-center space-x-3 px-4 py-3">
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={() => onNavigate(billSplitId ? 'bills' : 'home')}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onNavigate(billSplitId ? "bills" : "home")}
             className="min-h-[44px] min-w-[44px] -ml-2"
           >
             <ArrowLeft className="h-5 w-5" />
@@ -568,7 +640,14 @@ export function SendReminderScreen({
           >
             <div className="text-center">
               <div className="text-sm font-medium">All Pending</div>
-              <div className="text-xs text-muted-foreground">({pendingParticipants.filter(p => p.status === 'pending').length})</div>
+              <div className="text-xs text-muted-foreground">
+                (
+                {
+                  pendingParticipants.filter((p) => p.status === "pending")
+                    .length
+                }
+                )
+              </div>
             </div>
           </Button>
           <Button
@@ -580,7 +659,9 @@ export function SendReminderScreen({
           >
             <div className="text-center">
               <div className="text-sm font-medium">All Overdue</div>
-              <div className="text-xs text-muted-foreground">({overdueParticipants.length})</div>
+              <div className="text-xs text-muted-foreground">
+                ({overdueParticipants.length})
+              </div>
             </div>
           </Button>
         </div>
@@ -598,16 +679,24 @@ export function SendReminderScreen({
           </CardHeader>
           <CardContent>
             {billLoading ? (
-              <p className="text-sm text-muted-foreground">Loading participants...</p>
+              <p className="text-sm text-muted-foreground">
+                Loading participants...
+              </p>
             ) : billError ? (
               <div className="space-y-3">
                 <p className="text-sm text-muted-foreground">{billError}</p>
-                <Button size="sm" variant="outline" onClick={() => loadBillDetails()}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => loadBillDetails()}
+                >
                   Retry
                 </Button>
               </div>
             ) : participants.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No participants available to remind.</p>
+              <p className="text-sm text-muted-foreground">
+                No participants available to remind.
+              </p>
             ) : (
               <div className="space-y-3">
                 {participants.map((participant) => (
@@ -615,34 +704,50 @@ export function SendReminderScreen({
                     key={participant.id}
                     className={`flex items-center space-x-3 p-3 rounded-lg border transition-colors ${
                       selectedParticipants.includes(participant.id)
-                        ? 'border-primary bg-accent'
-                        : 'border-border hover:bg-muted/50'
-                    } ${participant.status !== 'paid' ? 'cursor-pointer' : 'opacity-60'}`}
-                    onClick={() => participant.status !== 'paid' && toggleParticipant(participant.id)}
+                        ? "border-primary bg-accent"
+                        : "border-border hover:bg-muted/50"
+                    } ${participant.status !== "paid" ? "cursor-pointer" : "opacity-60"}`}
+                    onClick={() =>
+                      participant.status !== "paid" &&
+                      toggleParticipant(participant.id)
+                    }
                   >
                     <Checkbox
                       checked={selectedParticipants.includes(participant.id)}
-                      disabled={participant.status === 'paid'}
+                      disabled={participant.status === "paid"}
                       className="flex-shrink-0"
                     />
                     <Avatar className="h-10 w-10 flex-shrink-0">
-                      <AvatarFallback className="text-sm">{participant.avatar}</AvatarFallback>
+                      <AvatarFallback className="text-sm">
+                        {participant.avatar}
+                      </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0 flex-1">
-                          <p className="font-medium truncate">{participant.name}</p>
+                          <p className="font-medium truncate">
+                            {participant.name}
+                          </p>
                           <div className="text-sm text-muted-foreground">
                             <div>{fmt(participant.amount)}</div>
                             {participant.lastReminder && (
-                              <div className="text-xs">Last reminded {participant.lastReminder}</div>
+                              <div className="text-xs">
+                                Last reminded {participant.lastReminder}
+                              </div>
                             )}
                           </div>
                         </div>
-                        <Badge className={`${getStatusColor(participant.status)} text-xs flex-shrink-0`}>
-                          {participant.status === 'paid' && <Check className="h-3 w-3 mr-1" />}
-                          {participant.status === 'overdue' && <Clock className="h-3 w-3 mr-1" />}
-                          {participant.status.charAt(0).toUpperCase() + participant.status.slice(1)}
+                        <Badge
+                          className={`${getStatusColor(participant.status)} text-xs flex-shrink-0`}
+                        >
+                          {participant.status === "paid" && (
+                            <Check className="h-3 w-3 mr-1" />
+                          )}
+                          {participant.status === "overdue" && (
+                            <Clock className="h-3 w-3 mr-1" />
+                          )}
+                          {participant.status.charAt(0).toUpperCase() +
+                            participant.status.slice(1)}
                         </Badge>
                       </div>
                     </div>
@@ -654,7 +759,8 @@ export function SendReminderScreen({
             {selectedParticipants.length > 0 && (
               <div className="mt-4 p-3 bg-primary/5 rounded-lg">
                 <p className="text-sm font-medium">
-                  {selectedParticipants.length} participant{selectedParticipants.length > 1 ? 's' : ''} selected
+                  {selectedParticipants.length} participant
+                  {selectedParticipants.length > 1 ? "s" : ""} selected
                 </p>
                 <p className="text-sm text-muted-foreground">
                   Total amount: {fmt(selectedTotalAmount)}
@@ -674,12 +780,28 @@ export function SendReminderScreen({
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label className="text-sm font-medium mb-3 block">Message Template</Label>
-              <RadioGroup value={reminderType} onValueChange={setReminderType} className="space-y-3">
+              <Label className="text-sm font-medium mb-3 block">
+                Message Template
+              </Label>
+              <RadioGroup
+                value={reminderType}
+                onValueChange={setReminderType}
+                className="space-y-3"
+              >
                 {reminderTemplates.map((template) => (
-                  <div key={template.id} className="flex items-center space-x-3 p-2">
-                    <RadioGroupItem value={template.id} id={template.id} className="flex-shrink-0" />
-                    <Label htmlFor={template.id} className="flex-1 cursor-pointer text-sm leading-relaxed">
+                  <div
+                    key={template.id}
+                    className="flex items-center space-x-3 p-2"
+                  >
+                    <RadioGroupItem
+                      value={template.id}
+                      id={template.id}
+                      className="flex-shrink-0"
+                    />
+                    <Label
+                      htmlFor={template.id}
+                      className="flex-1 cursor-pointer text-sm leading-relaxed"
+                    >
                       {template.name}
                     </Label>
                   </div>
@@ -687,9 +809,11 @@ export function SendReminderScreen({
               </RadioGroup>
             </div>
 
-            {reminderType === 'custom' && (
+            {reminderType === "custom" && (
               <div>
-                <Label htmlFor="custom-message" className="text-sm font-medium">Custom Message</Label>
+                <Label htmlFor="custom-message" className="text-sm font-medium">
+                  Custom Message
+                </Label>
                 <Textarea
                   id="custom-message"
                   placeholder="Write your custom reminder message..."
@@ -706,7 +830,8 @@ export function SendReminderScreen({
               <Label className="text-sm font-medium">Message Preview</Label>
               <div className="p-3 bg-muted/50 rounded-lg mt-2 min-h-[60px]">
                 <p className="text-sm whitespace-pre-line leading-relaxed">
-                  {getPreviewMessage() || 'Select a template or write a custom message...'}
+                  {getPreviewMessage() ||
+                    "Select a template or write a custom message..."}
                 </p>
               </div>
             </div>
@@ -721,14 +846,18 @@ export function SendReminderScreen({
           <CardContent className="space-y-4">
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1">
-                <Label className="text-sm font-medium">Include Payment Details</Label>
+                <Label className="text-sm font-medium">
+                  Include Payment Details
+                </Label>
                 <p className="text-sm text-muted-foreground mt-1">
                   Include bank account and payment information
                 </p>
               </div>
-              <Checkbox 
+              <Checkbox
                 checked={includePaymentDetails}
-                onCheckedChange={(checked) => setIncludePaymentDetails(checked === true)}
+                onCheckedChange={(checked) =>
+                  setIncludePaymentDetails(checked === true)
+                }
                 className="flex-shrink-0 mt-1"
               />
             </div>
@@ -740,9 +869,11 @@ export function SendReminderScreen({
                   Send the reminder at a specific time
                 </p>
               </div>
-              <Checkbox 
+              <Checkbox
                 checked={scheduleReminder}
-                onCheckedChange={(checked) => setScheduleReminder(checked === true)}
+                onCheckedChange={(checked) =>
+                  setScheduleReminder(checked === true)
+                }
                 className="flex-shrink-0 mt-1"
               />
             </div>
@@ -756,7 +887,9 @@ export function SendReminderScreen({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="1hour">In 1 hour</SelectItem>
-                    <SelectItem value="tomorrow">Tomorrow morning (9 AM)</SelectItem>
+                    <SelectItem value="tomorrow">
+                      Tomorrow morning (9 AM)
+                    </SelectItem>
                     <SelectItem value="3days">In 3 days</SelectItem>
                     <SelectItem value="1week">In 1 week</SelectItem>
                     <SelectItem value="custom">Custom date/time</SelectItem>
@@ -775,23 +908,37 @@ export function SendReminderScreen({
           <CardContent>
             <div className="space-y-3">
               <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Recipients</span>
-                <span className="font-medium">{selectedParticipants.length}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Message Type</span>
-                <span className="font-medium text-sm">
-                  {reminderTemplates.find(t => t.id === reminderType)?.name}
+                <span className="text-sm text-muted-foreground">
+                  Recipients
+                </span>
+                <span className="font-medium">
+                  {selectedParticipants.length}
                 </span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Include Payment Details</span>
-                <span className="font-medium">{includePaymentDetails ? 'Yes' : 'No'}</span>
+                <span className="text-sm text-muted-foreground">
+                  Message Type
+                </span>
+                <span className="font-medium text-sm">
+                  {reminderTemplates.find((t) => t.id === reminderType)?.name}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">
+                  Include Payment Details
+                </span>
+                <span className="font-medium">
+                  {includePaymentDetails ? "Yes" : "No"}
+                </span>
               </div>
               {scheduleReminder && (
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Scheduled</span>
-                  <span className="font-medium text-sm">{scheduleTime || 'Not set'}</span>
+                  <span className="text-sm text-muted-foreground">
+                    Scheduled
+                  </span>
+                  <span className="font-medium text-sm">
+                    {scheduleTime || "Not set"}
+                  </span>
                 </div>
               )}
             </div>
@@ -832,15 +979,15 @@ export function SendReminderScreen({
           >
             <Send className="h-5 w-5 mr-2" />
             {sendingReminders
-              ? 'Sending...'
+              ? "Sending..."
               : scheduleReminder
-                ? 'Schedule Reminder'
-                : 'Send Reminder Now'}
+                ? "Schedule Reminder"
+                : "Send Reminder Now"}
           </Button>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             className="w-full h-12"
-            onClick={() => onNavigate(billSplitId ? 'bills' : 'home')}
+            onClick={() => onNavigate(billSplitId ? "bills" : "home")}
           >
             Cancel
           </Button>

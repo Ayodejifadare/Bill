@@ -1,27 +1,27 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock('./apiClient', () => ({
+vi.mock("./apiClient", () => ({
   apiClient: vi.fn(),
 }));
 
-import { createRequest, type CreateRequestPayload } from './request-api';
-import { apiClient } from './apiClient';
+import { createRequest, type CreateRequestPayload } from "./request-api";
+import { apiClient } from "./apiClient";
 
 const mockApiClient = vi.mocked(apiClient);
 
-describe('createRequest', () => {
+describe("createRequest", () => {
   beforeEach(() => {
     mockApiClient.mockReset();
   });
 
-  it('converts paymentMethod objects to ids and serializes the expected body', async () => {
+  it("converts paymentMethod objects to ids and serializes the expected body", async () => {
     const payload: CreateRequestPayload = {
       amount: 1200,
-      recipients: ['alice@example.com', 'bob@example.com'],
-      paymentMethod: { id: 'pm_object_123' },
-      message: 'Dinner bill',
+      recipients: ["alice@example.com", "bob@example.com"],
+      paymentMethod: { id: "pm_object_123" },
+      message: "Dinner bill",
       isRecurring: true,
-      recurringFrequency: 'monthly',
+      recurringFrequency: "monthly",
       recurringDay: 15,
       recurringDayOfWeek: 3,
     };
@@ -32,12 +32,12 @@ describe('createRequest', () => {
 
     expect(mockApiClient).toHaveBeenCalledTimes(1);
     const [path, options] = mockApiClient.mock.calls[0];
-    expect(path).toBe('/requests');
+    expect(path).toBe("/requests");
     expect(options).toMatchObject({
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
     });
-    expect(options?.body).toBeTypeOf('string');
+    expect(options?.body).toBeTypeOf("string");
 
     const parsedBody = JSON.parse(options!.body as string);
     expect(parsedBody).toEqual({
@@ -52,11 +52,11 @@ describe('createRequest', () => {
     });
   });
 
-  it('omits optional fields when they are undefined', async () => {
+  it("omits optional fields when they are undefined", async () => {
     const payload: CreateRequestPayload = {
       amount: 2500,
-      recipients: ['charlie@example.com'],
-      paymentMethod: 'pm_string_456',
+      recipients: ["charlie@example.com"],
+      paymentMethod: "pm_string_456",
     };
 
     mockApiClient.mockResolvedValueOnce(undefined);
@@ -72,14 +72,14 @@ describe('createRequest', () => {
       recipients: payload.recipients,
       paymentMethod: payload.paymentMethod,
     });
-    expect(parsedBody).not.toHaveProperty('message');
-    expect(parsedBody).not.toHaveProperty('isRecurring');
-    expect(parsedBody).not.toHaveProperty('recurringFrequency');
-    expect(parsedBody).not.toHaveProperty('recurringDay');
-    expect(parsedBody).not.toHaveProperty('recurringDayOfWeek');
+    expect(parsedBody).not.toHaveProperty("message");
+    expect(parsedBody).not.toHaveProperty("isRecurring");
+    expect(parsedBody).not.toHaveProperty("recurringFrequency");
+    expect(parsedBody).not.toHaveProperty("recurringDay");
+    expect(parsedBody).not.toHaveProperty("recurringDayOfWeek");
   });
 
-  it('awaits the apiClient call before resolving', async () => {
+  it("awaits the apiClient call before resolving", async () => {
     let resolveClient: (() => void) | undefined;
     const clientPromise = new Promise<void>((resolve) => {
       resolveClient = resolve;
@@ -89,8 +89,8 @@ describe('createRequest', () => {
 
     const payload: CreateRequestPayload = {
       amount: 3100,
-      recipients: ['pending@example.com'],
-      paymentMethod: 'pm_pending_789',
+      recipients: ["pending@example.com"],
+      paymentMethod: "pm_pending_789",
     };
 
     const requestPromise = createRequest(payload);
@@ -106,14 +106,14 @@ describe('createRequest', () => {
     expect(onResolved).toHaveBeenCalledTimes(1);
   });
 
-  it('propagates rejections from apiClient', async () => {
-    const error = new Error('network failure');
+  it("propagates rejections from apiClient", async () => {
+    const error = new Error("network failure");
     mockApiClient.mockRejectedValueOnce(error);
 
     const payload: CreateRequestPayload = {
       amount: 1800,
-      recipients: ['error@example.com'],
-      paymentMethod: 'pm_error_000',
+      recipients: ["error@example.com"],
+      paymentMethod: "pm_error_000",
     };
 
     await expect(createRequest(payload)).rejects.toBe(error);

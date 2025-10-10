@@ -1,6 +1,6 @@
-import { Card } from './card';
-import { useUserProfile } from '../UserProfileContext';
-import { formatCurrencyForRegion } from '../../utils/regions';
+import { Card } from "./card";
+import { useUserProfile } from "../UserProfileContext";
+import { formatCurrencyForRegion } from "../../utils/regions";
 
 interface BalanceItem {
   amount: number;
@@ -15,7 +15,11 @@ interface BalanceCardProps {
   className?: string;
 }
 
-export function BalanceCard({ title, items, className = '' }: BalanceCardProps) {
+export function BalanceCard({
+  title,
+  items,
+  className = "",
+}: BalanceCardProps) {
   const { appSettings } = useUserProfile();
   return (
     <Card className={`p-4 ${className}`}>
@@ -23,7 +27,9 @@ export function BalanceCard({ title, items, className = '' }: BalanceCardProps) 
       <div className={`grid gap-4 grid-cols-${items.length}`}>
         {items.map((item, index) => (
           <div key={index} className="text-center">
-            <p className={`text-2xl font-medium ${item.color || 'text-foreground'}`}>
+            <p
+              className={`text-2xl font-medium ${item.color || "text-foreground"}`}
+            >
               {formatCurrencyForRegion(appSettings.region, item.amount)}
             </p>
             <p className="text-sm text-muted-foreground">{item.label}</p>

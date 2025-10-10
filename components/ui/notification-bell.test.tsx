@@ -1,10 +1,10 @@
-import { render, screen, act, waitFor, cleanup } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { NotificationBell } from './notification-bell';
-import { apiClient } from '../../utils/apiClient';
-import userEvent from '@testing-library/user-event';
+import { render, screen, act, waitFor, cleanup } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { NotificationBell } from "./notification-bell";
+import { apiClient } from "../../utils/apiClient";
+import userEvent from "@testing-library/user-event";
 
-describe('NotificationBell', () => {
+describe("NotificationBell", () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });
@@ -14,7 +14,7 @@ describe('NotificationBell', () => {
     cleanup();
   });
 
-  it('polls for unread notifications', async () => {
+  it("polls for unread notifications", async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValue({ ok: true, json: async () => ({ count: 0 }) });
@@ -31,7 +31,7 @@ describe('NotificationBell', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it('displays error when fetch fails', async () => {
+  it("displays error when fetch fails", async () => {
     vi.useRealTimers();
     const fetchMock = vi
       .fn()
@@ -41,14 +41,18 @@ describe('NotificationBell', () => {
     render(<NotificationBell onClick={() => {}} />);
 
     expect(
-      await screen.findByText(/Request failed with status 500/, {}, { timeout: 10000 })
+      await screen.findByText(
+        /Request failed with status 500/,
+        {},
+        { timeout: 10000 },
+      ),
     ).toBeInTheDocument();
     expect(
-      await screen.findByRole('button', { name: /retry/i }, { timeout: 10000 })
+      await screen.findByRole("button", { name: /retry/i }, { timeout: 10000 }),
     ).toBeInTheDocument();
   });
 
-  it('updates unread count after marking notifications as read', async () => {
+  it("updates unread count after marking notifications as read", async () => {
     vi.useRealTimers();
     const fetchMock = vi
       .fn()
@@ -59,21 +63,20 @@ describe('NotificationBell', () => {
 
     render(<NotificationBell onClick={() => {}} />);
 
-    expect(await screen.findByText('2')).toBeInTheDocument();
+    expect(await screen.findByText("2")).toBeInTheDocument();
 
     await act(async () => {
-      await apiClient('/api/notifications/mark-all-read', { method: 'PATCH' });
+      await apiClient("/api/notifications/mark-all-read", { method: "PATCH" });
     });
 
     await act(async () => {
-      await userEvent.click(screen.getByRole('button'));
+      await userEvent.click(screen.getByRole("button"));
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(3);
 
     await waitFor(() => {
-      expect(screen.queryByText('2')).not.toBeInTheDocument();
+      expect(screen.queryByText("2")).not.toBeInTheDocument();
     });
   });
 });
-

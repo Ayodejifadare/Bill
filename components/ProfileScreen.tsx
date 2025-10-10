@@ -1,10 +1,10 @@
-import { useEffect, useState, useRef } from 'react';
-import { Card } from './ui/card';
-import { Button } from './ui/button';
-import { Avatar, AvatarFallback } from './ui/avatar';
-import { Badge } from './ui/badge';
-import { Separator } from './ui/separator';
-import { Switch } from './ui/switch';
+import { useEffect, useState, useRef } from "react";
+import { Card } from "./ui/card";
+import { Button } from "./ui/button";
+import { Avatar, AvatarFallback } from "./ui/avatar";
+import { Badge } from "./ui/badge";
+import { Separator } from "./ui/separator";
+import { Switch } from "./ui/switch";
 import {
   Settings,
   CreditCard,
@@ -21,11 +21,11 @@ import {
   MessageCircle,
   Mail,
   Clock,
-} from 'lucide-react';
-import { ThemeToggleButton } from './ThemeToggleButton';
-import { useUserProfile } from './UserProfileContext';
-import { formatCurrencyForRegion } from '../utils/regions';
-import { ProfileSkeleton } from './ui/profile-skeleton';
+} from "lucide-react";
+import { ThemeToggleButton } from "./ThemeToggleButton";
+import { useUserProfile } from "./UserProfileContext";
+import { formatCurrencyForRegion } from "../utils/regions";
+import { ProfileSkeleton } from "./ui/profile-skeleton";
 
 interface ProfileScreenProps {
   onNavigate: (tab: string, data?: any) => void;
@@ -33,7 +33,8 @@ interface ProfileScreenProps {
 }
 
 export function ProfileScreen({ onNavigate, onLogout }: ProfileScreenProps) {
-  const { userProfile, updateUserProfile, refreshUserProfile, appSettings } = useUserProfile();
+  const { userProfile, updateUserProfile, refreshUserProfile, appSettings } =
+    useUserProfile();
   const defaultPreferences = {
     notifications: false,
     emailAlerts: false,
@@ -79,28 +80,61 @@ export function ProfileScreen({ onNavigate, onLogout }: ProfileScreenProps) {
 
   const menuItems = [
     {
-      section: 'Account',
+      section: "Account",
       items: [
-        { icon: Edit3, label: 'Edit Profile', action: () => onNavigate('account-settings') },
-        { icon: CreditCard, label: 'Payment Methods', action: () => onNavigate('payment-methods') },
-        { icon: Wallet, label: 'Wallet & Cards', action: () => {} },
-        { icon: Shield, label: 'Privacy & Security', action: () => onNavigate('security') },
+        {
+          icon: Edit3,
+          label: "Edit Profile",
+          action: () => onNavigate("account-settings"),
+        },
+        {
+          icon: CreditCard,
+          label: "Payment Methods",
+          action: () => onNavigate("payment-methods"),
+        },
+        { icon: Wallet, label: "Wallet & Cards", action: () => {} },
+        {
+          icon: Shield,
+          label: "Privacy & Security",
+          action: () => onNavigate("security"),
+        },
       ],
     },
     {
-      section: 'Activity',
+      section: "Activity",
       items: [
-        { icon: Receipt, label: 'Transaction History', action: () => onNavigate('transaction-history', { from: 'profile' }) },
-        { icon: TrendingUp, label: 'Spending Insights', action: () => onNavigate('spending-insights') },
-        { icon: Users, label: 'Friend Activity', action: () => onNavigate('friends') },
+        {
+          icon: Receipt,
+          label: "Transaction History",
+          action: () => onNavigate("transaction-history", { from: "profile" }),
+        },
+        {
+          icon: TrendingUp,
+          label: "Spending Insights",
+          action: () => onNavigate("spending-insights"),
+        },
+        {
+          icon: Users,
+          label: "Friend Activity",
+          action: () => onNavigate("friends"),
+        },
       ],
     },
     {
-      section: 'Support',
+      section: "Support",
       items: [
-        { icon: HelpCircle, label: 'Help Center', action: () => {} },
-        { icon: Settings, label: 'Settings', action: () => onNavigate('settings') },
-        { icon: LogOut, label: 'Sign Out', action: () => onLogout?.(), danger: true },
+        { icon: HelpCircle, label: "Help Center", action: () => {} },
+        {
+          icon: Settings,
+          label: "Settings",
+          action: () => onNavigate("settings"),
+        },
+        {
+          icon: LogOut,
+          label: "Sign Out",
+          action: () => onLogout?.(),
+          danger: true,
+        },
       ],
     },
   ];
@@ -135,8 +169,11 @@ export function ProfileScreen({ onNavigate, onLogout }: ProfileScreenProps) {
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <h2>{userProfile.name}</h2>
-                  {userProfile.kycStatus === 'verified' ? (
-                    <Badge variant="secondary" className="bg-green-100 text-green-800">
+                  {userProfile.kycStatus === "verified" ? (
+                    <Badge
+                      variant="secondary"
+                      className="bg-green-100 text-green-800"
+                    >
                       <Shield className="h-3 w-3 mr-1" />
                       Verified
                     </Badge>
@@ -144,7 +181,7 @@ export function ProfileScreen({ onNavigate, onLogout }: ProfileScreenProps) {
                     <Badge
                       variant="secondary"
                       className="bg-yellow-100 text-yellow-800 cursor-pointer hover:bg-yellow-200"
-                      onClick={() => onNavigate('kyc-verification')}
+                      onClick={() => onNavigate("kyc-verification")}
                       title="Complete verification"
                     >
                       <Clock className="h-3 w-3 mr-1" />
@@ -152,13 +189,17 @@ export function ProfileScreen({ onNavigate, onLogout }: ProfileScreenProps) {
                     </Badge>
                   )}
                 </div>
-                <p className="text-sm text-muted-foreground">{userProfile.email}</p>
-                <p className="text-sm text-muted-foreground">Member since {userProfile.joinDate}</p>
+                <p className="text-sm text-muted-foreground">
+                  {userProfile.email}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Member since {userProfile.joinDate}
+                </p>
               </div>
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => onNavigate('account-settings')}
+                onClick={() => onNavigate("account-settings")}
               >
                 <Edit3 className="h-4 w-4" />
               </Button>
@@ -171,13 +212,19 @@ export function ProfileScreen({ onNavigate, onLogout }: ProfileScreenProps) {
             <div className="grid grid-cols-2 gap-4">
               <div className="text-center">
                 <p className="text-2xl font-medium text-green-600">
-                  {formatCurrencyForRegion(appSettings.region, Number(userProfile.stats.totalReceived.toFixed(0)))}
+                  {formatCurrencyForRegion(
+                    appSettings.region,
+                    Number(userProfile.stats.totalReceived.toFixed(0)),
+                  )}
                 </p>
                 <p className="text-sm text-muted-foreground">Received</p>
               </div>
               <div className="text-center">
                 <p className="text-2xl font-medium text-blue-600">
-                  {formatCurrencyForRegion(appSettings.region, Number(userProfile.stats.totalSent.toFixed(0)))}
+                  {formatCurrencyForRegion(
+                    appSettings.region,
+                    Number(userProfile.stats.totalSent.toFixed(0)),
+                  )}
                 </p>
                 <p className="text-sm text-muted-foreground">Sent</p>
               </div>
@@ -212,7 +259,9 @@ export function ProfileScreen({ onNavigate, onLogout }: ProfileScreenProps) {
                 </div>
                 <Switch
                   checked={preferences.notifications}
-                  onCheckedChange={(checked) => updatePreference('notifications', checked)}
+                  onCheckedChange={(checked) =>
+                    updatePreference("notifications", checked)
+                  }
                 />
               </div>
 
@@ -230,7 +279,9 @@ export function ProfileScreen({ onNavigate, onLogout }: ProfileScreenProps) {
                 </div>
                 <Switch
                   checked={preferences.emailAlerts}
-                  onCheckedChange={(checked) => updatePreference('emailAlerts', checked)}
+                  onCheckedChange={(checked) =>
+                    updatePreference("emailAlerts", checked)
+                  }
                 />
               </div>
 
@@ -248,7 +299,9 @@ export function ProfileScreen({ onNavigate, onLogout }: ProfileScreenProps) {
                 </div>
                 <Switch
                   checked={preferences.whatsappAlerts}
-                  onCheckedChange={(checked) => updatePreference('whatsappAlerts', checked)}
+                  onCheckedChange={(checked) =>
+                    updatePreference("whatsappAlerts", checked)
+                  }
                 />
               </div>
 
@@ -266,7 +319,9 @@ export function ProfileScreen({ onNavigate, onLogout }: ProfileScreenProps) {
                 </div>
                 <Switch
                   checked={preferences.biometrics}
-                  onCheckedChange={(checked) => updatePreference('biometrics', checked)}
+                  onCheckedChange={(checked) =>
+                    updatePreference("biometrics", checked)
+                  }
                 />
               </div>
             </div>
@@ -283,7 +338,9 @@ export function ProfileScreen({ onNavigate, onLogout }: ProfileScreenProps) {
                       key={itemIndex}
                       onClick={item.action}
                       className={`w-full flex items-center justify-between p-3 rounded-lg hover:bg-muted transition-colors ${
-                        item.danger ? 'text-destructive hover:bg-destructive/5' : ''
+                        item.danger
+                          ? "text-destructive hover:bg-destructive/5"
+                          : ""
                       }`}
                     >
                       <div className="flex items-center gap-3">
@@ -302,4 +359,4 @@ export function ProfileScreen({ onNavigate, onLogout }: ProfileScreenProps) {
     </div>
   );
 }
-import { getInitials } from '../utils/name';
+import { getInitials } from "../utils/name";

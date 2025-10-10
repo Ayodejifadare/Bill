@@ -1,40 +1,46 @@
-import express from 'express'
-import authenticate from '../middleware/auth.js'
+import express from "express";
+import authenticate from "../middleware/auth.js";
 
-const router = express.Router()
+const router = express.Router();
 
 export function classifyStatus(dueDate) {
-  const now = new Date()
-  const soonThreshold = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
-  const date = new Date(dueDate)
-  if (date < now) return 'overdue'
-  if (date <= soonThreshold) return 'due_soon'
-  return 'upcoming'
+  const now = new Date();
+  const soonThreshold = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const date = new Date(dueDate);
+  if (date < now) return "overdue";
+  if (date <= soonThreshold) return "due_soon";
+  return "upcoming";
 }
 
-router.get('/upcoming-payments', authenticate, async (req, res) => {
+router.get("/upcoming-payments", authenticate, async (req, res) => {
   try {
-    const userId = req.user.id
+    const userId = req.user.id;
 
     const billParticipants = await req.prisma.billSplitParticipant.findMany({
       where: { userId, isPaid: false },
       include: {
         billSplit: {
           include: {
-            creator: { select: { id: true, name: true, email: true, avatar: true } },
+            creator: {
+              select: { id: true, name: true, email: true, avatar: true },
+            },
             participants: {
-              include: { user: { select: { id: true, name: true, email: true, avatar: true } } }
-            }
-          }
-        }
-      }
-    })
+              include: {
+                user: {
+                  select: { id: true, name: true, email: true, avatar: true },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
 
     const billPayments = billParticipants.map((p) => {
-      const dueDate = p.billSplit.date || p.billSplit.createdAt
+      const dueDate = p.billSplit.date || p.billSplit.createdAt;
       return {
         id: p.id,
-        type: 'bill_split',
+        type: "bill_split",
         title: p.billSplit.title,
         amount: p.amount,
         dueDate: dueDate.toISOString(),
@@ -46,53 +52,57 @@ router.get('/upcoming-payments', authenticate, async (req, res) => {
           email: part.user.email,
           avatar: part.user.avatar,
           amount: part.amount,
-          isPaid: part.isPaid
+          isPaid: part.isPaid,
         })),
         billSplitId: p.billSplitId,
-        paymentMethod: p.billSplit.paymentMethodId || null
-      }
-    })
+        paymentMethod: p.billSplit.paymentMethodId || null,
+      };
+    });
 
     // Request transactions (after acceptance)
     const requests = await req.prisma.transaction.findMany({
-      where: { receiverId: userId, status: 'PENDING' },
+      where: { receiverId: userId, status: "PENDING" },
       include: {
         sender: { select: { id: true, name: true, email: true, avatar: true } },
-        receiver: { select: { id: true, name: true, email: true, avatar: true } }
-      }
-    })
+        receiver: {
+          select: { id: true, name: true, email: true, avatar: true },
+        },
+      },
+    });
 
     const requestPayments = requests.map((r) => {
-      const dueDate = r.createdAt
+      const dueDate = r.createdAt;
       return {
         id: r.id,
-        type: 'request',
-        title: r.description || 'Payment Request',
+        type: "request",
+        title: r.description || "Payment Request",
         amount: r.amount,
         dueDate: dueDate.toISOString(),
         status: classifyStatus(dueDate),
         organizer: r.sender,
         participants: [r.sender, r.receiver],
         requestId: r.id,
-        paymentMethod: null
-      }
-    })
+        paymentMethod: null,
+      };
+    });
 
     // Direct pending payment requests (before acceptance)
     const direct = await req.prisma.paymentRequest.findMany({
-      where: { receiverId: userId, status: 'PENDING' },
+      where: { receiverId: userId, status: "PENDING" },
       include: {
         sender: { select: { id: true, name: true, email: true, avatar: true } },
-        receiver: { select: { id: true, name: true, email: true, avatar: true } }
-      }
-    })
+        receiver: {
+          select: { id: true, name: true, email: true, avatar: true },
+        },
+      },
+    });
 
     const directRequestPayments = direct.map((r) => {
-      const dueDate = r.nextDueDate || r.createdAt
+      const dueDate = r.nextDueDate || r.createdAt;
       return {
         id: r.id,
-        type: 'request',
-        title: r.description || 'Payment Request',
+        type: "request",
+        title: r.description || "Payment Request",
         amount: r.amount,
         dueDate: dueDate.toISOString(),
         status: classifyStatus(dueDate),
@@ -100,21 +110,25 @@ router.get('/upcoming-payments', authenticate, async (req, res) => {
         participants: [r.sender, r.receiver],
         // No transaction exists yet; pass null so payment flow won’t call mark-sent
         requestId: null,
-        paymentMethod: null
-      }
-    })
+        paymentMethod: null,
+      };
+    });
 
-    let payments = [...billPayments, ...requestPayments, ...directRequestPayments]
-    const { filter } = req.query
+    let payments = [
+      ...billPayments,
+      ...requestPayments,
+      ...directRequestPayments,
+    ];
+    const { filter } = req.query;
     if (filter) {
-      payments = payments.filter((p) => p.status === filter)
+      payments = payments.filter((p) => p.status === filter);
     }
 
-    res.json({ upcomingPayments: payments })
+    res.json({ upcomingPayments: payments });
   } catch (error) {
-    console.error('Get upcoming payments error:', error)
-    res.status(500).json({ error: 'Internal server error' })
+    console.error("Get upcoming payments error:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
-})
+});
 
-export default router
+export default router;

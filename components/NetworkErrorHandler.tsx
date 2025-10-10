@@ -1,11 +1,18 @@
-import * as React from 'react';
-import { useState, useEffect, useCallback } from 'react';
-import { Wifi, WifiOff, AlertTriangle, RefreshCw, Server, Clock } from 'lucide-react';
-import { Button } from './ui/button';
-import { Alert, AlertDescription } from './ui/alert';
-import { Badge } from './ui/badge';
+import * as React from "react";
+import { useState, useEffect, useCallback } from "react";
+import {
+  Wifi,
+  WifiOff,
+  AlertTriangle,
+  RefreshCw,
+  Server,
+  Clock,
+} from "lucide-react";
+import { Button } from "./ui/button";
+import { Alert, AlertDescription } from "./ui/alert";
+import { Badge } from "./ui/badge";
 // import { useLoadingState } from './LoadingStateContext';
-import { toast } from 'sonner';
+import { toast } from "sonner";
 
 // Network status types
 interface NetworkStatus {
@@ -16,7 +23,7 @@ interface NetworkStatus {
 }
 
 interface NetworkError {
-  type: 'connection' | 'timeout' | 'server' | 'unknown';
+  type: "connection" | "timeout" | "server" | "unknown";
   message: string;
   statusCode?: number;
   retryAfter?: number;
@@ -37,52 +44,53 @@ export const useNetworkStatus = () => {
   const [status, setStatus] = useState<NetworkStatus>({
     isOnline: navigator.onLine,
     lastOnline: navigator.onLine ? new Date() : null,
-    connectionType: 'unknown',
-    effectiveType: 'unknown'
+    connectionType: "unknown",
+    effectiveType: "unknown",
   });
 
   useEffect(() => {
     const updateNetworkStatus = () => {
-      const connection = (navigator as any).connection || 
-                        (navigator as any).mozConnection || 
-                        (navigator as any).webkitConnection;
-      
-      setStatus(prev => ({
+      const connection =
+        (navigator as any).connection ||
+        (navigator as any).mozConnection ||
+        (navigator as any).webkitConnection;
+
+      setStatus((prev) => ({
         isOnline: navigator.onLine,
         lastOnline: navigator.onLine ? new Date() : prev.lastOnline,
-        connectionType: connection?.type || 'unknown',
-        effectiveType: connection?.effectiveType || 'unknown'
+        connectionType: connection?.type || "unknown",
+        effectiveType: connection?.effectiveType || "unknown",
       }));
     };
 
     const handleOnline = () => {
       updateNetworkStatus();
-      toast.success('Connection restored');
+      toast.success("Connection restored");
     };
 
     const handleOffline = () => {
       updateNetworkStatus();
-      toast.error('Connection lost');
+      toast.error("Connection lost");
     };
 
     // Listen for network changes
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
 
     // Listen for connection changes (if supported)
     const connection = (navigator as any).connection;
     if (connection) {
-      connection.addEventListener('change', updateNetworkStatus);
+      connection.addEventListener("change", updateNetworkStatus);
     }
 
     // Initial status update
     updateNetworkStatus();
 
     return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
       if (connection) {
-        connection.removeEventListener('change', updateNetworkStatus);
+        connection.removeEventListener("change", updateNetworkStatus);
       }
     };
   }, []);
@@ -94,7 +102,7 @@ export const useNetworkStatus = () => {
 export const useRetryMechanism = (
   operation: () => Promise<void>,
   maxRetries: number = 3,
-  baseDelay: number = 1000
+  baseDelay: number = 1000,
 ) => {
   const [retryCount, setRetryCount] = useState(0);
   const [isRetrying, setIsRetrying] = useState(false);
@@ -102,7 +110,7 @@ export const useRetryMechanism = (
 
   const executeWithRetry = useCallback(async () => {
     let attempt = 0;
-    
+
     while (attempt <= maxRetries) {
       try {
         setIsRetrying(true);
@@ -113,14 +121,15 @@ export const useRetryMechanism = (
       } catch (error) {
         attempt++;
         setRetryCount(attempt);
-        
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
         setLastError(errorMessage);
-        
+
         if (attempt <= maxRetries) {
           // Exponential backoff
           const delay = baseDelay * Math.pow(2, attempt - 1);
-          await new Promise(resolve => setTimeout(resolve, delay));
+          await new Promise((resolve) => setTimeout(resolve, delay));
         }
       } finally {
         setIsRetrying(false);
@@ -140,7 +149,7 @@ export const useRetryMechanism = (
     isRetrying,
     lastError,
     canRetry: retryCount < maxRetries,
-    reset
+    reset,
   };
 };
 
@@ -149,50 +158,54 @@ export const classifyNetworkError = (error: any): NetworkError => {
   // Connection errors
   if (!navigator.onLine) {
     return {
-      type: 'connection',
-      message: 'No internet connection. Please check your network settings.'
+      type: "connection",
+      message: "No internet connection. Please check your network settings.",
     };
   }
 
   // Timeout errors
-  if (error.name === 'TimeoutError' || error.message?.includes('timeout')) {
+  if (error.name === "TimeoutError" || error.message?.includes("timeout")) {
     return {
-      type: 'timeout',
-      message: 'Request timed out. The server may be experiencing high traffic.'
+      type: "timeout",
+      message:
+        "Request timed out. The server may be experiencing high traffic.",
     };
   }
 
   // Server errors
   if (error.status >= 500) {
     return {
-      type: 'server',
-      message: 'Server error. Please try again in a few moments.',
+      type: "server",
+      message: "Server error. Please try again in a few moments.",
       statusCode: error.status,
-      retryAfter: error.headers?.get('Retry-After') ? 
-        parseInt(error.headers.get('Retry-After')) : undefined
+      retryAfter: error.headers?.get("Retry-After")
+        ? parseInt(error.headers.get("Retry-After"))
+        : undefined,
     };
   }
 
   // Client errors
   if (error.status >= 400) {
     return {
-      type: 'unknown',
-      message: error.message || 'Request failed. Please check your input and try again.',
-      statusCode: error.status
+      type: "unknown",
+      message:
+        error.message ||
+        "Request failed. Please check your input and try again.",
+      statusCode: error.status,
     };
   }
 
   // Generic network errors
-  if (error.message?.includes('fetch') || error.message?.includes('network')) {
+  if (error.message?.includes("fetch") || error.message?.includes("network")) {
     return {
-      type: 'connection',
-      message: 'Network error. Please check your connection and try again.'
+      type: "connection",
+      message: "Network error. Please check your connection and try again.",
     };
   }
 
   return {
-    type: 'unknown',
-    message: error.message || 'An unexpected error occurred.'
+    type: "unknown",
+    message: error.message || "An unexpected error occurred.",
   };
 };
 
@@ -204,26 +217,30 @@ export const NetworkErrorHandler: React.FC<NetworkErrorHandlerProps> = ({
   autoRetry = false,
   maxRetries = 3,
   retryDelay = 1000,
-  className
+  className,
 }) => {
   const networkStatus = useNetworkStatus();
-  const { retryCount, isRetrying, executeWithRetry, canRetry, reset } = useRetryMechanism(
-    async () => {
-      if (onRetry) {
-        await onRetry();
-      }
-    },
-    maxRetries,
-    retryDelay
-  );
+  const { retryCount, isRetrying, executeWithRetry, canRetry, reset } =
+    useRetryMechanism(
+      async () => {
+        if (onRetry) {
+          await onRetry();
+        }
+      },
+      maxRetries,
+      retryDelay,
+    );
 
   // Auto-retry for certain error types
   useEffect(() => {
     if (autoRetry && error && canRetry && networkStatus.isOnline) {
-      const shouldAutoRetry = error.type === 'timeout' || 
-                             error.type === 'connection' ||
-                             (error.type === 'server' && error.statusCode && error.statusCode >= 500);
-      
+      const shouldAutoRetry =
+        error.type === "timeout" ||
+        error.type === "connection" ||
+        (error.type === "server" &&
+          error.statusCode &&
+          error.statusCode >= 500);
+
       if (shouldAutoRetry) {
         const delay = error.retryAfter ? error.retryAfter * 1000 : retryDelay;
         setTimeout(() => {
@@ -231,15 +248,22 @@ export const NetworkErrorHandler: React.FC<NetworkErrorHandlerProps> = ({
         }, delay);
       }
     }
-  }, [error, autoRetry, canRetry, networkStatus.isOnline, retryDelay, executeWithRetry]);
+  }, [
+    error,
+    autoRetry,
+    canRetry,
+    networkStatus.isOnline,
+    retryDelay,
+    executeWithRetry,
+  ]);
 
-  const getErrorIcon = (errorType: NetworkError['type']) => {
+  const getErrorIcon = (errorType: NetworkError["type"]) => {
     switch (errorType) {
-      case 'connection':
+      case "connection":
         return WifiOff;
-      case 'timeout':
+      case "timeout":
         return Clock;
-      case 'server':
+      case "server":
         return Server;
       default:
         return AlertTriangle;
@@ -267,13 +291,14 @@ export const NetworkErrorHandler: React.FC<NetworkErrorHandlerProps> = ({
               <WifiOff className="h-4 w-4 text-destructive" />
             )}
             <span className="text-sm text-muted-foreground">
-              {networkStatus.isOnline ? 'Connected' : 'Offline'}
+              {networkStatus.isOnline ? "Connected" : "Offline"}
             </span>
-            {networkStatus.effectiveType !== 'unknown' && networkStatus.isOnline && (
-              <Badge variant="outline" className="text-xs">
-                {networkStatus.effectiveType.toUpperCase()}
-              </Badge>
-            )}
+            {networkStatus.effectiveType !== "unknown" &&
+              networkStatus.isOnline && (
+                <Badge variant="outline" className="text-xs">
+                  {networkStatus.effectiveType.toUpperCase()}
+                </Badge>
+              )}
           </div>
         </div>
       )}
@@ -282,18 +307,18 @@ export const NetworkErrorHandler: React.FC<NetworkErrorHandlerProps> = ({
       {error && (
         <Alert className="border-destructive/20 bg-destructive/5">
           <div className="flex items-start gap-3">
-            {React.createElement(getErrorIcon(error.type), { 
-              className: "h-5 w-5 text-destructive mt-0.5" 
+            {React.createElement(getErrorIcon(error.type), {
+              className: "h-5 w-5 text-destructive mt-0.5",
             })}
             <div className="flex-1 min-w-0">
               <AlertDescription>
                 <div className="space-y-3">
                   <div>
                     <p className="font-medium text-destructive">
-                      {error.type === 'connection' && 'Connection Error'}
-                      {error.type === 'timeout' && 'Request Timeout'}
-                      {error.type === 'server' && 'Server Error'}
-                      {error.type === 'unknown' && 'Error'}
+                      {error.type === "connection" && "Connection Error"}
+                      {error.type === "timeout" && "Request Timeout"}
+                      {error.type === "server" && "Server Error"}
+                      {error.type === "unknown" && "Error"}
                     </p>
                     <p className="text-sm text-muted-foreground mt-1">
                       {error.message}
@@ -313,7 +338,8 @@ export const NetworkErrorHandler: React.FC<NetworkErrorHandlerProps> = ({
                       </p>
                       {isRetrying && (
                         <p className="text-warning">
-                          Retrying in {Math.ceil(getRetryDelay() / 1000)} seconds...
+                          Retrying in {Math.ceil(getRetryDelay() / 1000)}{" "}
+                          seconds...
                         </p>
                       )}
                     </div>
@@ -325,13 +351,16 @@ export const NetworkErrorHandler: React.FC<NetworkErrorHandlerProps> = ({
                       <Button
                         size="sm"
                         onClick={executeWithRetry}
-                        disabled={!networkStatus.isOnline && error.type === 'connection'}
+                        disabled={
+                          !networkStatus.isOnline && error.type === "connection"
+                        }
                       >
                         <RefreshCw className="h-3 w-3 mr-1" />
-                        Retry {retryCount > 0 && `(${maxRetries - retryCount} left)`}
+                        Retry{" "}
+                        {retryCount > 0 && `(${maxRetries - retryCount} left)`}
                       </Button>
                     )}
-                    
+
                     {isRetrying && (
                       <Button size="sm" disabled>
                         <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
@@ -374,7 +403,7 @@ export const withNetworkErrorHandling = <P extends object>(
     showStatus?: boolean;
     autoRetry?: boolean;
     maxRetries?: number;
-  } = {}
+  } = {},
 ) => {
   const NetworkErrorWrapper: React.FC<P> = (props) => {
     const [error, setError] = useState<NetworkError | null>(null);
@@ -401,6 +430,6 @@ export const withNetworkErrorHandling = <P extends object>(
   };
 
   NetworkErrorWrapper.displayName = `withNetworkErrorHandling(${WrappedComponent.displayName || WrappedComponent.name})`;
-  
+
   return NetworkErrorWrapper;
 };

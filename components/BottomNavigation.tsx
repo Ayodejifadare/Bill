@@ -5,13 +5,16 @@ interface BottomNavigationProps {
   onTabChange: (tab: string) => void;
 }
 
-export function BottomNavigation({ activeTab, onTabChange }: BottomNavigationProps) {
+export function BottomNavigation({
+  activeTab,
+  onTabChange,
+}: BottomNavigationProps) {
   const tabs = [
-    { id: 'home', icon: Home, label: 'Home' },
-    { id: 'friends', icon: Users, label: 'Friends' },
-    { id: 'split', icon: Plus, label: 'Split' },
-    { id: 'bills', icon: Receipt, label: 'Bills' },
-    { id: 'profile', icon: User, label: 'Profile' },
+    { id: "home", icon: Home, label: "Home" },
+    { id: "friends", icon: Users, label: "Friends" },
+    { id: "split", icon: Plus, label: "Split" },
+    { id: "bills", icon: Receipt, label: "Bills" },
+    { id: "profile", icon: User, label: "Profile" },
   ];
 
   return (
@@ -20,18 +23,20 @@ export function BottomNavigation({ activeTab, onTabChange }: BottomNavigationPro
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
-          
+
           return (
             <button
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
               className={`flex flex-col items-center justify-center p-2 min-w-0 rounded-lg transition-colors ${
-                isActive 
-                  ? 'text-primary bg-accent' 
-                  : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
+                isActive
+                  ? "text-primary bg-accent"
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
               }`}
             >
-              <Icon className={`h-5 w-5 mb-1 ${isActive ? 'stroke-2' : 'stroke-1.5'}`} />
+              <Icon
+                className={`h-5 w-5 mb-1 ${isActive ? "stroke-2" : "stroke-1.5"}`}
+              />
               <span className="text-xs font-medium">{tab.label}</span>
             </button>
           );

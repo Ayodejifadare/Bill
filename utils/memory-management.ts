@@ -49,13 +49,13 @@ class MemoryManager {
 
   // Collect current memory metrics
   private collectMetrics() {
-    if ('memory' in performance) {
+    if ("memory" in performance) {
       const memory = (performance as any).memory;
       const metrics: MemoryMetrics = {
         usedJSHeapSize: memory.usedJSHeapSize,
         totalJSHeapSize: memory.totalJSHeapSize,
         jsHeapSizeLimit: memory.jsHeapSizeLimit,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       };
 
       this.metrics.push(metrics);
@@ -66,7 +66,7 @@ class MemoryManager {
       }
 
       // Notify observers
-      this.observers.forEach(observer => observer(metrics));
+      this.observers.forEach((observer) => observer(metrics));
     }
   }
 
@@ -75,7 +75,8 @@ class MemoryManager {
     const latest = this.getLatestMetrics();
     if (!latest) return;
 
-    const usagePercentage = (latest.usedJSHeapSize / latest.jsHeapSizeLimit) * 100;
+    const usagePercentage =
+      (latest.usedJSHeapSize / latest.jsHeapSizeLimit) * 100;
 
     if (usagePercentage > 80) {
       console.warn(`High memory usage: ${usagePercentage.toFixed(2)}%`);
@@ -91,7 +92,7 @@ class MemoryManager {
   // Register a cleanup task
   registerCleanupTask(cleanupFn: CleanupTask) {
     this.cleanupTasks.add(cleanupFn);
-    
+
     // Return unregister function
     return () => {
       this.cleanupTasks.delete(cleanupFn);
@@ -100,34 +101,34 @@ class MemoryManager {
 
   // Trigger all cleanup tasks
   private triggerCleanup() {
-    console.log('Triggering memory cleanup...');
-    this.cleanupTasks.forEach(cleanup => {
+    console.log("Triggering memory cleanup...");
+    this.cleanupTasks.forEach((cleanup) => {
       try {
         cleanup();
       } catch (error) {
-        console.error('Cleanup task failed:', error);
+        console.error("Cleanup task failed:", error);
       }
     });
 
     // Force garbage collection if available
-    if ('gc' in window) {
+    if ("gc" in window) {
       (window as any).gc();
     }
   }
 
   // Forceful cleanup for critical memory situations
   private forcefulCleanup() {
-    console.log('Triggering forceful cleanup...');
-    
+    console.log("Triggering forceful cleanup...");
+
     // Clear metrics history
     this.metrics = this.metrics.slice(-10);
-    
+
     // Trigger all cleanup tasks
     this.triggerCleanup();
-    
+
     // Clear image caches
     this.clearImageCaches();
-    
+
     // Clear unused event listeners
     this.clearEventListeners();
   }
@@ -136,13 +137,13 @@ class MemoryManager {
   private clearImageCaches() {
     // Remove unused images from DOM
     const images = document.querySelectorAll('img[data-lazy="loaded"]');
-    images.forEach(img => {
+    images.forEach((img) => {
       const rect = img.getBoundingClientRect();
       const isVisible = rect.top < window.innerHeight && rect.bottom > 0;
-      
+
       if (!isVisible) {
-        (img as HTMLImageElement).src = '';
-        img.removeAttribute('data-lazy');
+        (img as HTMLImageElement).src = "";
+        img.removeAttribute("data-lazy");
       }
     });
   }
@@ -150,13 +151,13 @@ class MemoryManager {
   // Clear unused event listeners
   private clearEventListeners() {
     // This would need to be implemented based on your specific event handling
-    console.log('Clearing unused event listeners...');
+    console.log("Clearing unused event listeners...");
   }
 
   // Add memory usage observer
   addObserver(observer: MemoryObserver) {
     this.observers.add(observer);
-    
+
     // Return unsubscribe function
     return () => {
       this.observers.delete(observer);
@@ -165,30 +166,32 @@ class MemoryManager {
 
   // Get latest memory metrics
   getLatestMetrics(): MemoryMetrics | null {
-    return this.metrics.length > 0 ? this.metrics[this.metrics.length - 1] : null;
+    return this.metrics.length > 0
+      ? this.metrics[this.metrics.length - 1]
+      : null;
   }
 
   // Get memory usage percentage
   getMemoryUsagePercentage(): number {
     const latest = this.getLatestMetrics();
     if (!latest) return 0;
-    
+
     return (latest.usedJSHeapSize / latest.jsHeapSizeLimit) * 100;
   }
 
   // Get memory trend
-  getMemoryTrend(): 'increasing' | 'decreasing' | 'stable' {
-    if (this.metrics.length < 10) return 'stable';
-    
+  getMemoryTrend(): "increasing" | "decreasing" | "stable" {
+    if (this.metrics.length < 10) return "stable";
+
     const recent = this.metrics.slice(-10);
     const first = recent[0].usedJSHeapSize;
     const last = recent[recent.length - 1].usedJSHeapSize;
     const difference = last - first;
     const threshold = first * 0.1; // 10% threshold
-    
-    if (difference > threshold) return 'increasing';
-    if (difference < -threshold) return 'decreasing';
-    return 'stable';
+
+    if (difference > threshold) return "increasing";
+    if (difference < -threshold) return "decreasing";
+    return "stable";
   }
 
   // Format memory size for display
@@ -202,22 +205,22 @@ class MemoryManager {
   // Generate memory report
   generateReport(): string {
     const latest = this.getLatestMetrics();
-    if (!latest) return 'No memory data available';
+    if (!latest) return "No memory data available";
 
     const usagePercentage = this.getMemoryUsagePercentage();
     const trend = this.getMemoryTrend();
 
     return [
-      'Memory Usage Report',
-      '==================',
+      "Memory Usage Report",
+      "==================",
       `Used: ${this.formatMemorySize(latest.usedJSHeapSize)}`,
       `Total: ${this.formatMemorySize(latest.totalJSHeapSize)}`,
       `Limit: ${this.formatMemorySize(latest.jsHeapSizeLimit)}`,
       `Usage: ${usagePercentage.toFixed(2)}%`,
       `Trend: ${trend}`,
       `Cleanup tasks: ${this.cleanupTasks.size}`,
-      `Observers: ${this.observers.size}`
-    ].join('\n');
+      `Observers: ${this.observers.size}`,
+    ].join("\n");
   }
 
   // Cleanup all resources
@@ -230,21 +233,24 @@ class MemoryManager {
 }
 
 // React hook for memory monitoring
-export const useMemoryMonitoring = (options: {
-  enabled?: boolean;
-  threshold?: number;
-  onHighMemory?: () => void;
-} = {}) => {
+export const useMemoryMonitoring = (
+  options: {
+    enabled?: boolean;
+    threshold?: number;
+    onHighMemory?: () => void;
+  } = {},
+) => {
   const { enabled = true, threshold = 80, onHighMemory } = options;
 
   React.useEffect(() => {
     if (!enabled) return;
 
     const memoryManager = MemoryManager.getInstance();
-    
+
     const unsubscribe = memoryManager.addObserver((metrics: MemoryMetrics) => {
-      const usagePercentage = (metrics.usedJSHeapSize / metrics.jsHeapSizeLimit) * 100;
-      
+      const usagePercentage =
+        (metrics.usedJSHeapSize / metrics.jsHeapSizeLimit) * 100;
+
       if (usagePercentage > threshold && onHighMemory) {
         onHighMemory();
       }
@@ -259,9 +265,10 @@ export const useMemoryMonitoring = (options: {
   }, [enabled, threshold, onHighMemory]);
 
   return {
-    getMemoryUsage: () => MemoryManager.getInstance().getMemoryUsagePercentage(),
+    getMemoryUsage: () =>
+      MemoryManager.getInstance().getMemoryUsagePercentage(),
     getMemoryTrend: () => MemoryManager.getInstance().getMemoryTrend(),
-    triggerCleanup: () => MemoryManager.getInstance()['triggerCleanup']()
+    triggerCleanup: () => MemoryManager.getInstance()["triggerCleanup"](),
   };
 };
 
@@ -270,7 +277,7 @@ export const useCleanup = (cleanupFn: () => void) => {
   React.useEffect(() => {
     const memoryManager = MemoryManager.getInstance();
     const unregister = memoryManager.registerCleanupTask(cleanupFn);
-    
+
     return unregister;
   }, [cleanupFn]);
 };
@@ -281,37 +288,34 @@ export const memoryOptimization = {
   debounce: <T extends (...args: any[]) => any>(
     func: T,
     wait: number,
-    immediate?: boolean
+    immediate?: boolean,
   ): T => {
     let timeout: NodeJS.Timeout | null = null;
-    
+
     return ((...args: any[]) => {
       const later = () => {
         timeout = null;
         if (!immediate) func(...args);
       };
-      
+
       const callNow = immediate && !timeout;
-      
+
       if (timeout) clearTimeout(timeout);
       timeout = setTimeout(later, wait);
-      
+
       if (callNow) func(...args);
     }) as T;
   },
 
   // Throttle high-frequency events
-  throttle: <T extends (...args: any[]) => any>(
-    func: T,
-    limit: number
-  ): T => {
+  throttle: <T extends (...args: any[]) => any>(func: T, limit: number): T => {
     let inThrottle: boolean;
-    
+
     return ((...args: any[]) => {
       if (!inThrottle) {
         func(...args);
         inThrottle = true;
-        setTimeout(() => inThrottle = false, limit);
+        setTimeout(() => (inThrottle = false), limit);
       }
     }) as T;
   },
@@ -319,30 +323,33 @@ export const memoryOptimization = {
   // Weak reference cache for preventing memory leaks
   createWeakCache: <K extends object, V>() => {
     const cache = new WeakMap<K, V>();
-    
+
     return {
       get: (key: K): V | undefined => cache.get(key),
       set: (key: K, value: V): void => cache.set(key, value),
       has: (key: K): boolean => cache.has(key),
-      delete: (key: K): boolean => cache.delete(key)
+      delete: (key: K): boolean => cache.delete(key),
     };
   },
 
   // Image lazy loading with memory management
   lazyLoadImage: (img: HTMLImageElement, src: string) => {
-    if ('IntersectionObserver' in window) {
-      const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-          if (entry.isIntersecting) {
-            img.src = src;
-            img.setAttribute('data-lazy', 'loaded');
-            observer.unobserve(img);
-          }
-        });
-      }, { rootMargin: '50px' });
-      
+    if ("IntersectionObserver" in window) {
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              img.src = src;
+              img.setAttribute("data-lazy", "loaded");
+              observer.unobserve(img);
+            }
+          });
+        },
+        { rootMargin: "50px" },
+      );
+
       observer.observe(img);
-      
+
       // Register cleanup
       MemoryManager.getInstance().registerCleanupTask(() => {
         observer.disconnect();
@@ -354,22 +361,22 @@ export const memoryOptimization = {
 
   // Check if device has memory constraints
   isMemoryConstrained: (): boolean => {
-    if ('memory' in performance) {
+    if ("memory" in performance) {
       const memory = (performance as any).memory;
       return memory.jsHeapSizeLimit < 1073741824; // Less than 1GB
     }
-    
-    if ('hardwareConcurrency' in navigator) {
+
+    if ("hardwareConcurrency" in navigator) {
       return navigator.hardwareConcurrency <= 2;
     }
-    
+
     return false;
-  }
+  },
 };
 
 export const memoryManager = MemoryManager.getInstance();
 
 // Global React import for hooks
 declare global {
-  const React: typeof import('react');
+  const React: typeof import("react");
 }

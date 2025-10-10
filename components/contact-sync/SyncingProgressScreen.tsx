@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
-import { MessageCircle, Users, Zap, Shield, CheckCircle } from 'lucide-react';
-import { Button } from '../ui/button';
-import { Card, CardContent } from '../ui/card';
-import { Progress } from '../ui/progress';
-import { ContactSyncScreenProps } from './types';
+import { useState, useEffect } from "react";
+import { MessageCircle, Users, Zap, Shield, CheckCircle } from "lucide-react";
+import { Button } from "../ui/button";
+import { Card, CardContent } from "../ui/card";
+import { Progress } from "../ui/progress";
+import { ContactSyncScreenProps } from "./types";
 
 interface SyncingProgressScreenProps extends ContactSyncScreenProps {
   syncProgress: number;
@@ -17,7 +17,7 @@ export function SyncingProgressScreen({
   syncProgress,
   contactCount = 0,
   startTime,
-  onCancel
+  onCancel,
 }: SyncingProgressScreenProps) {
   const [elapsedTime, setElapsedTime] = useState(0);
   const [currentStep, setCurrentStep] = useState(0);
@@ -26,10 +26,15 @@ export function SyncingProgressScreen({
   const steps = [
     { threshold: 0, message: "Initializing...", icon: Zap },
     { threshold: 10, message: "Accessing your contacts...", icon: Users },
-    { threshold: 40, message: `Scanning ${contactCount > 0 ? contactCount : ''} contacts...`.trim(), icon: Users },
+    {
+      threshold: 40,
+      message:
+        `Scanning ${contactCount > 0 ? contactCount : ""} contacts...`.trim(),
+      icon: Users,
+    },
     { threshold: 70, message: "Finding Biltip users...", icon: MessageCircle },
     { threshold: 90, message: "Finalizing results...", icon: CheckCircle },
-    { threshold: 100, message: "Complete!", icon: CheckCircle }
+    { threshold: 100, message: "Complete!", icon: CheckCircle },
   ];
 
   // Update elapsed time
@@ -47,7 +52,10 @@ export function SyncingProgressScreen({
   useEffect(() => {
     const newStep = steps.findIndex((step, index) => {
       const nextStep = steps[index + 1];
-      return syncProgress >= step.threshold && (!nextStep || syncProgress < nextStep.threshold);
+      return (
+        syncProgress >= step.threshold &&
+        (!nextStep || syncProgress < nextStep.threshold)
+      );
     });
     setCurrentStep(Math.max(0, newStep));
   }, [syncProgress]);
@@ -71,11 +79,13 @@ export function SyncingProgressScreen({
             <div className="flex items-center gap-3">
               <div className="min-w-0 flex-1">
                 <h1 className="text-lg font-semibold">Syncing Contacts</h1>
-                <p className="text-sm text-muted-foreground">Finding your friends on Biltip</p>
+                <p className="text-sm text-muted-foreground">
+                  Finding your friends on Biltip
+                </p>
               </div>
             </div>
           </div>
-          
+
           {onCancel && syncProgress < 80 && (
             <Button
               variant="ghost"
@@ -96,28 +106,26 @@ export function SyncingProgressScreen({
             <div className="text-center space-y-6">
               {/* Animated Icon */}
               <div className="mx-auto w-20 h-20 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center shadow-lg">
-                <CurrentIcon className={`h-10 w-10 text-white ${syncProgress < 100 ? 'animate-pulse' : ''}`} />
+                <CurrentIcon
+                  className={`h-10 w-10 text-white ${syncProgress < 100 ? "animate-pulse" : ""}`}
+                />
               </div>
-              
+
               {/* Progress Text */}
               <div>
                 <h2 className="text-xl font-semibold mb-2">
-                  {currentStepData?.message || 'Processing...'}
+                  {currentStepData?.message || "Processing..."}
                 </h2>
                 <p className="text-muted-foreground">
-                  {syncProgress < 100 
-                    ? 'This may take a few moments...' 
-                    : 'Contact sync completed successfully!'
-                  }
+                  {syncProgress < 100
+                    ? "This may take a few moments..."
+                    : "Contact sync completed successfully!"}
                 </p>
               </div>
 
               {/* Progress Bar */}
               <div className="space-y-3">
-                <Progress 
-                  value={syncProgress} 
-                  className="w-full h-3"
-                />
+                <Progress value={syncProgress} className="w-full h-3" />
                 <div className="flex justify-between text-sm text-muted-foreground">
                   <span>{Math.round(syncProgress)}% complete</span>
                   {startTime && elapsedTime > 0 && (
@@ -147,27 +155,42 @@ export function SyncingProgressScreen({
                   const isCompleted = syncProgress > step.threshold;
                   const isCurrent = currentStep === index;
                   const StepIcon = step.icon;
-                  
+
                   return (
-                    <div 
+                    <div
                       key={index}
                       className={`flex items-center space-x-3 transition-all duration-300 ${
-                        isCompleted ? 'text-green-600' : 
-                        isCurrent ? 'text-primary' : 'text-muted-foreground'
+                        isCompleted
+                          ? "text-green-600"
+                          : isCurrent
+                            ? "text-primary"
+                            : "text-muted-foreground"
                       }`}
                     >
-                      <div className={`w-6 h-6 rounded-full flex items-center justify-center transition-colors ${
-                        isCompleted ? 'bg-green-100 text-green-600 dark:bg-green-900/30' :
-                        isCurrent ? 'bg-primary/10 text-primary' : 'bg-muted'
-                      }`}>
+                      <div
+                        className={`w-6 h-6 rounded-full flex items-center justify-center transition-colors ${
+                          isCompleted
+                            ? "bg-green-100 text-green-600 dark:bg-green-900/30"
+                            : isCurrent
+                              ? "bg-primary/10 text-primary"
+                              : "bg-muted"
+                        }`}
+                      >
                         {isCompleted ? (
                           <CheckCircle className="h-4 w-4" />
                         ) : (
                           <StepIcon className="h-3 w-3" />
                         )}
                       </div>
-                      <span className={`text-sm ${isCurrent ? 'font-medium' : ''}`}>
-                        {step.message.replace(/\d+\s*contacts?\.\.\.?/, contactCount > 0 ? `${contactCount} contacts...` : 'contacts...')}
+                      <span
+                        className={`text-sm ${isCurrent ? "font-medium" : ""}`}
+                      >
+                        {step.message.replace(
+                          /\d+\s*contacts?\.\.\.?/,
+                          contactCount > 0
+                            ? `${contactCount} contacts...`
+                            : "contacts...",
+                        )}
                       </span>
                       {isCurrent && syncProgress < 100 && (
                         <div className="flex space-x-1">
@@ -194,7 +217,8 @@ export function SyncingProgressScreen({
                   Your privacy is protected
                 </p>
                 <p className="text-xs text-green-700 dark:text-green-300 mt-1">
-                  Contacts are processed locally on your device and never stored on our servers
+                  Contacts are processed locally on your device and never stored
+                  on our servers
                 </p>
               </div>
             </div>
@@ -208,12 +232,11 @@ export function SyncingProgressScreen({
               <div className="text-center">
                 <p className="text-sm font-medium mb-2">Did you know?</p>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  {syncProgress < 30 
+                  {syncProgress < 30
                     ? "Biltip users save an average of 2 hours per month on bill splitting and expense tracking."
                     : syncProgress < 60
-                    ? "Over 85% of Biltip users report better financial relationships with friends and family."
-                    : "The average group on Biltip splits 12 bills per month, making expense sharing effortless."
-                  }
+                      ? "Over 85% of Biltip users report better financial relationships with friends and family."
+                      : "The average group on Biltip splits 12 bills per month, making expense sharing effortless."}
                 </p>
               </div>
             </CardContent>

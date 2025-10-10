@@ -1,35 +1,35 @@
-import { useState, useEffect } from 'react';
-import { Card } from './ui/card';
-import { Button } from './ui/button';
-import { Badge } from './ui/badge';
-import { ScreenHeader } from './ui/screen-header';
-import { EmptyState } from './ui/empty-state';
-import { FilterTabs } from './ui/filter-tabs';
-import { 
-  MessageCircle, 
-  Mail, 
-  Phone, 
-  Clock, 
-  Check, 
-  X, 
+import { useState, useEffect } from "react";
+import { Card } from "./ui/card";
+import { Button } from "./ui/button";
+import { Badge } from "./ui/badge";
+import { ScreenHeader } from "./ui/screen-header";
+import { EmptyState } from "./ui/empty-state";
+import { FilterTabs } from "./ui/filter-tabs";
+import {
+  MessageCircle,
+  Mail,
+  Phone,
+  Clock,
+  Check,
+  X,
   RotateCcw,
   Link,
   Copy,
   Users,
-} from 'lucide-react';
-import { Switch } from './ui/switch';
-import { Separator } from './ui/separator';
-import { toast } from 'sonner';
-import { apiClient } from '../utils/apiClient';
+} from "lucide-react";
+import { Switch } from "./ui/switch";
+import { Separator } from "./ui/separator";
+import { toast } from "sonner";
+import { apiClient } from "../utils/apiClient";
 
 interface PendingInvite {
   id: string;
   name?: string;
   contact: string; // phone or email
-  method: 'whatsapp' | 'sms' | 'email' | 'link';
+  method: "whatsapp" | "sms" | "email" | "link";
   invitedBy: string;
   invitedAt: string;
-  status: 'sent' | 'delivered' | 'opened' | 'expired';
+  status: "sent" | "delivered" | "opened" | "expired";
   expiresAt: string;
   attempts: number;
   lastAttempt?: string;
@@ -61,8 +61,13 @@ interface MemberInviteScreenProps {
   onNavigate: (tab: string, data?: any) => void;
 }
 
-export function MemberInviteScreen({ groupId, onNavigate }: MemberInviteScreenProps) {
-  const [activeTab, setActiveTab] = useState<'pending' | 'links' | 'settings'>('pending');
+export function MemberInviteScreen({
+  groupId,
+  onNavigate,
+}: MemberInviteScreenProps) {
+  const [activeTab, setActiveTab] = useState<"pending" | "links" | "settings">(
+    "pending",
+  );
   const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
   const [inviteLinks, setInviteLinks] = useState<InviteLink[]>([]);
   const [settings, setSettings] = useState<InviteSettings>({
@@ -72,7 +77,7 @@ export function MemberInviteScreen({ groupId, onNavigate }: MemberInviteScreenPr
     requireApproval: false,
     allowLinkInvites: true,
     linkMaxUses: 10,
-    linkExpireDays: 7
+    linkExpireDays: 7,
   });
 
   useEffect(() => {
@@ -84,7 +89,7 @@ export function MemberInviteScreen({ groupId, onNavigate }: MemberInviteScreenPr
         setPendingInvites(Array.isArray(data.invites) ? data.invites : []);
       } catch (err) {
         setPendingInvites([]);
-        toast.error('Failed to load invitations');
+        toast.error("Failed to load invitations");
       }
     };
 
@@ -94,7 +99,7 @@ export function MemberInviteScreen({ groupId, onNavigate }: MemberInviteScreenPr
         setInviteLinks(Array.isArray(data.links) ? data.links : []);
       } catch (err) {
         setInviteLinks([]);
-        toast.error('Failed to load invite links');
+        toast.error("Failed to load invite links");
       }
     };
 
@@ -104,69 +109,81 @@ export function MemberInviteScreen({ groupId, onNavigate }: MemberInviteScreenPr
 
   const handleResendInvite = async (inviteId: string) => {
     try {
-      const data = await apiClient(`/groups/${groupId}/invites/${inviteId}/resend`, {
-        method: 'POST'
-      });
+      const data = await apiClient(
+        `/groups/${groupId}/invites/${inviteId}/resend`,
+        {
+          method: "POST",
+        },
+      );
       if (data.invite) {
-        setPendingInvites(prev => prev.map(invite => invite.id === inviteId ? data.invite : invite));
+        setPendingInvites((prev) =>
+          prev.map((invite) => (invite.id === inviteId ? data.invite : invite)),
+        );
       }
-      const invite = data.invite || pendingInvites.find(i => i.id === inviteId);
+      const invite =
+        data.invite || pendingInvites.find((i) => i.id === inviteId);
       toast.success(`Invitation resent to ${invite?.name || invite?.contact}`);
     } catch (err) {
-      toast.error('Failed to resend invitation');
+      toast.error("Failed to resend invitation");
     }
   };
 
   const handleCancelInvite = async (inviteId: string) => {
     try {
-      await apiClient(`/groups/${groupId}/invites/${inviteId}`, { method: 'DELETE' });
-      const invite = pendingInvites.find(i => i.id === inviteId);
-      setPendingInvites(prev => prev.filter(i => i.id !== inviteId));
-      toast.success(`Invitation cancelled for ${invite?.name || invite?.contact}`);
+      await apiClient(`/groups/${groupId}/invites/${inviteId}`, {
+        method: "DELETE",
+      });
+      const invite = pendingInvites.find((i) => i.id === inviteId);
+      setPendingInvites((prev) => prev.filter((i) => i.id !== inviteId));
+      toast.success(
+        `Invitation cancelled for ${invite?.name || invite?.contact}`,
+      );
     } catch (err) {
-      toast.error('Failed to cancel invitation');
+      toast.error("Failed to cancel invitation");
     }
   };
 
   const handleCreateInviteLink = async () => {
     try {
       const data = await apiClient(`/groups/${groupId}/invite-links`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           maxUses: settings.linkMaxUses,
-          expireDays: settings.linkExpireDays
-        })
+          expireDays: settings.linkExpireDays,
+        }),
       });
       if (data.link) {
-        setInviteLinks(prev => [data.link, ...prev]);
+        setInviteLinks((prev) => [data.link, ...prev]);
       }
-      toast.success('New invite link created');
+      toast.success("New invite link created");
     } catch (err) {
-      toast.error('Failed to create invite link');
+      toast.error("Failed to create invite link");
     }
   };
 
   const handleCopyLink = (link: string) => {
     navigator.clipboard.writeText(link);
-    toast.success('Invite link copied to clipboard');
+    toast.success("Invite link copied to clipboard");
   };
 
   const handleDeactivateLink = (linkId: string) => {
-    setInviteLinks(prev => prev.map(link => 
-      link.id === linkId ? { ...link, isActive: false } : link
-    ));
-    toast.success('Invite link deactivated');
+    setInviteLinks((prev) =>
+      prev.map((link) =>
+        link.id === linkId ? { ...link, isActive: false } : link,
+      ),
+    );
+    toast.success("Invite link deactivated");
   };
 
   const handleDeleteLink = (linkId: string) => {
-    setInviteLinks(prev => prev.filter(link => link.id !== linkId));
-    toast.success('Invite link deleted');
+    setInviteLinks((prev) => prev.filter((link) => link.id !== linkId));
+    toast.success("Invite link deleted");
   };
 
   const updateSettings = (key: keyof InviteSettings, value: any) => {
-    setSettings(prev => ({ ...prev, [key]: value }));
-    toast.success('Settings updated');
+    setSettings((prev) => ({ ...prev, [key]: value }));
+    toast.success("Settings updated");
   };
 
   const formatDate = (dateString: string) => {
@@ -175,13 +192,13 @@ export function MemberInviteScreen({ groupId, onNavigate }: MemberInviteScreenPr
     const diffTime = Math.abs(now.getTime() - date.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-    if (diffDays === 1) return 'Today';
-    if (diffDays === 2) return 'Yesterday';
+    if (diffDays === 1) return "Today";
+    if (diffDays === 2) return "Yesterday";
     if (diffDays <= 7) return `${diffDays - 1} days ago`;
-    
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric'
+
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
     });
   };
 
@@ -191,21 +208,21 @@ export function MemberInviteScreen({ groupId, onNavigate }: MemberInviteScreenPr
     const diffTime = date.getTime() - now.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-    if (diffDays < 0) return 'Expired';
-    if (diffDays === 0) return 'Expires today';
-    if (diffDays === 1) return 'Expires tomorrow';
+    if (diffDays < 0) return "Expired";
+    if (diffDays === 0) return "Expires today";
+    if (diffDays === 1) return "Expires tomorrow";
     return `Expires in ${diffDays} days`;
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'sent':
+      case "sent":
         return <Clock className="h-4 w-4 text-warning" />;
-      case 'delivered':
+      case "delivered":
         return <Check className="h-4 w-4 text-primary" />;
-      case 'opened':
+      case "opened":
         return <Check className="h-4 w-4 text-success" />;
-      case 'expired':
+      case "expired":
         return <X className="h-4 w-4 text-destructive" />;
       default:
         return <Clock className="h-4 w-4 text-muted-foreground" />;
@@ -214,28 +231,28 @@ export function MemberInviteScreen({ groupId, onNavigate }: MemberInviteScreenPr
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'sent':
-        return 'text-warning';
-      case 'delivered':
-        return 'text-primary';
-      case 'opened':
-        return 'text-success';
-      case 'expired':
-        return 'text-destructive';
+      case "sent":
+        return "text-warning";
+      case "delivered":
+        return "text-primary";
+      case "opened":
+        return "text-success";
+      case "expired":
+        return "text-destructive";
       default:
-        return 'text-muted-foreground';
+        return "text-muted-foreground";
     }
   };
 
   const getMethodIcon = (method: string) => {
     switch (method) {
-      case 'whatsapp':
+      case "whatsapp":
         return <MessageCircle className="h-4 w-4 text-green-600" />;
-      case 'email':
+      case "email":
         return <Mail className="h-4 w-4 text-blue-600" />;
-      case 'sms':
+      case "sms":
         return <Phone className="h-4 w-4 text-purple-600" />;
-      case 'link':
+      case "link":
         return <Link className="h-4 w-4 text-orange-600" />;
       default:
         return <Clock className="h-4 w-4" />;
@@ -249,7 +266,7 @@ export function MemberInviteScreen({ groupId, onNavigate }: MemberInviteScreenPr
         title="No Group Selected"
         description="Please select a group to manage invitations"
         actionLabel="Go to Groups"
-        onAction={() => onNavigate('friends')}
+        onAction={() => onNavigate("friends")}
       />
     );
   }
@@ -260,30 +277,37 @@ export function MemberInviteScreen({ groupId, onNavigate }: MemberInviteScreenPr
         title="Manage Invitations"
         subtitle="Control group invitations and settings"
         showBackButton
-        onBack={() => onNavigate('group-members', { groupId })}
+        onBack={() => onNavigate("group-members", { groupId })}
       />
 
       <div className="p-4 space-y-6 pb-20">
         {/* Tab Navigation */}
         <FilterTabs
           tabs={[
-            { id: 'pending', label: 'Pending', count: pendingInvites.length },
-            { id: 'links', label: 'Links', count: inviteLinks.filter(l => l.isActive).length },
-            { id: 'settings', label: 'Settings' }
+            { id: "pending", label: "Pending", count: pendingInvites.length },
+            {
+              id: "links",
+              label: "Links",
+              count: inviteLinks.filter((l) => l.isActive).length,
+            },
+            { id: "settings", label: "Settings" },
           ]}
           activeTab={activeTab}
-          onTabChange={(tab) => setActiveTab(tab as 'pending' | 'links' | 'settings')}
+          onTabChange={(tab) =>
+            setActiveTab(tab as "pending" | "links" | "settings")
+          }
         />
 
-        {activeTab === 'pending' && (
+        {activeTab === "pending" && (
           <>
             {/* Pending Invitations */}
             {pendingInvites.length > 0 ? (
               <div className="space-y-3">
                 {pendingInvites.map((invite) => {
                   const isExpired = new Date(invite.expiresAt) < new Date();
-                  const canResend = !isExpired && invite.attempts < settings.maxAttempts;
-                  
+                  const canResend =
+                    !isExpired && invite.attempts < settings.maxAttempts;
+
                   return (
                     <Card key={invite.id} className="p-4">
                       <div className="flex items-start justify-between">
@@ -291,34 +315,39 @@ export function MemberInviteScreen({ groupId, onNavigate }: MemberInviteScreenPr
                           <div className="mt-1">
                             {getMethodIcon(invite.method)}
                           </div>
-                          
+
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
                               <h3 className="font-medium">
-                                {invite.name || 'Unnamed Contact'}
+                                {invite.name || "Unnamed Contact"}
                               </h3>
-                              <Badge 
-                                variant="outline" 
+                              <Badge
+                                variant="outline"
                                 className={`text-xs ${getStatusColor(invite.status)}`}
                               >
                                 {getStatusIcon(invite.status)}
                                 {invite.status}
                               </Badge>
                             </div>
-                            
+
                             <p className="text-sm text-muted-foreground mb-1">
                               {invite.contact}
                             </p>
-                            
+
                             <div className="text-xs text-muted-foreground space-y-1">
                               <p>
-                                Invited by {invite.invitedBy} • {formatDate(invite.invitedAt)}
+                                Invited by {invite.invitedBy} •{" "}
+                                {formatDate(invite.invitedAt)}
                               </p>
                               <p>
-                                {formatExpiry(invite.expiresAt)} • {invite.attempts} attempt{invite.attempts !== 1 ? 's' : ''}
+                                {formatExpiry(invite.expiresAt)} •{" "}
+                                {invite.attempts} attempt
+                                {invite.attempts !== 1 ? "s" : ""}
                               </p>
                               {invite.lastAttempt && (
-                                <p>Last resent {formatDate(invite.lastAttempt)}</p>
+                                <p>
+                                  Last resent {formatDate(invite.lastAttempt)}
+                                </p>
                               )}
                             </div>
                           </div>
@@ -356,13 +385,13 @@ export function MemberInviteScreen({ groupId, onNavigate }: MemberInviteScreenPr
                 title="No pending invitations"
                 description="All invitations have been responded to or expired"
                 actionLabel="Add New Members"
-                onAction={() => onNavigate('add-group-member', { groupId })}
+                onAction={() => onNavigate("add-group-member", { groupId })}
               />
             )}
           </>
         )}
 
-        {activeTab === 'links' && (
+        {activeTab === "links" && (
           <>
             {/* Create New Link */}
             {settings.allowLinkInvites && (
@@ -389,9 +418,12 @@ export function MemberInviteScreen({ groupId, onNavigate }: MemberInviteScreenPr
                   const isExpired = new Date(link.expiresAt) < new Date();
                   const isMaxedOut = link.currentUses >= link.maxUses;
                   const isInactive = !link.isActive || isExpired || isMaxedOut;
-                  
+
                   return (
-                    <Card key={link.id} className={`p-4 ${isInactive ? 'opacity-60' : ''}`}>
+                    <Card
+                      key={link.id}
+                      className={`p-4 ${isInactive ? "opacity-60" : ""}`}
+                    >
                       <div className="space-y-3">
                         <div className="flex items-start justify-between">
                           <div className="flex-1 min-w-0">
@@ -399,26 +431,45 @@ export function MemberInviteScreen({ groupId, onNavigate }: MemberInviteScreenPr
                               <Link className="h-4 w-4 text-muted-foreground" />
                               <span className="font-medium">Invite Link</span>
                               {!link.isActive && (
-                                <Badge variant="secondary" className="text-xs">Inactive</Badge>
+                                <Badge variant="secondary" className="text-xs">
+                                  Inactive
+                                </Badge>
                               )}
                               {isExpired && (
-                                <Badge variant="destructive" className="text-xs">Expired</Badge>
+                                <Badge
+                                  variant="destructive"
+                                  className="text-xs"
+                                >
+                                  Expired
+                                </Badge>
                               )}
                               {isMaxedOut && (
-                                <Badge variant="destructive" className="text-xs">Max Uses Reached</Badge>
+                                <Badge
+                                  variant="destructive"
+                                  className="text-xs"
+                                >
+                                  Max Uses Reached
+                                </Badge>
                               )}
                             </div>
-                            
+
                             <div className="text-sm text-muted-foreground space-y-1">
-                              <p>Created by {link.createdBy} • {formatDate(link.createdAt)}</p>
+                              <p>
+                                Created by {link.createdBy} •{" "}
+                                {formatDate(link.createdAt)}
+                              </p>
                               <p>{formatExpiry(link.expiresAt)}</p>
-                              <p>{link.currentUses} of {link.maxUses} uses</p>
+                              <p>
+                                {link.currentUses} of {link.maxUses} uses
+                              </p>
                             </div>
                           </div>
                         </div>
 
                         <div className="flex items-center gap-2 p-2 bg-muted rounded-lg">
-                          <code className="flex-1 text-sm truncate">{link.link}</code>
+                          <code className="flex-1 text-sm truncate">
+                            {link.link}
+                          </code>
                           <Button
                             size="sm"
                             variant="ghost"
@@ -456,15 +507,27 @@ export function MemberInviteScreen({ groupId, onNavigate }: MemberInviteScreenPr
               <EmptyState
                 icon={Link}
                 title="No invite links"
-                description={settings.allowLinkInvites ? "Create a link to let people join the group easily" : "Link invites are disabled in settings"}
-                actionLabel={settings.allowLinkInvites ? "Create First Link" : "Enable Link Invites"}
-                onAction={settings.allowLinkInvites ? handleCreateInviteLink : () => setActiveTab('settings')}
+                description={
+                  settings.allowLinkInvites
+                    ? "Create a link to let people join the group easily"
+                    : "Link invites are disabled in settings"
+                }
+                actionLabel={
+                  settings.allowLinkInvites
+                    ? "Create First Link"
+                    : "Enable Link Invites"
+                }
+                onAction={
+                  settings.allowLinkInvites
+                    ? handleCreateInviteLink
+                    : () => setActiveTab("settings")
+                }
               />
             )}
           </>
         )}
 
-        {activeTab === 'settings' && (
+        {activeTab === "settings" && (
           <>
             {/* Invitation Settings */}
             <div className="space-y-6">
@@ -475,12 +538,15 @@ export function MemberInviteScreen({ groupId, onNavigate }: MemberInviteScreenPr
                     <div>
                       <p className="font-medium">Auto-expire invitations</p>
                       <p className="text-sm text-muted-foreground">
-                        Automatically expire invitations after {settings.expireDays} days
+                        Automatically expire invitations after{" "}
+                        {settings.expireDays} days
                       </p>
                     </div>
                     <Switch
                       checked={settings.autoExpire}
-                      onCheckedChange={(checked) => updateSettings('autoExpire', checked)}
+                      onCheckedChange={(checked) =>
+                        updateSettings("autoExpire", checked)
+                      }
                     />
                   </div>
 
@@ -493,7 +559,9 @@ export function MemberInviteScreen({ groupId, onNavigate }: MemberInviteScreenPr
                     </div>
                     <Switch
                       checked={settings.requireApproval}
-                      onCheckedChange={(checked) => updateSettings('requireApproval', checked)}
+                      onCheckedChange={(checked) =>
+                        updateSettings("requireApproval", checked)
+                      }
                     />
                   </div>
                 </div>
@@ -511,7 +579,9 @@ export function MemberInviteScreen({ groupId, onNavigate }: MemberInviteScreenPr
                     </div>
                     <Switch
                       checked={settings.allowLinkInvites}
-                      onCheckedChange={(checked) => updateSettings('allowLinkInvites', checked)}
+                      onCheckedChange={(checked) =>
+                        updateSettings("allowLinkInvites", checked)
+                      }
                     />
                   </div>
 
@@ -519,15 +589,21 @@ export function MemberInviteScreen({ groupId, onNavigate }: MemberInviteScreenPr
                     <>
                       <Separator />
                       <div>
-                        <p className="font-medium mb-2">Default link settings</p>
+                        <p className="font-medium mb-2">
+                          Default link settings
+                        </p>
                         <div className="space-y-3 text-sm">
                           <div className="flex items-center justify-between">
                             <span>Maximum uses per link</span>
-                            <Badge variant="outline">{settings.linkMaxUses}</Badge>
+                            <Badge variant="outline">
+                              {settings.linkMaxUses}
+                            </Badge>
                           </div>
                           <div className="flex items-center justify-between">
                             <span>Link expiry</span>
-                            <Badge variant="outline">{settings.linkExpireDays} days</Badge>
+                            <Badge variant="outline">
+                              {settings.linkExpireDays} days
+                            </Badge>
                           </div>
                         </div>
                       </div>
@@ -552,27 +628,29 @@ export function MemberInviteScreen({ groupId, onNavigate }: MemberInviteScreenPr
 
               {/* Reset Settings */}
               <Card className="p-4 border-destructive/20">
-                <h3 className="font-medium mb-2 text-destructive">Danger Zone</h3>
+                <h3 className="font-medium mb-2 text-destructive">
+                  Danger Zone
+                </h3>
                 <p className="text-sm text-muted-foreground mb-4">
                   These actions cannot be undone
                 </p>
                 <div className="space-y-2">
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     className="w-full text-destructive border-destructive/20"
                     onClick={() => {
                       setPendingInvites([]);
-                      toast.success('All pending invitations cancelled');
+                      toast.success("All pending invitations cancelled");
                     }}
                   >
                     Cancel All Pending Invitations
                   </Button>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     className="w-full text-destructive border-destructive/20"
                     onClick={() => {
                       setInviteLinks([]);
-                      toast.success('All invite links deleted');
+                      toast.success("All invite links deleted");
                     }}
                   >
                     Delete All Invite Links

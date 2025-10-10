@@ -1,14 +1,25 @@
-import { Card, CardContent } from './ui/card';
-import { Button } from './ui/button';
-import { Badge } from './ui/badge';
-import { Building2, Smartphone, Copy, Trash2, Check, Pencil } from 'lucide-react';
-import { toast } from 'sonner';
-import { useUserProfile } from './UserProfileContext';
-import { formatBankAccountForRegion, getBankIdentifierLabel, requiresRoutingNumber } from '../utils/regions';
+import { Card, CardContent } from "./ui/card";
+import { Button } from "./ui/button";
+import { Badge } from "./ui/badge";
+import {
+  Building2,
+  Smartphone,
+  Copy,
+  Trash2,
+  Check,
+  Pencil,
+} from "lucide-react";
+import { toast } from "sonner";
+import { useUserProfile } from "./UserProfileContext";
+import {
+  formatBankAccountForRegion,
+  getBankIdentifierLabel,
+  requiresRoutingNumber,
+} from "../utils/regions";
 
 interface BaseAccount {
   id: string;
-  type: 'bank' | 'mobile_money';
+  type: "bank" | "mobile_money";
   // Bank fields
   bank?: string;
   bankName?: string;
@@ -17,7 +28,7 @@ interface BaseAccount {
   accountHolderName?: string;
   sortCode?: string;
   routingNumber?: string;
-  accountType?: 'checking' | 'savings';
+  accountType?: "checking" | "savings";
   // Mobile money fields
   provider?: string;
   phoneNumber?: string;
@@ -40,33 +51,35 @@ export interface AccountCardProps {
   onDelete?: (accountId: string) => void;
   onEdit?: (account: PersonalAccount | GroupAccount) => void;
   showAdminActions?: boolean;
-  variant?: 'personal' | 'group';
+  variant?: "personal" | "group";
 }
 
-export function AccountCard({ 
-  account, 
+export function AccountCard({
+  account,
   onSetDefault,
   onDelete,
   onEdit,
   showAdminActions = true,
-  variant = 'personal'
+  variant = "personal",
 }: AccountCardProps) {
   const { appSettings } = useUserProfile();
-  const isGroupAccount = variant === 'group' && 'name' in account;
+  const isGroupAccount = variant === "group" && "name" in account;
   const bank = account.bankName || account.bank;
   const accountName = account.accountHolderName || account.accountName;
 
   const copyToClipboard = (text: string, label?: string) => {
     navigator.clipboard.writeText(text);
-    toast.success(label ? `${label} copied to clipboard!` : 'Copied to clipboard!');
+    toast.success(
+      label ? `${label} copied to clipboard!` : "Copied to clipboard!",
+    );
   };
 
   const copyFullAccountInfo = () => {
-    if (account.type === 'bank') {
+    if (account.type === "bank") {
       const usesRouting = requiresRoutingNumber(appSettings.region);
       const label = getBankIdentifierLabel(appSettings.region);
       const identifier = usesRouting ? account.routingNumber : account.sortCode;
-      const accountInfo = `${bank}\nAccount Name: ${accountName}\n${label}: ${identifier ?? ''}\nAccount Number: ${account.accountNumber}`;
+      const accountInfo = `${bank}\nAccount Name: ${accountName}\n${label}: ${identifier ?? ""}\nAccount Number: ${account.accountNumber}`;
       copyToClipboard(accountInfo);
     } else {
       copyToClipboard(`${account.provider}\nPhone: ${account.phoneNumber}`);
@@ -78,10 +91,10 @@ export function AccountCard({
 
   const formatDate = (isoString: string) => {
     const date = new Date(isoString);
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
     });
   };
 
@@ -90,10 +103,12 @@ export function AccountCard({
       <CardContent className="p-3 sm:p-4">
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-            <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
-              account.type === 'bank' ? 'bg-blue-100' : 'bg-green-100'
-            }`}>
-              {account.type === 'bank' ? (
+            <div
+              className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                account.type === "bank" ? "bg-blue-100" : "bg-green-100"
+              }`}
+            >
+              {account.type === "bank" ? (
                 <Building2 className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
               ) : (
                 <Smartphone className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
@@ -102,9 +117,12 @@ export function AccountCard({
             <div className="min-w-0 flex-1">
               {isGroupAccount ? (
                 <>
-                  <h4 className="text-sm sm:text-base truncate">{(account as GroupAccount).name}</h4>
+                  <h4 className="text-sm sm:text-base truncate">
+                    {(account as GroupAccount).name}
+                  </h4>
                   <p className="text-xs sm:text-sm text-muted-foreground truncate">
-                    {account.type === 'bank' ? bank : account.provider} • Added by {(account as GroupAccount).createdBy}
+                    {account.type === "bank" ? bank : account.provider} • Added
+                    by {(account as GroupAccount).createdBy}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {formatDate((account as GroupAccount).createdDate)}
@@ -112,18 +130,23 @@ export function AccountCard({
                 </>
               ) : (
                 <>
-                  <h4 className="text-sm sm:text-base">{account.type === 'bank' ? bank : account.provider}</h4>
+                  <h4 className="text-sm sm:text-base">
+                    {account.type === "bank" ? bank : account.provider}
+                  </h4>
                   <p className="text-xs sm:text-sm text-muted-foreground">
-                  {account.type === 'bank' 
-                    ? `${(account.accountType ? account.accountType.charAt(0).toUpperCase() + account.accountType.slice(1) : 'Bank')} Account`
-                    : 'Mobile Money'}
+                    {account.type === "bank"
+                      ? `${account.accountType ? account.accountType.charAt(0).toUpperCase() + account.accountType.slice(1) : "Bank"} Account`
+                      : "Mobile Money"}
                   </p>
                 </>
               )}
             </div>
           </div>
           {account.isDefault && (
-            <Badge variant="secondary" className="bg-green-100 text-green-800 flex-shrink-0 text-xs">
+            <Badge
+              variant="secondary"
+              className="bg-green-100 text-green-800 flex-shrink-0 text-xs"
+            >
               <Check className="h-3 w-3 mr-1" />
               Default
             </Badge>
@@ -131,31 +154,43 @@ export function AccountCard({
         </div>
 
         <div className="space-y-1 sm:space-y-2 mb-3 sm:mb-4">
-          {account.type === 'bank' ? (
+          {account.type === "bank" ? (
             <>
               <div className="flex items-center justify-between">
-                <span className="text-xs sm:text-sm text-muted-foreground">Account Holder:</span>
+                <span className="text-xs sm:text-sm text-muted-foreground">
+                  Account Holder:
+                </span>
                 <div className="flex items-center gap-1 sm:gap-2 min-w-0">
-                  <span className="text-xs sm:text-sm truncate max-w-[120px] sm:max-w-none">{accountName}</span>
+                  <span className="text-xs sm:text-sm truncate max-w-[120px] sm:max-w-none">
+                    {accountName}
+                  </span>
                   <Button
                     variant="ghost"
                     size="sm"
                     className="h-5 w-5 sm:h-6 sm:w-6 p-0 flex-shrink-0"
-                    onClick={() => copyToClipboard(accountName!, 'Account name')}
+                    onClick={() =>
+                      copyToClipboard(accountName!, "Account name")
+                    }
                   >
                     <Copy className="h-3 w-3" />
                   </Button>
                 </div>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-xs sm:text-sm text-muted-foreground">Account Number:</span>
+                <span className="text-xs sm:text-sm text-muted-foreground">
+                  Account Number:
+                </span>
                 <div className="flex items-center gap-1 sm:gap-2">
-                  <span className="font-mono text-xs sm:text-sm">{formatAccountNumber(account.accountNumber!)}</span>
+                  <span className="font-mono text-xs sm:text-sm">
+                    {formatAccountNumber(account.accountNumber!)}
+                  </span>
                   <Button
                     variant="ghost"
                     size="sm"
                     className="h-5 w-5 sm:h-6 sm:w-6 p-0 flex-shrink-0"
-                    onClick={() => copyToClipboard(account.accountNumber!, 'Account number')}
+                    onClick={() =>
+                      copyToClipboard(account.accountNumber!, "Account number")
+                    }
                   >
                     <Copy className="h-3 w-3" />
                   </Button>
@@ -164,13 +199,19 @@ export function AccountCard({
               {(() => {
                 const usesRouting = requiresRoutingNumber(appSettings.region);
                 const label = getBankIdentifierLabel(appSettings.region);
-                const value = usesRouting ? account.routingNumber : account.sortCode;
+                const value = usesRouting
+                  ? account.routingNumber
+                  : account.sortCode;
                 if (!value) return null;
                 return (
                   <div className="flex items-center justify-between">
-                    <span className="text-xs sm:text-sm text-muted-foreground">{label}:</span>
+                    <span className="text-xs sm:text-sm text-muted-foreground">
+                      {label}:
+                    </span>
                     <div className="flex items-center gap-1 sm:gap-2">
-                      <span className="font-mono text-xs sm:text-sm">{value}</span>
+                      <span className="font-mono text-xs sm:text-sm">
+                        {value}
+                      </span>
                       <Button
                         variant="ghost"
                         size="sm"
@@ -186,14 +227,20 @@ export function AccountCard({
             </>
           ) : (
             <div className="flex items-center justify-between">
-              <span className="text-xs sm:text-sm text-muted-foreground">Phone Number:</span>
+              <span className="text-xs sm:text-sm text-muted-foreground">
+                Phone Number:
+              </span>
               <div className="flex items-center gap-1 sm:gap-2">
-                <span className="font-mono text-xs sm:text-sm">{account.phoneNumber}</span>
+                <span className="font-mono text-xs sm:text-sm">
+                  {account.phoneNumber}
+                </span>
                 <Button
                   variant="ghost"
                   size="sm"
                   className="h-5 w-5 sm:h-6 sm:w-6 p-0 flex-shrink-0"
-                  onClick={() => copyToClipboard(account.phoneNumber!, 'Phone number')}
+                  onClick={() =>
+                    copyToClipboard(account.phoneNumber!, "Phone number")
+                  }
                 >
                   <Copy className="h-3 w-3" />
                 </Button>

@@ -1,5 +1,5 @@
-import { LucideIcon } from 'lucide-react';
-import { Button } from './button';
+import { LucideIcon } from "lucide-react";
+import { Button } from "./button";
 
 interface EmptyStateProps {
   icon: LucideIcon;
@@ -16,7 +16,7 @@ export function EmptyState({
   description,
   actionLabel,
   onAction,
-  className = ''
+  className = "",
 }: EmptyStateProps) {
   return (
     <div className={`text-center py-12 ${className}`}>
@@ -26,9 +26,7 @@ export function EmptyState({
         <p className="text-sm">{description}</p>
       </div>
       {actionLabel && onAction && (
-        <Button onClick={onAction}>
-          {actionLabel}
-        </Button>
+        <Button onClick={onAction}>{actionLabel}</Button>
       )}
     </div>
   );

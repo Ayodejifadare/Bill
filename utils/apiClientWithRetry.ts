@@ -1,4 +1,4 @@
-import { apiClient } from './apiClient';
+import { apiClient } from "./apiClient";
 
 export async function apiClientWithRetry<T>(
   input: RequestInfo | URL,
@@ -12,7 +12,7 @@ export async function apiClientWithRetry<T>(
     if (retries <= 1) {
       throw err;
     }
-    await new Promise(resolve => setTimeout(resolve, delay));
+    await new Promise((resolve) => setTimeout(resolve, delay));
     return apiClientWithRetry<T>(input, init, retries - 1, delay * 2);
   }
 }

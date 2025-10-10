@@ -1,17 +1,19 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { RegisterScreen } from './RegisterScreen';
-import { useUserProfile } from './UserProfileContext';
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import * as React from "react";
+import { describe, expect, it, vi, beforeEach } from "vitest";
+import { RegisterScreen } from "./RegisterScreen";
+import { useUserProfile } from "./UserProfileContext";
 
-vi.mock('./UserProfileContext', () => ({
+vi.mock("./UserProfileContext", () => ({
   useUserProfile: vi.fn(),
 }));
 
-vi.mock('./ui/select', () => {
-  const React = require('react');
+vi.mock("./ui/select", () => {
 
   const SelectContentComponent = ({ children }: any) => <>{children}</>;
-  const SelectItemComponent = ({ value }: any) => <option value={value}>{value}</option>;
+  const SelectItemComponent = ({ value }: any) => (
+    <option value={value}>{value}</option>
+  );
 
   const SelectComponent = ({ value, onValueChange, children }: any) => {
     const options: Array<{ value: string }> = [];
@@ -36,7 +38,7 @@ vi.mock('./ui/select', () => {
         <option value="" disabled>
           Select country
         </option>
-        {options.map(option => (
+        {options.map((option) => (
           <option key={option.value} value={option.value}>
             {option.value}
           </option>
@@ -57,7 +59,7 @@ vi.mock('./ui/select', () => {
   };
 });
 
-vi.mock('./ui/checkbox', () => ({
+vi.mock("./ui/checkbox", () => ({
   Checkbox: ({ id, checked, onCheckedChange }: any) => (
     <input
       type="checkbox"
@@ -68,7 +70,7 @@ vi.mock('./ui/checkbox', () => ({
   ),
 }));
 
-describe('RegisterScreen country selection', () => {
+describe("RegisterScreen country selection", () => {
   const useUserProfileMock = vi.mocked(useUserProfile);
   const updateAppSettings = vi.fn();
   const updateUserProfile = vi.fn();
@@ -83,39 +85,51 @@ describe('RegisterScreen country selection', () => {
   });
 
   it.each([
-    ['GB', 'GBP'],
-    ['CA', 'CAD'],
-  ])('sends %s region and %s currency to updateAppSettings', async (code, currency) => {
-    const onRegister = vi.fn().mockResolvedValue(undefined);
+    ["GB", "GBP"],
+    ["CA", "CAD"],
+  ])(
+    "sends %s region and %s currency to updateAppSettings",
+    async (code, currency) => {
+      const onRegister = vi.fn().mockResolvedValue(undefined);
 
-    render(
-      <RegisterScreen
-        onRegister={onRegister}
-        onShowLogin={vi.fn()}
-      />
-    );
+      render(<RegisterScreen onRegister={onRegister} onShowLogin={vi.fn()} />);
 
-    fireEvent.change(screen.getByLabelText('First Name'), { target: { value: 'Alice' } });
-    fireEvent.change(screen.getByLabelText('Last Name'), { target: { value: 'Smith' } });
-    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'alice@example.com' } });
-
-    fireEvent.change(screen.getByTestId('country-select'), { target: { value: code } });
-
-    fireEvent.change(screen.getByLabelText(/Phone number/), { target: { value: '7123456789' } });
-    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password123' } });
-    fireEvent.change(screen.getByLabelText('Confirm Password'), { target: { value: 'password123' } });
-
-    fireEvent.click(screen.getByTestId('terms'));
-
-    fireEvent.click(screen.getByRole('button', { name: 'Create Account' }));
-
-    await waitFor(() => {
-      expect(updateAppSettings).toHaveBeenCalledWith({
-        region: code,
-        currency,
+      fireEvent.change(screen.getByLabelText("First Name"), {
+        target: { value: "Alice" },
       });
-    });
+      fireEvent.change(screen.getByLabelText("Last Name"), {
+        target: { value: "Smith" },
+      });
+      fireEvent.change(screen.getByLabelText("Email"), {
+        target: { value: "alice@example.com" },
+      });
 
-    expect(onRegister).toHaveBeenCalled();
-  });
+      fireEvent.change(screen.getByTestId("country-select"), {
+        target: { value: code },
+      });
+
+      fireEvent.change(screen.getByLabelText(/Phone number/), {
+        target: { value: "7123456789" },
+      });
+      fireEvent.change(screen.getByLabelText("Password"), {
+        target: { value: "password123" },
+      });
+      fireEvent.change(screen.getByLabelText("Confirm Password"), {
+        target: { value: "password123" },
+      });
+
+      fireEvent.click(screen.getByTestId("terms"));
+
+      fireEvent.click(screen.getByRole("button", { name: "Create Account" }));
+
+      await waitFor(() => {
+        expect(updateAppSettings).toHaveBeenCalledWith({
+          region: code,
+          currency,
+        });
+      });
+
+      expect(onRegister).toHaveBeenCalled();
+    },
+  );
 });

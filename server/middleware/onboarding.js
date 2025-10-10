@@ -7,42 +7,47 @@
 // clear API error and allow SSE streams to proceed.
 export default async function onboardingRedirect(req, res, next) {
   // Environment-based bypasses to improve dev/test flows
-  const skipInDev = process.env.SKIP_ONBOARDING_IN_DEV === 'true' && process.env.NODE_ENV === 'development'
-  const headerBypass = req.headers['x-skip-onboarding'] === 'true'
+  const skipInDev =
+    process.env.SKIP_ONBOARDING_IN_DEV === "true" &&
+    process.env.NODE_ENV === "development";
+  const headerBypass = req.headers["x-skip-onboarding"] === "true";
   if (skipInDev || headerBypass) {
-    return next()
+    return next();
   }
   // Allow auth routes, onboarding endpoints and SSE stream to proceed
-  const isAuthRoute = req.path.startsWith('/auth')
-  const isOnboardingEndpoint = /\/users\/[^/]+\/onboarding$/.test(req.path)
-  const isSse = req.path === '/notifications/stream' ||
-    (typeof req.headers.accept === 'string' && req.headers.accept.includes('text/event-stream'))
+  const isAuthRoute = req.path.startsWith("/auth");
+  const isOnboardingEndpoint = /\/users\/[^/]+\/onboarding$/.test(req.path);
+  const isSse =
+    req.path === "/notifications/stream" ||
+    (typeof req.headers.accept === "string" &&
+      req.headers.accept.includes("text/event-stream"));
 
   if (isAuthRoute || isOnboardingEndpoint || isSse) {
-    return next()
+    return next();
   }
 
-  const userId = req.userId || req.user?.id
+  const userId = req.userId || req.user?.id;
   if (!userId) {
     // Authentication middleware will handle missing auth
-    return next()
+    return next();
   }
 
   try {
     const user = await req.prisma.user.findUnique({
       where: { id: userId },
-      select: { onboardingCompleted: true }
-    })
+      select: { onboardingCompleted: true },
+    });
 
     if (user && !user.onboardingCompleted) {
       return res.status(403).json({
-        error: 'onboarding_required',
-        message: 'User must complete onboarding before accessing this resource.',
-        onboardingUrl: `/api/users/${userId}/onboarding`
-      })
+        error: "onboarding_required",
+        message:
+          "User must complete onboarding before accessing this resource.",
+        onboardingUrl: `/api/users/${userId}/onboarding`,
+      });
     }
   } catch (err) {
     // Ignore errors – auth middleware or downstream handlers will manage errors
   }
-  next()
+  next();
 }

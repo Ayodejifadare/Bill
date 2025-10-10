@@ -3,6 +3,7 @@
 ## Missing Core UI Components
 
 ### 1. **QR Code Generator/Scanner Components**
+
 ```typescript
 // Missing: /components/QRCodeGenerator.tsx
 // Missing: /components/QRCodeScanner.tsx
@@ -10,9 +11,11 @@
 ```
 
 ### 2. **Payment Method Selection Components**
+
 Implemented: `/components/PaymentMethodSelector.tsx`, `/components/BankAccountCard.tsx`, `/components/MobileMoneyCard.tsx`
 
 ### 3. **Receipt/Invoice Components**
+
 ```typescript
 // Missing: /components/ReceiptView.tsx
 // Missing: /components/InvoiceGenerator.tsx
@@ -21,6 +24,7 @@ Implemented: `/components/PaymentMethodSelector.tsx`, `/components/BankAccountCa
 ```
 
 ### 4. **Advanced Search & Filter Components**
+
 ```typescript
 // Missing: /components/AdvancedSearchScreen.tsx
 // Missing: /components/FilterSortScreen.tsx
@@ -29,6 +33,7 @@ Implemented: `/components/PaymentMethodSelector.tsx`, `/components/BankAccountCa
 ```
 
 ### 5. **Expense Categories Components**
+
 ```typescript
 // Missing: /components/ExpenseCategoriesScreen.tsx
 // Missing: /components/CategorySelector.tsx
@@ -39,6 +44,7 @@ Implemented: `/components/PaymentMethodSelector.tsx`, `/components/BankAccountCa
 ## Missing Specialized Screens
 
 ### 6. **Onboarding Flow**
+
 ```typescript
 // Missing: /components/OnboardingWelcomeScreen.tsx
 // Missing: /components/OnboardingPermissionsScreen.tsx
@@ -48,6 +54,7 @@ Implemented: `/components/PaymentMethodSelector.tsx`, `/components/BankAccountCa
 ```
 
 ### 7. **Help & Support Screens**
+
 ```typescript
 // Missing: /components/HelpCenterScreen.tsx
 // Missing: /components/FAQScreen.tsx
@@ -57,6 +64,7 @@ Implemented: `/components/PaymentMethodSelector.tsx`, `/components/BankAccountCa
 ```
 
 ### 8. **Verification & KYC Screens**
+
 ```typescript
 // Missing: /components/PhoneVerificationScreen.tsx
 // Missing: /components/EmailVerificationScreen.tsx
@@ -66,6 +74,7 @@ Implemented: `/components/PaymentMethodSelector.tsx`, `/components/BankAccountCa
 ```
 
 ### 9. **Export & Reporting Screens**
+
 ```typescript
 // Missing: /components/ExportDataScreen.tsx
 // Missing: /components/MonthlyReportScreen.tsx
@@ -74,6 +83,7 @@ Implemented: `/components/PaymentMethodSelector.tsx`, `/components/BankAccountCa
 ```
 
 ### 10. **Group Management Enhancements**
+
 ```typescript
 // Missing: /components/GroupSettingsScreen.tsx
 // Missing: /components/GroupPermissionsScreen.tsx
@@ -85,6 +95,7 @@ Implemented: `/components/PaymentMethodSelector.tsx`, `/components/BankAccountCa
 ## Missing UI Utility Components
 
 ### 11. **Enhanced Form Components**
+
 ```typescript
 // Missing: /components/ui/currency-input.tsx
 // Missing: /components/ui/phone-input.tsx
@@ -95,6 +106,7 @@ Implemented: `/components/PaymentMethodSelector.tsx`, `/components/BankAccountCa
 ```
 
 ### 12. **Data Visualization Components**
+
 ```typescript
 // Missing: /components/ui/expense-chart.tsx
 // Missing: /components/ui/payment-timeline.tsx
@@ -104,6 +116,7 @@ Implemented: `/components/PaymentMethodSelector.tsx`, `/components/BankAccountCa
 ```
 
 ### 13. **Communication Components**
+
 ```typescript
 // Missing: /components/ui/chat-bubble.tsx
 // Missing: /components/ui/notification-bell.tsx
@@ -113,6 +126,7 @@ Implemented: `/components/PaymentMethodSelector.tsx`, `/components/BankAccountCa
 ```
 
 ### 14. **Accessibility & Internationalization**
+
 ```typescript
 // Missing: /components/ui/language-selector.tsx
 // Missing: /components/ui/accessibility-panel.tsx
@@ -123,6 +137,7 @@ Implemented: `/components/PaymentMethodSelector.tsx`, `/components/BankAccountCa
 ## Missing Navigation & Layout Enhancements
 
 ### 15. **Enhanced Navigation Components**
+
 ```typescript
 // Missing: /components/ui/breadcrumb-nav.tsx (referenced but may need enhancement)
 // Missing: /components/ui/quick-action-menu.tsx
@@ -132,6 +147,7 @@ Implemented: `/components/PaymentMethodSelector.tsx`, `/components/BankAccountCa
 ```
 
 ### 16. **Modal & Overlay Components**
+
 ```typescript
 // Missing: /components/ui/bottom-sheet.tsx
 // Missing: /components/ui/action-sheet.tsx
@@ -143,6 +159,7 @@ Implemented: `/components/PaymentMethodSelector.tsx`, `/components/BankAccountCa
 ## Missing Error & Edge Case Handling
 
 ### 17. **Error State Components**
+
 ```typescript
 // Missing: /components/ui/error-fallback.tsx
 // Missing: /components/ui/network-status.tsx (partially exists but may need enhancement)
@@ -152,6 +169,7 @@ Implemented: `/components/PaymentMethodSelector.tsx`, `/components/BankAccountCa
 ```
 
 ### 18. **Loading & Skeleton States**
+
 ```typescript
 // Missing: /components/ui/loading-overlay.tsx
 // Missing: /components/ui/transaction-skeleton.tsx
@@ -163,6 +181,7 @@ Implemented: `/components/PaymentMethodSelector.tsx`, `/components/BankAccountCa
 ## Missing Integration Components
 
 ### 19. **Banking Integration UI**
+
 ```typescript
 // Missing: /components/BankConnectionScreen.tsx
 // Missing: /components/BankAccountSyncScreen.tsx
@@ -171,6 +190,7 @@ Implemented: `/components/PaymentMethodSelector.tsx`, `/components/BankAccountCa
 ```
 
 ### 20. **Social Integration Components**
+
 ```typescript
 // Missing: /components/SocialLoginScreen.tsx
 // Missing: /components/ContactImportScreen.tsx (may need enhancement)
@@ -181,18 +201,21 @@ Implemented: `/components/PaymentMethodSelector.tsx`, `/components/BankAccountCa
 ## Priority Implementation Order
 
 ### High Priority (Core Functionality)
+
 1. QR Code Generator/Scanner
 2. Enhanced Payment Method Selection
 3. Receipt/Invoice Components
 4. Phone/Email Verification Screens
 
 ### Medium Priority (User Experience)
+
 5. Onboarding Flow
 6. Help & Support Screens
 7. Advanced Search & Filter
 8. Export & Reporting
 
 ### Low Priority (Advanced Features)
+
 9. Enhanced Group Management
 10. Social Integration Components
 11. Advanced Data Visualization

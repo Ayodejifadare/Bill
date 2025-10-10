@@ -1,13 +1,18 @@
-import { useState } from 'react';
-import { Share2 } from 'lucide-react';
-import { Button } from './ui/button';
-import { ShareSheet } from './ui/share-sheet';
-import { useUserProfile } from './UserProfileContext';
-import { formatCurrencyForRegion } from '../utils/regions';
-import { formatDueDate } from '../utils/formatDueDate';
+import { useState } from "react";
+import { Share2 } from "lucide-react";
+import { Button } from "./ui/button";
+import { ShareSheet } from "./ui/share-sheet";
+import { useUserProfile } from "./UserProfileContext";
+import { formatCurrencyForRegion } from "../utils/regions";
+import { formatDueDate } from "../utils/formatDueDate";
 
 export interface ShareData {
-  type: 'bill_split' | 'payment_request' | 'transaction' | 'payment_confirmation' | 'group_summary';
+  type:
+    | "bill_split"
+    | "payment_request"
+    | "transaction"
+    | "payment_confirmation"
+    | "group_summary";
   title: string;
   amount: number;
   description?: string;
@@ -26,55 +31,66 @@ export interface ShareData {
 export function generateShareText(
   shareData: ShareData,
   formatAmount: (n: number) => string,
-  userProfile: any
+  userProfile: any,
 ) {
-  const { type, title, amount, description, participantNames, dueDate, status, groupName } = shareData;
+  const {
+    type,
+    title,
+    amount,
+    description,
+    participantNames,
+    dueDate,
+    status,
+    groupName,
+  } = shareData;
   const formattedAmount = formatAmount(amount);
-  const formattedDueDate = dueDate ? (formatDueDate(dueDate) || dueDate) : '';
-  
+  const formattedDueDate = dueDate ? formatDueDate(dueDate) || dueDate : "";
+
   switch (type) {
-    case 'bill_split': {
-      const participantsList = participantNames ? participantNames.join(', ') : 'friends';
+    case "bill_split": {
+      const participantsList = participantNames
+        ? participantNames.join(", ")
+        : "friends";
       return `*${title}*
 
  Amount: ${formattedAmount}
-   Split with: ${participantsList}${formattedDueDate ? `\n Due: ${formattedDueDate}` : ''}${description ? `\n ${description}` : ''}
+   Split with: ${participantsList}${formattedDueDate ? `\n Due: ${formattedDueDate}` : ""}${description ? `\n ${description}` : ""}
 
 _Shared via Biltip _`;
     }
 
-    case 'payment_request': {
+    case "payment_request": {
       return `*Payment Request*
 
  Amount: ${formattedAmount}
  From: ${userProfile.name}
-   For: ${title}${formattedDueDate ? `\n Due: ${formattedDueDate}` : ''}${description ? `\n ${description}` : ''}
+   For: ${title}${formattedDueDate ? `\n Due: ${formattedDueDate}` : ""}${description ? `\n ${description}` : ""}
 
 _Send via Biltip _`;
     }
 
-    case 'transaction': {
+    case "transaction": {
       return `*Transaction Complete*
 
  ${title}: ${formattedAmount}
- Status: ${status || 'Completed'}${shareData.transactionId ? `\n Ref: ${shareData.transactionId}` : ''}${shareData.paymentMethod ? `\n Via: ${shareData.paymentMethod}` : ''}
+ Status: ${status || "Completed"}${shareData.transactionId ? `\n Ref: ${shareData.transactionId}` : ""}${shareData.paymentMethod ? `\n Via: ${shareData.paymentMethod}` : ""}
 
 _Powered by Biltip _`;
     }
 
-    case 'payment_confirmation': {
+    case "payment_confirmation": {
       return `*Payment Sent Successfully!*
 
  Amount: ${formattedAmount}
- To: ${title}${shareData.transactionId ? `\n Reference: ${shareData.transactionId}` : ''}${shareData.paymentMethod ? `\n Method: ${shareData.paymentMethod}` : ''}
+ To: ${title}${shareData.transactionId ? `\n Reference: ${shareData.transactionId}` : ""}${shareData.paymentMethod ? `\n Method: ${shareData.paymentMethod}` : ""}
 
 _Paid via Biltip _`;
     }
 
-    case 'group_summary': {
-      return `*${groupName || 'Group'} Expense Summary*
+    case "group_summary": {
+      return `*${groupName || "Group"} Expense Summary*
 
- Total: ${formattedAmount}${participantNames ? `\n Members: ${participantNames.join(', ')}` : ''}${description ? `\n ${description}` : ''}
+ Total: ${formattedAmount}${participantNames ? `\n Members: ${participantNames.join(", ")}` : ""}${description ? `\n ${description}` : ""}
 
 _Tracked with Biltip _`;
     }
@@ -91,8 +107,12 @@ export function getDocumentData(shareData: ShareData) {
   return {
     title: shareData.title,
     content: shareData,
-    type: shareData.type === 'bill_split' ? 'bill_split' as const : 
-          shareData.type === 'payment_request' ? 'invoice' as const : 'receipt' as const
+    type:
+      shareData.type === "bill_split"
+        ? ("bill_split" as const)
+        : shareData.type === "payment_request"
+          ? ("invoice" as const)
+          : ("receipt" as const),
   };
 }
 
@@ -100,7 +120,7 @@ export function getDocumentData(shareData: ShareData) {
  * Create shareable deep links
  */
 export const createDeepLink = (type: string, id: string): string => {
-  const baseUrl = 'https://biltip.app'; // This would be your actual app URL
+  const baseUrl = "https://biltip.app"; // This would be your actual app URL
   return `${baseUrl}/${type}/${id}`;
 };
 
@@ -111,20 +131,20 @@ interface ShareUtilsProps {
   shareData: ShareData;
   onNavigate?: (tab: string, data?: any) => void;
   buttonText?: string;
-  variant?: 'default' | 'outline' | 'ghost';
-  size?: 'sm' | 'default' | 'lg';
+  variant?: "default" | "outline" | "ghost";
+  size?: "sm" | "default" | "lg";
   className?: string;
 }
 
-export function ShareUtils({ 
-  shareData, 
+export function ShareUtils({
+  shareData,
   onNavigate: _onNavigate,
-  buttonText = 'Share',
-  variant = 'default',
-  size = 'lg',
-  className = ''
+  buttonText = "Share",
+  variant = "default",
+  size = "lg",
+  className = "",
 }: ShareUtilsProps) {
-  const { userProfile, appSettings } = useUserProfile();
+  const { appSettings } = useUserProfile();
   const fmt = (n: number) => formatCurrencyForRegion(appSettings.region, n);
   const [showShareSheet, setShowShareSheet] = useState(false);
 
@@ -133,7 +153,7 @@ export function ShareUtils({
 
   return (
     <>
-      <Button 
+      <Button
         onClick={() => setShowShareSheet(true)}
         className={`w-full bg-primary hover:bg-primary/90 text-primary-foreground ${className}`}
         variant={variant}
@@ -159,18 +179,18 @@ export function ShareUtils({
  */
 interface QuickShareButtonProps {
   shareData: ShareData;
-  variant?: 'default' | 'outline' | 'ghost';
-  size?: 'sm' | 'default' | 'lg';
+  variant?: "default" | "outline" | "ghost";
+  size?: "sm" | "default" | "lg";
   showText?: boolean;
   className?: string;
 }
 
-export function QuickShareButton({ 
-  shareData, 
-  variant = 'outline', 
-  size = 'sm', 
+export function QuickShareButton({
+  shareData,
+  variant = "outline",
+  size = "sm",
   showText = true,
-  className = ''
+  className = "",
 }: QuickShareButtonProps) {
   const [showShareSheet, setShowShareSheet] = useState(false);
   const { userProfile, appSettings } = useUserProfile();
@@ -180,15 +200,15 @@ export function QuickShareButton({
     const formattedAmount = fmt(shareData.amount);
     return `*${shareData.title}*
 
- ${formattedAmount}${shareData.description ? `\n ${shareData.description}` : ''}
+ ${formattedAmount}${shareData.description ? `\n ${shareData.description}` : ""}
 
 _Shared via Biltip _`;
   };
 
   return (
     <>
-      <Button 
-        variant={variant} 
+      <Button
+        variant={variant}
         size={size}
         onClick={() => setShowShareSheet(true)}
         className={className}
@@ -205,7 +225,7 @@ _Shared via Biltip _`;
         documentData={{
           title: shareData.title,
           content: shareData,
-          type: 'bill_split'
+          type: "bill_split",
         }}
       />
     </>
@@ -217,13 +237,13 @@ _Shared via Biltip _`;
  */
 
 // Transaction Details Share Button
-export function ShareTransactionButton({ 
-  transactionId, 
-  title, 
-  amount, 
-  status = 'Completed',
+export function ShareTransactionButton({
+  transactionId,
+  title,
+  amount,
+  status = "Completed",
   paymentMethod,
-  className = ''
+  className = "",
 }: {
   transactionId: string;
   title: string;
@@ -233,17 +253,17 @@ export function ShareTransactionButton({
   className?: string;
 }) {
   const shareData: ShareData = {
-    type: 'transaction',
+    type: "transaction",
     title,
     amount,
     status,
     paymentMethod,
     transactionId,
-    deepLink: createDeepLink('transaction', transactionId)
+    deepLink: createDeepLink("transaction", transactionId),
   };
 
   return (
-    <ShareUtils 
+    <ShareUtils
       shareData={shareData}
       buttonText="Share Transaction"
       className={className}
@@ -259,7 +279,7 @@ export function ShareBillSplitButton({
   participantNames,
   dueDate,
   description,
-  className = ''
+  className = "",
 }: {
   billSplitId: string;
   title: string;
@@ -270,17 +290,17 @@ export function ShareBillSplitButton({
   className?: string;
 }) {
   const shareData: ShareData = {
-    type: 'bill_split',
+    type: "bill_split",
     title,
     amount,
     participantNames,
     dueDate,
     description,
-    deepLink: createDeepLink('bill', billSplitId)
+    deepLink: createDeepLink("bill", billSplitId),
   };
 
   return (
-    <ShareUtils 
+    <ShareUtils
       shareData={shareData}
       buttonText="Share Bill Split"
       className={className}
@@ -295,7 +315,7 @@ export function SharePaymentRequestButton({
   amount,
   dueDate,
   description,
-  className = ''
+  className = "",
 }: {
   requestId: string;
   title: string;
@@ -305,16 +325,16 @@ export function SharePaymentRequestButton({
   className?: string;
 }) {
   const shareData: ShareData = {
-    type: 'payment_request',
+    type: "payment_request",
     title,
     amount,
     dueDate,
     description,
-    deepLink: createDeepLink('request', requestId)
+    deepLink: createDeepLink("request", requestId),
   };
 
   return (
-    <ShareUtils 
+    <ShareUtils
       shareData={shareData}
       buttonText="Share Request"
       className={className}

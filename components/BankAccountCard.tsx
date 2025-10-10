@@ -1,4 +1,4 @@
-import { AccountCard, AccountCardProps } from './AccountCard';
+import { AccountCard, AccountCardProps } from "./AccountCard";
 
 interface BankAccount {
   id: string;
@@ -9,11 +9,12 @@ interface BankAccount {
   accountHolderName?: string;
   sortCode?: string;
   routingNumber?: string;
-  accountType?: 'checking' | 'savings';
+  accountType?: "checking" | "savings";
   isDefault: boolean;
 }
 
-export interface BankAccountCardProps extends Omit<AccountCardProps, 'account'> {
+export interface BankAccountCardProps
+  extends Omit<AccountCardProps, "account"> {
   account: BankAccount;
 }
 
@@ -22,7 +23,7 @@ export function BankAccountCard({ account, ...rest }: BankAccountCardProps) {
     <AccountCard
       account={{
         id: account.id,
-        type: 'bank',
+        type: "bank",
         bankName: account.bankName || account.bank,
         accountNumber: account.accountNumber,
         accountHolderName: account.accountHolderName || account.accountName,

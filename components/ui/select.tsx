@@ -45,7 +45,7 @@ function SelectTrigger({
         // Mobile-first sizing with touch targets
         "min-h-[44px] touch-manipulation",
         "data-[size=sm]:h-10 data-[size=sm]:min-h-[40px]",
-        "data-[size=default]:h-11 data-[size=default]:min-h-[44px]", 
+        "data-[size=default]:h-11 data-[size=default]:min-h-[44px]",
         "data-[size=lg]:h-12 data-[size=lg]:min-h-[48px]",
         // Responsive text handling
         "*:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-2 *:data-[slot=select-value]:overflow-hidden *:data-[slot=select-value]:text-ellipsis",
@@ -109,7 +109,10 @@ function SelectLabel({
   return (
     <SelectPrimitive.Label
       data-slot="select-label"
-      className={cn("text-muted-foreground px-2 py-2 text-sm font-medium", className)}
+      className={cn(
+        "text-muted-foreground px-2 py-2 text-sm font-medium",
+        className,
+      )}
       {...props}
     />
   );

@@ -1,11 +1,14 @@
 import { ArrowUpRight, ArrowDownLeft, Users, Clock } from "lucide-react";
 import { Card } from "./ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
-import { useUserProfile } from './UserProfileContext';
-import { formatCurrencyForRegion } from '../utils/regions';
+import { useUserProfile } from "./UserProfileContext";
+import { formatCurrencyForRegion } from "../utils/regions";
 import { Badge } from "./ui/badge";
 import { formatDate } from "../utils/formatDate";
-import type { TransactionType, TransactionStatus } from "../shared/transactions";
+import type {
+  TransactionType,
+  TransactionStatus,
+} from "../shared/transactions";
 
 interface TransactionUser {
   name: string;
@@ -32,19 +35,23 @@ interface TransactionCardProps {
   currencySymbol?: string; // deprecated, left for backward compat
 }
 
-export function TransactionCard({ transaction, onNavigate, onClick }: TransactionCardProps) {
+export function TransactionCard({
+  transaction,
+  onNavigate,
+  onClick,
+}: TransactionCardProps) {
   const { appSettings } = useUserProfile();
   const fmt = (n: number) => formatCurrencyForRegion(appSettings.region, n);
   const getIcon = () => {
     switch (transaction.type) {
-      case 'sent':
+      case "sent":
         return <ArrowUpRight className="h-4 w-4 text-destructive" />;
-      case 'received':
+      case "received":
         return <ArrowDownLeft className="h-4 w-4 text-success" />;
-      case 'split':
-      case 'bill_split':
+      case "split":
+      case "bill_split":
         return <Users className="h-4 w-4 text-primary" />;
-      case 'request':
+      case "request":
         return <Clock className="h-4 w-4 text-warning" />;
       default:
         return null;
@@ -53,49 +60,49 @@ export function TransactionCard({ transaction, onNavigate, onClick }: Transactio
 
   const getAmountColor = () => {
     switch (transaction.type) {
-      case 'sent':
-        return 'text-destructive';
-      case 'received':
-        return 'text-success';
-      case 'split':
-      case 'bill_split':
-        return 'text-primary';
-      case 'request':
-        return 'text-warning';
+      case "sent":
+        return "text-destructive";
+      case "received":
+        return "text-success";
+      case "split":
+      case "bill_split":
+        return "text-primary";
+      case "request":
+        return "text-warning";
       default:
-        return 'text-foreground';
+        return "text-foreground";
     }
   };
 
   const getAmountPrefix = () => {
     switch (transaction.type) {
-      case 'sent':
-        return '-';
-      case 'received':
-        return '+';
-      case 'split':
-      case 'bill_split':
-        return '-';
-      case 'request':
-        return '';
+      case "sent":
+        return "-";
+      case "received":
+        return "+";
+      case "split":
+      case "bill_split":
+        return "-";
+      case "request":
+        return "";
       default:
-        return '';
+        return "";
     }
   };
 
   const getTypeLabel = () => {
     switch (transaction.type) {
-      case 'sent':
-        return 'Sent';
-      case 'received':
-        return 'Received';
-      case 'split':
-      case 'bill_split':
-        return 'Bill Split';
-      case 'request':
-        return 'Request';
+      case "sent":
+        return "Sent";
+      case "received":
+        return "Received";
+      case "split":
+      case "bill_split":
+        return "Bill Split";
+      case "request":
+        return "Request";
       default:
-        return '';
+        return "";
     }
   };
 
@@ -105,43 +112,47 @@ export function TransactionCard({ transaction, onNavigate, onClick }: Transactio
     if (transaction.user) {
       return transaction.user;
     }
-    
+
     // New format - determine user based on transaction type
-    if (transaction.type === 'sent' && transaction.recipient) {
+    if (transaction.type === "sent" && transaction.recipient) {
       return transaction.recipient;
     }
-    
-    if (transaction.type === 'received' && transaction.sender) {
+
+    if (transaction.type === "received" && transaction.sender) {
       return transaction.sender;
     }
-    
-    if ((transaction.type === 'bill_split' || transaction.type === 'split') && transaction.recipient) {
+
+    if (
+      (transaction.type === "bill_split" || transaction.type === "split") &&
+      transaction.recipient
+    ) {
       return transaction.recipient;
     }
-    
-    if (transaction.type === 'request' && transaction.recipient) {
+
+    if (transaction.type === "request" && transaction.recipient) {
       return transaction.recipient;
     }
-    
+
     // Fallback
     return {
-      name: transaction.type === 'bill_split' ? 'Bill Split' : 'Unknown'
+      name: transaction.type === "bill_split" ? "Bill Split" : "Unknown",
     };
   };
 
   const getInitials = (name?: string) =>
-    String(name || '')
-      .split(' ')
+    String(name || "")
+      .split(" ")
       .filter(Boolean)
-      .map(n => n[0])
-      .join('')
+      .map((n) => n[0])
+      .join("")
       .slice(0, 2)
       .toUpperCase();
 
   const userInfo = getUserInfo();
-  const safeName = userInfo?.name || (transaction.type === 'bill_split' ? 'Bill Split' : 'Unknown');
+  const safeName =
+    userInfo?.name ||
+    (transaction.type === "bill_split" ? "Bill Split" : "Unknown");
   const avatarFallback = transaction.avatarFallback || getInitials(safeName);
-
 
   const handleClick = () => {
     if (onClick) {
@@ -150,10 +161,14 @@ export function TransactionCard({ transaction, onNavigate, onClick }: Transactio
     }
     if (onNavigate) {
       // If this is a pending payment request directed to the user, go straight to payment flow
-      if (transaction.type === 'request' && transaction.status === 'pending') {
-        const recipientName = transaction.recipient?.name || transaction.user?.name || 'Recipient';
-        const recipientId = transaction.recipient?.name || transaction.user?.name || recipientName;
-        onNavigate('payment-flow', {
+      if (transaction.type === "request" && transaction.status === "pending") {
+        const recipientName =
+          transaction.recipient?.name || transaction.user?.name || "Recipient";
+        const recipientId =
+          transaction.recipient?.name ||
+          transaction.user?.name ||
+          recipientName;
+        onNavigate("payment-flow", {
           paymentRequest: {
             id: transaction.id,
             amount: transaction.amount,
@@ -161,17 +176,20 @@ export function TransactionCard({ transaction, onNavigate, onClick }: Transactio
             recipient: recipientName,
             recipientId,
             requestId: transaction.id,
-          }
+          },
         });
         return;
       }
       // Default: open transaction details
-      onNavigate('transaction-details', { transactionId: transaction.id });
+      onNavigate("transaction-details", { transactionId: transaction.id });
     }
   };
 
   return (
-    <Card className="p-4 hover:bg-muted/50 transition-colors cursor-pointer active:scale-[0.98] touch-manipulation" onClick={handleClick}>
+    <Card
+      className="p-4 hover:bg-muted/50 transition-colors cursor-pointer active:scale-[0.98] touch-manipulation"
+      onClick={handleClick}
+    >
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center space-x-3 min-w-0 flex-1">
           <div className="relative flex-shrink-0">
@@ -190,24 +208,32 @@ export function TransactionCard({ transaction, onNavigate, onClick }: Transactio
               <p className="font-medium truncate pr-2">{safeName}</p>
               <div className="flex flex-col items-end gap-1 flex-shrink-0">
                 <p className={`font-medium text-sm ${getAmountColor()}`}>
-                  {getAmountPrefix()}{fmt(transaction.amount)}
+                  {getAmountPrefix()}
+                  {fmt(transaction.amount)}
                 </p>
-                <p className="text-xs text-muted-foreground">{getTypeLabel()}</p>
+                <p className="text-xs text-muted-foreground">
+                  {getTypeLabel()}
+                </p>
               </div>
             </div>
             <p className="text-sm text-muted-foreground truncate leading-relaxed mb-1">
               {transaction.description}
             </p>
             <div className="flex items-center justify-between">
-              <p className="text-xs text-muted-foreground">{formatDate(transaction.date)}</p>
+              <p className="text-xs text-muted-foreground">
+                {formatDate(transaction.date)}
+              </p>
               <div className="flex gap-1">
-                {transaction.status === 'pending' && (
+                {transaction.status === "pending" && (
                   <Badge variant="outline" className="text-xs px-2 py-0 h-5">
                     Pending
                   </Badge>
                 )}
-                {transaction.status === 'failed' && (
-                  <Badge variant="destructive" className="text-xs px-2 py-0 h-5">
+                {transaction.status === "failed" && (
+                  <Badge
+                    variant="destructive"
+                    className="text-xs px-2 py-0 h-5"
+                  >
                     Failed
                   </Badge>
                 )}

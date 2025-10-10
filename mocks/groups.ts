@@ -1,42 +1,49 @@
-import type { Group } from '../hooks/useGroups';
-import type { ExternalAccount } from '../utils/split-bill-api';
+import type { Group } from "../hooks/useGroups";
+import type { ExternalAccount } from "../utils/split-bill-api";
 
 let groups: Group[] = [
   {
-    id: '1',
-    name: 'Weekend Trip',
-    description: 'Friends getaway',
+    id: "1",
+    name: "Weekend Trip",
+    description: "Friends getaway",
     memberCount: 3,
     totalSpent: 0,
-    recentActivity: '',
-    members: ['WT', 'FG', 'AB'],
+    recentActivity: "",
+    members: ["WT", "FG", "AB"],
     isAdmin: true,
     lastActive: new Date().toISOString(),
     pendingBills: 0,
-    color: 'bg-red-500'
-  }
+    color: "bg-red-500",
+  },
 ];
 
 const accounts: ExternalAccount[] = [
   {
-    id: '1',
-    name: 'Mock Bank',
-    type: 'bank',
-    bankName: 'Mock Bank',
-    accountNumber: '12345678',
-    accountHolderName: 'Mock User',
-    routingNumber: '021000021',
+    id: "1",
+    name: "Mock Bank",
+    type: "bank",
+    bankName: "Mock Bank",
+    accountNumber: "12345678",
+    accountHolderName: "Mock User",
+    routingNumber: "021000021",
     isDefault: true,
-    createdBy: 'Mock User',
-    createdDate: new Date().toISOString()
-  }
+    createdBy: "Mock User",
+    createdDate: new Date().toISOString(),
+  },
 ];
 
 export async function handle(path: string, init: RequestInit = {}) {
-  if (path === '/groups' && (!init.method || init.method === 'GET')) {
-    return { groups: groups.map(g => ({ id: g.id, name: g.name, members: g.members, color: g.color })) };
+  if (path === "/groups" && (!init.method || init.method === "GET")) {
+    return {
+      groups: groups.map((g) => ({
+        id: g.id,
+        name: g.name,
+        members: g.members,
+        color: g.color,
+      })),
+    };
   }
-  if (path === '/groups' && init.method === 'POST') {
+  if (path === "/groups" && init.method === "POST") {
     const body = init.body ? JSON.parse(init.body as string) : {};
     const newGroup: Group = {
       id: String(groups.length + 1),
@@ -44,24 +51,24 @@ export async function handle(path: string, init: RequestInit = {}) {
       description: body.description,
       memberCount: body.memberIds?.length || 0,
       totalSpent: 0,
-      recentActivity: '',
+      recentActivity: "",
       members: [],
       isAdmin: true,
       lastActive: new Date().toISOString(),
       pendingBills: 0,
-      color: body.color || 'bg-blue-500'
+      color: body.color || "bg-blue-500",
     };
     groups.push(newGroup);
     return { group: newGroup };
   }
   if (/^\/groups\/[^/]+\/join$/.test(path)) {
-    const groupId = path.split('/')[2];
-    const group = groups.find(g => g.id === groupId);
+    const groupId = path.split("/")[2];
+    const group = groups.find((g) => g.id === groupId);
     return { group };
   }
   if (/^\/groups\/[^/]+\/leave$/.test(path)) {
-    const groupId = path.split('/')[2];
-    groups = groups.filter(g => g.id !== groupId);
+    const groupId = path.split("/")[2];
+    groups = groups.filter((g) => g.id !== groupId);
     return { success: true };
   }
   if (/^\/groups\/[^/]+\/accounts$/.test(path)) {

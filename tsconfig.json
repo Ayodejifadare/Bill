@@ -23,9 +23,15 @@
       "@/components/*": ["./components/*"],
       "@/styles/*": ["./styles/*"]
     },
-    "types": ["vite/client", "node", "vitest/globals", "@testing-library/jest-dom"]
+    "types": [
+      "vite/client",
+      "node",
+      "vitest/globals",
+      "@testing-library/jest-dom"
+    ]
   },
-  "include": ["types", 
+  "include": [
+    "types",
     "src",
     "components",
     "hooks",
@@ -44,4 +50,3 @@
     "**/*.spec.ts"
   ]
 }
-

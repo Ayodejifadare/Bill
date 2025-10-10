@@ -1,38 +1,54 @@
-import express from 'express'
-import { body, validationResult } from 'express-validator'
-import authenticate from '../middleware/auth.js'
+import express from "express";
+import { body, validationResult } from "express-validator";
+import authenticate from "../middleware/auth.js";
 
-const router = express.Router()
+const router = express.Router();
 
-router.use(authenticate)
+router.use(authenticate);
 
 // Get all payment methods for current user
-router.get('/', async (req, res) => {
+router.get("/", async (req, res) => {
   try {
     const methods = await req.prisma.paymentMethod.findMany({
-      where: { userId: req.userId }
-    })
-    res.json(methods)
+      where: { userId: req.userId },
+    });
+    res.json(methods);
   } catch (error) {
-    console.error('Get payment methods error:', error)
-    res.status(500).json({ error: 'Internal server error' })
+    console.error("Get payment methods error:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
-})
+});
 
 // Create new payment method
-router.post(
-  '/',
-  [
-    body('type').trim().notEmpty()
-  ],
-  async (req, res) => {
-    try {
-      const errors = validationResult(req)
-      if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() })
-      }
+router.post("/", [body("type").trim().notEmpty()], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
 
-      const {
+    const {
+      type,
+      bank,
+      accountNumber,
+      accountName,
+      sortCode,
+      routingNumber,
+      accountType,
+      provider,
+      phoneNumber,
+      isDefault,
+    } = req.body;
+
+    if (isDefault) {
+      await req.prisma.paymentMethod.updateMany({
+        where: { userId: req.userId, isDefault: true },
+        data: { isDefault: false },
+      });
+    }
+
+    const method = await req.prisma.paymentMethod.create({
+      data: {
         type,
         bank,
         accountNumber,
@@ -42,56 +58,34 @@ router.post(
         accountType,
         provider,
         phoneNumber,
-        isDefault
-      } = req.body
+        isDefault: !!isDefault,
+        userId: req.userId,
+      },
+    });
 
-      if (isDefault) {
-        await req.prisma.paymentMethod.updateMany({
-          where: { userId: req.userId, isDefault: true },
-          data: { isDefault: false }
-        })
-      }
-
-      const method = await req.prisma.paymentMethod.create({
-        data: {
-          type,
-          bank,
-          accountNumber,
-          accountName,
-          sortCode,
-          routingNumber,
-          accountType,
-          provider,
-          phoneNumber,
-          isDefault: !!isDefault,
-          userId: req.userId
-        }
-      })
-
-      res.status(201).json(method)
-    } catch (error) {
-      console.error('Create payment method error:', error)
-      res.status(500).json({ error: 'Internal server error' })
-    }
+    res.status(201).json(method);
+  } catch (error) {
+    console.error("Create payment method error:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
-)
+});
 
 // Update payment method
-router.put('/:id', async (req, res) => {
+router.put("/:id", async (req, res) => {
   try {
-    const { id } = req.params
+    const { id } = req.params;
     const existing = await req.prisma.paymentMethod.findFirst({
-      where: { id, userId: req.userId }
-    })
+      where: { id, userId: req.userId },
+    });
     if (!existing) {
-      return res.status(404).json({ error: 'Payment method not found' })
+      return res.status(404).json({ error: "Payment method not found" });
     }
 
     if (req.body.isDefault) {
       await req.prisma.paymentMethod.updateMany({
         where: { userId: req.userId, isDefault: true },
-        data: { isDefault: false }
-      })
+        data: { isDefault: false },
+      });
     }
 
     const data = {
@@ -104,41 +98,42 @@ router.put('/:id', async (req, res) => {
       accountType: req.body.accountType,
       provider: req.body.provider,
       phoneNumber: req.body.phoneNumber,
-      isDefault: req.body.isDefault
-    }
+      isDefault: req.body.isDefault,
+    };
 
-    Object.keys(data).forEach((key) => data[key] === undefined && delete data[key])
+    Object.keys(data).forEach(
+      (key) => data[key] === undefined && delete data[key],
+    );
 
     const method = await req.prisma.paymentMethod.update({
       where: { id },
-      data
-    })
+      data,
+    });
 
-    res.json(method)
+    res.json(method);
   } catch (error) {
-    console.error('Update payment method error:', error)
-    res.status(500).json({ error: 'Internal server error' })
+    console.error("Update payment method error:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
-})
+});
 
 // Delete payment method
-router.delete('/:id', async (req, res) => {
+router.delete("/:id", async (req, res) => {
   try {
-    const { id } = req.params
+    const { id } = req.params;
     const existing = await req.prisma.paymentMethod.findFirst({
-      where: { id, userId: req.userId }
-    })
+      where: { id, userId: req.userId },
+    });
     if (!existing) {
-      return res.status(404).json({ error: 'Payment method not found' })
+      return res.status(404).json({ error: "Payment method not found" });
     }
 
-    await req.prisma.paymentMethod.delete({ where: { id } })
-    res.json({ success: true })
+    await req.prisma.paymentMethod.delete({ where: { id } });
+    res.json({ success: true });
   } catch (error) {
-    console.error('Delete payment method error:', error)
-    res.status(500).json({ error: 'Internal server error' })
+    console.error("Delete payment method error:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
-})
+});
 
-export default router
-
+export default router;

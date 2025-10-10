@@ -1,230 +1,244 @@
 ﻿/**
  * @vitest-environment node
  */
-import express from 'express'
-import request from 'supertest'
-import usersRouter from './users.js'
-import { PrismaClient } from '@prisma/client'
-import { describe, it, expect, beforeEach, afterAll, beforeAll } from 'vitest'
-import { execSync } from 'child_process'
-import path from 'path'
-import fs from 'fs'
-import jwt from 'jsonwebtoken'
+import express from "express";
+import request from "supertest";
+import usersRouter from "./users.js";
+import { PrismaClient } from "@prisma/client";
+import { describe, it, expect, beforeEach, afterAll, beforeAll } from "vitest";
+import { execSync } from "child_process";
+import path from "path";
+import fs from "fs";
+import jwt from "jsonwebtoken";
 
-const sign = userId => jwt.sign({ userId, tokenVersion: 0 }, process.env.JWT_SECRET)
+const sign = (userId) =>
+  jwt.sign({ userId, tokenVersion: 0 }, process.env.JWT_SECRET);
 
-describe('User routes', () => {
-  let app
-  let prisma
-  const dbPath = path.join(__dirname, '..', 'prisma', 'users-test.db')
+describe("User routes", () => {
+  let app;
+  let prisma;
+  const dbPath = path.join(__dirname, "..", "prisma", "users-test.db");
 
   beforeAll(() => {
-    process.env.DATABASE_URL = `file:${dbPath}`
-    execSync('npx prisma migrate deploy', {
-      cwd: path.join(__dirname, '..'),
-      stdio: 'inherit'
-    })
-    prisma = new PrismaClient()
-  })
+    process.env.DATABASE_URL = `file:${dbPath}`;
+    execSync("npx prisma migrate deploy", {
+      cwd: path.join(__dirname, ".."),
+      stdio: "inherit",
+    });
+    prisma = new PrismaClient();
+  });
 
   beforeEach(async () => {
-    await prisma.transaction.deleteMany()
-    await prisma.billSplitParticipant.deleteMany()
-    await prisma.billSplit.deleteMany()
-    await prisma.friendRequest.deleteMany()
-    await prisma.friendship.deleteMany()
-    await prisma.user.deleteMany()
-    app = express()
-    app.use(express.json())
+    await prisma.transaction.deleteMany();
+    await prisma.billSplitParticipant.deleteMany();
+    await prisma.billSplit.deleteMany();
+    await prisma.friendRequest.deleteMany();
+    await prisma.friendship.deleteMany();
+    await prisma.user.deleteMany();
+    app = express();
+    app.use(express.json());
     app.use((req, res, next) => {
-      req.prisma = prisma
-      next()
-    })
-    app.use('/users', usersRouter)
-  })
+      req.prisma = prisma;
+      next();
+    });
+    app.use("/users", usersRouter);
+  });
 
   afterAll(async () => {
-    await prisma.$disconnect()
-    if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath)
-  })
+    await prisma.$disconnect();
+    if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
+  });
 
-  it('requires authentication to fetch user profile', async () => {
-    const res = await request(app).get('/users/u1')
-    expect(res.status).toBe(401)
-  })
+  it("requires authentication to fetch user profile", async () => {
+    const res = await request(app).get("/users/u1");
+    expect(res.status).toBe(401);
+  });
 
-  it('returns user fields including region and currency', async () => {
-    await prisma.user.create({ data: { id: 'u1', email: 'u1@example.com', name: 'User 1', region: 'NG', currency: 'NGN' } })
+  it("returns user fields including region and currency", async () => {
+    await prisma.user.create({
+      data: {
+        id: "u1",
+        email: "u1@example.com",
+        name: "User 1",
+        region: "NG",
+        currency: "NGN",
+      },
+    });
 
     const res = await request(app)
-      .get('/users/u1')
-      .set('Authorization', `Bearer ${sign('u1')}`)
+      .get("/users/u1")
+      .set("Authorization", `Bearer ${sign("u1")}`);
 
-    expect(res.status).toBe(200)
+    expect(res.status).toBe(200);
     expect(res.body.user).toMatchObject({
-      id: 'u1',
-      name: 'User 1',
-      email: 'u1@example.com',
+      id: "u1",
+      name: "User 1",
+      email: "u1@example.com",
       phone: null,
       avatar: null,
       preferences: {},
-      region: 'NG',
-      currency: 'NGN'
-    })
-  })
+      region: "NG",
+      currency: "NGN",
+    });
+  });
 
-  it('requires authentication to fetch user stats', async () => {
-    const res = await request(app).get('/users/u1/stats')
-    expect(res.status).toBe(401)
-  })
+  it("requires authentication to fetch user stats", async () => {
+    const res = await request(app).get("/users/u1/stats");
+    expect(res.status).toBe(401);
+  });
 
-  it('returns aggregated stats for the user', async () => {
+  it("returns aggregated stats for the user", async () => {
     await prisma.user.createMany({
       data: [
-        { id: 'u1', email: 'u1@example.com', name: 'User 1' },
-        { id: 'u2', email: 'u2@example.com', name: 'User 2' },
-        { id: 'u3', email: 'u3@example.com', name: 'User 3' }
-      ]
-    })
+        { id: "u1", email: "u1@example.com", name: "User 1" },
+        { id: "u2", email: "u2@example.com", name: "User 2" },
+        { id: "u3", email: "u3@example.com", name: "User 3" },
+      ],
+    });
 
     await prisma.transaction.createMany({
       data: [
         {
           amount: 50,
-          senderId: 'u1',
-          receiverId: 'u2',
-          type: 'SEND',
-          status: 'COMPLETED'
+          senderId: "u1",
+          receiverId: "u2",
+          type: "SEND",
+          status: "COMPLETED",
         },
         {
           amount: 30,
-          senderId: 'u3',
-          receiverId: 'u1',
-          type: 'SEND',
-          status: 'COMPLETED'
+          senderId: "u3",
+          receiverId: "u1",
+          type: "SEND",
+          status: "COMPLETED",
         },
         {
           amount: 20,
-          senderId: 'u1',
-          receiverId: 'u3',
-          type: 'SEND',
-          status: 'PENDING'
-        }
-      ]
-    })
+          senderId: "u1",
+          receiverId: "u3",
+          type: "SEND",
+          status: "PENDING",
+        },
+      ],
+    });
 
     await prisma.billSplit.create({
       data: {
-        title: 'Split1',
+        title: "Split1",
         totalAmount: 100,
-        createdBy: 'u1',
+        createdBy: "u1",
         participants: {
           create: [
-            { userId: 'u1', amount: 50 },
-            { userId: 'u2', amount: 50 }
-          ]
-        }
-      }
-    })
+            { userId: "u1", amount: 50 },
+            { userId: "u2", amount: 50 },
+          ],
+        },
+      },
+    });
 
     await prisma.billSplit.create({
       data: {
-        title: 'Split2',
+        title: "Split2",
         totalAmount: 60,
-        createdBy: 'u2',
+        createdBy: "u2",
         participants: {
           create: [
-            { userId: 'u1', amount: 30 },
-            { userId: 'u2', amount: 30 }
-          ]
-        }
-      }
-    })
+            { userId: "u1", amount: 30 },
+            { userId: "u2", amount: 30 },
+          ],
+        },
+      },
+    });
 
     await prisma.friendship.createMany({
       data: [
-        { user1Id: 'u1', user2Id: 'u2' },
-        { user1Id: 'u3', user2Id: 'u1' }
-      ]
-    })
+        { user1Id: "u1", user2Id: "u2" },
+        { user1Id: "u3", user2Id: "u1" },
+      ],
+    });
 
     const res = await request(app)
-      .get('/users/u1/stats')
-      .set('Authorization', `Bearer ${sign('u1')}`)
+      .get("/users/u1/stats")
+      .set("Authorization", `Bearer ${sign("u1")}`);
 
-    expect(res.status).toBe(200)
+    expect(res.status).toBe(200);
     expect(res.body.stats).toEqual({
       totalSent: 50,
       totalReceived: 30,
       totalSplits: 2,
-      friends: 2
-    })
-  })
-  it('looks up a user by email and returns relationship metadata', async () => {
+      friends: 2,
+    });
+  });
+  it("looks up a user by email and returns relationship metadata", async () => {
     await prisma.user.createMany({
       data: [
-        { id: 'lu1', email: 'lu1@example.com', name: 'Lookup 1' },
-        { id: 'lu2', email: 'lu2@example.com', name: 'Lookup 2' }
-      ]
-    })
+        { id: "lu1", email: "lu1@example.com", name: "Lookup 1" },
+        { id: "lu2", email: "lu2@example.com", name: "Lookup 2" },
+      ],
+    });
 
     const res = await request(app)
-      .get('/users/lookup?identifier=lu2@example.com&type=email')
-      .set('Authorization', `Bearer ${sign('lu1')}`)
+      .get("/users/lookup?identifier=lu2@example.com&type=email")
+      .set("Authorization", `Bearer ${sign("lu1")}`);
 
-    expect(res.status).toBe(200)
+    expect(res.status).toBe(200);
     expect(res.body.user).toMatchObject({
-      id: 'lu2',
-      email: 'lu2@example.com',
-      relationshipStatus: 'none',
-      matchedBy: 'email'
-    })
-  })
+      id: "lu2",
+      email: "lu2@example.com",
+      relationshipStatus: "none",
+      matchedBy: "email",
+    });
+  });
 
-  it('reports friendship status in lookup responses', async () => {
+  it("reports friendship status in lookup responses", async () => {
     await prisma.user.createMany({
       data: [
-        { id: 'fu1', email: 'fu1@example.com', name: 'Friend User 1' },
-        { id: 'fu2', email: 'fu2@example.com', name: 'Friend User 2' }
-      ]
-    })
-    await prisma.friendship.create({ data: { user1Id: 'fu1', user2Id: 'fu2' } })
+        { id: "fu1", email: "fu1@example.com", name: "Friend User 1" },
+        { id: "fu2", email: "fu2@example.com", name: "Friend User 2" },
+      ],
+    });
+    await prisma.friendship.create({
+      data: { user1Id: "fu1", user2Id: "fu2" },
+    });
 
     const res = await request(app)
-      .get('/users/lookup?identifier=fu2@example.com&type=email')
-      .set('Authorization', `Bearer ${sign('fu1')}`)
+      .get("/users/lookup?identifier=fu2@example.com&type=email")
+      .set("Authorization", `Bearer ${sign("fu1")}`);
 
-    expect(res.status).toBe(200)
-    expect(res.body.user.relationshipStatus).toBe('friends')
-    expect(res.body.user.matchedBy).toBe('email')
-  })
+    expect(res.status).toBe(200);
+    expect(res.body.user.relationshipStatus).toBe("friends");
+    expect(res.body.user.matchedBy).toBe("email");
+  });
 
-  it('reports pending friend request direction', async () => {
+  it("reports pending friend request direction", async () => {
     await prisma.user.createMany({
       data: [
-        { id: 'pu1', email: 'pu1@example.com', name: 'Pending Sender' },
-        { id: 'pu2', email: 'pu2@example.com', name: 'Pending Receiver' }
-      ]
-    })
-    await prisma.friendRequest.create({ data: { senderId: 'pu1', receiverId: 'pu2' } })
+        { id: "pu1", email: "pu1@example.com", name: "Pending Sender" },
+        { id: "pu2", email: "pu2@example.com", name: "Pending Receiver" },
+      ],
+    });
+    await prisma.friendRequest.create({
+      data: { senderId: "pu1", receiverId: "pu2" },
+    });
 
     const res = await request(app)
-      .get('/users/lookup?identifier=pu2@example.com&type=email')
-      .set('Authorization', `Bearer ${sign('pu1')}`)
+      .get("/users/lookup?identifier=pu2@example.com&type=email")
+      .set("Authorization", `Bearer ${sign("pu1")}`);
 
-    expect(res.status).toBe(200)
-    expect(res.body.user.relationshipStatus).toBe('pending_outgoing')
-  })
+    expect(res.status).toBe(200);
+    expect(res.body.user.relationshipStatus).toBe("pending_outgoing");
+  });
 
-  it('returns null when lookup target does not exist', async () => {
-    await prisma.user.create({ data: { id: 'nu1', email: 'nu1@example.com', name: 'Lookup Owner' } })
+  it("returns null when lookup target does not exist", async () => {
+    await prisma.user.create({
+      data: { id: "nu1", email: "nu1@example.com", name: "Lookup Owner" },
+    });
 
     const res = await request(app)
-      .get('/users/lookup?identifier=missing@example.com&type=email')
-      .set('Authorization', `Bearer ${sign('nu1')}`)
+      .get("/users/lookup?identifier=missing@example.com&type=email")
+      .set("Authorization", `Bearer ${sign("nu1")}`);
 
-    expect(res.status).toBe(200)
-    expect(res.body.user).toBeNull()
-  })
-
-})
+    expect(res.status).toBe(200);
+    expect(res.body.user).toBeNull();
+  });
+});

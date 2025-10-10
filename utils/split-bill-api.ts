@@ -5,8 +5,8 @@
 // now call the real API endpoints while preserving the same caching behaviour
 // so navigation between screens doesn't trigger redundant network requests.
 
-import { fetchFriends as fetchFriendsApi, Friend } from '../hooks/useFriends';
-import { apiClient } from './apiClient';
+import { fetchFriends as fetchFriendsApi, Friend } from "../hooks/useFriends";
+import { apiClient } from "./apiClient";
 
 export interface Group {
   id: string;
@@ -18,14 +18,14 @@ export interface Group {
 export interface ExternalAccount {
   id: string;
   name: string;
-  type: 'bank' | 'mobile_money';
+  type: "bank" | "mobile_money";
   // Bank fields
   bankName?: string;
   accountNumber?: string;
   accountHolderName?: string;
   sortCode?: string;
   routingNumber?: string;
-  accountType?: 'checking' | 'savings';
+  accountType?: "checking" | "savings";
   // Mobile money fields
   provider?: string;
   phoneNumber?: string;
@@ -39,23 +39,10 @@ export interface ExternalAccount {
 let groupsCache: Group[] | null = null;
 const groupMembersCache = new Map<string, Friend[]>();
 
-const mapGroupMemberToFriend = (member: any): Friend | null => {
-  if (!member) return null;
-  const user = member.user ?? member;
-  const id = user?.id ?? member?.userId ?? member?.id;
-  if (!id) return null;
-  const name = user?.name ?? member?.name ?? 'Unnamed member';
-  return {
-    id: String(id),
-    name,
-    avatar: user?.avatar ?? member?.avatar ?? undefined,
-    phoneNumber: user?.phone ?? user?.phoneNumber ?? member?.phone ?? member?.phoneNumber ?? undefined,
-    status: 'active',
-  };
-};
+// Removed unused helper to satisfy lint: mapGroupMemberToFriend
 const externalAccountsCache = new Map<string, ExternalAccount[]>();
 
-export type { Friend } from '../hooks/useFriends';
+export type { Friend } from "../hooks/useFriends";
 
 export async function fetchFriends(): Promise<Friend[]> {
   return fetchFriendsApi();
@@ -64,7 +51,7 @@ export async function fetchFriends(): Promise<Friend[]> {
 export async function fetchGroups(): Promise<Group[]> {
   if (groupsCache) return groupsCache;
 
-  const data = await apiClient('/groups');
+  const data = await apiClient("/groups");
   const rawGroups = Array.isArray((data as any)?.groups)
     ? (data as any).groups
     : Array.isArray(data)
@@ -76,17 +63,19 @@ export async function fetchGroups(): Promise<Group[]> {
       const groupId = String(group.id);
       const members =
         Array.isArray(group?.members) &&
-        group.members.some((member: any) => typeof (member as any)?.id === 'string')
+        group.members.some(
+          (member: any) => typeof (member as any)?.id === "string",
+        )
           ? (group.members as Friend[])
           : await fetchGroupMembers(groupId);
 
       return {
         id: groupId,
-        name: group.name || 'Untitled group',
+        name: group.name || "Untitled group",
         members,
-        color: group.color || 'bg-blue-500',
+        color: group.color || "bg-blue-500",
       } as Group;
-    })
+    }),
   );
 
   groupsCache = normalized;
@@ -109,13 +98,13 @@ export async function fetchGroupMembers(groupId: string): Promise<Friend[]> {
     groupMembersCache.set(groupId, members);
     return members;
   } catch (error) {
-    console.error('Failed to fetch group members for', groupId, error);
+    console.error("Failed to fetch group members for", groupId, error);
     groupMembersCache.set(groupId, []);
     return [];
   }
 }
 export async function fetchExternalAccounts(
-  groupId: string
+  groupId: string,
 ): Promise<ExternalAccount[]> {
   if (externalAccountsCache.has(groupId)) {
     return externalAccountsCache.get(groupId)!;

@@ -1,11 +1,17 @@
-import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { apiClient } from '../utils/apiClient';
+import {
+  createContext,
+  useContext,
+  useState,
+  ReactNode,
+  useEffect,
+} from "react";
+import { apiClient } from "../utils/apiClient";
 
 interface LinkedBankAccount {
   id: string;
   bankId: string;
   bankName: string;
-  accountType: 'checking' | 'savings';
+  accountType: "checking" | "savings";
   accountName: string;
   last4: string;
   routingNumber: string;
@@ -54,13 +60,13 @@ interface UserProfile {
   bio?: string;
   avatar?: string;
   joinDate?: string;
-  kycStatus?: 'pending' | 'verified' | 'rejected';
+  kycStatus?: "pending" | "verified" | "rejected";
   stats: UserStats;
   preferences: UserPreferences;
   linkedBankAccounts: LinkedBankAccount[];
 }
 
-import { getCurrencyCode, resolveRegionFromLocale } from '../utils/regions';
+import { getCurrencyCode, resolveRegionFromLocale } from "../utils/regions";
 
 interface AppSettings {
   region: string; // ISO country code preferred (e.g., 'US', 'NG', 'GB')
@@ -74,13 +80,17 @@ interface UserProfileContextType {
   refreshUserProfile: () => Promise<void>;
   updateUserProfile: (profile: Partial<UserProfile>) => Promise<void>;
   updateAppSettings: (settings: Partial<AppSettings>) => void;
-  addBankAccount: (account: Omit<LinkedBankAccount, 'id' | 'addedDate'>) => void;
+  addBankAccount: (
+    account: Omit<LinkedBankAccount, "id" | "addedDate">,
+  ) => void;
   removeBankAccount: (accountId: string) => void;
   setDefaultBankAccount: (accountId: string) => void;
   saveSettings: (settings: UserSettings) => Promise<UserSettings | undefined>;
 }
 
-const UserProfileContext = createContext<UserProfileContextType | undefined>(undefined);
+const UserProfileContext = createContext<UserProfileContextType | undefined>(
+  undefined,
+);
 
 const defaultStats: UserStats = {
   totalSent: 0,
@@ -99,9 +109,9 @@ const defaultPreferences: UserPreferences = {
 };
 
 const getStoredUserId = (): string | undefined => {
-  if (typeof window === 'undefined') return undefined;
+  if (typeof window === "undefined") return undefined;
   try {
-    const raw = localStorage.getItem('biltip_user');
+    const raw = localStorage.getItem("biltip_user");
     return raw ? JSON.parse(raw).id : undefined;
   } catch {
     return undefined;
@@ -111,20 +121,27 @@ const getStoredUserId = (): string | undefined => {
 // Helper function to get saved settings from localStorage
 export const getSavedSettings = (): AppSettings => {
   try {
-    const saved = localStorage.getItem('biltip-app-settings');
+    const saved = localStorage.getItem("biltip-app-settings");
     if (saved) {
       const settings = JSON.parse(saved);
       // Basic validation: ensure strings exist; allow any region/currency for extensibility
-      if (settings.region && settings.currency && typeof settings.region === 'string' && typeof settings.currency === 'string') {
+      if (
+        settings.region &&
+        settings.currency &&
+        typeof settings.region === "string" &&
+        typeof settings.currency === "string"
+      ) {
         return settings as AppSettings;
       }
     }
   } catch (error) {
-    console.warn('Error loading saved settings:', error);
+    console.warn("Error loading saved settings:", error);
   }
-  
+
   // Default settings - detect region from browser locale if possible
-  const detectedRegion = resolveRegionFromLocale(typeof navigator !== 'undefined' ? navigator.language : '');
+  const detectedRegion = resolveRegionFromLocale(
+    typeof navigator !== "undefined" ? navigator.language : "",
+  );
   return {
     region: detectedRegion,
     currency: getCurrencyCode(detectedRegion),
@@ -133,7 +150,8 @@ export const getSavedSettings = (): AppSettings => {
 
 export function UserProfileProvider({ children }: { children: ReactNode }) {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [appSettings, setAppSettings] = useState<AppSettings>(getSavedSettings());
+  const [appSettings, setAppSettings] =
+    useState<AppSettings>(getSavedSettings());
   const [loading, setLoading] = useState(true);
 
   const refreshUserProfile = async () => {
@@ -142,11 +160,13 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
       if (!userId) return;
       const [profileData, statsData] = await Promise.all([
         apiClient(`/users/${userId}`),
-        apiClient(`/users/${userId}/stats`).catch(() => ({ stats: defaultStats }))
+        apiClient(`/users/${userId}/stats`).catch(() => ({
+          stats: defaultStats,
+        })),
       ]);
       const fetched = profileData.user;
       const stats = statsData?.stats ?? defaultStats;
-      setUserProfile(prev => ({
+      setUserProfile((prev) => ({
         id: fetched.id,
         name: fetched.name,
         email: fetched.email,
@@ -158,9 +178,12 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
         bio: fetched.bio,
         avatar: fetched.avatar,
         joinDate: fetched.createdAt
-          ? new Date(fetched.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+          ? new Date(fetched.createdAt).toLocaleDateString("en-US", {
+              month: "long",
+              year: "numeric",
+            })
           : prev?.joinDate,
-        kycStatus: fetched.kycStatus ?? 'pending',
+        kycStatus: fetched.kycStatus ?? "pending",
 
         stats,
         preferences: {
@@ -178,13 +201,13 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
         const settings = { region: fetched.region, currency: fetched.currency };
         setAppSettings(settings);
         try {
-          localStorage.setItem('biltip-app-settings', JSON.stringify(settings));
+          localStorage.setItem("biltip-app-settings", JSON.stringify(settings));
         } catch (error) {
-          console.warn('Error saving app settings:', error);
+          console.warn("Error saving app settings:", error);
         }
       }
     } catch (error) {
-      console.error('Error fetching user profile:', error);
+      console.error("Error fetching user profile:", error);
     }
   };
 
@@ -197,7 +220,7 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const updateUserProfile = async (profileUpdate: Partial<UserProfile>) => {
-    setUserProfile(prev => (prev ? { ...prev, ...profileUpdate } : prev));
+    setUserProfile((prev) => (prev ? { ...prev, ...profileUpdate } : prev));
 
     try {
       const userId = userProfile?.id || getStoredUserId();
@@ -228,29 +251,29 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
       if (preferences !== undefined) payload.preferences = preferences;
 
       await apiClient(`/users/${userId}`, {
-        method: 'PUT',
+        method: "PUT",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(payload),
       });
     } catch (error) {
-      console.error('Error updating user profile:', error);
+      console.error("Error updating user profile:", error);
     }
   };
 
   const updateAppSettings = (settingsUpdate: Partial<AppSettings>) => {
     const newSettings = {
       ...appSettings,
-      ...settingsUpdate
+      ...settingsUpdate,
     };
 
     setAppSettings(newSettings);
 
     try {
-      localStorage.setItem('biltip-app-settings', JSON.stringify(newSettings));
+      localStorage.setItem("biltip-app-settings", JSON.stringify(newSettings));
     } catch (error) {
-      console.warn('Error saving app settings:', error);
+      console.warn("Error saving app settings:", error);
     }
 
     void (async () => {
@@ -258,9 +281,9 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
         const userId = userProfile?.id || getStoredUserId();
         if (!userId) return;
         await apiClient(`/users/${userId}`, {
-          method: 'PUT',
+          method: "PUT",
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
           body: JSON.stringify({
             region: newSettings.region,
@@ -268,7 +291,7 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
           }),
         });
       } catch (error) {
-        console.warn('Error updating app settings:', error);
+        console.warn("Error updating app settings:", error);
       }
     })();
   };
@@ -279,37 +302,44 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
       if (!userId) return;
 
       const data = await apiClient(`/users/${userId}/settings`, {
-        method: 'PUT',
+        method: "PUT",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(settings),
       });
       return data.settings as UserSettings;
     } catch (error) {
-      console.error('Error saving settings:', error);
+      console.error("Error saving settings:", error);
     }
   };
 
-  const addBankAccount = (account: Omit<LinkedBankAccount, 'id' | 'addedDate'>) => {
+  const addBankAccount = (
+    account: Omit<LinkedBankAccount, "id" | "addedDate">,
+  ) => {
     const newAccount: LinkedBankAccount = {
       ...account,
       id: `bank-${Date.now()}`,
-      addedDate: new Date().toISOString().split('T')[0],
+      addedDate: new Date().toISOString().split("T")[0],
     };
 
-    setUserProfile(prev =>
-      prev ? { ...prev, linkedBankAccounts: [...prev.linkedBankAccounts, newAccount] } : prev,
+    setUserProfile((prev) =>
+      prev
+        ? {
+            ...prev,
+            linkedBankAccounts: [...prev.linkedBankAccounts, newAccount],
+          }
+        : prev,
     );
   };
 
   const removeBankAccount = (accountId: string) => {
-    setUserProfile(prev =>
+    setUserProfile((prev) =>
       prev
         ? {
             ...prev,
             linkedBankAccounts: prev.linkedBankAccounts.filter(
-              account => account.id !== accountId,
+              (account) => account.id !== accountId,
             ),
           }
         : prev,
@@ -317,11 +347,11 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
   };
 
   const setDefaultBankAccount = (accountId: string) => {
-    setUserProfile(prev =>
+    setUserProfile((prev) =>
       prev
         ? {
             ...prev,
-            linkedBankAccounts: prev.linkedBankAccounts.map(account => ({
+            linkedBankAccounts: prev.linkedBankAccounts.map((account) => ({
               ...account,
               isDefault: account.id === accountId,
             })),
@@ -357,7 +387,7 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
 export function useUserProfile() {
   const context = useContext(UserProfileContext);
   if (context === undefined) {
-    throw new Error('useUserProfile must be used within a UserProfileProvider');
+    throw new Error("useUserProfile must be used within a UserProfileProvider");
   }
   return context;
 }

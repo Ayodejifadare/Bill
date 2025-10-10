@@ -1,15 +1,35 @@
-import { useState, useEffect } from 'react';
-import { ArrowLeft, Building2, Copy, CheckCircle, ExternalLink, Smartphone, Users, DollarSign, AlertTriangle } from 'lucide-react';
-import { Button } from './ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { Badge } from './ui/badge';
-import { Avatar, AvatarFallback } from './ui/avatar';
-import { Separator } from './ui/separator';
-import { toast } from 'sonner';
-import { useUserProfile } from './UserProfileContext';
-import { requiresRoutingNumber, getBankIdentifierLabel, formatBankAccountForRegion, formatCurrencyForRegion } from '../utils/regions';
-import { apiClient } from '../utils/apiClient';
-import { formatBillDate } from '../utils/formatBillDate';
+import { useState, useEffect } from "react";
+import {
+  ArrowLeft,
+  Building2,
+  Copy,
+  CheckCircle,
+  ExternalLink,
+  Smartphone,
+  Users,
+  DollarSign,
+  AlertTriangle,
+} from "lucide-react";
+import { Button } from "./ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "./ui/card";
+import { Badge } from "./ui/badge";
+import { Avatar, AvatarFallback } from "./ui/avatar";
+import { Separator } from "./ui/separator";
+import { toast } from "sonner";
+import { useUserProfile } from "./UserProfileContext";
+import {
+  requiresRoutingNumber,
+  getBankIdentifierLabel,
+  formatBankAccountForRegion,
+  formatCurrencyForRegion,
+} from "../utils/regions";
+import { apiClient } from "../utils/apiClient";
 
 interface BillPaymentScreenProps {
   billId: string | null;
@@ -18,13 +38,13 @@ interface BillPaymentScreenProps {
 
 interface PaymentMethod {
   id: string;
-  type: 'bank' | 'mobile_money';
+  type: "bank" | "mobile_money";
   bankName?: string;
   accountNumber?: string;
   accountHolderName?: string;
   sortCode?: string;
   routingNumber?: string;
-  accountType?: 'checking' | 'savings';
+  accountType?: "checking" | "savings";
   provider?: string;
   phoneNumber?: string;
 }
@@ -47,10 +67,15 @@ interface BillSplit {
   note?: string;
 }
 
-export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps) {
+export function BillPaymentScreen({
+  billId,
+  onNavigate,
+}: BillPaymentScreenProps) {
   const { appSettings } = useUserProfile();
-  
-  const [paymentStatus, setPaymentStatus] = useState<'pending' | 'sent' | 'confirmed'>('pending');
+
+  const [paymentStatus, setPaymentStatus] = useState<
+    "pending" | "sent" | "confirmed"
+  >("pending");
   const [bill, setBill] = useState<BillSplit | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -76,8 +101,8 @@ export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps
         }
       } catch (error: any) {
         if (!cancelled) {
-          console.error('Failed to load bill split', error);
-          setLoadError(error?.message || 'Failed to load bill split');
+          console.error("Failed to load bill split", error);
+          setLoadError(error?.message || "Failed to load bill split");
           setBill(null);
         }
       } finally {
@@ -85,17 +110,19 @@ export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps
       }
     }
     loadBill();
-    return () => { cancelled = true };
+    return () => {
+      cancelled = true;
+    };
   }, [billId]);
 
   if (loading) {
     return (
       <div className="min-h-screen bg-background px-4 py-6">
         <div className="flex items-center space-x-4 mb-6">
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={() => onNavigate('bills')}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onNavigate("bills")}
             className="min-h-[44px] min-w-[44px] -ml-2"
           >
             <ArrowLeft className="h-5 w-5" />
@@ -113,10 +140,10 @@ export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps
     return (
       <div className="min-h-screen bg-background px-4 py-6">
         <div className="flex items-center space-x-4 mb-6">
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={() => onNavigate('bills')}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onNavigate("bills")}
             className="min-h-[44px] min-w-[44px] -ml-2"
           >
             <ArrowLeft className="h-5 w-5" />
@@ -130,7 +157,10 @@ export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps
             <p className="text-sm text-muted-foreground">{loadError}</p>
           )}
           {!loadError && (
-            <p className="text-sm text-muted-foreground">You might not have access to this bill, or it may have been deleted.</p>
+            <p className="text-sm text-muted-foreground">
+              You might not have access to this bill, or it may have been
+              deleted.
+            </p>
           )}
         </div>
       </div>
@@ -141,10 +171,10 @@ export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps
     return (
       <div className="min-h-screen bg-background px-4 py-6">
         <div className="flex items-center space-x-4 mb-6">
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={() => onNavigate('bills')}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onNavigate("bills")}
             className="min-h-[44px] min-w-[44px] -ml-2"
           >
             <ArrowLeft className="h-5 w-5" />
@@ -156,9 +186,14 @@ export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps
             <AlertTriangle className="h-10 w-10 mx-auto text-warning" />
             <p className="font-medium">Payment method unavailable</p>
             <p className="text-sm text-muted-foreground">
-              The bill does not have payment details yet. Please ask the creator to add one or refresh the bill.
+              The bill does not have payment details yet. Please ask the creator
+              to add one or refresh the bill.
             </p>
-            <Button onClick={() => onNavigate('bill-split-details', { billSplitId: bill.id })}>
+            <Button
+              onClick={() =>
+                onNavigate("bill-split-details", { billSplitId: bill.id })
+              }
+            >
               View Bill Details
             </Button>
           </CardContent>
@@ -171,10 +206,10 @@ export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps
     return (
       <div className="min-h-screen bg-background px-4 py-6">
         <div className="flex items-center space-x-4 mb-6">
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={() => onNavigate('bills')}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onNavigate("bills")}
             className="min-h-[44px] min-w-[44px] -ml-2"
           >
             <ArrowLeft className="h-5 w-5" />
@@ -186,13 +221,16 @@ export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps
           <div className="space-y-2">
             <p className="font-medium">Payment details unavailable</p>
             <p className="text-sm text-muted-foreground">
-              We couldn't load payment instructions for this bill. Please contact the bill creator.
+              We couldn't load payment instructions for this bill. Please
+              contact the bill creator.
             </p>
           </div>
           <Button
             variant="outline"
             className="min-h-[44px] min-w-[44px]"
-            onClick={() => onNavigate('bill-split-details', { billSplitId: bill.id })}
+            onClick={() =>
+              onNavigate("bill-split-details", { billSplitId: bill.id })
+            }
           >
             View Bill Details
           </Button>
@@ -205,54 +243,53 @@ export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps
     const paymentMethod = bill?.paymentMethod;
 
     if (!paymentMethod) {
-      toast.error('Payment details unavailable');
+      toast.error("Payment details unavailable");
       return;
     }
 
     if (!navigator.clipboard || !navigator.clipboard.writeText) {
-      toast.error('Clipboard not supported. Please copy manually.');
+      toast.error("Clipboard not supported. Please copy manually.");
       return;
     }
 
     try {
-      if (paymentMethod.type === 'bank') {
-        const usesRouting = requiresRoutingNumber(appSettings.region);
-        const label = getBankIdentifierLabel(appSettings.region);
-        const idValue = usesRouting ? paymentMethod.routingNumber : paymentMethod.sortCode;
-        const bankInfo = `${paymentMethod.bankName ?? ''}\nAccount Name: ${paymentMethod.accountHolderName ?? ''}\n${label}: ${idValue ?? ''}\nAccount Number: ${paymentMethod.accountNumber ?? ''}`;
-        await navigator.clipboard.writeText(bankInfo);
-        toast.success('Bank account details copied to clipboard');
+      if (paymentMethod.type === "bank") {
+        const toCopy = paymentMethod.accountNumber ?? "";
+        await navigator.clipboard.writeText(toCopy);
+        toast.success("Account number copied to clipboard");
       } else {
-        const mobileInfo = `${paymentMethod.provider ?? ''}\nPhone Number: ${paymentMethod.phoneNumber ?? ''}`;
-        await navigator.clipboard.writeText(mobileInfo);
-        toast.success('Mobile money details copied to clipboard');
+        const toCopy = paymentMethod.phoneNumber ?? "";
+        await navigator.clipboard.writeText(toCopy);
+        toast.success("Phone number copied to clipboard");
       }
     } catch (error) {
-      toast.error('Failed to copy details. Please copy manually.');
+      toast.error("Failed to copy details. Please copy manually.");
     }
   };
 
   const copyAmount = () => {
     if (!bill) return;
     navigator.clipboard.writeText(bill.yourShare.toFixed(2));
-    toast.success('Amount copied to clipboard');
+    toast.success("Amount copied to clipboard");
   };
 
   const copyReference = async () => {
     if (!bill) return;
     try {
       // Prefer server-side reference for reconciliation
-      const data = await apiClient(`/bill-splits/${bill.id}/reference`, { method: 'POST' });
+      const data = await apiClient(`/bill-splits/${bill.id}/reference`, {
+        method: "POST",
+      });
       const reference = data?.reference || `Biltip-${bill.id}-${Date.now()}`;
       await navigator.clipboard.writeText(reference);
-      toast.success('Payment reference copied to clipboard');
+      toast.success("Payment reference copied to clipboard");
     } catch {
       const fallback = `Biltip-${bill.id}-${Date.now()}`;
       try {
         await navigator.clipboard.writeText(fallback);
-        toast.success('Payment reference copied to clipboard');
+        toast.success("Payment reference copied to clipboard");
       } catch {
-        toast.error('Failed to copy reference. Please copy manually.');
+        toast.error("Failed to copy reference. Please copy manually.");
       }
     }
   };
@@ -261,20 +298,22 @@ export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps
     if (!bill) return;
     try {
       await apiClient(`/bill-splits/${bill.id}/payments`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'SENT' })
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "SENT" }),
       });
-      setPaymentStatus('sent');
-      toast.success('Payment marked as sent! The bill creator will be notified.');
+      setPaymentStatus("sent");
+      toast.success(
+        "Payment marked as sent! The bill creator will be notified.",
+      );
 
       // Navigate to the bill split details after a short delay for better UX
       setTimeout(() => {
-        onNavigate('bill-split-details', { billSplitId: bill.id });
+        onNavigate("bill-split-details", { billSplitId: bill.id });
       }, 1500);
     } catch (error) {
-      console.error('Failed to mark payment as sent', error);
-      toast.error('Failed to mark payment as sent');
+      console.error("Failed to mark payment as sent", error);
+      toast.error("Failed to mark payment as sent");
     }
   };
 
@@ -282,12 +321,12 @@ export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps
     formatBankAccountForRegion(appSettings.region, accountNumber);
 
   const getPaymentInstructions = () => {
-    if (!bill.paymentMethod) return '';
-    if (bill.paymentMethod.type === 'bank') {
-      return 'Use your banking app (mobile or web), or visit a branch to send this payment.';
+    if (!bill.paymentMethod) return "";
+    if (bill.paymentMethod.type === "bank") {
+      return "Use your banking app (mobile or web), or visit a branch to send this payment.";
     }
 
-    const provider = bill.paymentMethod.provider || 'your mobile money';
+    const provider = bill.paymentMethod.provider || "your mobile money";
     return `Open your ${provider} app and send money to the phone number above.`;
   };
 
@@ -296,24 +335,26 @@ export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps
       {/* Header - Sticky for better mobile navigation */}
       <div className="sticky top-0 bg-background/95 backdrop-blur-sm border-b border-border z-10">
         <div className="flex items-center space-x-3 px-4 py-3">
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={() => onNavigate('bills')}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onNavigate("bills")}
             className="min-h-[44px] min-w-[44px] -ml-2"
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="min-w-0 flex-1">
             <h2 className="text-xl font-semibold">Pay Bill Split</h2>
-            <p className="text-sm text-muted-foreground truncate">{bill.title}</p>
+            <p className="text-sm text-muted-foreground truncate">
+              {bill.title}
+            </p>
           </div>
         </div>
       </div>
 
       <div className="px-4 py-6 space-y-6 pb-32">
         {/* Payment Status */}
-        {paymentStatus === 'sent' && (
+        {paymentStatus === "sent" && (
           <Card className="border-success bg-success/5">
             <CardContent className="p-4">
               <div className="flex items-start gap-3 text-success">
@@ -321,7 +362,8 @@ export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps
                 <div className="min-w-0 flex-1">
                   <span className="font-medium">Payment Sent!</span>
                   <p className="text-sm text-muted-foreground mt-1">
-                    Your payment has been marked as sent. The bill creator will confirm receipt.
+                    Your payment has been marked as sent. The bill creator will
+                    confirm receipt.
                   </p>
                 </div>
               </div>
@@ -342,11 +384,13 @@ export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps
               {formatCurrencyForRegion(appSettings.region, bill.yourShare)}
             </div>
             <p className="text-sm text-muted-foreground mb-4">
-              Your share of {formatCurrencyForRegion(appSettings.region, bill.totalAmount)} total
+              Your share of{" "}
+              {formatCurrencyForRegion(appSettings.region, bill.totalAmount)}{" "}
+              total
             </p>
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               onClick={copyAmount}
               className="min-h-[40px]"
             >
@@ -360,7 +404,7 @@ export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps
         <Card>
           <CardHeader className="pb-4">
             <CardTitle className="flex items-center gap-2 text-lg">
-              {bill.paymentMethod.type === 'bank' ? (
+              {bill.paymentMethod.type === "bank" ? (
                 <Building2 className="h-5 w-5" />
               ) : (
                 <Smartphone className="h-5 w-5" />
@@ -378,31 +422,48 @@ export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps
                   <div className="flex items-start justify-between">
                     <div className="min-w-0 flex-1">
                       <p className="font-medium text-base mb-2">
-                        {bill.paymentMethod.type === 'bank' 
-                          ? bill.paymentMethod.bankName 
-                          : bill.paymentMethod.provider
-                        }
+                        {bill.paymentMethod.type === "bank"
+                          ? bill.paymentMethod.bankName
+                          : bill.paymentMethod.provider}
                       </p>
-                      
-                      {bill.paymentMethod.type === 'bank' ? (
+
+                      {bill.paymentMethod.type === "bank" ? (
                         <div className="space-y-2 text-sm">
                           <div className="flex justify-between">
-                            <span className="text-muted-foreground">Account Name:</span>
-                            <span className="font-medium">{bill.paymentMethod.accountHolderName}</span>
+                            <span className="text-muted-foreground">
+                              Account Name:
+                            </span>
+                            <span className="font-medium">
+                              {bill.paymentMethod.accountHolderName}
+                            </span>
                           </div>
                           {(() => {
-                            const usesRouting = requiresRoutingNumber(appSettings.region);
-                            const label = getBankIdentifierLabel(appSettings.region);
-                            const value = usesRouting ? bill.paymentMethod.routingNumber : bill.paymentMethod.sortCode;
+                            const usesRouting = requiresRoutingNumber(
+                              appSettings.region,
+                            );
+                            const label = getBankIdentifierLabel(
+                              appSettings.region,
+                            );
+                            const value = usesRouting
+                              ? bill.paymentMethod.routingNumber
+                              : bill.paymentMethod.sortCode;
                             return (
                               <>
                                 <div className="flex justify-between">
-                                  <span className="text-muted-foreground">{label}:</span>
+                                  <span className="text-muted-foreground">
+                                    {label}:
+                                  </span>
                                   <span className="font-mono">{value}</span>
                                 </div>
                                 <div className="flex justify-between">
-                                  <span className="text-muted-foreground">Account Number:</span>
-                                  <span className="font-mono">{formatAccountNumber(bill.paymentMethod.accountNumber!)}</span>
+                                  <span className="text-muted-foreground">
+                                    Account Number:
+                                  </span>
+                                  <span className="font-mono">
+                                    {formatAccountNumber(
+                                      bill.paymentMethod.accountNumber!,
+                                    )}
+                                  </span>
                                 </div>
                               </>
                             );
@@ -411,8 +472,12 @@ export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps
                       ) : (
                         <div className="text-sm">
                           <div className="flex justify-between">
-                            <span className="text-muted-foreground">Phone Number:</span>
-                            <span className="font-mono">{bill.paymentMethod.phoneNumber}</span>
+                            <span className="text-muted-foreground">
+                              Phone Number:
+                            </span>
+                            <span className="font-mono">
+                              {bill.paymentMethod.phoneNumber}
+                            </span>
                           </div>
                         </div>
                       )}
@@ -447,7 +512,7 @@ export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps
           <CardContent>
             <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
               <span className="font-mono text-sm min-w-0 flex-1 break-all">
-                Biltip-{bill.id}-{bill.title.replace(/\s+/g, '').slice(0, 10)}
+                Biltip-{bill.id}-{bill.title.replace(/\s+/g, "").slice(0, 10)}
               </span>
               <Button
                 variant="ghost"
@@ -476,10 +541,12 @@ export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps
                 <p className="text-sm">{bill.location}</p>
               </div>
             )}
-            
+
             <div>
               <p className="text-sm text-muted-foreground mb-1">Created by</p>
-              <p className="text-sm">{bill.createdBy} • {bill.date}</p>
+              <p className="text-sm">
+                {bill.createdBy} • {bill.date}
+              </p>
             </div>
 
             {bill.note && (
@@ -495,29 +562,46 @@ export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps
               <div className="flex items-center justify-between mb-3">
                 <p className="text-sm font-medium">Payment Status</p>
                 <p className="text-sm text-muted-foreground">
-                  {bill.participants.filter(p => p.paid).length} of {bill.participants.length} paid
+                  {bill.participants.filter((p) => p.paid).length} of{" "}
+                  {bill.participants.length} paid
                 </p>
               </div>
               <div className="space-y-3">
                 {bill.participants.map((participant, index) => (
-                  <div key={index} className="flex items-center justify-between">
+                  <div
+                    key={index}
+                    className="flex items-center justify-between"
+                  >
                     <div className="flex items-center gap-3 min-w-0 flex-1">
                       <Avatar className="h-8 w-8 flex-shrink-0">
                         <AvatarFallback className="text-xs">
                           {getInitials(participant.name)}
                         </AvatarFallback>
                       </Avatar>
-                      <span className="text-sm truncate">{participant.name}</span>
+                      <span className="text-sm truncate">
+                        {participant.name}
+                      </span>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      <span className="text-sm font-medium">{formatCurrencyForRegion(appSettings.region, participant.amount)}</span>
+                      <span className="text-sm font-medium">
+                        {formatCurrencyForRegion(
+                          appSettings.region,
+                          participant.amount,
+                        )}
+                      </span>
                       {participant.paid ? (
-                        <Badge variant="secondary" className="bg-success/10 text-success text-xs">
+                        <Badge
+                          variant="secondary"
+                          className="bg-success/10 text-success text-xs"
+                        >
                           <CheckCircle className="h-3 w-3 mr-1" />
                           Paid
                         </Badge>
                       ) : (
-                        <Badge variant="secondary" className="bg-warning/10 text-warning text-xs">
+                        <Badge
+                          variant="secondary"
+                          className="bg-warning/10 text-warning text-xs"
+                        >
                           Pending
                         </Badge>
                       )}
@@ -546,9 +630,12 @@ export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps
       {/* Fixed Action Buttons at Bottom */}
       <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border p-4">
         <div className="max-w-md mx-auto space-y-3">
-          {paymentStatus === 'pending' && (
+          {paymentStatus === "pending" && (
             <>
-              <Button className="w-full h-12 text-base font-medium" onClick={markAsSent}>
+              <Button
+                className="w-full h-12 text-base font-medium"
+                onClick={markAsSent}
+              >
                 <CheckCircle className="h-5 w-5 mr-2" />
                 Mark as Sent
               </Button>
@@ -557,22 +644,26 @@ export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps
                   <ExternalLink className="h-4 w-4 mr-2" />
                   Open Banking App
                 </Button>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="h-12"
-                  onClick={() => onNavigate('bill-split-details', { billSplitId: bill.id })}
+                  onClick={() =>
+                    onNavigate("bill-split-details", { billSplitId: bill.id })
+                  }
                 >
                   View Bill Details
                 </Button>
               </div>
             </>
           )}
-          
-          {paymentStatus === 'sent' && (
-            <Button 
-              variant="outline" 
+
+          {paymentStatus === "sent" && (
+            <Button
+              variant="outline"
               className="w-full h-12"
-              onClick={() => onNavigate('bill-split-details', { billSplitId: bill.id })}
+              onClick={() =>
+                onNavigate("bill-split-details", { billSplitId: bill.id })
+              }
             >
               View Bill Details
             </Button>
@@ -583,5 +674,4 @@ export function BillPaymentScreen({ billId, onNavigate }: BillPaymentScreenProps
   );
 }
 
-
-import { getInitials } from '../utils/name';
+import { getInitials } from "../utils/name";

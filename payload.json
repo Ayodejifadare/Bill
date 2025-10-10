@@ -1,1 +1,7 @@
-﻿{"email":"codex6@example.com","password":"Password123","firstName":"Debug","lastName":"User","phone":"+15550000006"}
+﻿{
+  "email": "codex6@example.com",
+  "password": "Password123",
+  "firstName": "Debug",
+  "lastName": "User",
+  "phone": "+15550000006"
+}

@@ -1,25 +1,27 @@
-import { render, screen, fireEvent, act } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent, act } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock('./UserProfileContext', () => ({
+vi.mock("./UserProfileContext", () => ({
   useUserProfile: vi.fn(() => ({
-    appSettings: { region: 'US' },
-    userProfile: { name: 'Test User' },
+    appSettings: { region: "US" },
+    userProfile: { name: "Test User" },
   })),
 }));
 
-vi.mock('./UpcomingPayments', () => ({
+vi.mock("./UpcomingPayments", () => ({
   UpcomingPayments: () => <div />,
 }));
 
-import { useUserProfile } from './UserProfileContext';
-import { HomeScreen } from './HomeScreen';
-import * as TransactionsHook from '../hooks/useTransactions';
+import { useUserProfile } from "./UserProfileContext";
+import { HomeScreen } from "./HomeScreen";
+import * as TransactionsHook from "../hooks/useTransactions";
 
 const useUserProfileSpy = useUserProfile as unknown as vi.Mock;
-const useTransactionsSpy = vi.spyOn(TransactionsHook, 'useTransactions');
+const useTransactionsSpy = vi.spyOn(TransactionsHook, "useTransactions");
 
-const mockUseTransactions = (override: Partial<TransactionsHook.UseTransactionsResult> = {}) => {
+const mockUseTransactions = (
+  override: Partial<TransactionsHook.UseTransactionsResult> = {},
+) => {
   useTransactionsSpy.mockReturnValue({
     transactions: [],
     loading: false,
@@ -34,11 +36,11 @@ const mockUseTransactions = (override: Partial<TransactionsHook.UseTransactionsR
   } as TransactionsHook.UseTransactionsResult);
 };
 
-describe('HomeScreen header', () => {
+describe("HomeScreen header", () => {
   beforeEach(() => {
     useUserProfileSpy.mockReturnValue({
-      appSettings: { region: 'US' },
-      userProfile: { name: 'Test User' },
+      appSettings: { region: "US" },
+      userProfile: { name: "Test User" },
     });
     mockUseTransactions();
     global.fetch = vi.fn().mockResolvedValue({
@@ -47,36 +49,36 @@ describe('HomeScreen header', () => {
     }) as any;
   });
 
-  it('renders name and initials from profile', () => {
+  it("renders name and initials from profile", () => {
     useUserProfileSpy.mockReturnValue({
-      appSettings: { region: 'US' },
-      userProfile: { name: 'Alice Example' },
+      appSettings: { region: "US" },
+      userProfile: { name: "Alice Example" },
     });
 
     render(<HomeScreen onNavigate={() => {}} />);
 
-    expect(screen.getByText('Alice Example')).toBeInTheDocument();
-    expect(screen.getByText('AE')).toBeInTheDocument();
+    expect(screen.getByText("Alice Example")).toBeInTheDocument();
+    expect(screen.getByText("AE")).toBeInTheDocument();
   });
 
-  it('falls back when profile name missing', () => {
+  it("falls back when profile name missing", () => {
     useUserProfileSpy.mockReturnValue({
-      appSettings: { region: 'US' },
-      userProfile: { name: '' },
+      appSettings: { region: "US" },
+      userProfile: { name: "" },
     });
 
     render(<HomeScreen onNavigate={() => {}} />);
 
-    expect(screen.getByText('there')).toBeInTheDocument();
-    expect(screen.getByText('?')).toBeInTheDocument();
+    expect(screen.getByText("there")).toBeInTheDocument();
+    expect(screen.getByText("?")).toBeInTheDocument();
   });
 });
 
-describe('HomeScreen quick actions', () => {
+describe("HomeScreen quick actions", () => {
   beforeEach(() => {
     useUserProfileSpy.mockReturnValue({
-      appSettings: { region: 'US' },
-      userProfile: { name: 'Test User' },
+      appSettings: { region: "US" },
+      userProfile: { name: "Test User" },
     });
     mockUseTransactions();
     global.fetch = vi.fn().mockResolvedValue({
@@ -85,96 +87,96 @@ describe('HomeScreen quick actions', () => {
     }) as any;
   });
 
-  it('triggers navigation for each quick action', () => {
+  it("triggers navigation for each quick action", () => {
     const onNavigate = vi.fn();
     render(<HomeScreen onNavigate={onNavigate} />);
 
     const actions = [
-      { label: /^Send$/, tab: 'send' },
-      { label: /^Request$/, tab: 'request' },
-      { label: /^Split$/, tab: 'split' },
-      { label: /^Bills$/, tab: 'bills' },
+      { label: /^Send$/, tab: "send" },
+      { label: /^Request$/, tab: "request" },
+      { label: /^Split$/, tab: "split" },
+      { label: /^Bills$/, tab: "bills" },
     ];
 
     actions.forEach(({ label, tab }) => {
-      const button = screen.getAllByRole('button', { name: label }).pop()!;
+      const button = screen.getAllByRole("button", { name: label }).pop()!;
       fireEvent.click(button);
       expect(onNavigate).toHaveBeenLastCalledWith(tab);
     });
   });
 });
 
-describe('HomeScreen notification badge', () => {
+describe("HomeScreen notification badge", () => {
   beforeEach(() => {
     useUserProfileSpy.mockReturnValue({
-      appSettings: { region: 'US' },
-      userProfile: { name: 'Test User' },
+      appSettings: { region: "US" },
+      userProfile: { name: "Test User" },
     });
     mockUseTransactions();
   });
 
-  it('reflects unread count and hides during loading', async () => {
+  it("reflects unread count and hides during loading", async () => {
     let resolveFetch: (value: any) => void;
     global.fetch = vi.fn(
       () =>
-        new Promise(res => {
+        new Promise((res) => {
           resolveFetch = res;
-        })
+        }),
     ) as any;
 
     render(<HomeScreen onNavigate={() => {}} />);
 
     // badge hidden while loading
-    expect(screen.queryByText('5')).not.toBeInTheDocument();
+    expect(screen.queryByText("5")).not.toBeInTheDocument();
 
     await act(async () => {
       resolveFetch({ ok: true, json: async () => ({ count: 5 }) });
     });
 
-    expect(await screen.findByText('5')).toBeInTheDocument();
+    expect(await screen.findByText("5")).toBeInTheDocument();
   });
 });
 
-describe('HomeScreen transaction filtering', () => {
+describe("HomeScreen transaction filtering", () => {
   let refetch: vi.Mock;
   beforeEach(() => {
     useUserProfileSpy.mockReturnValue({
-      appSettings: { region: 'US' },
-      userProfile: { name: 'Alice Example' },
+      appSettings: { region: "US" },
+      userProfile: { name: "Alice Example" },
     });
 
     const transactions = [
       {
-        id: '1',
-        type: 'sent',
+        id: "1",
+        type: "sent",
         amount: 10,
-        description: 'Paid Bob',
-        recipient: { name: 'Bob' },
-        date: '2023-01-01',
-        status: 'completed',
+        description: "Paid Bob",
+        recipient: { name: "Bob" },
+        date: "2023-01-01",
+        status: "completed",
       },
       {
-        id: '2',
-        type: 'received',
+        id: "2",
+        type: "received",
         amount: 20,
-        description: 'Received from Carol',
-        sender: { name: 'Carol' },
-        date: '2023-01-02',
-        status: 'completed',
+        description: "Received from Carol",
+        sender: { name: "Carol" },
+        date: "2023-01-02",
+        status: "completed",
       },
       {
-        id: '3',
-        type: 'split',
+        id: "3",
+        type: "split",
         amount: 30,
-        description: 'Dinner with Dan',
-        recipient: { name: 'Dan' },
-        date: '2023-01-03',
-        status: 'pending',
+        description: "Dinner with Dan",
+        recipient: { name: "Dan" },
+        date: "2023-01-03",
+        status: "pending",
       },
     ];
     refetch = vi.fn();
     useTransactionsSpy.mockImplementation((opts: any = {}) => {
-      if (opts.status === 'pending') {
+      if (opts.status === "pending") {
         return {
           transactions: [],
           loading: false,
@@ -200,7 +202,7 @@ describe('HomeScreen transaction filtering', () => {
           refetch: vi.fn(),
         } as TransactionsHook.UseTransactionsResult;
       }
-      if (opts.limit === 0 && opts.type === 'sent') {
+      if (opts.limit === 0 && opts.type === "sent") {
         return {
           transactions: [],
           loading: false,
@@ -213,7 +215,7 @@ describe('HomeScreen transaction filtering', () => {
           refetch: vi.fn(),
         } as TransactionsHook.UseTransactionsResult;
       }
-      if (opts.limit === 0 && (opts.type === 'received')) {
+      if (opts.limit === 0 && opts.type === "received") {
         return {
           transactions: [],
           loading: false,
@@ -245,46 +247,48 @@ describe('HomeScreen transaction filtering', () => {
     }) as any;
   });
 
-  it('calls refetch with correct type and shows counts from API', () => {
+  it("calls refetch with correct type and shows counts from API", () => {
     render(<HomeScreen onNavigate={() => {}} />);
 
     refetch.mockClear();
 
-    const allButton = screen.getAllByRole('button', { name: /^All/ }).pop()!;
-    const sentButton = screen.getAllByRole('button', { name: /^Sent/ }).pop()!;
-    const receivedButton = screen.getAllByRole('button', { name: /^Received/ }).pop()!;
+    const allButton = screen.getAllByRole("button", { name: /^All/ }).pop()!;
+    const sentButton = screen.getAllByRole("button", { name: /^Sent/ }).pop()!;
+    const receivedButton = screen
+      .getAllByRole("button", { name: /^Received/ })
+      .pop()!;
 
-    expect(allButton).toHaveTextContent('(3)');
-    expect(sentButton).toHaveTextContent('(1)');
-    expect(receivedButton).toHaveTextContent('(2)');
+    expect(allButton).toHaveTextContent("(3)");
+    expect(sentButton).toHaveTextContent("(1)");
+    expect(receivedButton).toHaveTextContent("(2)");
 
     fireEvent.click(sentButton);
-    expect(refetch).toHaveBeenLastCalledWith({ type: 'sent' });
+    expect(refetch).toHaveBeenLastCalledWith({ type: "sent" });
 
     fireEvent.click(receivedButton);
-    expect(refetch).toHaveBeenLastCalledWith({ type: 'received' });
+    expect(refetch).toHaveBeenLastCalledWith({ type: "received" });
 
     fireEvent.click(allButton);
     expect(refetch).toHaveBeenLastCalledWith({ type: undefined });
   });
 });
 
-describe('HomeScreen currency symbol', () => {
+describe("HomeScreen currency symbol", () => {
   beforeEach(() => {
     useUserProfileSpy.mockReturnValue({
-      appSettings: { region: 'US' },
-      userProfile: { name: 'Test User' },
+      appSettings: { region: "US" },
+      userProfile: { name: "Test User" },
     });
     mockUseTransactions({
       transactions: [
         {
-          id: '1',
-          type: 'sent',
+          id: "1",
+          type: "sent",
           amount: 10,
-          description: 'Test payment',
-          recipient: { name: 'Bob' },
-          date: '2023-01-01',
-          status: 'completed',
+          description: "Test payment",
+          recipient: { name: "Bob" },
+          date: "2023-01-01",
+          status: "completed",
         },
       ],
     });
@@ -294,10 +298,10 @@ describe('HomeScreen currency symbol', () => {
     }) as any;
   });
 
-  it('uses $ for US region', () => {
+  it("uses $ for US region", () => {
     useUserProfileSpy.mockReturnValue({
-      appSettings: { region: 'US' },
-      userProfile: { name: 'Test User' },
+      appSettings: { region: "US" },
+      userProfile: { name: "Test User" },
     });
 
     render(<HomeScreen onNavigate={() => {}} />);
@@ -305,10 +309,10 @@ describe('HomeScreen currency symbol', () => {
     expect(screen.getAllByText(/\$10\.00/)[0]).toBeInTheDocument();
   });
 
-  it('uses ₦ for NG region', () => {
+  it("uses ₦ for NG region", () => {
     useUserProfileSpy.mockReturnValue({
-      appSettings: { region: 'NG' },
-      userProfile: { name: 'Test User' },
+      appSettings: { region: "NG" },
+      userProfile: { name: "Test User" },
     });
 
     render(<HomeScreen onNavigate={() => {}} />);

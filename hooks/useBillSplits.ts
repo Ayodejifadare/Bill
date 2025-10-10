@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback } from 'react';
-import { apiClient } from '../utils/apiClient';
+import { useEffect, useState, useCallback } from "react";
+import { apiClient } from "../utils/apiClient";
 
 export interface BillParticipant {
   name: string;
@@ -12,7 +12,7 @@ export interface BillSplit {
   title: string;
   totalAmount: number;
   yourShare: number;
-  status: 'pending' | 'completed' | string;
+  status: "pending" | "completed" | string;
   participants: BillParticipant[];
   createdBy: string;
   date: string;
@@ -45,7 +45,9 @@ interface UseBillSplitsResult {
   refetch: (opts?: UseBillSplitsOptions) => void;
 }
 
-export function useBillSplits(initialOptions: UseBillSplitsOptions = {}): UseBillSplitsResult {
+export function useBillSplits(
+  initialOptions: UseBillSplitsOptions = {},
+): UseBillSplitsResult {
   const {
     groupId,
     category,
@@ -79,33 +81,59 @@ export function useBillSplits(initialOptions: UseBillSplitsOptions = {}): UseBil
         };
 
         const params = new URLSearchParams();
-        if (current.groupId) params.append('groupId', current.groupId);
-        if (current.category) params.append('category', current.category);
-        if (current.minAmount !== undefined) params.append('minAmount', String(current.minAmount));
-        if (current.maxAmount !== undefined) params.append('maxAmount', String(current.maxAmount));
-        if (current.keyword) params.append('keyword', current.keyword);
-        if (current.page) params.append('page', String(current.page));
-        if (current.size) params.append('size', String(current.size));
+        if (current.groupId) params.append("groupId", current.groupId);
+        if (current.category) params.append("category", current.category);
+        if (current.minAmount !== undefined)
+          params.append("minAmount", String(current.minAmount));
+        if (current.maxAmount !== undefined)
+          params.append("maxAmount", String(current.maxAmount));
+        if (current.keyword) params.append("keyword", current.keyword);
+        if (current.page) params.append("page", String(current.page));
+        if (current.size) params.append("size", String(current.size));
 
         const endpoint = `/bill-splits?${params.toString()}`;
         const data = await apiClient(endpoint);
-        const raw: any[] = Array.isArray(data.billSplits) ? data.billSplits : [];
+        const raw: any[] = Array.isArray(data.billSplits)
+          ? data.billSplits
+          : [];
         const mapped = raw.map((b: any) => {
-          const participantsRaw: any[] = Array.isArray(b.participants) ? b.participants : [];
-          const participants: BillParticipant[] = participantsRaw.map((p: any) => ({
-            name: typeof p?.name === 'string' ? p.name : (p?.user?.name || 'Unknown'),
-            amount: typeof p?.amount === 'number' ? p.amount : Number(p?.amount || 0),
-            paid: typeof p?.paid === 'boolean' ? p.paid : Boolean(p?.isPaid)
-          }));
+          const participantsRaw: any[] = Array.isArray(b.participants)
+            ? b.participants
+            : [];
+          const participants: BillParticipant[] = participantsRaw.map(
+            (p: any) => ({
+              name:
+                typeof p?.name === "string"
+                  ? p.name
+                  : p?.user?.name || "Unknown",
+              amount:
+                typeof p?.amount === "number"
+                  ? p.amount
+                  : Number(p?.amount || 0),
+              paid: typeof p?.paid === "boolean" ? p.paid : Boolean(p?.isPaid),
+            }),
+          );
           return {
             id: String(b.id),
-            title: b.title ?? '',
-            totalAmount: typeof b.totalAmount === 'number' ? b.totalAmount : Number(b.totalAmount || 0),
-            yourShare: typeof b.yourShare === 'number' ? b.yourShare : Number(b.yourShare || 0),
-            status: (b.status as any) || 'pending',
+            title: b.title ?? "",
+            totalAmount:
+              typeof b.totalAmount === "number"
+                ? b.totalAmount
+                : Number(b.totalAmount || 0),
+            yourShare:
+              typeof b.yourShare === "number"
+                ? b.yourShare
+                : Number(b.yourShare || 0),
+            status: (b.status as any) || "pending",
             participants,
-            createdBy: typeof b.createdBy === 'string' ? b.createdBy : (b.createdBy?.name || 'Unknown'),
-            date: typeof b.date === 'string' ? b.date : (b.createdAt || new Date().toISOString()),
+            createdBy:
+              typeof b.createdBy === "string"
+                ? b.createdBy
+                : b.createdBy?.name || "Unknown",
+            date:
+              typeof b.date === "string"
+                ? b.date
+                : b.createdAt || new Date().toISOString(),
             groupId: b.groupId,
             groupName: b.groupName,
           } as BillSplit;
@@ -114,7 +142,9 @@ export function useBillSplits(initialOptions: UseBillSplitsOptions = {}): UseBil
         setTotal(data.total ?? 0);
         setPageCount(data.pageCount ?? 0);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch bill splits');
+        setError(
+          err instanceof Error ? err.message : "Failed to fetch bill splits",
+        );
         setBillSplits([]);
         setTotal(0);
         setPageCount(0);
@@ -122,12 +152,19 @@ export function useBillSplits(initialOptions: UseBillSplitsOptions = {}): UseBil
         setLoading(false);
       }
     },
-    [groupId, category, minAmount, maxAmount, keyword, page, size]
+    [groupId, category, minAmount, maxAmount, keyword, page, size],
   );
 
   useEffect(() => {
     fetchBillSplits();
   }, [fetchBillSplits]);
 
-  return { billSplits, loading, error, total, pageCount, refetch: fetchBillSplits };
+  return {
+    billSplits,
+    loading,
+    error,
+    total,
+    pageCount,
+    refetch: fetchBillSplits,
+  };
 }

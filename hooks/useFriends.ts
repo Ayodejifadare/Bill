@@ -1,12 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
-import { apiClient } from '../utils/apiClient';
+import { useState, useEffect, useCallback } from "react";
+import { apiClient } from "../utils/apiClient";
 
 export interface Friend {
   id: string;
   name: string;
   avatar?: string;
   phoneNumber?: string;
-  status: 'active' | 'pending' | 'blocked';
+  status: "active" | "pending" | "blocked";
 }
 
 let friendsCache: Friend[] | null = null;
@@ -15,7 +15,7 @@ let inflight: Promise<Friend[]> | null = null;
 export async function fetchFriends(): Promise<Friend[]> {
   if (friendsCache) return friendsCache;
   if (inflight) return inflight;
-  inflight = apiClient('/friends')
+  inflight = apiClient("/friends")
     .then((data) => {
       const raw = Array.isArray(data.friends) ? data.friends : [];
       // Normalize server payloads that don't include a status field
@@ -24,9 +24,9 @@ export async function fetchFriends(): Promise<Friend[]> {
         name: f.name,
         avatar: f.avatar,
         phoneNumber: f.phoneNumber || f.phone,
-        status: (f.status as Friend['status']) || 'active',
+        status: (f.status as Friend["status"]) || "active",
       }));
-      friendsCache = normalized.filter((f) => f.status === 'active');
+      friendsCache = normalized.filter((f) => f.status === "active");
       return friendsCache;
     })
     .finally(() => {
@@ -37,7 +37,7 @@ export async function fetchFriends(): Promise<Friend[]> {
 
 export function invalidateFriendsCache() {
   friendsCache = null;
-  window.dispatchEvent(new Event('friendsUpdated'));
+  window.dispatchEvent(new Event("friendsUpdated"));
 }
 
 export function useFriends() {
@@ -53,7 +53,7 @@ export function useFriends() {
       setFriends(data);
       return data;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch friends');
+      setError(err instanceof Error ? err.message : "Failed to fetch friends");
       setFriends([]);
       return [];
     } finally {
@@ -73,8 +73,8 @@ export function useFriends() {
         setFriends([...friendsCache]);
       }
     };
-    window.addEventListener('friendsUpdated', handleUpdate);
-    return () => window.removeEventListener('friendsUpdated', handleUpdate);
+    window.addEventListener("friendsUpdated", handleUpdate);
+    return () => window.removeEventListener("friendsUpdated", handleUpdate);
   }, []);
 
   return { friends, loading, error, refetch: load };

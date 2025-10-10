@@ -1,19 +1,20 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { LoginScreen } from './LoginScreen';
-import { useUserProfile } from './UserProfileContext';
-import { apiClient } from '../utils/apiClient';
-import { toast } from 'sonner';
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import * as React from "react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { LoginScreen } from "./LoginScreen";
+import { useUserProfile } from "./UserProfileContext";
+import { apiClient } from "../utils/apiClient";
+import { toast } from "sonner";
 
-vi.mock('./UserProfileContext', () => ({
+vi.mock("./UserProfileContext", () => ({
   useUserProfile: vi.fn(),
 }));
 
-vi.mock('../utils/apiClient', () => ({
+vi.mock("../utils/apiClient", () => ({
   apiClient: vi.fn(),
 }));
 
-vi.mock('sonner', () => ({
+vi.mock("sonner", () => ({
   toast: {
     success: vi.fn(),
     error: vi.fn(),
@@ -21,8 +22,7 @@ vi.mock('sonner', () => ({
   },
 }));
 
-vi.mock('./ui/select', () => {
-  const React = require('react');
+vi.mock("./ui/select", () => {
 
   const SelectContentComponent = ({ children }: any) => <>{children}</>;
   const SelectItemComponent = ({ value }: any) => (
@@ -52,7 +52,7 @@ vi.mock('./ui/select', () => {
         <option value="" disabled>
           Select country
         </option>
-        {options.map(option => (
+        {options.map((option) => (
           <option key={option.value} value={option.value}>
             {option.value}
           </option>
@@ -73,7 +73,7 @@ vi.mock('./ui/select', () => {
   };
 });
 
-describe('LoginScreen', () => {
+describe("LoginScreen", () => {
   const useUserProfileMock = vi.mocked(useUserProfile);
   const apiClientMock = vi.mocked(apiClient);
   const toastMock = toast as unknown as {
@@ -92,30 +92,35 @@ describe('LoginScreen', () => {
     toastMock.success.mockReset();
   });
 
-  it('redirects to registration when OTP request reports missing user', async () => {
+  it("redirects to registration when OTP request reports missing user", async () => {
     const onLogin = vi.fn();
     const onShowRegister = vi.fn();
 
-    apiClientMock.mockRejectedValue(new Error('User not found'));
+    apiClientMock.mockRejectedValue(new Error("User not found"));
 
-    render(
-      <LoginScreen
-        onLogin={onLogin}
-        onShowRegister={onShowRegister}
-      />
+    render(<LoginScreen onLogin={onLogin} onShowRegister={onShowRegister} />);
+
+    fireEvent.change(screen.getByTestId("country-select"), {
+      target: { value: "US" },
+    });
+    fireEvent.change(screen.getByLabelText(/Phone number/), {
+      target: { value: "5551234567" },
+    });
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Send verification code" }),
     );
-
-    fireEvent.change(screen.getByTestId('country-select'), { target: { value: 'US' } });
-    fireEvent.change(screen.getByLabelText(/Phone number/), { target: { value: '5551234567' } });
-
-    fireEvent.click(screen.getByRole('button', { name: 'Send verification code' }));
 
     await waitFor(() => {
       expect(onShowRegister).toHaveBeenCalledTimes(1);
     });
 
     expect(onLogin).not.toHaveBeenCalled();
-    expect(screen.queryByText('Enter verification code')).not.toBeInTheDocument();
-    expect(toastMock.info).toHaveBeenCalledWith('No account found for that number. Let\'s create one!');
+    expect(
+      screen.queryByText("Enter verification code"),
+    ).not.toBeInTheDocument();
+    expect(toastMock.info).toHaveBeenCalledWith(
+      "No account found for that number. Let's create one!",
+    );
   });
 });

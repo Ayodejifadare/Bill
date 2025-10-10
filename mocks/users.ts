@@ -1,11 +1,11 @@
-type LookupIdentifierType = 'email' | 'phone' | 'username';
+type LookupIdentifierType = "email" | "phone" | "username";
 
 type LookupRelationshipStatus =
-  | 'none'
-  | 'friends'
-  | 'pending_outgoing'
-  | 'pending_incoming'
-  | 'self';
+  | "none"
+  | "friends"
+  | "pending_outgoing"
+  | "pending_incoming"
+  | "self";
 
 interface MockLookupFixture {
   identifiers: Partial<Record<LookupIdentifierType, string>>;
@@ -19,21 +19,28 @@ interface MockLookupFixture {
   };
 }
 
-const VALID_LOOKUP_TYPES: LookupIdentifierType[] = ['email', 'phone', 'username'];
+const VALID_LOOKUP_TYPES: LookupIdentifierType[] = [
+  "email",
+  "phone",
+  "username",
+];
 
-function normalizeIdentifier(value: string, type: LookupIdentifierType): string | null {
+function normalizeIdentifier(
+  value: string,
+  type: LookupIdentifierType,
+): string | null {
   const trimmed = value.trim();
   if (!trimmed) return null;
 
   switch (type) {
-    case 'email':
+    case "email":
       return trimmed.toLowerCase();
-    case 'phone': {
-      const digits = trimmed.replace(/\D/g, '');
+    case "phone": {
+      const digits = trimmed.replace(/\D/g, "");
       return digits || null;
     }
-    case 'username':
-      return trimmed.replace(/^@+/, '').toLowerCase();
+    case "username":
+      return trimmed.replace(/^@+/, "").toLowerCase();
     default:
       return null;
   }
@@ -41,41 +48,41 @@ function normalizeIdentifier(value: string, type: LookupIdentifierType): string 
 
 function inferLookupType(value: string): LookupIdentifierType {
   const trimmed = value.trim();
-  if (!trimmed) return 'email';
-  if (trimmed.includes('@')) return 'email';
-  const digits = trimmed.replace(/\D/g, '');
-  if (digits.length >= 7) return 'phone';
-  return 'username';
+  if (!trimmed) return "email";
+  if (trimmed.includes("@")) return "email";
+  const digits = trimmed.replace(/\D/g, "");
+  if (digits.length >= 7) return "phone";
+  return "username";
 }
 
 export const mockUsers = {
   demo: {
-    id: 'demo-user',
-    name: 'Demo User',
-    email: 'demo@example.com',
-    phone: '+1 (555) 123-0000',
-    avatar: 'https://example.com/avatar-demo.png',
+    id: "demo-user",
+    name: "Demo User",
+    email: "demo@example.com",
+    phone: "+1 (555) 123-0000",
+    avatar: "https://example.com/avatar-demo.png",
   },
   friend: {
-    id: 'friend-user',
-    name: 'Friendly Neighbor',
-    email: 'friend@example.com',
-    phone: '+1 (555) 123-0001',
-    avatar: 'https://example.com/avatar-friend.png',
+    id: "friend-user",
+    name: "Friendly Neighbor",
+    email: "friend@example.com",
+    phone: "+1 (555) 123-0001",
+    avatar: "https://example.com/avatar-friend.png",
   },
   pendingOutgoing: {
-    id: 'pending-user',
-    name: 'Pending Pat',
-    email: 'pending@example.com',
-    phone: '+1 (555) 123-0002',
-    avatar: 'https://example.com/avatar-pending.png',
+    id: "pending-user",
+    name: "Pending Pat",
+    email: "pending@example.com",
+    phone: "+1 (555) 123-0002",
+    avatar: "https://example.com/avatar-pending.png",
   },
   stranger: {
-    id: 'new-user',
-    name: 'New User',
-    email: 'newperson@example.com',
-    phone: '+1 (555) 123-0003',
-    avatar: 'https://example.com/avatar-new.png',
+    id: "new-user",
+    name: "New User",
+    email: "newperson@example.com",
+    phone: "+1 (555) 123-0003",
+    avatar: "https://example.com/avatar-new.png",
   },
 } as const;
 
@@ -84,44 +91,44 @@ export const lookupUserFixtures: MockLookupFixture[] = [
     identifiers: {
       email: mockUsers.demo.email,
       phone: mockUsers.demo.phone,
-      username: 'demouser',
+      username: "demouser",
     },
     user: {
       ...mockUsers.demo,
-      relationshipStatus: 'self',
+      relationshipStatus: "self",
     },
   },
   {
     identifiers: {
       email: mockUsers.friend.email,
       phone: mockUsers.friend.phone,
-      username: 'friendlyneigh',
+      username: "friendlyneigh",
     },
     user: {
       ...mockUsers.friend,
-      relationshipStatus: 'friends',
+      relationshipStatus: "friends",
     },
   },
   {
     identifiers: {
       email: mockUsers.pendingOutgoing.email,
       phone: mockUsers.pendingOutgoing.phone,
-      username: 'pendingpat',
+      username: "pendingpat",
     },
     user: {
       ...mockUsers.pendingOutgoing,
-      relationshipStatus: 'pending_outgoing',
+      relationshipStatus: "pending_outgoing",
     },
   },
   {
     identifiers: {
       email: mockUsers.stranger.email,
       phone: mockUsers.stranger.phone,
-      username: 'newperson',
+      username: "newperson",
     },
     user: {
       ...mockUsers.stranger,
-      relationshipStatus: 'none',
+      relationshipStatus: "none",
     },
   },
 ];
@@ -129,7 +136,7 @@ export const lookupUserFixtures: MockLookupFixture[] = [
 export const demoProfile = {
   ...mockUsers.demo,
   createdAt: new Date().toISOString(),
-  kycStatus: 'verified' as const,
+  kycStatus: "verified" as const,
 };
 
 export const demoStats = {
@@ -162,40 +169,43 @@ export async function handle(path: string, _init?: RequestInit) {
   }
 
   if (/^\/(api\/)?users\/[^/]+\/payment-methods$/.test(path)) {
-    const parts = path.split('/');
     return [
       {
-        id: 'pm-bank-1',
-        type: 'bank',
-        bankName: 'Mock Bank',
-        accountHolderName: 'Demo User',
-        accountNumber: '1234567890',
-        sortCode: '044',
+        id: "pm-bank-1",
+        type: "bank",
+        bankName: "Mock Bank",
+        accountHolderName: "Demo User",
+        accountNumber: "1234567890",
+        sortCode: "044",
         isDefault: true,
       },
       {
-        id: 'pm-mm-1',
-        type: 'mobile_money',
-        provider: 'Opay',
-        phoneNumber: '+2348012345678',
+        id: "pm-mm-1",
+        type: "mobile_money",
+        provider: "Opay",
+        phoneNumber: "+2348012345678",
         isDefault: false,
       },
     ];
   }
 
   if (/^\/(api\/)?users\/lookup/.test(path)) {
-    const url = new URL(path, 'http://mock.api');
-    const identifier = url.searchParams.get('identifier')?.trim() ?? '';
+    const url = new URL(path, "http://mock.api");
+    const identifier = url.searchParams.get("identifier")?.trim() ?? "";
     if (!identifier) {
       return { user: null };
     }
 
-    const typeParam = url.searchParams.get('type')?.trim().toLowerCase();
-    if (typeParam && !VALID_LOOKUP_TYPES.includes(typeParam as LookupIdentifierType)) {
+    const typeParam = url.searchParams.get("type")?.trim().toLowerCase();
+    if (
+      typeParam &&
+      !VALID_LOOKUP_TYPES.includes(typeParam as LookupIdentifierType)
+    ) {
       return { user: null };
     }
 
-    const lookupType = (typeParam as LookupIdentifierType) ?? inferLookupType(identifier);
+    const lookupType =
+      (typeParam as LookupIdentifierType) ?? inferLookupType(identifier);
     let match = findLookupMatch(identifier, lookupType);
 
     if (!match && !typeParam) {
@@ -220,7 +230,7 @@ export async function handle(path: string, _init?: RequestInit) {
   }
 
   if (/^\/(api\/)?users\/[^/]+$/.test(path)) {
-    const parts = path.split('/');
+    const parts = path.split("/");
     const id = parts[parts.length - 1];
     return { user: { ...demoProfile, id } };
   }

@@ -1,9 +1,19 @@
-import { ArrowLeft, AlertCircle, Smartphone, FileText, Upload, MessageCircle, Shield, UserPlus, Zap } from 'lucide-react';
-import { Button } from '../ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Badge } from '../ui/badge';
-import { ContactSyncScreenProps } from './types';
-import { contactsAPI } from '../../utils/contacts-api';
+import {
+  ArrowLeft,
+  AlertCircle,
+  Smartphone,
+  FileText,
+  Upload,
+  MessageCircle,
+  Shield,
+  UserPlus,
+  Zap,
+} from "lucide-react";
+import { Button } from "../ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { Badge } from "../ui/badge";
+import { ContactSyncScreenProps } from "./types";
+import { contactsAPI } from "../../utils/contacts-api";
 
 interface PermissionRequestScreenProps extends ContactSyncScreenProps {
   contactsSupported: boolean;
@@ -21,7 +31,7 @@ export function PermissionRequestScreen({
   handleFileImport,
   handleDemoMode,
   denyPermission,
-  hasPermission: _hasPermission
+  hasPermission: _hasPermission,
 }: PermissionRequestScreenProps) {
   const isInCrossOrigin = contactsAPI.isInCrossOriginContext();
   const shouldUseFileInput = contactsAPI.shouldUseFileInput();
@@ -35,14 +45,16 @@ export function PermissionRequestScreen({
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => _onNavigate('add-friend')}
+              onClick={() => _onNavigate("add-friend")}
               className="min-h-[44px] min-w-[44px] -ml-2"
             >
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div>
               <h1 className="text-lg font-semibold">Sync Contacts</h1>
-              <p className="text-sm text-muted-foreground">Find friends on Biltip</p>
+              <p className="text-sm text-muted-foreground">
+                Find friends on Biltip
+              </p>
             </div>
           </div>
         </div>
@@ -58,7 +70,8 @@ export function PermissionRequestScreen({
             </div>
             <CardTitle className="text-xl mb-2">Connect with Friends</CardTitle>
             <p className="text-muted-foreground">
-              Find friends who are already using Biltip and invite others via WhatsApp.
+              Find friends who are already using Biltip and invite others via
+              WhatsApp.
             </p>
           </CardHeader>
 
@@ -71,27 +84,33 @@ export function PermissionRequestScreen({
                 </div>
                 <div>
                   <p className="font-medium text-sm">Find existing users</p>
-                  <p className="text-xs text-muted-foreground">Connect instantly with friends already on Biltip</p>
+                  <p className="text-xs text-muted-foreground">
+                    Connect instantly with friends already on Biltip
+                  </p>
                 </div>
               </div>
-              
+
               <div className="flex items-start space-x-3">
                 <div className="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center flex-shrink-0">
                   <MessageCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
                 </div>
                 <div>
                   <p className="font-medium text-sm">WhatsApp invitations</p>
-                  <p className="text-xs text-muted-foreground">Send personalized invites through WhatsApp</p>
+                  <p className="text-xs text-muted-foreground">
+                    Send personalized invites through WhatsApp
+                  </p>
                 </div>
               </div>
-              
+
               <div className="flex items-start space-x-3">
                 <div className="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center flex-shrink-0">
                   <Shield className="h-4 w-4 text-green-600 dark:text-green-400" />
                 </div>
                 <div>
                   <p className="font-medium text-sm">Private & secure</p>
-                  <p className="text-xs text-muted-foreground">Contacts are processed locally and never stored</p>
+                  <p className="text-xs text-muted-foreground">
+                    Contacts are processed locally and never stored
+                  </p>
                 </div>
               </div>
 
@@ -101,7 +120,9 @@ export function PermissionRequestScreen({
                 </div>
                 <div>
                   <p className="font-medium text-sm">Lightning fast</p>
-                  <p className="text-xs text-muted-foreground">Sync thousands of contacts in seconds</p>
+                  <p className="text-xs text-muted-foreground">
+                    Sync thousands of contacts in seconds
+                  </p>
                 </div>
               </div>
             </div>
@@ -114,13 +135,14 @@ export function PermissionRequestScreen({
                     <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
                     <div>
                       <p className="font-medium text-amber-800 dark:text-amber-200 text-sm">
-                        {isInCrossOrigin ? 'Limited Access Mode' : 'Web Browser Mode'}
+                        {isInCrossOrigin
+                          ? "Limited Access Mode"
+                          : "Web Browser Mode"}
                       </p>
                       <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
-                        {isInCrossOrigin 
-                          ? 'Contact sync works best in our mobile app. You can import a file or try our demo.' 
-                          : 'For the best experience, use our mobile app. File import and demo are available.'
-                        }
+                        {isInCrossOrigin
+                          ? "Contact sync works best in our mobile app. You can import a file or try our demo."
+                          : "For the best experience, use our mobile app. File import and demo are available."}
                       </p>
                     </div>
                   </div>
@@ -131,27 +153,32 @@ export function PermissionRequestScreen({
             {/* Action Buttons */}
             <div className="space-y-3">
               {/* Primary Action - Contact Access */}
-              <Button 
-                onClick={requestContactPermission} 
+              <Button
+                onClick={requestContactPermission}
                 className="w-full min-h-[52px] text-base font-medium bg-green-600 hover:bg-green-700 text-white"
                 size="lg"
               >
                 <Smartphone className="h-5 w-5 mr-3" />
-                {contactsSupported ? 'Allow Contact Access' : 'Try Demo Version'}
+                {contactsSupported
+                  ? "Allow Contact Access"
+                  : "Try Demo Version"}
                 {contactsSupported && (
-                  <Badge variant="secondary" className="ml-2 bg-white/20 text-white border-0 text-xs">
+                  <Badge
+                    variant="secondary"
+                    className="ml-2 bg-white/20 text-white border-0 text-xs"
+                  >
                     Recommended
                   </Badge>
                 )}
               </Button>
-              
+
               {/* Alternative Options */}
               <div className="grid gap-2">
                 {/* File Import */}
                 {(!contactsSupported || shouldUseFileInput) && (
-                  <Button 
+                  <Button
                     variant="outline"
-                    onClick={handleFileImport} 
+                    onClick={handleFileImport}
                     className="w-full min-h-[48px]"
                   >
                     {shouldUseFileInput ? (
@@ -167,21 +194,21 @@ export function PermissionRequestScreen({
                     )}
                   </Button>
                 )}
-                
+
                 {/* Demo Mode */}
                 {handleDemoMode && (
-                  <Button 
+                  <Button
                     variant="outline"
-                    onClick={handleDemoMode} 
+                    onClick={handleDemoMode}
                     className="w-full min-h-[48px]"
                   >
                     <Zap className="h-4 w-4 mr-2" />
                     Try Demo
                   </Button>
                 )}
-                
+
                 {/* Skip Option */}
-                <Button 
+                <Button
                   variant="ghost"
                   onClick={denyPermission}
                   className="w-full min-h-[48px] text-muted-foreground"
@@ -195,7 +222,8 @@ export function PermissionRequestScreen({
             <div className="pt-4 border-t border-border">
               <p className="text-xs text-center text-muted-foreground leading-relaxed">
                 <Shield className="h-3 w-3 inline mr-1" />
-                Your privacy matters. Contacts are processed securely on your device and are never stored on our servers.
+                Your privacy matters. Contacts are processed securely on your
+                device and are never stored on our servers.
               </p>
             </div>
           </CardContent>
@@ -217,37 +245,50 @@ export function PermissionRequestScreen({
                     1
                   </div>
                   <div>
-                    <p className="font-medium">Export contacts from your phone</p>
-                    <p className="text-muted-foreground text-xs">Save as CSV or VCF file from your contacts app</p>
+                    <p className="font-medium">
+                      Export contacts from your phone
+                    </p>
+                    <p className="text-muted-foreground text-xs">
+                      Save as CSV or VCF file from your contacts app
+                    </p>
                   </div>
                 </div>
-                
+
                 <div className="flex items-start space-x-3">
                   <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-medium">
                     2
                   </div>
                   <div>
                     <p className="font-medium">Transfer file to this device</p>
-                    <p className="text-muted-foreground text-xs">Email to yourself or use cloud storage</p>
+                    <p className="text-muted-foreground text-xs">
+                      Email to yourself or use cloud storage
+                    </p>
                   </div>
                 </div>
-                
+
                 <div className="flex items-start space-x-3">
                   <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-medium">
                     3
                   </div>
                   <div>
                     <p className="font-medium">Import and sync</p>
-                    <p className="text-muted-foreground text-xs">Click "{shouldUseFileInput ? 'Upload Contact File' : 'Import Contact File'}" above</p>
+                    <p className="text-muted-foreground text-xs">
+                      Click "
+                      {shouldUseFileInput
+                        ? "Upload Contact File"
+                        : "Import Contact File"}
+                      " above
+                    </p>
                   </div>
                 </div>
               </div>
-              
+
               {isInCrossOrigin && (
                 <div className="mt-4 p-3 bg-muted/50 rounded-lg">
                   <p className="text-xs text-muted-foreground">
                     <AlertCircle className="h-3 w-3 inline mr-1" />
-                    Due to security restrictions, a file selection dialog will open when you click the import button.
+                    Due to security restrictions, a file selection dialog will
+                    open when you click the import button.
                   </p>
                 </div>
               )}

@@ -1,4 +1,4 @@
-import { LucideIcon } from 'lucide-react';
+import { LucideIcon } from "lucide-react";
 
 interface QuickAction {
   id: string;
@@ -14,9 +14,16 @@ interface QuickActionsProps {
   className?: string;
 }
 
-export function QuickActions({ actions, columns = 4, className = '' }: QuickActionsProps) {
+export function QuickActions({
+  actions,
+  columns = 4,
+  className = "",
+}: QuickActionsProps) {
   return (
-    <div className={`grid gap-4 ${className}`} style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}>
+    <div
+      className={`grid gap-4 ${className}`}
+      style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}
+    >
       {actions.map((action) => {
         const Icon = action.icon;
         return (

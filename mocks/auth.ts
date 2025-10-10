@@ -1,48 +1,48 @@
 export async function handle(path: string, init?: RequestInit) {
-  const body = typeof init?.body === 'string' ? init.body : undefined;
+  const body = typeof init?.body === "string" ? init.body : undefined;
   const data = body ? JSON.parse(body) : {};
 
   // Use a syntactically valid JWT string to satisfy client-side token checks
   const demoJwt =
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.' +
-    'eyJ1c2VySWQiOiJkZW1vLXVzZXIiLCJ0b2tlblZlcnNpb24iOjAsImlhdCI6MTcwMDAwMDAwMCwiZXhwIjoyMDk5OTk5OTk5fQ.' +
-    'dGVzdF9zaWduYXR1cmU';
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9." +
+    "eyJ1c2VySWQiOiJkZW1vLXVzZXIiLCJ0b2tlblZlcnNpb24iOjAsImlhdCI6MTcwMDAwMDAwMCwiZXhwIjoyMDk5OTk5OTk5fQ." +
+    "dGVzdF9zaWduYXR1cmU";
 
-  if (path === '/auth/request-otp') {
+  if (path === "/auth/request-otp") {
     // Include an OTP in mock to improve DX
-    return { message: 'OTP sent', otp: '123456' };
+    return { message: "OTP sent", otp: "123456" };
   }
 
-  if (path === '/auth/verify-otp') {
+  if (path === "/auth/verify-otp") {
     // Accept provided OTP or the demo OTP; return a demo JWT
-    const providedOtp = String(data?.otp ?? '');
-    if (providedOtp && providedOtp !== '123456') {
+    const providedOtp = String(data?.otp ?? "");
+    if (providedOtp && providedOtp !== "123456") {
       // Simulate invalid OTP
-      throw new Error('Invalid or expired OTP');
+      throw new Error("Invalid or expired OTP");
     }
     return {
       token: demoJwt,
       user: {
-        id: 'demo-user',
-        name: 'Demo User',
+        id: "demo-user",
+        name: "Demo User",
         phone: data.phone,
-        email: data.email || 'demo@example.com',
+        email: data.email || "demo@example.com",
         createdAt: new Date().toISOString(),
       },
     };
   }
 
-  if (path === '/auth/register') {
+  if (path === "/auth/register") {
     // Echo back a created user and token to mirror server shape
-    const firstName = String(data?.firstName || 'Demo');
-    const lastName = String(data?.lastName || 'User');
+    const firstName = String(data?.firstName || "Demo");
+    const lastName = String(data?.lastName || "User");
     const name = `${firstName} ${lastName}`.trim();
-    const phone = String(data?.phone || '+15550000000');
-    const email = String(data?.email || 'demo@example.com');
+    const phone = String(data?.phone || "+15550000000");
+    const email = String(data?.email || "demo@example.com");
     return {
-      message: 'User created successfully',
+      message: "User created successfully",
       user: {
-        id: 'mock-user-id',
+        id: "mock-user-id",
         email,
         name,
         firstName,
@@ -60,8 +60,8 @@ export async function handle(path: string, init?: RequestInit) {
     };
   }
 
-  if (path === '/auth/logout') {
-    return { message: 'Logged out' };
+  if (path === "/auth/logout") {
+    return { message: "Logged out" };
   }
 
   throw new Error(`No mock handler for path: ${path}`);

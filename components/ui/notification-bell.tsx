@@ -1,10 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
-import { Bell } from 'lucide-react';
-import { EventSourcePolyfill } from 'event-source-polyfill';
-import { Button } from './button';
-import { Alert, AlertDescription } from './alert';
-import { apiClientWithRetry } from '../../utils/apiClientWithRetry';
-import { apiBaseUrl } from '../../utils/config';
+import { useState, useEffect, useRef } from "react";
+import { Bell } from "lucide-react";
+import { EventSourcePolyfill } from "event-source-polyfill";
+import { Button } from "./button";
+import { Alert, AlertDescription } from "./alert";
+import { apiClientWithRetry } from "../../utils/apiClientWithRetry";
+import { apiBaseUrl } from "../../utils/config";
 
 interface NotificationBellProps {
   onClick: () => void;
@@ -41,23 +41,23 @@ export function NotificationBell({ onClick }: NotificationBellProps) {
   };
 
   function buildSseUrl(): string {
-    const resource = '/notifications/stream';
-    const base = apiBaseUrl || '/api';
+    const resource = "/notifications/stream";
+    const base = apiBaseUrl || "/api";
     const isAbs = /^https?:\/\//i.test(base);
     if (isAbs) {
       const u = new URL(base);
-      const basePath = u.pathname.replace(/\/+$/, '');
+      const basePath = u.pathname.replace(/\/+$/, "");
       const baseHasApi = /(^|\/)api(\/|$)/.test(basePath);
-      const path = `${baseHasApi ? '' : '/api'}${resource}`;
+      const path = `${baseHasApi ? "" : "/api"}${resource}`;
       return `${u.origin}${basePath}${path}`;
     }
-    return `${base.replace(/\/+$/, '')}${resource}`;
+    return `${base.replace(/\/+$/, "")}${resource}`;
   }
 
   const connectSSE = () => {
-    const storedAuth = localStorage.getItem('biltip_auth');
+    const storedAuth = localStorage.getItem("biltip_auth");
     const token = storedAuth ? JSON.parse(storedAuth).token : null;
-    if (token && typeof window !== 'undefined') {
+    if (token && typeof window !== "undefined") {
       const url = buildSseUrl();
       const es = new EventSourcePolyfill(url, {
         headers: { Authorization: `Bearer ${token}` },
@@ -65,7 +65,7 @@ export function NotificationBell({ onClick }: NotificationBellProps) {
       es.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          if (typeof data.unread === 'number') {
+          if (typeof data.unread === "number") {
             setUnread(data.unread);
           }
         } catch {
@@ -73,7 +73,7 @@ export function NotificationBell({ onClick }: NotificationBellProps) {
         }
       };
       es.onerror = () => {
-        setError('Connection error');
+        setError("Connection error");
         handleFailure();
       };
       esRef.current = es;
@@ -86,7 +86,7 @@ export function NotificationBell({ onClick }: NotificationBellProps) {
       setErrorCount(0);
     }
     try {
-      const data = await apiClientWithRetry('/notifications/unread');
+      const data = await apiClientWithRetry("/notifications/unread");
       setUnread((data as any)?.count || 0);
       setError(null);
       setErrorCount(0);
@@ -128,17 +128,24 @@ export function NotificationBell({ onClick }: NotificationBellProps) {
         <Bell className="h-5 w-5" />
         {!loading && unread > 0 && (
           <span className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-xs rounded-full h-5 w-5 flex items-center justify-center">
-            {unread > 9 ? '9+' : unread}
+            {unread > 9 ? "9+" : unread}
           </span>
         )}
       </Button>
       {error && (
-        <Alert variant="destructive" className="absolute right-0 top-full mt-2 w-64">
+        <Alert
+          variant="destructive"
+          className="absolute right-0 top-full mt-2 w-64"
+        >
           <AlertDescription className="space-y-2">
-              <span>{error}</span>
-              <Button size="sm" variant="outline" onClick={() => fetchUnread(true)}>
-                Retry
-              </Button>
+            <span>{error}</span>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => fetchUnread(true)}
+            >
+              Retry
+            </Button>
           </AlertDescription>
         </Alert>
       )}

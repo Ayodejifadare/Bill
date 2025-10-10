@@ -1,15 +1,20 @@
-import { useState } from 'react';
-import { Plus, Users, MoreHorizontal, Crown } from 'lucide-react';
-import { Button } from './ui/button';
-import { Card } from './ui/card';
-import { Avatar, AvatarFallback } from './ui/avatar';
-import { Badge } from './ui/badge';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
-import { EmptyState } from './ui/empty-state';
-import { ListSkeleton, ErrorRetry } from './ui/loading';
-import { useGroups } from '../hooks/useGroups';
-import { useUserProfile } from './UserProfileContext';
-import { formatCurrencyForRegion } from '../utils/regions';
+import { useState } from "react";
+import { Plus, Users, MoreHorizontal, Crown } from "lucide-react";
+import { Button } from "./ui/button";
+import { Card } from "./ui/card";
+import { Avatar, AvatarFallback } from "./ui/avatar";
+import { Badge } from "./ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
+import { EmptyState } from "./ui/empty-state";
+import { ListSkeleton, ErrorRetry } from "./ui/loading";
+import { useGroups } from "../hooks/useGroups";
+import { useUserProfile } from "./UserProfileContext";
+import { formatCurrencyForRegion } from "../utils/regions";
 
 interface GroupSectionProps {
   onNavigate: (tab: string, data?: any) => void;
@@ -22,21 +27,24 @@ export function GroupSection({ onNavigate }: GroupSectionProps) {
   const fmt = (n: number) => formatCurrencyForRegion(appSettings.region, n);
 
   const displayedGroups = showAllGroups ? groups : groups.slice(0, 2);
-  const totalPendingBills = groups.reduce((sum, group) => sum + group.pendingBills, 0);
+  const totalPendingBills = groups.reduce(
+    (sum, group) => sum + group.pendingBills,
+    0,
+  );
 
   const handleGroupClick = (groupId: string) => {
-    const group = groups.find(g => g.id === groupId);
-    onNavigate('group-details', { groupId, group });
+    const group = groups.find((g) => g.id === groupId);
+    onNavigate("group-details", { groupId, group });
   };
 
   const handleCreateGroup = () => {
-    onNavigate('create-group');
+    onNavigate("create-group");
   };
 
   const handleSplitWithGroup = (groupId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    const group = groups.find(g => g.id === groupId);
-    onNavigate('split', { groupId, group });
+    const group = groups.find((g) => g.id === groupId);
+    onNavigate("split", { groupId, group });
   };
 
   return (
@@ -75,7 +83,9 @@ export function GroupSection({ onNavigate }: GroupSectionProps) {
                 {/* Group Header */}
                 <div className="flex items-start justify-between">
                   <div className="flex items-start space-x-3">
-                    <div className={`w-12 h-12 rounded-full ${group.color} flex items-center justify-center text-white`}>
+                    <div
+                      className={`w-12 h-12 rounded-full ${group.color} flex items-center justify-center text-white`}
+                    >
                       <Users className="h-6 w-6" />
                     </div>
                     <div className="flex-1">
@@ -85,30 +95,45 @@ export function GroupSection({ onNavigate }: GroupSectionProps) {
                           <Crown className="h-4 w-4 text-warning" />
                         )}
                         {group.pendingBills > 0 && (
-                          <Badge variant="outline" className="text-xs text-warning">
+                          <Badge
+                            variant="outline"
+                            className="text-xs text-warning"
+                          >
                             {group.pendingBills} pending
                           </Badge>
                         )}
                       </div>
-                      <p className="text-sm text-muted-foreground">{group.description}</p>
-                      <p className="text-xs text-muted-foreground">{group.memberCount} members • {group.lastActive}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {group.description}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {group.memberCount} members • {group.lastActive}
+                      </p>
                     </div>
                   </div>
-                  
+
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" onClick={(e) => e.stopPropagation()}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <MoreHorizontal className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={(e) => {
-                        e.stopPropagation();
-                        handleGroupClick(group.id);
-                      }}>
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleGroupClick(group.id);
+                        }}
+                      >
                         View Details
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={(e) => handleSplitWithGroup(group.id, e)}>
+                      <DropdownMenuItem
+                        onClick={(e) => handleSplitWithGroup(group.id, e)}
+                      >
                         Split Bill
                       </DropdownMenuItem>
                       {group.isAdmin && (
@@ -143,10 +168,14 @@ export function GroupSection({ onNavigate }: GroupSectionProps) {
                       )}
                     </div>
                   </div>
-                  
+
                   <div className="text-right">
-                    <p className="text-sm font-medium">{fmt(group.totalSpent)} spent</p>
-                    <p className="text-xs text-muted-foreground">{group.recentActivity}</p>
+                    <p className="text-sm font-medium">
+                      {fmt(group.totalSpent)} spent
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {group.recentActivity}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -161,7 +190,9 @@ export function GroupSection({ onNavigate }: GroupSectionProps) {
               className="w-full"
               onClick={() => setShowAllGroups(!showAllGroups)}
             >
-              {showAllGroups ? 'Show Less' : `Show ${groups.length - 2} More Groups`}
+              {showAllGroups
+                ? "Show Less"
+                : `Show ${groups.length - 2} More Groups`}
             </Button>
           )}
         </div>
@@ -177,7 +208,11 @@ export function GroupSection({ onNavigate }: GroupSectionProps) {
 
       {/* Quick Actions */}
       <div className="grid grid-cols-2 gap-3">
-        <Button variant="outline" className="w-full" onClick={handleCreateGroup}>
+        <Button
+          variant="outline"
+          className="w-full"
+          onClick={handleCreateGroup}
+        >
           <Plus className="h-4 w-4 mr-2" />
           New Group
         </Button>

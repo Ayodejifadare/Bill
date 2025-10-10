@@ -1,205 +1,207 @@
 /**
  * @vitest-environment node
  */
-import express from 'express'
-import request from 'supertest'
-import { describe, it, expect, beforeEach, beforeAll, vi } from 'vitest'
-import bcrypt from 'bcryptjs'
-import jwt from 'jsonwebtoken'
+import express from "express";
+import request from "supertest";
+import { describe, it, expect, beforeEach, beforeAll, vi } from "vitest";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 
-let authRouter
+let authRouter;
 
 beforeAll(async () => {
-  process.env.JWT_SECRET = 'test-secret'
-  authRouter = (await import('./auth.js')).default
-})
+  process.env.JWT_SECRET = "test-secret";
+  authRouter = (await import("./auth.js")).default;
+});
 
-describe('Auth routes - OTP validation', () => {
-  let app
+describe("Auth routes - OTP validation", () => {
+  let app;
 
   beforeEach(() => {
-    app = express()
-    app.use(express.json())
+    app = express();
+    app.use(express.json());
     app.use((req, res, next) => {
-      req.prisma = {}
-      next()
-    })
-    app.use('/auth', authRouter)
-  })
+      req.prisma = {};
+      next();
+    });
+    app.use("/auth", authRouter);
+  });
 
-  it('rejects OTPs that are not 6 digits', async () => {
+  it("rejects OTPs that are not 6 digits", async () => {
     const res = await request(app)
-      .post('/auth/verify-otp')
-      .send({ phone: '+12345678901', otp: '1234' })
+      .post("/auth/verify-otp")
+      .send({ phone: "+12345678901", otp: "1234" });
 
-    expect(res.status).toBe(400)
+    expect(res.status).toBe(400);
     expect(res.body.errors[0]).toMatchObject({
-      path: 'otp',
-      msg: 'OTP must be exactly 6 digits'
-    })
-  })
+      path: "otp",
+      msg: "OTP must be exactly 6 digits",
+    });
+  });
 
-  it('rejects OTPs that contain non-numeric characters', async () => {
+  it("rejects OTPs that contain non-numeric characters", async () => {
     const res = await request(app)
-      .post('/auth/verify-otp')
-      .send({ phone: '+12345678901', otp: '12a456' })
+      .post("/auth/verify-otp")
+      .send({ phone: "+12345678901", otp: "12a456" });
 
-    expect(res.status).toBe(400)
+    expect(res.status).toBe(400);
     expect(res.body.errors[0]).toMatchObject({
-      path: 'otp',
-      msg: 'OTP must contain only numbers'
-    })
-  })
-})
+      path: "otp",
+      msg: "OTP must contain only numbers",
+    });
+  });
+});
 
-describe('Auth routes - register', () => {
-  let app
-  let findUnique
-  let findFirst
-  let create
+describe("Auth routes - register", () => {
+  let app;
+  let findUnique;
+  let findFirst;
+  let create;
 
   beforeEach(() => {
-    findUnique = vi.fn(async () => null)
-    findFirst = vi.fn(async () => null)
-    create = vi.fn(async ({ data }) => ({ ...data, id: 'u1' }))
+    findUnique = vi.fn(async () => null);
+    findFirst = vi.fn(async () => null);
+    create = vi.fn(async ({ data }) => ({ ...data, id: "u1" }));
 
-    app = express()
-    app.use(express.json())
+    app = express();
+    app.use(express.json());
     app.use((req, res, next) => {
       req.prisma = {
         user: {
           findUnique,
           findFirst,
-          create
-        }
-      }
-      next()
-    })
-    app.use('/auth', authRouter)
-  })
+          create,
+        },
+      };
+      next();
+    });
+    app.use("/auth", authRouter);
+  });
 
-  it('creates a user and combines first and last name', async () => {
-    vi.spyOn(bcrypt, 'hash').mockResolvedValue('hashed')
+  it("creates a user and combines first and last name", async () => {
+    vi.spyOn(bcrypt, "hash").mockResolvedValue("hashed");
 
-    const res = await request(app)
-      .post('/auth/register')
-      .send({
-        firstName: 'John',
-        lastName: 'Doe',
-        email: 'john@example.com',
-        phone: '+12345678901',
-        password: 'secret123'
-      })
+    const res = await request(app).post("/auth/register").send({
+      firstName: "John",
+      lastName: "Doe",
+      email: "john@example.com",
+      phone: "+12345678901",
+      password: "secret123",
+    });
 
-    expect(res.status).toBe(201)
+    expect(res.status).toBe(201);
     expect(res.body.user).toMatchObject({
-      firstName: 'John',
-      lastName: 'Doe',
-      name: 'John Doe'
-    })
-    expect(findFirst).toHaveBeenCalledWith({ where: { phone: '+12345678901' } })
-    expect(create).toHaveBeenCalledWith(expect.objectContaining({
-      data: expect.objectContaining({ phone: '+12345678901' })
-    }))
+      firstName: "John",
+      lastName: "Doe",
+      name: "John Doe",
+    });
+    expect(findFirst).toHaveBeenCalledWith({
+      where: { phone: "+12345678901" },
+    });
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ phone: "+12345678901" }),
+      }),
+    );
 
-    vi.restoreAllMocks()
-  })
+    vi.restoreAllMocks();
+  });
 
-  it('rejects registration when phone already exists', async () => {
-    findFirst.mockResolvedValueOnce({ id: 'existing' })
+  it("rejects registration when phone already exists", async () => {
+    findFirst.mockResolvedValueOnce({ id: "existing" });
 
-    const res = await request(app)
-      .post('/auth/register')
-      .send({
-        firstName: 'Jane',
-        lastName: 'Roe',
-        email: 'jane@example.com',
-        phone: '+12345678901',
-        password: 'secret123'
-      })
+    const res = await request(app).post("/auth/register").send({
+      firstName: "Jane",
+      lastName: "Roe",
+      email: "jane@example.com",
+      phone: "+12345678901",
+      password: "secret123",
+    });
 
-    expect(res.status).toBe(400)
-    expect(res.body).toEqual({ error: 'Phone already registered' })
-    expect(create).not.toHaveBeenCalled()
-  })
-})
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: "Phone already registered" });
+    expect(create).not.toHaveBeenCalled();
+  });
+});
 
-describe('Auth routes - me and logout', () => {
-  let app
-  let findUnique
-  let update
-  let token
+describe("Auth routes - me and logout", () => {
+  let app;
+  let findUnique;
+  let update;
+  let token;
 
   const user = {
-    id: 'u1',
-    email: 'john@example.com',
-    name: 'John Doe',
+    id: "u1",
+    email: "john@example.com",
+    name: "John Doe",
     balance: 0,
     avatar: null,
-    createdAt: new Date('2023-01-01'),
+    createdAt: new Date("2023-01-01"),
     tokenVersion: 1,
     phoneVerified: true,
     emailVerified: true,
     idVerified: false,
     documentsSubmitted: false,
-    onboardingCompleted: false
-  }
+    onboardingCompleted: false,
+  };
 
   beforeEach(() => {
-    findUnique = vi.fn(async () => ({ ...user }))
-    update = vi.fn(async () => ({}))
+    findUnique = vi.fn(async () => ({ ...user }));
+    update = vi.fn(async () => ({}));
 
-    token = jwt.sign({ userId: user.id, tokenVersion: user.tokenVersion }, process.env.JWT_SECRET)
+    token = jwt.sign(
+      { userId: user.id, tokenVersion: user.tokenVersion },
+      process.env.JWT_SECRET,
+    );
 
-    app = express()
-    app.use(express.json())
+    app = express();
+    app.use(express.json());
     app.use((req, res, next) => {
       req.prisma = {
         user: {
           findUnique,
-          update
-        }
-      }
-      next()
-    })
-    app.use('/auth', authRouter)
-  })
+          update,
+        },
+      };
+      next();
+    });
+    app.use("/auth", authRouter);
+  });
 
-  it('returns current user with valid token', async () => {
+  it("returns current user with valid token", async () => {
     const res = await request(app)
-      .get('/auth/me')
-      .set('Authorization', `Bearer ${token}`)
+      .get("/auth/me")
+      .set("Authorization", `Bearer ${token}`);
 
-    expect(res.status).toBe(200)
-    expect(res.body.user).toMatchObject({ id: user.id })
-    expect(findUnique).toHaveBeenCalled()
-  })
+    expect(res.status).toBe(200);
+    expect(res.body.user).toMatchObject({ id: user.id });
+    expect(findUnique).toHaveBeenCalled();
+  });
 
-  it('responds with 401 when no token provided for /me', async () => {
-    const res = await request(app).get('/auth/me')
+  it("responds with 401 when no token provided for /me", async () => {
+    const res = await request(app).get("/auth/me");
 
-    expect(res.status).toBe(401)
-    expect(res.body).toEqual({ error: 'No token provided' })
-  })
+    expect(res.status).toBe(401);
+    expect(res.body).toEqual({ error: "No token provided" });
+  });
 
-  it('logs out user with valid token', async () => {
+  it("logs out user with valid token", async () => {
     const res = await request(app)
-      .post('/auth/logout')
-      .set('Authorization', `Bearer ${token}`)
+      .post("/auth/logout")
+      .set("Authorization", `Bearer ${token}`);
 
-    expect(res.status).toBe(200)
-    expect(res.body).toEqual({ message: 'Logged out' })
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ message: "Logged out" });
     expect(update).toHaveBeenCalledWith({
       where: { id: user.id },
-      data: { tokenVersion: { increment: 1 } }
-    })
-  })
+      data: { tokenVersion: { increment: 1 } },
+    });
+  });
 
-  it('responds with 401 when no token provided for /logout', async () => {
-    const res = await request(app).post('/auth/logout')
+  it("responds with 401 when no token provided for /logout", async () => {
+    const res = await request(app).post("/auth/logout");
 
-    expect(res.status).toBe(401)
-    expect(res.body).toEqual({ error: 'No token provided' })
-  })
-})
-
+    expect(res.status).toBe(401);
+    expect(res.body).toEqual({ error: "No token provided" });
+  });
+});

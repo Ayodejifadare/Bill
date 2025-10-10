@@ -22,7 +22,7 @@ function Switch({
         "touch-manipulation active:scale-95",
         // Size variants with mobile optimization
         "data-[size=sm]:h-5 data-[size=sm]:w-9",
-        "data-[size=default]:h-6 data-[size=default]:w-11", 
+        "data-[size=default]:h-6 data-[size=default]:w-11",
         "data-[size=lg]:h-7 data-[size=lg]:w-12",
         // Ensure minimum touch target on mobile
         "min-h-[24px] min-w-[44px]",

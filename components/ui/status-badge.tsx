@@ -1,10 +1,10 @@
-import { Badge } from './badge';
-import { LucideIcon } from 'lucide-react';
+import { Badge } from "./badge";
+import { LucideIcon } from "lucide-react";
 
 interface StatusConfig {
   color: string;
   icon?: LucideIcon;
-  variant?: 'default' | 'secondary' | 'destructive' | 'outline';
+  variant?: "default" | "secondary" | "destructive" | "outline";
 }
 
 interface StatusBadgeProps {
@@ -13,9 +13,13 @@ interface StatusBadgeProps {
   className?: string;
 }
 
-export function StatusBadge({ status, statusConfigs, className = '' }: StatusBadgeProps) {
+export function StatusBadge({
+  status,
+  statusConfigs,
+  className = "",
+}: StatusBadgeProps) {
   const config = statusConfigs[status] || statusConfigs.default;
-  
+
   if (!config) {
     return (
       <Badge variant="secondary" className={className}>
@@ -23,12 +27,12 @@ export function StatusBadge({ status, statusConfigs, className = '' }: StatusBad
       </Badge>
     );
   }
-  
+
   const Icon = config.icon;
-  
+
   return (
     <Badge
-      variant={config.variant || 'secondary'}
+      variant={config.variant || "secondary"}
       className={`${config.color} flex items-center gap-1 ${className}`}
     >
       {Icon && <Icon className="h-4 w-4" />}

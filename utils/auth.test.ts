@@ -1,16 +1,22 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
-import { saveAuth, loadAuth, clearAuth } from './auth';
+import { saveAuth, loadAuth, clearAuth } from "./auth";
 
-const AUTH_KEY = 'biltip_auth';
-const USER_KEY = 'biltip_user';
+const AUTH_KEY = "biltip_auth";
+const USER_KEY = "biltip_user";
 
-const originalWindow = typeof globalThis.window !== 'undefined' ? globalThis.window : undefined;
-const originalLocalStorage = typeof globalThis.localStorage !== 'undefined' ? globalThis.localStorage : undefined;
+const originalWindow =
+  typeof globalThis.window !== "undefined" ? globalThis.window : undefined;
+const originalLocalStorage =
+  typeof globalThis.localStorage !== "undefined"
+    ? globalThis.localStorage
+    : undefined;
 const originalLocalStorageDescriptor =
-  typeof originalWindow !== 'undefined' ? Object.getOwnPropertyDescriptor(originalWindow, 'localStorage') : undefined;
+  typeof originalWindow !== "undefined"
+    ? Object.getOwnPropertyDescriptor(originalWindow, "localStorage")
+    : undefined;
 
-describe('auth storage helpers', () => {
+describe("auth storage helpers", () => {
   let store: Record<string, string>;
   let getItemMock: ReturnType<typeof vi.fn>;
   let setItemMock: ReturnType<typeof vi.fn>;
@@ -40,56 +46,72 @@ describe('auth storage helpers', () => {
       },
     } as unknown as Storage;
 
-    if (typeof globalThis.window === 'undefined') {
+    if (typeof globalThis.window === "undefined") {
       (globalThis as any).window = {};
     }
 
-    Object.defineProperty(globalThis.window as Window, 'localStorage', {
+    Object.defineProperty(globalThis.window as Window, "localStorage", {
       configurable: true,
       value: localStorageMock,
     });
 
-    vi.stubGlobal('localStorage', localStorageMock);
+    vi.stubGlobal("localStorage", localStorageMock);
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
 
-    if (typeof globalThis.window === 'undefined' && typeof originalWindow !== 'undefined') {
+    if (
+      typeof globalThis.window === "undefined" &&
+      typeof originalWindow !== "undefined"
+    ) {
       (globalThis as any).window = originalWindow;
     }
 
-    if (typeof globalThis.window !== 'undefined') {
+    if (typeof globalThis.window !== "undefined") {
       if (originalLocalStorageDescriptor) {
-        Object.defineProperty(globalThis.window as Window, 'localStorage', originalLocalStorageDescriptor);
+        Object.defineProperty(
+          globalThis.window as Window,
+          "localStorage",
+          originalLocalStorageDescriptor,
+        );
       } else {
-        delete (globalThis.window as unknown as Record<string, unknown>).localStorage;
+        delete (globalThis.window as unknown as Record<string, unknown>)
+          .localStorage;
       }
     }
 
-    if (typeof originalLocalStorage !== 'undefined') {
+    if (typeof originalLocalStorage !== "undefined") {
       (globalThis as any).localStorage = originalLocalStorage;
     } else {
       delete (globalThis as unknown as Record<string, unknown>).localStorage;
     }
   });
 
-  it('saveAuth stores auth and user data', () => {
-    const authData = { token: 'abc', expiresAt: Date.now() };
-    const userData = { name: 'Test User' };
+  it("saveAuth stores auth and user data", () => {
+    const authData = { token: "abc", expiresAt: Date.now() };
+    const userData = { name: "Test User" };
 
     saveAuth({ auth: authData, user: userData });
 
-    expect(setItemMock).toHaveBeenNthCalledWith(1, AUTH_KEY, JSON.stringify(authData));
-    expect(setItemMock).toHaveBeenNthCalledWith(2, USER_KEY, JSON.stringify(userData));
+    expect(setItemMock).toHaveBeenNthCalledWith(
+      1,
+      AUTH_KEY,
+      JSON.stringify(authData),
+    );
+    expect(setItemMock).toHaveBeenNthCalledWith(
+      2,
+      USER_KEY,
+      JSON.stringify(userData),
+    );
     expect(store[AUTH_KEY]).toBe(JSON.stringify(authData));
     expect(store[USER_KEY]).toBe(JSON.stringify(userData));
   });
 
-  it('loadAuth returns parsed objects when both entries exist', () => {
-    const authData = { token: 'def', expiresAt: Date.now() + 1000 };
-    const userData = { name: 'Another User' };
+  it("loadAuth returns parsed objects when both entries exist", () => {
+    const authData = { token: "def", expiresAt: Date.now() + 1000 };
+    const userData = { name: "Another User" };
 
     store[AUTH_KEY] = JSON.stringify(authData);
     store[USER_KEY] = JSON.stringify(userData);
@@ -101,8 +123,8 @@ describe('auth storage helpers', () => {
     expect(getItemMock).toHaveBeenCalledWith(USER_KEY);
   });
 
-  it('loadAuth returns null when either entry is missing', () => {
-    store[AUTH_KEY] = JSON.stringify({ token: 'xyz' });
+  it("loadAuth returns null when either entry is missing", () => {
+    store[AUTH_KEY] = JSON.stringify({ token: "xyz" });
 
     const result = loadAuth();
 
@@ -111,9 +133,9 @@ describe('auth storage helpers', () => {
     expect(getItemMock).toHaveBeenCalledWith(USER_KEY);
   });
 
-  it('loadAuth returns null when stored data cannot be parsed', () => {
-    store[AUTH_KEY] = '{invalid-json';
-    store[USER_KEY] = JSON.stringify({ name: 'Broken' });
+  it("loadAuth returns null when stored data cannot be parsed", () => {
+    store[AUTH_KEY] = "{invalid-json";
+    store[USER_KEY] = JSON.stringify({ name: "Broken" });
 
     const result = loadAuth();
 
@@ -122,9 +144,9 @@ describe('auth storage helpers', () => {
     expect(getItemMock).toHaveBeenCalledWith(USER_KEY);
   });
 
-  it('clearAuth removes both stored entries', () => {
-    store[AUTH_KEY] = JSON.stringify({ token: 'aaa' });
-    store[USER_KEY] = JSON.stringify({ name: 'bbb' });
+  it("clearAuth removes both stored entries", () => {
+    store[AUTH_KEY] = JSON.stringify({ token: "aaa" });
+    store[USER_KEY] = JSON.stringify({ name: "bbb" });
 
     clearAuth();
 
@@ -134,9 +156,9 @@ describe('auth storage helpers', () => {
     expect(store[USER_KEY]).toBeUndefined();
   });
 
-  it('auth helpers no-op when window is undefined', () => {
-    const authData = { token: 'noop-token' };
-    const userData = { name: 'No Window' };
+  it("auth helpers no-op when window is undefined", () => {
+    const authData = { token: "noop-token" };
+    const userData = { name: "No Window" };
     const currentWindow = globalThis.window;
 
     try {
@@ -152,7 +174,7 @@ describe('auth storage helpers', () => {
       clearAuth();
       expect(removeItemMock).not.toHaveBeenCalled();
     } finally {
-      if (typeof currentWindow !== 'undefined') {
+      if (typeof currentWindow !== "undefined") {
         (globalThis as any).window = currentWindow;
       }
     }

@@ -1,12 +1,18 @@
-import { useState, useEffect } from 'react';
-import { ArrowLeft, Smartphone, ExternalLink, CheckCircle, RefreshCw } from 'lucide-react';
-import { Button } from './ui/button';
-import { Card } from './ui/card';
-import { Badge } from './ui/badge';
-import { Progress } from './ui/progress';
-import { toast } from 'sonner';
-import { useUserProfile } from './UserProfileContext';
-import { formatCurrencyForRegion } from '../utils/regions';
+import { useState, useEffect } from "react";
+import {
+  ArrowLeft,
+  Smartphone,
+  ExternalLink,
+  CheckCircle,
+  RefreshCw,
+} from "lucide-react";
+import { Button } from "./ui/button";
+import { Card } from "./ui/card";
+import { Badge } from "./ui/badge";
+import { Progress } from "./ui/progress";
+import { toast } from "sonner";
+import { useUserProfile } from "./UserProfileContext";
+import { formatCurrencyForRegion } from "../utils/regions";
 
 interface BankingRedirectScreenProps {
   paymentRequest: {
@@ -37,10 +43,16 @@ interface LinkedBankOption {
   isDefault: boolean;
 }
 
-export function BankingRedirectScreen({ paymentRequest, method, onNavigate }: BankingRedirectScreenProps) {
+export function BankingRedirectScreen({
+  paymentRequest,
+  method,
+  onNavigate,
+}: BankingRedirectScreenProps) {
   const { userProfile, appSettings } = useUserProfile();
   const fmt = (n: number) => formatCurrencyForRegion(appSettings.region, n);
-  const linkedBanks: LinkedBankOption[] = (userProfile?.linkedBankAccounts ?? []).map(account => ({
+  const linkedBanks: LinkedBankOption[] = (
+    userProfile?.linkedBankAccounts ?? []
+  ).map((account) => ({
     id: account.id,
     name: account.bankName,
     accountName: account.accountName,
@@ -49,26 +61,30 @@ export function BankingRedirectScreen({ paymentRequest, method, onNavigate }: Ba
     deepLink: account.deepLink,
     backgroundColor: account.backgroundColor,
     isVerified: account.isVerified,
-    isDefault: account.isDefault
+    isDefault: account.isDefault,
   }));
 
   const [selectedBank, setSelectedBank] = useState<string | null>(
-    linkedBanks.find(bank => bank.isDefault)?.id || linkedBanks[0]?.id || null
+    linkedBanks.find((bank) => bank.isDefault)?.id ||
+      linkedBanks[0]?.id ||
+      null,
   );
-  const [redirectStatus, setRedirectStatus] = useState<'selecting' | 'redirecting' | 'waiting' | 'checking'>('selecting');
+  const [redirectStatus, setRedirectStatus] = useState<
+    "selecting" | "redirecting" | "waiting" | "checking"
+  >("selecting");
   const [timeLeft, setTimeLeft] = useState(300); // 5 minutes
   const [checkAttempts, setCheckAttempts] = useState(0);
 
   useEffect(() => {
     let timer: ReturnType<typeof setInterval> | undefined;
-    
-    if (redirectStatus === 'waiting' && timeLeft > 0) {
+
+    if (redirectStatus === "waiting" && timeLeft > 0) {
       timer = setInterval(() => {
         setTimeLeft((prev) => prev - 1);
       }, 1000);
     } else if (timeLeft === 0) {
-      setRedirectStatus('selecting');
-      toast.error('Payment session expired. Please try again.');
+      setRedirectStatus("selecting");
+      toast.error("Payment session expired. Please try again.");
     }
 
     return () => {
@@ -79,17 +95,17 @@ export function BankingRedirectScreen({ paymentRequest, method, onNavigate }: Ba
   // Simulate checking for payment completion
   useEffect(() => {
     let checkTimer: ReturnType<typeof setInterval> | undefined;
-    
-    if (redirectStatus === 'waiting') {
+
+    if (redirectStatus === "waiting") {
       checkTimer = setInterval(() => {
-        setCheckAttempts(prev => prev + 1);
-        
+        setCheckAttempts((prev) => prev + 1);
+
         // Simulate random payment completion after some attempts
         if (checkAttempts > 3 && Math.random() > 0.7) {
-          onNavigate('payment-confirmation', {
+          onNavigate("payment-confirmation", {
             paymentRequest,
             method,
-            status: 'success'
+            status: "success",
           });
         }
       }, 3000);
@@ -104,7 +120,7 @@ export function BankingRedirectScreen({ paymentRequest, method, onNavigate }: Ba
     return (
       <div className="space-y-6">
         <div className="flex items-center space-x-4">
-          <Button variant="ghost" size="sm" onClick={() => onNavigate('bills')}>
+          <Button variant="ghost" size="sm" onClick={() => onNavigate("bills")}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <h2>Payment</h2>
@@ -117,34 +133,36 @@ export function BankingRedirectScreen({ paymentRequest, method, onNavigate }: Ba
   }
 
   const totalAmount = paymentRequest.amount + method.fees;
-  const selectedBankData = linkedBanks.find(bank => bank.id === selectedBank);
+  const selectedBankData = linkedBanks.find((bank) => bank.id === selectedBank);
 
   const handleBankSelection = (bankId: string) => {
     setSelectedBank(bankId);
-    setRedirectStatus('redirecting');
-    
+    setRedirectStatus("redirecting");
+
     // Simulate opening banking app
     setTimeout(() => {
-      setRedirectStatus('waiting');
+      setRedirectStatus("waiting");
       setTimeLeft(300);
-      toast.success('Redirected to banking app');
+      toast.success("Redirected to banking app");
     }, 1500);
   };
 
   const handleManualCheck = () => {
-    setRedirectStatus('checking');
-    
+    setRedirectStatus("checking");
+
     setTimeout(() => {
       // Simulate payment check
       if (Math.random() > 0.5) {
-        onNavigate('payment-confirmation', {
+        onNavigate("payment-confirmation", {
           paymentRequest,
           method,
-          status: 'success'
+          status: "success",
         });
       } else {
-        setRedirectStatus('waiting');
-        toast.error('Payment not detected yet. Please complete the payment in your banking app.');
+        setRedirectStatus("waiting");
+        toast.error(
+          "Payment not detected yet. Please complete the payment in your banking app.",
+        );
       }
     }, 2000);
   };
@@ -152,10 +170,10 @@ export function BankingRedirectScreen({ paymentRequest, method, onNavigate }: Ba
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
   };
 
-  if (redirectStatus === 'redirecting') {
+  if (redirectStatus === "redirecting") {
     return (
       <div className="space-y-6">
         <div className="flex items-center space-x-4">
@@ -167,7 +185,7 @@ export function BankingRedirectScreen({ paymentRequest, method, onNavigate }: Ba
 
         <Card className="p-6">
           <div className="text-center space-y-4">
-            <div 
+            <div
               className="w-16 h-16 rounded-full flex items-center justify-center mx-auto text-white"
               style={{ backgroundColor: selectedBankData?.backgroundColor }}
             >
@@ -189,11 +207,15 @@ export function BankingRedirectScreen({ paymentRequest, method, onNavigate }: Ba
     );
   }
 
-  if (redirectStatus === 'waiting' || redirectStatus === 'checking') {
+  if (redirectStatus === "waiting" || redirectStatus === "checking") {
     return (
       <div className="space-y-6">
         <div className="flex items-center space-x-4">
-          <Button variant="ghost" size="sm" onClick={() => setRedirectStatus('selecting')}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setRedirectStatus("selecting")}
+          >
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <h2>Waiting for Payment</h2>
@@ -203,10 +225,14 @@ export function BankingRedirectScreen({ paymentRequest, method, onNavigate }: Ba
         <Card className="p-4 bg-warning/10 border-warning">
           <div className="flex items-center space-x-3">
             <div className="w-8 h-8 rounded-full bg-warning text-warning-foreground flex items-center justify-center">
-              <span className="text-sm font-bold">{Math.floor(timeLeft / 60)}</span>
+              <span className="text-sm font-bold">
+                {Math.floor(timeLeft / 60)}
+              </span>
             </div>
             <div>
-              <p className="text-sm font-medium">Session expires in {formatTime(timeLeft)}</p>
+              <p className="text-sm font-medium">
+                Session expires in {formatTime(timeLeft)}
+              </p>
               <p className="text-xs text-muted-foreground">
                 Complete your payment before the session expires
               </p>
@@ -217,12 +243,12 @@ export function BankingRedirectScreen({ paymentRequest, method, onNavigate }: Ba
         {/* Status */}
         <Card className="p-6">
           <div className="text-center space-y-4">
-            {redirectStatus === 'checking' ? (
+            {redirectStatus === "checking" ? (
               <div className="w-16 h-16 rounded-full bg-primary text-primary-foreground flex items-center justify-center mx-auto">
                 <RefreshCw className="h-8 w-8 animate-spin" />
               </div>
             ) : (
-              <div 
+              <div
                 className="w-16 h-16 rounded-full flex items-center justify-center mx-auto text-white"
                 style={{ backgroundColor: selectedBankData?.backgroundColor }}
               >
@@ -231,18 +257,19 @@ export function BankingRedirectScreen({ paymentRequest, method, onNavigate }: Ba
             )}
             <div>
               <h3 className="font-medium">
-                {redirectStatus === 'checking' ? 'Checking Payment Status' : `Complete Payment in ${selectedBankData?.name}`}
+                {redirectStatus === "checking"
+                  ? "Checking Payment Status"
+                  : `Complete Payment in ${selectedBankData?.name}`}
               </h3>
-              {redirectStatus !== 'checking' && (
+              {redirectStatus !== "checking" && (
                 <p className="text-sm text-muted-foreground">
                   {selectedBankData?.accountName} •••• {selectedBankData?.last4}
                 </p>
               )}
               <p className="text-sm text-muted-foreground">
-                {redirectStatus === 'checking' 
-                  ? 'Verifying your payment...'
-                  : 'We\'ll automatically detect when your payment is complete'
-                }
+                {redirectStatus === "checking"
+                  ? "Verifying your payment..."
+                  : "We'll automatically detect when your payment is complete"}
               </p>
             </div>
           </div>
@@ -278,16 +305,18 @@ export function BankingRedirectScreen({ paymentRequest, method, onNavigate }: Ba
 
         {/* Action Buttons */}
         <div className="space-y-3">
-          <Button 
-            className="w-full" 
+          <Button
+            className="w-full"
             onClick={handleManualCheck}
-            disabled={redirectStatus === 'checking'}
+            disabled={redirectStatus === "checking"}
           >
-            {redirectStatus === 'checking' ? 'Checking...' : 'Check Payment Status'}
+            {redirectStatus === "checking"
+              ? "Checking..."
+              : "Check Payment Status"}
           </Button>
-          
-          <Button 
-            variant="outline" 
+
+          <Button
+            variant="outline"
             className="w-full"
             onClick={() => handleBankSelection(selectedBank!)}
           >
@@ -295,10 +324,10 @@ export function BankingRedirectScreen({ paymentRequest, method, onNavigate }: Ba
             Open {selectedBankData?.accountName} Again
           </Button>
 
-          <Button 
-            variant="ghost" 
+          <Button
+            variant="ghost"
             className="w-full"
-            onClick={() => setRedirectStatus('selecting')}
+            onClick={() => setRedirectStatus("selecting")}
           >
             Choose Different Bank
           </Button>
@@ -307,7 +336,10 @@ export function BankingRedirectScreen({ paymentRequest, method, onNavigate }: Ba
         {/* Help */}
         <div className="text-center">
           <p className="text-xs text-muted-foreground">
-            Having trouble? <Button variant="link" className="text-xs p-0 h-auto">Contact Support</Button>
+            Having trouble?{" "}
+            <Button variant="link" className="text-xs p-0 h-auto">
+              Contact Support
+            </Button>
           </p>
         </div>
       </div>
@@ -318,7 +350,11 @@ export function BankingRedirectScreen({ paymentRequest, method, onNavigate }: Ba
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center space-x-4">
-        <Button variant="ghost" size="sm" onClick={() => onNavigate('payment-flow', { paymentRequest })}>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => onNavigate("payment-flow", { paymentRequest })}
+        >
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <h2>Choose Your Bank</h2>
@@ -329,7 +365,9 @@ export function BankingRedirectScreen({ paymentRequest, method, onNavigate }: Ba
         <div className="flex justify-between items-center">
           <div>
             <p className="font-medium">{paymentRequest.description}</p>
-            <p className="text-sm text-muted-foreground">To {paymentRequest.recipient}</p>
+            <p className="text-sm text-muted-foreground">
+              To {paymentRequest.recipient}
+            </p>
           </div>
           <div className="text-right">
             <p className="text-xl font-bold">{fmt(totalAmount)}</p>
@@ -351,14 +389,14 @@ export function BankingRedirectScreen({ paymentRequest, method, onNavigate }: Ba
                 onClick={() => bank.isVerified && handleBankSelection(bank.id)}
                 className={`p-4 rounded-lg border transition-all cursor-pointer ${
                   selectedBank === bank.id
-                    ? 'border-primary bg-accent'
+                    ? "border-primary bg-accent"
                     : bank.isVerified
-                    ? 'hover:bg-muted/50 border-border'
-                    : 'opacity-50 cursor-not-allowed border-muted'
+                      ? "hover:bg-muted/50 border-border"
+                      : "opacity-50 cursor-not-allowed border-muted"
                 }`}
               >
                 <div className="flex items-center space-x-3">
-                  <div 
+                  <div
                     className="w-12 h-12 rounded-full flex items-center justify-center text-white shrink-0"
                     style={{ backgroundColor: bank.backgroundColor }}
                   >
@@ -375,7 +413,10 @@ export function BankingRedirectScreen({ paymentRequest, method, onNavigate }: Ba
                         </Badge>
                       )}
                       {!bank.isVerified && (
-                        <Badge variant="outline" className="text-xs text-warning">
+                        <Badge
+                          variant="outline"
+                          className="text-xs text-warning"
+                        >
                           Pending
                         </Badge>
                       )}
@@ -397,7 +438,7 @@ export function BankingRedirectScreen({ paymentRequest, method, onNavigate }: Ba
             <p className="text-sm text-muted-foreground mb-4">
               Link a bank account to use mobile banking payments
             </p>
-            <Button onClick={() => onNavigate('payment-methods')}>
+            <Button onClick={() => onNavigate("payment-methods")}>
               Link Bank Account
             </Button>
           </div>
@@ -411,7 +452,8 @@ export function BankingRedirectScreen({ paymentRequest, method, onNavigate }: Ba
           <div>
             <p className="text-sm font-medium">Secure Connection</p>
             <p className="text-xs text-muted-foreground">
-              You'll be redirected to your bank's official app to complete the payment securely.
+              You'll be redirected to your bank's official app to complete the
+              payment securely.
             </p>
           </div>
         </div>
@@ -420,11 +462,13 @@ export function BankingRedirectScreen({ paymentRequest, method, onNavigate }: Ba
       {/* Alternative Options */}
       {linkedBanks.length > 0 && (
         <div className="text-center">
-          <p className="text-sm text-muted-foreground mb-3">Need to add another bank?</p>
-          <Button 
-            variant="outline" 
+          <p className="text-sm text-muted-foreground mb-3">
+            Need to add another bank?
+          </p>
+          <Button
+            variant="outline"
             className="w-full"
-            onClick={() => onNavigate('payment-methods')}
+            onClick={() => onNavigate("payment-methods")}
           >
             Manage Bank Accounts
           </Button>

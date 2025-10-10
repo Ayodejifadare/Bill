@@ -1,27 +1,27 @@
-import { Loader2, RefreshCw, Wifi, WifiOff, AlertCircle } from 'lucide-react';
-import { Button } from './button';
-import { Card } from './card';
-import { Skeleton } from './skeleton';
-import { cn } from './utils';
+import { Loader2, RefreshCw, Wifi, WifiOff, AlertCircle } from "lucide-react";
+import { Button } from "./button";
+import { Card } from "./card";
+import { Skeleton } from "./skeleton";
+import { cn } from "./utils";
 
 // Basic loading spinner
 interface LoadingSpinnerProps {
-  size?: 'sm' | 'md' | 'lg';
+  size?: "sm" | "md" | "lg";
   className?: string;
 }
 
-export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ 
-  size = 'md', 
-  className 
+export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
+  size = "md",
+  className,
 }) => {
   const sizeClasses = {
-    sm: 'h-4 w-4',
-    md: 'h-6 w-6', 
-    lg: 'h-8 w-8'
+    sm: "h-4 w-4",
+    md: "h-6 w-6",
+    lg: "h-8 w-8",
   };
 
   return (
-    <Loader2 className={cn('animate-spin', sizeClasses[size], className)} />
+    <Loader2 className={cn("animate-spin", sizeClasses[size], className)} />
   );
 };
 
@@ -32,14 +32,21 @@ interface PageLoadingProps {
   className?: string;
 }
 
-export const PageLoading: React.FC<PageLoadingProps> = ({ 
-  message = 'Loading...', 
+export const PageLoading: React.FC<PageLoadingProps> = ({
+  message = "Loading...",
   showSpinner = true,
-  className 
+  className,
 }) => (
-  <div className={cn('min-h-screen flex items-center justify-center p-4', className)}>
+  <div
+    className={cn(
+      "min-h-screen flex items-center justify-center p-4",
+      className,
+    )}
+  >
     <div className="text-center space-y-4">
-      {showSpinner && <LoadingSpinner size="lg" className="mx-auto text-primary" />}
+      {showSpinner && (
+        <LoadingSpinner size="lg" className="mx-auto text-primary" />
+      )}
       <p className="text-muted-foreground">{message}</p>
     </div>
   </div>
@@ -52,12 +59,12 @@ interface SectionLoadingProps {
   className?: string;
 }
 
-export const SectionLoading: React.FC<SectionLoadingProps> = ({ 
-  message = 'Loading...', 
-  height = 'h-32',
-  className 
+export const SectionLoading: React.FC<SectionLoadingProps> = ({
+  message = "Loading...",
+  height = "h-32",
+  className,
 }) => (
-  <div className={cn('flex items-center justify-center', height, className)}>
+  <div className={cn("flex items-center justify-center", height, className)}>
     <div className="text-center space-y-2">
       <LoadingSpinner className="mx-auto text-primary" />
       <p className="text-sm text-muted-foreground">{message}</p>
@@ -68,18 +75,20 @@ export const SectionLoading: React.FC<SectionLoadingProps> = ({
 // Inline loading (for buttons, small components)
 interface InlineLoadingProps {
   message?: string;
-  size?: 'sm' | 'md';
+  size?: "sm" | "md";
   className?: string;
 }
 
-export const InlineLoading: React.FC<InlineLoadingProps> = ({ 
-  message, 
-  size = 'sm',
-  className 
+export const InlineLoading: React.FC<InlineLoadingProps> = ({
+  message,
+  size = "sm",
+  className,
 }) => (
-  <div className={cn('flex items-center gap-2', className)}>
+  <div className={cn("flex items-center gap-2", className)}>
     <LoadingSpinner size={size} />
-    {message && <span className="text-sm text-muted-foreground">{message}</span>}
+    {message && (
+      <span className="text-sm text-muted-foreground">{message}</span>
+    )}
   </div>
 );
 
@@ -95,11 +104,11 @@ export const NetworkLoading: React.FC<NetworkLoadingProps> = ({
   isOnline = navigator.onLine,
   onRetry,
   message,
-  className
+  className,
 }) => {
   if (!isOnline) {
     return (
-      <Card className={cn('p-6 text-center', className)}>
+      <Card className={cn("p-6 text-center", className)}>
         <WifiOff className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
         <h3 className="font-medium mb-2">No Internet Connection</h3>
         <p className="text-sm text-muted-foreground mb-4">
@@ -116,13 +125,13 @@ export const NetworkLoading: React.FC<NetworkLoadingProps> = ({
   }
 
   return (
-    <div className={cn('text-center space-y-4', className)}>
+    <div className={cn("text-center space-y-4", className)}>
       <div className="flex items-center justify-center gap-2">
         <Wifi className="h-4 w-4 text-success animate-pulse" />
         <LoadingSpinner size="sm" />
       </div>
       <p className="text-sm text-muted-foreground">
-        {message || 'Connecting...'}
+        {message || "Connecting..."}
       </p>
     </div>
   );
@@ -219,9 +228,9 @@ export const ErrorRetry: React.FC<ErrorRetryProps> = ({
   onRetry,
   onCancel,
   showCancel = false,
-  className
+  className,
 }) => (
-  <Card className={cn('p-6 text-center', className)}>
+  <Card className={cn("p-6 text-center", className)}>
     <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
     <h3 className="font-medium mb-2">Something went wrong</h3>
     <p className="text-sm text-muted-foreground mb-4">{error}</p>
@@ -252,10 +261,10 @@ interface LoadingOverlayProps {
 export const LoadingOverlay: React.FC<LoadingOverlayProps> = ({
   isLoading,
   children,
-  message = 'Loading...',
-  className
+  message = "Loading...",
+  className,
 }) => (
-  <div className={cn('relative', className)}>
+  <div className={cn("relative", className)}>
     {children}
     {isLoading && (
       <div className="absolute inset-0 bg-background/50 backdrop-blur-sm flex items-center justify-center z-10">

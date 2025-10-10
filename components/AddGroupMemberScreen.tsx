@@ -1,23 +1,47 @@
-import { useState, useEffect, useMemo } from 'react';
-import { ArrowLeft, Search, UserPlus, Send, Mail, MessageCircle, Phone, Users, ChevronDown, ChevronUp, CheckCircle, Zap, X, MoreVertical } from 'lucide-react';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { Label } from './ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
-import { Badge } from './ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { Checkbox } from './ui/checkbox';
-import { Separator } from './ui/separator';
-import { Textarea } from './ui/textarea';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible';
-import { ScrollArea } from './ui/scroll-area';
-import { Alert, AlertDescription } from './ui/alert';
-import { Progress } from './ui/progress';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
-import { toast } from 'sonner';
-import { contactsAPI, showContactError } from '../utils/contacts-api';
-import { apiClient } from '../utils/apiClient';
+import { useState, useEffect, useMemo } from "react";
+import {
+  ArrowLeft,
+  Search,
+  UserPlus,
+  Send,
+  Mail,
+  MessageCircle,
+  Phone,
+  Users,
+  ChevronDown,
+  ChevronUp,
+  CheckCircle,
+  Zap,
+  X,
+  MoreVertical,
+} from "lucide-react";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
+import { Badge } from "./ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
+import { Checkbox } from "./ui/checkbox";
+import { Separator } from "./ui/separator";
+import { Textarea } from "./ui/textarea";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "./ui/collapsible";
+import { ScrollArea } from "./ui/scroll-area";
+import { Alert, AlertDescription } from "./ui/alert";
+import { Progress } from "./ui/progress";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
+import { toast } from "sonner";
+import { contactsAPI, showContactError } from "../utils/contacts-api";
+import { apiClient } from "../utils/apiClient";
 
 interface Contact {
   id: string;
@@ -28,7 +52,7 @@ interface Contact {
   avatar?: string;
   mutualFriends?: number;
   isInGroup?: boolean;
-  status?: 'available' | 'pending' | 'friends' | 'existing_user' | 'not_on_app';
+  status?: "available" | "pending" | "friends" | "existing_user" | "not_on_app";
   isOnApp?: boolean;
   userId?: string;
   isFriend?: boolean;
@@ -37,29 +61,39 @@ interface Contact {
 interface AddGroupMemberScreenProps {
   groupId: string | null;
   onNavigate: (screen: string, data?: any) => void;
-  initialMode?: 'contacts' | 'invite';
+  initialMode?: "contacts" | "invite";
 }
 
-export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'contacts' }: AddGroupMemberScreenProps) {
+export function AddGroupMemberScreen({
+  groupId,
+  onNavigate,
+  initialMode = "contacts",
+}: AddGroupMemberScreenProps) {
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [inviteMethod, setInviteMethod] = useState<'whatsapp' | 'sms' | 'email'>('whatsapp');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [inviteMethod, setInviteMethod] = useState<
+    "whatsapp" | "sms" | "email"
+  >("whatsapp");
   const [inviteData, setInviteData] = useState({
-    name: '',
-    phone: '',
-    email: '',
-    message: ''
+    name: "",
+    phone: "",
+    email: "",
+    message: "",
   });
-  const [activeMode, setActiveMode] = useState<'contacts' | 'invite'>(initialMode);
+  const [activeMode, setActiveMode] = useState<"contacts" | "invite">(
+    initialMode,
+  );
   const [isSearchMode, setIsSearchMode] = useState(false);
-  
+
   // Contact sync state
   const [syncedContacts, setSyncedContacts] = useState<Contact[]>([]);
   const [hasSyncedContacts, setHasSyncedContacts] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncProgress, setSyncProgress] = useState(0);
   const [showSyncPrompt, setShowSyncPrompt] = useState(true);
-  const [contactSubTab, setContactSubTab] = useState<'on_app' | 'invite'>('on_app');
+  const [contactSubTab, setContactSubTab] = useState<"on_app" | "invite">(
+    "on_app",
+  );
   const [isInviting, setIsInviting] = useState(false);
 
   // Progressive disclosure states
@@ -70,21 +104,21 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
       const deviceContacts = await contactsAPI.getContacts();
       setSyncProgress(50);
       const data = await apiClient(`/groups/${groupId}/potential-members`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contacts: deviceContacts })
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contacts: deviceContacts }),
       });
       setSyncProgress(90);
 
       setSyncedContacts(data.contacts || []);
       setHasSyncedContacts(true);
       setShowSyncPrompt(false);
-      localStorage.setItem('biltip_contacts_synced', 'true');
+      localStorage.setItem("biltip_contacts_synced", "true");
 
       toast.success(`Found ${data.contacts?.length || 0} potential members!`);
     } catch (error) {
-      console.error('Contact sync failed:', error);
-      showContactError('network-failure');
+      console.error("Contact sync failed:", error);
+      showContactError("network-failure");
     }
   };
 
@@ -98,12 +132,14 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
           setSyncProgress(0);
           await syncDeviceContacts();
         } else if (status.denied) {
-          showContactError('permission-denied');
+          showContactError("permission-denied");
         } else {
-          showContactError('Contact access not available. Please try importing a contact file.');
+          showContactError(
+            "Contact access not available. Please try importing a contact file.",
+          );
         }
       } catch (err) {
-        console.error('Permission check failed:', err);
+        console.error("Permission check failed:", err);
       } finally {
         setIsSyncing(false);
         setSyncProgress(100);
@@ -114,68 +150,86 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
   }, [groupId]);
 
   // Separate friends and non-friends on Biltip
-  const friendsOnBiltip = syncedContacts.filter(c => 
-    c.status === 'existing_user' && c.isFriend && !c.isInGroup
+  const friendsOnBiltip = syncedContacts.filter(
+    (c) => c.status === "existing_user" && c.isFriend && !c.isInGroup,
   );
-  const friendsPending = syncedContacts.filter(c => 
-    c.status === 'pending' && c.isFriend && !c.isInGroup
+  const friendsPending = syncedContacts.filter(
+    (c) => c.status === "pending" && c.isFriend && !c.isInGroup,
   );
   const allFriends = [...friendsOnBiltip, ...friendsPending];
-  
-  const nonFriendsOnBiltip = syncedContacts.filter(c => 
-    c.status === 'existing_user' && !c.isFriend && !c.isInGroup
+
+  const nonFriendsOnBiltip = syncedContacts.filter(
+    (c) => c.status === "existing_user" && !c.isFriend && !c.isInGroup,
   );
-  
-  const inviteableContacts = syncedContacts.filter(c => c.status === 'not_on_app');
-  
+
+  const inviteableContacts = syncedContacts.filter(
+    (c) => c.status === "not_on_app",
+  );
+
   // Smart filtering with cross-tab search capability
-  const getFilteredContactsForTab = (tabType: 'on_app' | 'invite') => {
-    const baseContacts = tabType === 'on_app' ? [...allFriends, ...nonFriendsOnBiltip] : inviteableContacts;
-    
+  const getFilteredContactsForTab = (tabType: "on_app" | "invite") => {
+    const baseContacts =
+      tabType === "on_app"
+        ? [...allFriends, ...nonFriendsOnBiltip]
+        : inviteableContacts;
+
     if (!searchQuery.trim()) {
       return baseContacts;
     }
 
     const query = searchQuery.toLowerCase();
-    return baseContacts.filter(contact => 
-      contact.name.toLowerCase().includes(query) ||
-      (contact.phoneNumber && contact.phoneNumber.toLowerCase().includes(query)) ||
-      (contact.username && contact.username.toLowerCase().includes(query))
+    return baseContacts.filter(
+      (contact) =>
+        contact.name.toLowerCase().includes(query) ||
+        (contact.phoneNumber &&
+          contact.phoneNumber.toLowerCase().includes(query)) ||
+        (contact.username && contact.username.toLowerCase().includes(query)),
     );
   };
 
   // WhatsApp-style real-time contact filtering
   const filteredContacts = useMemo(() => {
     return getFilteredContactsForTab(contactSubTab);
-  }, [searchQuery, contactSubTab, allFriends, nonFriendsOnBiltip, inviteableContacts]);
+  }, [
+    searchQuery,
+    contactSubTab,
+    allFriends,
+    nonFriendsOnBiltip,
+    inviteableContacts,
+  ]);
 
   // Smart tab switching logic - check other tab for matches when current tab has no results
   useEffect(() => {
-    if (!searchQuery.trim() || !hasSyncedContacts || activeMode !== 'contacts') return;
+    if (!searchQuery.trim() || !hasSyncedContacts || activeMode !== "contacts")
+      return;
 
     const currentTabResults = getFilteredContactsForTab(contactSubTab);
-    
+
     // If current tab has no results, check the other tab
     if (currentTabResults.length === 0) {
-      const otherTab = contactSubTab === 'on_app' ? 'invite' : 'on_app';
+      const otherTab = contactSubTab === "on_app" ? "invite" : "on_app";
       const otherTabResults = getFilteredContactsForTab(otherTab);
-      
+
       // If other tab has results, auto-switch with feedback
       if (otherTabResults.length > 0) {
-        const tabName = otherTab === 'on_app' ? 'On Biltip' : 'Invite';
-        
+        const tabName = otherTab === "on_app" ? "On Biltip" : "Invite";
+
         // Add a small delay for better UX
         const switchTimer = setTimeout(() => {
           setContactSubTab(otherTab);
-          toast.info(`Found ${otherTabResults.length} result${otherTabResults.length !== 1 ? 's' : ''} in ${tabName} tab`);
-          
+          toast.info(
+            `Found ${otherTabResults.length} result${otherTabResults.length !== 1 ? "s" : ""} in ${tabName} tab`,
+          );
+
           // Add highlight animation to the switched tab
           setTimeout(() => {
-            const targetTab = document.querySelector(`[data-value="${otherTab}"]`);
+            const targetTab = document.querySelector(
+              `[data-value="${otherTab}"]`,
+            );
             if (targetTab) {
-              targetTab.classList.add('tab-switch-highlight');
+              targetTab.classList.add("tab-switch-highlight");
               setTimeout(() => {
-                targetTab.classList.remove('tab-switch-highlight');
+                targetTab.classList.remove("tab-switch-highlight");
               }, 1000);
             }
           }, 100);
@@ -184,10 +238,18 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
         return () => clearTimeout(switchTimer);
       }
     }
-  }, [searchQuery, contactSubTab, allFriends, nonFriendsOnBiltip, inviteableContacts, hasSyncedContacts, activeMode]);
-  
+  }, [
+    searchQuery,
+    contactSubTab,
+    allFriends,
+    nonFriendsOnBiltip,
+    inviteableContacts,
+    hasSyncedContacts,
+    activeMode,
+  ]);
+
   const getDisplayContacts = () => {
-    if (!hasSyncedContacts || activeMode !== 'contacts') return [];
+    if (!hasSyncedContacts || activeMode !== "contacts") return [];
     return filteredContacts;
   };
 
@@ -195,19 +257,21 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
 
   // Get selected contacts for display
   const getSelectedContacts = () => {
-    return syncedContacts.filter(contact => selectedMembers.includes(contact.id));
+    return syncedContacts.filter((contact) =>
+      selectedMembers.includes(contact.id),
+    );
   };
 
   const handleMemberToggle = (contactId: string) => {
-    setSelectedMembers(prev =>
+    setSelectedMembers((prev) =>
       prev.includes(contactId)
-        ? prev.filter(id => id !== contactId)
-        : [...prev, contactId]
+        ? prev.filter((id) => id !== contactId)
+        : [...prev, contactId],
     );
   };
 
   const handleRemoveSelected = (contactId: string) => {
-    setSelectedMembers(prev => prev.filter(id => id !== contactId));
+    setSelectedMembers((prev) => prev.filter((id) => id !== contactId));
   };
 
   const handleSyncContacts = async () => {
@@ -217,14 +281,14 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
     try {
       const permission = await contactsAPI.requestPermission();
       if (!permission.granted) {
-        showContactError('permission-denied');
+        showContactError("permission-denied");
         return;
       }
 
       await syncDeviceContacts();
     } catch (error) {
-      console.error('Contact sync failed:', error);
-      showContactError('network-failure');
+      console.error("Contact sync failed:", error);
+      showContactError("network-failure");
     } finally {
       setSyncProgress(100);
       setIsSyncing(false);
@@ -241,21 +305,25 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
 
   const handleAddSelectedMembers = () => {
     if (selectedMembers.length === 0) {
-      showContactError('Please select at least one member to add');
+      showContactError("Please select at least one member to add");
       return;
     }
 
-    const selectedFriends = syncedContacts.filter(contact => selectedMembers.includes(contact.id));
-    const names = selectedFriends.map(f => f.name).join(', ');
-    
-    toast.success(`Added ${selectedMembers.length} member${selectedMembers.length > 1 ? 's' : ''} to the group: ${names}`);
-    onNavigate('group-members', { groupId });
+    const selectedFriends = syncedContacts.filter((contact) =>
+      selectedMembers.includes(contact.id),
+    );
+    const names = selectedFriends.map((f) => f.name).join(", ");
+
+    toast.success(
+      `Added ${selectedMembers.length} member${selectedMembers.length > 1 ? "s" : ""} to the group: ${names}`,
+    );
+    onNavigate("group-members", { groupId });
     setSelectedMembers([]);
   };
 
   const handleInviteMembers = async () => {
-    const selectedContactsList = inviteableContacts.filter(contact =>
-      selectedMembers.includes(contact.id)
+    const selectedContactsList = inviteableContacts.filter((contact) =>
+      selectedMembers.includes(contact.id),
     );
 
     if (selectedContactsList.length === 0) return;
@@ -264,27 +332,32 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
 
     try {
       await apiClient(`/groups/${groupId}/invite`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ method: 'whatsapp', contacts: selectedContactsList })
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          method: "whatsapp",
+          contacts: selectedContactsList,
+        }),
       });
 
-      const groupName = 'Work Squad';
-      selectedContactsList.forEach(contact => {
+      const groupName = "Work Squad";
+      selectedContactsList.forEach((contact) => {
         const message = `Hi ${contact.name}! You've been invited to join "${groupName}" on Biltip - a bill splitting app. Join us to split expenses easily! Download it here: https://biltip.com/download`;
-        const whatsappUrl = `whatsapp://send?phone=${encodeURIComponent(contact.phoneNumber?.replace(/\D/g, '') || '')}&text=${encodeURIComponent(message)}`;
+        const whatsappUrl = `whatsapp://send?phone=${encodeURIComponent(contact.phoneNumber?.replace(/\D/g, "") || "")}&text=${encodeURIComponent(message)}`;
         try {
-          window.open(whatsappUrl, '_blank');
+          window.open(whatsappUrl, "_blank");
         } catch (error) {
-          console.warn('Failed to open WhatsApp for:', contact.name);
+          console.warn("Failed to open WhatsApp for:", contact.name);
         }
       });
 
-      toast.success(`Sent ${selectedContactsList.length} group invitation${selectedContactsList.length !== 1 ? 's' : ''}!`);
+      toast.success(
+        `Sent ${selectedContactsList.length} group invitation${selectedContactsList.length !== 1 ? "s" : ""}!`,
+      );
       setSelectedMembers([]);
     } catch (error) {
-      console.error('Bulk invite failed:', error);
-      showContactError('Failed to send invites. Please try again.');
+      console.error("Bulk invite failed:", error);
+      showContactError("Failed to send invites. Please try again.");
     } finally {
       setIsInviting(false);
     }
@@ -294,24 +367,24 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
     setIsInviting(true);
     try {
       await apiClient(`/groups/${groupId}/invite`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ method: 'whatsapp', contacts: [contact] })
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ method: "whatsapp", contacts: [contact] }),
       });
 
-      const groupName = 'Work Squad';
+      const groupName = "Work Squad";
       const message = `Hi ${contact.name}! You've been invited to join "${groupName}" on Biltip - a bill splitting app. Join us to split expenses easily! Download it here: https://biltip.com/download`;
-      const whatsappUrl = `whatsapp://send?phone=${encodeURIComponent(contact.phoneNumber?.replace(/\D/g, '') || '')}&text=${encodeURIComponent(message)}`;
+      const whatsappUrl = `whatsapp://send?phone=${encodeURIComponent(contact.phoneNumber?.replace(/\D/g, "") || "")}&text=${encodeURIComponent(message)}`;
 
       try {
-        window.open(whatsappUrl, '_blank');
+        window.open(whatsappUrl, "_blank");
         toast.success(`Group invitation sent to ${contact.name}!`);
       } catch (error) {
-        showContactError('Failed to open WhatsApp. Please try again.');
+        showContactError("Failed to open WhatsApp. Please try again.");
       }
     } catch (error) {
-      console.error('Single invite failed:', error);
-      showContactError('Failed to send invite.');
+      console.error("Single invite failed:", error);
+      showContactError("Failed to send invite.");
     } finally {
       setIsInviting(false);
     }
@@ -323,83 +396,129 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
       return;
     }
 
-    if (inviteMethod === 'email' && !inviteData.email.trim()) {
-      showContactError('Please enter an email address');
+    if (inviteMethod === "email" && !inviteData.email.trim()) {
+      showContactError("Please enter an email address");
       return;
     }
 
-    if ((inviteMethod === 'whatsapp' || inviteMethod === 'sms') && !inviteData.phone.trim()) {
-      showContactError('Please enter a phone number');
+    if (
+      (inviteMethod === "whatsapp" || inviteMethod === "sms") &&
+      !inviteData.phone.trim()
+    ) {
+      showContactError("Please enter a phone number");
       return;
     }
 
     setIsInviting(true);
-    const methodName = inviteMethod === 'whatsapp' ? 'WhatsApp' : inviteMethod === 'sms' ? 'SMS' : 'Email';
+    const methodName =
+      inviteMethod === "whatsapp"
+        ? "WhatsApp"
+        : inviteMethod === "sms"
+          ? "SMS"
+          : "Email";
 
     try {
       await apiClient(`/groups/${groupId}/invite`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ method: inviteMethod, contact: inviteData })
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ method: inviteMethod, contact: inviteData }),
       });
 
-      if (inviteMethod === 'whatsapp') {
+      if (inviteMethod === "whatsapp") {
         const message = getInviteMessage();
-        const whatsappUrl = `whatsapp://send?phone=${encodeURIComponent(inviteData.phone.replace(/\D/g, ''))}&text=${encodeURIComponent(message)}`;
+        const whatsappUrl = `whatsapp://send?phone=${encodeURIComponent(inviteData.phone.replace(/\D/g, ""))}&text=${encodeURIComponent(message)}`;
         try {
-          window.open(whatsappUrl, '_blank');
-          toast.success(`Opening WhatsApp to invite ${inviteData.name} to the group`);
+          window.open(whatsappUrl, "_blank");
+          toast.success(
+            `Opening WhatsApp to invite ${inviteData.name} to the group`,
+          );
         } catch (error) {
-          toast.success(`Group invitation sent to ${inviteData.name} via ${methodName}`);
+          toast.success(
+            `Group invitation sent to ${inviteData.name} via ${methodName}`,
+          );
         }
       } else {
-        toast.success(`Group invitation sent to ${inviteData.name} via ${methodName}`);
+        toast.success(
+          `Group invitation sent to ${inviteData.name} via ${methodName}`,
+        );
       }
 
       setInviteData({
-        name: '',
-        phone: '',
-        email: '',
-        message: ''
+        name: "",
+        phone: "",
+        email: "",
+        message: "",
       });
     } catch (error) {
-      console.error('Invite submission failed:', error);
-      showContactError('Failed to send invite. Please try again.');
+      console.error("Invite submission failed:", error);
+      showContactError("Failed to send invite. Please try again.");
     } finally {
       setIsInviting(false);
     }
   };
 
   const getInviteMessage = () => {
-    const groupName = 'Work Squad'; // Mock group name
+    const groupName = "Work Squad"; // Mock group name
     const defaultMessage = `Hi ${inviteData.name}! You've been invited to join "${groupName}" on Biltip - a bill splitting app. Join us to split expenses easily! Download it here: https://biltip.com/download`;
     return inviteData.message || defaultMessage;
   };
 
   const getStatusBadge = (status: string, isFriend?: boolean) => {
     switch (status) {
-      case 'available':
+      case "available":
         return null;
-      case 'pending':
-        return <Badge variant="secondary" className="text-xs">Pending</Badge>;
-      case 'friends':
-        return <Badge variant="default" className="text-xs bg-success text-success-foreground">Friends</Badge>;
-      case 'existing_user':
+      case "pending":
+        return (
+          <Badge variant="secondary" className="text-xs">
+            Pending
+          </Badge>
+        );
+      case "friends":
+        return (
+          <Badge
+            variant="default"
+            className="text-xs bg-success text-success-foreground"
+          >
+            Friends
+          </Badge>
+        );
+      case "existing_user":
         if (isFriend) {
-          return <Badge variant="default" className="text-xs bg-success text-success-foreground">Friend</Badge>;
+          return (
+            <Badge
+              variant="default"
+              className="text-xs bg-success text-success-foreground"
+            >
+              Friend
+            </Badge>
+          );
         }
-        return <Badge variant="default" className="text-xs bg-success text-success-foreground">On Biltip</Badge>;
-      case 'not_on_app':
-        return <Badge variant="outline" className="text-xs border-orange-200 text-orange-700">Not on Biltip</Badge>;
+        return (
+          <Badge
+            variant="default"
+            className="text-xs bg-success text-success-foreground"
+          >
+            On Biltip
+          </Badge>
+        );
+      case "not_on_app":
+        return (
+          <Badge
+            variant="outline"
+            className="text-xs border-orange-200 text-orange-700"
+          >
+            Not on Biltip
+          </Badge>
+        );
       default:
         return null;
     }
   };
 
-  const handleModeChange = (mode: 'contacts' | 'invite') => {
+  const handleModeChange = (mode: "contacts" | "invite") => {
     setActiveMode(mode);
     setIsSearchMode(false);
-    setSearchQuery('');
+    setSearchQuery("");
   };
 
   const handleSearchToggle = () => {
@@ -407,46 +526,52 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
     if (!isSearchMode) {
       // Focus search input after it's shown
       setTimeout(() => {
-        const searchInput = document.querySelector('#whatsapp-search-input') as HTMLInputElement;
+        const searchInput = document.querySelector(
+          "#whatsapp-search-input",
+        ) as HTMLInputElement;
         if (searchInput) {
           searchInput.focus();
         }
       }, 100);
     } else {
       // Clear search when hiding
-      setSearchQuery('');
+      setSearchQuery("");
     }
   };
 
   const handleExitSearch = () => {
     setIsSearchMode(false);
-    setSearchQuery('');
+    setSearchQuery("");
   };
 
   // Render contact sections with proper organization
-  const renderContactSection = (contacts: Contact[], sectionTitle: string, showSeparator: boolean = false) => {
+  const renderContactSection = (
+    contacts: Contact[],
+    sectionTitle: string,
+    showSeparator: boolean = false,
+  ) => {
     if (contacts.length === 0) return null;
 
     return (
       <div className="space-y-3">
         {showSeparator && <Separator />}
-        
+
         {/* Section Header */}
         <div className="px-1">
           <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
             {sectionTitle}
           </h4>
         </div>
-        
+
         {/* Contacts List */}
         <div className="space-y-3">
           {contacts.map((contact) => (
-            <Card 
-              key={contact.id} 
+            <Card
+              key={contact.id}
               className={`transition-all cursor-pointer min-h-[72px] ${
                 selectedMembers.includes(contact.id)
-                  ? 'bg-primary/5 border-primary/30' 
-                  : 'hover:bg-accent/50'
+                  ? "bg-primary/5 border-primary/30"
+                  : "hover:bg-accent/50"
               }`}
               onClick={() => handleMemberToggle(contact.id)}
             >
@@ -457,14 +582,12 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
                     onChange={() => handleMemberToggle(contact.id)}
                     className="min-h-[20px] min-w-[20px]"
                   />
-                  
+
                   <Avatar className="h-12 w-12">
                     <AvatarImage src={contact.avatar} />
-                    <AvatarFallback>
-                      {getInitials(contact.name)}
-                    </AvatarFallback>
+                    <AvatarFallback>{getInitials(contact.name)}</AvatarFallback>
                   </Avatar>
-                  
+
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="font-medium text-base">{contact.name}</p>
@@ -476,9 +599,13 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
                       )}
                     </div>
                     <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">{contact.phoneNumber}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {contact.phoneNumber}
+                      </p>
                       {contact.username && (
-                        <p className="text-xs text-muted-foreground">{contact.username}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {contact.username}
+                        </p>
                       )}
                     </div>
                   </div>
@@ -520,16 +647,20 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
                   />
                 </div>
               </div>
-              
+
               {/* Action Button when members selected in search mode */}
               {selectedMembers.length > 0 && (
                 <Button
-                  onClick={contactSubTab === 'on_app' ? handleAddSelectedMembers : handleInviteMembers}
+                  onClick={
+                    contactSubTab === "on_app"
+                      ? handleAddSelectedMembers
+                      : handleInviteMembers
+                  }
                   size="sm"
-                  className={`min-h-[44px] ml-2 ${contactSubTab === 'invite' ? 'bg-green-600 hover:bg-green-700 text-white' : ''}`}
+                  className={`min-h-[44px] ml-2 ${contactSubTab === "invite" ? "bg-green-600 hover:bg-green-700 text-white" : ""}`}
                   disabled={isInviting}
                 >
-                  {contactSubTab === 'on_app' ? (
+                  {contactSubTab === "on_app" ? (
                     <>Add ({selectedMembers.length})</>
                   ) : (
                     <>
@@ -547,7 +678,7 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => onNavigate('group-members', { groupId })}
+                  onClick={() => onNavigate("group-members", { groupId })}
                   className="min-h-[44px] min-w-[44px] -ml-2"
                 >
                   <ArrowLeft className="h-5 w-5" />
@@ -559,7 +690,7 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
                   </p>
                 </div>
               </div>
-              
+
               <div className="flex items-center gap-2">
                 {/* Search Icon */}
                 <Button
@@ -570,7 +701,7 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
                 >
                   <Search className="h-5 w-5" />
                 </Button>
-                
+
                 {/* 3-dot Menu */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -583,26 +714,34 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48">
-                    <DropdownMenuItem onClick={() => handleModeChange('contacts')}>
+                    <DropdownMenuItem
+                      onClick={() => handleModeChange("contacts")}
+                    >
                       <Users className="h-4 w-4 mr-2" />
                       View Contacts
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleModeChange('invite')}>
+                    <DropdownMenuItem
+                      onClick={() => handleModeChange("invite")}
+                    >
                       <UserPlus className="h-4 w-4 mr-2" />
                       Send Invite
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-                
+
                 {/* Action Button when members selected */}
                 {selectedMembers.length > 0 && (
                   <Button
-                    onClick={contactSubTab === 'on_app' ? handleAddSelectedMembers : handleInviteMembers}
+                    onClick={
+                      contactSubTab === "on_app"
+                        ? handleAddSelectedMembers
+                        : handleInviteMembers
+                    }
                     size="sm"
-                    className={`min-h-[44px] ${contactSubTab === 'invite' ? 'bg-green-600 hover:bg-green-700 text-white' : ''}`}
+                    className={`min-h-[44px] ${contactSubTab === "invite" ? "bg-green-600 hover:bg-green-700 text-white" : ""}`}
                     disabled={isInviting}
                   >
-                    {contactSubTab === 'on_app' ? (
+                    {contactSubTab === "on_app" ? (
                       <>Add ({selectedMembers.length})</>
                     ) : (
                       <>
@@ -625,15 +764,20 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
             <ScrollArea className="w-full">
               <div className="flex gap-3 pb-1">
                 {getSelectedContacts().map((contact) => (
-                  <div key={contact.id} className="flex flex-col items-center gap-1 min-w-[60px] group">
+                  <div
+                    key={contact.id}
+                    className="flex flex-col items-center gap-1 min-w-[60px] group"
+                  >
                     <div className="relative">
-                      <Avatar className={`h-12 w-12 border-2 ${contactSubTab === 'invite' ? 'border-green-300' : 'border-primary/30'}`}>
+                      <Avatar
+                        className={`h-12 w-12 border-2 ${contactSubTab === "invite" ? "border-green-300" : "border-primary/30"}`}
+                      >
                         <AvatarImage src={contact.avatar} />
                         <AvatarFallback className="text-xs">
                           {getInitials(contact.name)}
                         </AvatarFallback>
                       </Avatar>
-                      
+
                       {/* Remove button */}
                       <Button
                         size="sm"
@@ -647,10 +791,10 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
                         <X className="h-3 w-3" />
                       </Button>
                     </div>
-                    
+
                     {/* Name */}
                     <p className="text-xs text-center max-w-[60px] truncate">
-                      {(contact.name || '').split(' ')[0]}
+                      {(contact.name || "").split(" ")[0]}
                     </p>
                   </div>
                 ))}
@@ -660,33 +804,35 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
         </div>
       )}
 
-      <div className={`px-4 ${selectedMembers.length > 0 ? 'pt-6' : 'py-6'} space-y-6 pb-8`}>
+      <div
+        className={`px-4 ${selectedMembers.length > 0 ? "pt-6" : "py-6"} space-y-6 pb-8`}
+      >
         {/* Search Results Info */}
-        {(isSearchMode || searchQuery) && activeMode === 'contacts' && (
+        {(isSearchMode || searchQuery) && activeMode === "contacts" && (
           <div className="text-sm text-muted-foreground px-1 search-info-fade-in">
-            {filteredContacts.length > 0 ? (
-              `Found ${filteredContacts.length} contact${filteredContacts.length !== 1 ? 's' : ''} matching "${searchQuery}"`
-            ) : searchQuery ? (
-              (() => {
-                // Check if other tab has results when current tab is empty
-                const otherTab = contactSubTab === 'on_app' ? 'invite' : 'on_app';
-                const otherTabResults = getFilteredContactsForTab(otherTab);
-                
-                if (otherTabResults.length > 0) {
-                  const tabName = otherTab === 'on_app' ? 'On Biltip' : 'Invite';
-                  return `No results in current tab. Switching to ${tabName} tab...`;
-                }
-                
-                return `No contacts found matching "${searchQuery}"`;
-              })()
-            ) : (
-              'Search through your contacts...'
-            )}
+            {filteredContacts.length > 0
+              ? `Found ${filteredContacts.length} contact${filteredContacts.length !== 1 ? "s" : ""} matching "${searchQuery}"`
+              : searchQuery
+                ? (() => {
+                    // Check if other tab has results when current tab is empty
+                    const otherTab =
+                      contactSubTab === "on_app" ? "invite" : "on_app";
+                    const otherTabResults = getFilteredContactsForTab(otherTab);
+
+                    if (otherTabResults.length > 0) {
+                      const tabName =
+                        otherTab === "on_app" ? "On Biltip" : "Invite";
+                      return `No results in current tab. Switching to ${tabName} tab...`;
+                    }
+
+                    return `No contacts found matching "${searchQuery}"`;
+                  })()
+                : "Search through your contacts..."}
           </div>
         )}
 
         {/* Contacts Mode */}
-        {activeMode === 'contacts' && (
+        {activeMode === "contacts" && (
           <div className="space-y-4">
             {isSyncing ? (
               /* Syncing Progress */
@@ -696,15 +842,21 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
                     <div className="mx-auto w-16 h-16 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center">
                       <Users className="h-8 w-8 text-white animate-pulse" />
                     </div>
-                    
+
                     <div>
-                      <h3 className="text-lg font-semibold mb-2">Syncing Contacts</h3>
-                      <p className="text-sm text-muted-foreground">Finding your friends for the group...</p>
+                      <h3 className="text-lg font-semibold mb-2">
+                        Syncing Contacts
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        Finding your friends for the group...
+                      </p>
                     </div>
 
                     <div className="space-y-2">
                       <Progress value={syncProgress} className="w-full h-2" />
-                      <p className="text-xs text-muted-foreground">{syncProgress}% complete</p>
+                      <p className="text-xs text-muted-foreground">
+                        {syncProgress}% complete
+                      </p>
                     </div>
                   </div>
                 </CardContent>
@@ -717,38 +869,47 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
                     <div className="mx-auto w-16 h-16 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center">
                       <MessageCircle className="h-8 w-8 text-white" />
                     </div>
-                    
+
                     <div>
-                      <h3 className="text-lg font-semibold mb-2">Find Members from Contacts</h3>
+                      <h3 className="text-lg font-semibold mb-2">
+                        Find Members from Contacts
+                      </h3>
                       <p className="text-sm text-muted-foreground mb-4">
-                        Sync your contacts to find friends already on Biltip and invite others to join the group
+                        Sync your contacts to find friends already on Biltip and
+                        invite others to join the group
                       </p>
                     </div>
 
                     <div className="space-y-3 text-left">
                       <div className="flex items-center space-x-3">
                         <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
-                        <span className="text-sm">Add existing Biltip users instantly</span>
+                        <span className="text-sm">
+                          Add existing Biltip users instantly
+                        </span>
                       </div>
                       <div className="flex items-center space-x-3">
                         <MessageCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
-                        <span className="text-sm">Send group invites via WhatsApp</span>
+                        <span className="text-sm">
+                          Send group invites via WhatsApp
+                        </span>
                       </div>
                       <div className="flex items-center space-x-3">
                         <Zap className="h-5 w-5 text-green-600 flex-shrink-0" />
-                        <span className="text-sm">Private & secure - contacts processed locally</span>
+                        <span className="text-sm">
+                          Private & secure - contacts processed locally
+                        </span>
                       </div>
                     </div>
 
-                    <Button 
+                    <Button
                       onClick={handleSyncContacts}
                       className="w-full min-h-[52px] text-base bg-green-600 hover:bg-green-700 text-white"
                     >
                       <Users className="h-5 w-5 mr-3" />
                       Sync Contacts
                     </Button>
-                    
-                    <Button 
+
+                    <Button
                       variant="ghost"
                       onClick={() => setShowSyncPrompt(false)}
                       className="w-full"
@@ -761,15 +922,19 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
             ) : hasSyncedContacts ? (
               /* Synced Contacts */
               <div className="space-y-4">
-
-
                 {/* Contact Sub-tabs */}
-                <Tabs value={contactSubTab} onValueChange={(value) => setContactSubTab(value as 'on_app' | 'invite')} className="w-full">
+                <Tabs
+                  value={contactSubTab}
+                  onValueChange={(value) =>
+                    setContactSubTab(value as "on_app" | "invite")
+                  }
+                  className="w-full"
+                >
                   <TabsList className="grid w-full grid-cols-2 min-h-[48px]">
                     <TabsTrigger value="on_app" className="min-h-[44px]">
                       <Users className="h-4 w-4 mr-2" />
                       On Biltip
-                      {(allFriends.length + nonFriendsOnBiltip.length) > 0 && (
+                      {allFriends.length + nonFriendsOnBiltip.length > 0 && (
                         <Badge variant="secondary" className="ml-2 text-xs">
                           {allFriends.length + nonFriendsOnBiltip.length}
                         </Badge>
@@ -791,30 +956,37 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
                     <div className="space-y-6">
                       {/* Friends Section */}
                       {renderContactSection(allFriends, "Friends")}
-                      
+
                       {/* On Biltip Section (Non-friends) */}
-                      {renderContactSection(nonFriendsOnBiltip, "On Biltip", allFriends.length > 0)}
-                      
-                      {/* No contacts found state */}
-                      {allFriends.length === 0 && nonFriendsOnBiltip.length === 0 && (
-                        <Card>
-                          <CardContent className="p-8 text-center">
-                            <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                            <h3 className="font-medium mb-2">No friends found on Biltip</h3>
-                            <p className="text-sm text-muted-foreground mb-4">
-                              None of your contacts are using Biltip yet
-                            </p>
-                            <Button 
-                              variant="outline" 
-                              onClick={() => setContactSubTab('invite')}
-                              className="min-h-[44px]"
-                            >
-                              <MessageCircle className="h-4 w-4 mr-2" />
-                              Invite People
-                            </Button>
-                          </CardContent>
-                        </Card>
+                      {renderContactSection(
+                        nonFriendsOnBiltip,
+                        "On Biltip",
+                        allFriends.length > 0,
                       )}
+
+                      {/* No contacts found state */}
+                      {allFriends.length === 0 &&
+                        nonFriendsOnBiltip.length === 0 && (
+                          <Card>
+                            <CardContent className="p-8 text-center">
+                              <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                              <h3 className="font-medium mb-2">
+                                No friends found on Biltip
+                              </h3>
+                              <p className="text-sm text-muted-foreground mb-4">
+                                None of your contacts are using Biltip yet
+                              </p>
+                              <Button
+                                variant="outline"
+                                onClick={() => setContactSubTab("invite")}
+                                className="min-h-[44px]"
+                              >
+                                <MessageCircle className="h-4 w-4 mr-2" />
+                                Invite People
+                              </Button>
+                            </CardContent>
+                          </Card>
+                        )}
                     </div>
                   </TabsContent>
 
@@ -823,12 +995,12 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
                     <div className="space-y-3">
                       {displayContacts.length > 0 ? (
                         displayContacts.map((contact) => (
-                          <Card 
+                          <Card
                             key={contact.id}
                             className={`transition-all cursor-pointer min-h-[72px] ${
                               selectedMembers.includes(contact.id)
-                                ? 'bg-green-50 border-green-200 dark:bg-green-950/20' 
-                                : 'hover:bg-accent/50'
+                                ? "bg-green-50 border-green-200 dark:bg-green-950/20"
+                                : "hover:bg-accent/50"
                             }`}
                             onClick={() => handleMemberToggle(contact.id)}
                           >
@@ -836,28 +1008,39 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
                               <div className="flex items-center space-x-3">
                                 <Checkbox
                                   checked={selectedMembers.includes(contact.id)}
-                                  onChange={() => handleMemberToggle(contact.id)}
+                                  onChange={() =>
+                                    handleMemberToggle(contact.id)
+                                  }
                                   className="min-h-[20px] min-w-[20px]"
                                 />
-                                
+
                                 <Avatar className="h-12 w-12">
                                   <AvatarFallback>
                                     {getInitials(contact.name)}
                                   </AvatarFallback>
                                 </Avatar>
-                                
+
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2">
-                                    <p className="font-medium text-base">{contact.name}</p>
-                                    {getStatusBadge(contact.status!, contact.isFriend)}
+                                    <p className="font-medium text-base">
+                                      {contact.name}
+                                    </p>
+                                    {getStatusBadge(
+                                      contact.status!,
+                                      contact.isFriend,
+                                    )}
                                   </div>
-                                  <p className="text-sm text-muted-foreground">{contact.phoneNumber}</p>
+                                  <p className="text-sm text-muted-foreground">
+                                    {contact.phoneNumber}
+                                  </p>
                                   {contact.email && (
-                                    <p className="text-xs text-muted-foreground">{contact.email}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {contact.email}
+                                    </p>
                                   )}
                                 </div>
-                                
-                                <Button 
+
+                                <Button
                                   size="sm"
                                   variant="outline"
                                   onClick={(e) => {
@@ -877,13 +1060,15 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
                         <Card>
                           <CardContent className="p-8 text-center">
                             <Search className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                            <h3 className="font-medium mb-2">No results found</h3>
+                            <h3 className="font-medium mb-2">
+                              No results found
+                            </h3>
                             <p className="text-sm text-muted-foreground mb-4">
                               No contacts match your search for "{searchQuery}"
                             </p>
-                            <Button 
-                              variant="outline" 
-                              onClick={() => setSearchQuery('')}
+                            <Button
+                              variant="outline"
+                              onClick={() => setSearchQuery("")}
                               className="min-h-[44px]"
                             >
                               Clear Search
@@ -894,13 +1079,15 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
                         <Card>
                           <CardContent className="p-8 text-center">
                             <MessageCircle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                            <h3 className="font-medium mb-2">No contacts to invite</h3>
+                            <h3 className="font-medium mb-2">
+                              No contacts to invite
+                            </h3>
                             <p className="text-sm text-muted-foreground mb-4">
                               All your contacts are already using Biltip!
                             </p>
-                            <Button 
-                              variant="outline" 
-                              onClick={() => setContactSubTab('on_app')}
+                            <Button
+                              variant="outline"
+                              onClick={() => setContactSubTab("on_app")}
                               className="min-h-[44px]"
                             >
                               <Users className="h-4 w-4 mr-2" />
@@ -923,16 +1110,16 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
                     Sync your contacts to find members or send invites manually
                   </p>
                   <div className="space-y-2">
-                    <Button 
+                    <Button
                       onClick={() => setShowSyncPrompt(true)}
                       className="w-full min-h-[44px]"
                     >
                       <Users className="h-4 w-4 mr-2" />
                       Sync Contacts
                     </Button>
-                    <Button 
-                      variant="outline" 
-                      onClick={() => handleModeChange('invite')}
+                    <Button
+                      variant="outline"
+                      onClick={() => handleModeChange("invite")}
                       className="w-full min-h-[44px]"
                     >
                       <UserPlus className="h-4 w-4 mr-2" />
@@ -946,7 +1133,7 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
         )}
 
         {/* Invite Mode */}
-        {activeMode === 'invite' && (
+        {activeMode === "invite" && (
           <div className="space-y-4">
             <Card>
               <CardHeader>
@@ -954,12 +1141,13 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
               </CardHeader>
               <CardContent className="space-y-4">
                 {/* WhatsApp recommended notice */}
-                {inviteMethod === 'whatsapp' && (
+                {inviteMethod === "whatsapp" && (
                   <Alert className="border-green-200 bg-green-50 dark:bg-green-950/20">
                     <MessageCircle className="h-4 w-4 text-green-600" />
                     <AlertDescription className="text-green-700 dark:text-green-300">
                       <p className="text-sm">
-                        <strong>Recommended:</strong> WhatsApp group invites are more likely to be seen and acted upon.
+                        <strong>Recommended:</strong> WhatsApp group invites are
+                        more likely to be seen and acted upon.
                       </p>
                     </AlertDescription>
                   </Alert>
@@ -970,24 +1158,26 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
                   <Label>Invitation Method</Label>
                   <div className="grid grid-cols-3 gap-2">
                     <Button
-                      variant={inviteMethod === 'whatsapp' ? 'default' : 'outline'}
-                      onClick={() => setInviteMethod('whatsapp')}
+                      variant={
+                        inviteMethod === "whatsapp" ? "default" : "outline"
+                      }
+                      onClick={() => setInviteMethod("whatsapp")}
                       className="min-h-[48px] flex-col gap-1"
                     >
                       <MessageCircle className="h-4 w-4" />
                       <span className="text-xs">WhatsApp</span>
                     </Button>
                     <Button
-                      variant={inviteMethod === 'sms' ? 'default' : 'outline'}
-                      onClick={() => setInviteMethod('sms')}
+                      variant={inviteMethod === "sms" ? "default" : "outline"}
+                      onClick={() => setInviteMethod("sms")}
                       className="min-h-[48px] flex-col gap-1"
                     >
                       <Phone className="h-4 w-4" />
                       <span className="text-xs">SMS</span>
                     </Button>
                     <Button
-                      variant={inviteMethod === 'email' ? 'default' : 'outline'}
-                      onClick={() => setInviteMethod('email')}
+                      variant={inviteMethod === "email" ? "default" : "outline"}
+                      onClick={() => setInviteMethod("email")}
                       className="min-h-[48px] flex-col gap-1"
                     >
                       <Mail className="h-4 w-4" />
@@ -1005,32 +1195,47 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
                     <Input
                       placeholder="Enter their name"
                       value={inviteData.name}
-                      onChange={(e) => setInviteData(prev => ({ ...prev, name: e.target.value }))}
+                      onChange={(e) =>
+                        setInviteData((prev) => ({
+                          ...prev,
+                          name: e.target.value,
+                        }))
+                      }
                       className="min-h-[48px]"
                     />
                   </div>
 
-                  {(inviteMethod === 'whatsapp' || inviteMethod === 'sms') && (
+                  {(inviteMethod === "whatsapp" || inviteMethod === "sms") && (
                     <div className="space-y-2">
                       <Label>Phone Number *</Label>
                       <Input
                         type="tel"
                         placeholder="+1 (555) 123-4567"
                         value={inviteData.phone}
-                        onChange={(e) => setInviteData(prev => ({ ...prev, phone: e.target.value }))}
+                        onChange={(e) =>
+                          setInviteData((prev) => ({
+                            ...prev,
+                            phone: e.target.value,
+                          }))
+                        }
                         className="min-h-[48px]"
                       />
                     </div>
                   )}
 
-                  {inviteMethod === 'email' && (
+                  {inviteMethod === "email" && (
                     <div className="space-y-2">
                       <Label>Email Address *</Label>
                       <Input
                         type="email"
                         placeholder="friend@example.com"
                         value={inviteData.email}
-                        onChange={(e) => setInviteData(prev => ({ ...prev, email: e.target.value }))}
+                        onChange={(e) =>
+                          setInviteData((prev) => ({
+                            ...prev,
+                            email: e.target.value,
+                          }))
+                        }
                         className="min-h-[48px]"
                       />
                     </div>
@@ -1041,7 +1246,12 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
                     <Textarea
                       placeholder="Add a personal message for the group invitation..."
                       value={inviteData.message}
-                      onChange={(e) => setInviteData(prev => ({ ...prev, message: e.target.value }))}
+                      onChange={(e) =>
+                        setInviteData((prev) => ({
+                          ...prev,
+                          message: e.target.value,
+                        }))
+                      }
                       rows={3}
                       className="min-h-[48px]"
                     />
@@ -1049,18 +1259,32 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
                 </div>
 
                 {/* Invitation Preview */}
-                <Collapsible open={showInvitePreview} onOpenChange={setShowInvitePreview}>
+                <Collapsible
+                  open={showInvitePreview}
+                  onOpenChange={setShowInvitePreview}
+                >
                   <CollapsibleTrigger asChild>
-                    <Button variant="outline" className="w-full min-h-[44px] justify-between">
+                    <Button
+                      variant="outline"
+                      className="w-full min-h-[44px] justify-between"
+                    >
                       <span>Preview Group Invitation</span>
-                      {showInvitePreview ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                      {showInvitePreview ? (
+                        <ChevronUp className="h-4 w-4" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4" />
+                      )}
                     </Button>
                   </CollapsibleTrigger>
                   <CollapsibleContent className="mt-3">
                     <Card className="bg-muted/50">
                       <CardContent className="p-4">
-                        <p className="text-sm font-medium mb-2">Message Preview:</p>
-                        <p className="text-sm leading-relaxed">{getInviteMessage()}</p>
+                        <p className="text-sm font-medium mb-2">
+                          Message Preview:
+                        </p>
+                        <p className="text-sm leading-relaxed">
+                          {getInviteMessage()}
+                        </p>
                       </CardContent>
                     </Card>
                   </CollapsibleContent>
@@ -1069,16 +1293,24 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
                 <Button
                   onClick={handleSendInvite}
                   className={`w-full min-h-[52px] text-base ${
-                    inviteMethod === 'whatsapp' ? 'bg-green-600 hover:bg-green-700 text-white' : ''
+                    inviteMethod === "whatsapp"
+                      ? "bg-green-600 hover:bg-green-700 text-white"
+                      : ""
                   }`}
-                  disabled={isInviting || !inviteData.name.trim() ||
-                    (inviteMethod === 'email' && !inviteData.email.trim()) ||
-                    ((inviteMethod === 'whatsapp' || inviteMethod === 'sms') && !inviteData.phone.trim())
+                  disabled={
+                    isInviting ||
+                    !inviteData.name.trim() ||
+                    (inviteMethod === "email" && !inviteData.email.trim()) ||
+                    ((inviteMethod === "whatsapp" || inviteMethod === "sms") &&
+                      !inviteData.phone.trim())
                   }
                 >
                   <Send className="h-5 w-5 mr-2" />
-                  {inviteMethod === 'whatsapp' ? 'Send Group WhatsApp Invitation' : 
-                   inviteMethod === 'sms' ? 'Send Group SMS Invitation' : 'Send Group Email Invitation'}
+                  {inviteMethod === "whatsapp"
+                    ? "Send Group WhatsApp Invitation"
+                    : inviteMethod === "sms"
+                      ? "Send Group SMS Invitation"
+                      : "Send Group Email Invitation"}
                 </Button>
               </CardContent>
             </Card>
@@ -1088,4 +1320,4 @@ export function AddGroupMemberScreen({ groupId, onNavigate, initialMode = 'conta
     </div>
   );
 }
-import { getInitials } from '../utils/name';
+import { getInitials } from "../utils/name";

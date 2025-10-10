@@ -1,12 +1,12 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { Card } from './ui/card';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { ArrowLeft, RotateCcw } from 'lucide-react';
-import { authService } from '../services/auth';
-import { toast } from 'sonner';
-import { devAuthConfig } from '../utils/auth-dev-config';
-import { formatPhoneForRegion } from '../utils/regions';
+import { useState, useEffect, useRef, useCallback } from "react";
+import { Card } from "./ui/card";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { ArrowLeft, RotateCcw } from "lucide-react";
+import { authService } from "../services/auth";
+import { toast } from "sonner";
+import { devAuthConfig } from "../utils/auth-dev-config";
+import { formatPhoneForRegion } from "../utils/regions";
 
 interface OTPVerificationScreenProps {
   phone: string;
@@ -18,28 +18,31 @@ interface OTPVerificationScreenProps {
   demoOTP?: string | number; // For demo purposes
 }
 
-export function OTPVerificationScreen({ 
-  phone, 
-  region, 
-  isNewUser, 
-  name, 
-  onSuccess, 
+export function OTPVerificationScreen({
+  phone,
+  region,
+  isNewUser,
+  name,
+  onSuccess,
   onBack,
-  demoOTP 
+  demoOTP,
 }: OTPVerificationScreenProps) {
-  const [otp, setOtp] = useState(['', '', '', '', '', '']);
+  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [isLoading, setIsLoading] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const [countdown, setCountdown] = useState(60);
   const [canResend, setCanResend] = useState(false);
-  
+
   // Create refs for each input field to avoid React warnings
   const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
-  
+
   // Create a safe ref setter function
-  const setInputRef = useCallback((index: number) => (el: HTMLInputElement | null) => {
-    inputRefs.current[index] = el;
-  }, []);
+  const setInputRef = useCallback(
+    (index: number) => (el: HTMLInputElement | null) => {
+      inputRefs.current[index] = el;
+    },
+    [],
+  );
 
   // Countdown timer for resend
   useEffect(() => {
@@ -54,15 +57,17 @@ export function OTPVerificationScreen({
   // Auto-fill OTP for demo purposes
   useEffect(() => {
     const normalizedDemoOtp =
-      typeof demoOTP === 'string'
+      typeof demoOTP === "string"
         ? demoOTP.trim()
-        : typeof demoOTP === 'number'
-          ? String(demoOTP).padStart(6, '0')
-          : '';
+        : typeof demoOTP === "number"
+          ? String(demoOTP).padStart(6, "0")
+          : "";
 
     if (normalizedDemoOtp.length === 6) {
-      devAuthConfig.log('Auto-filling OTP from server response', { demoOTP: normalizedDemoOtp });
-      const otpArray = normalizedDemoOtp.split('').slice(0, 6);
+      devAuthConfig.log("Auto-filling OTP from server response", {
+        demoOTP: normalizedDemoOtp,
+      });
+      const otpArray = normalizedDemoOtp.split("").slice(0, 6);
       setOtp(otpArray);
       // Auto-focus last input
       setTimeout(() => {
@@ -73,10 +78,11 @@ export function OTPVerificationScreen({
 
     if (devAuthConfig.shouldShowOTPDebug()) {
       const rawMockOtp = devAuthConfig.getMockOTP();
-      const mockOTP = typeof rawMockOtp === 'string' ? rawMockOtp : String(rawMockOtp ?? '');
+      const mockOTP =
+        typeof rawMockOtp === "string" ? rawMockOtp : String(rawMockOtp ?? "");
       if (mockOTP) {
-        devAuthConfig.log('Auto-filling OTP from dev config', { mockOTP });
-        const otpArray = mockOTP.padEnd(6, '0').split('').slice(0, 6);
+        devAuthConfig.log("Auto-filling OTP from dev config", { mockOTP });
+        const otpArray = mockOTP.padEnd(6, "0").split("").slice(0, 6);
         setOtp(otpArray);
         setTimeout(() => {
           inputRefs.current[5]?.focus();
@@ -86,11 +92,15 @@ export function OTPVerificationScreen({
   }, [demoOTP]);
 
   const handleOtpChange = (index: number, value: string) => {
-    devAuthConfig.log('OTP input change', { index, value, length: value.length });
-    
+    devAuthConfig.log("OTP input change", {
+      index,
+      value,
+      length: value.length,
+    });
+
     if (value.length > 1) {
       // Handle paste
-      const pastedOtp = value.slice(0, 6).split('');
+      const pastedOtp = value.slice(0, 6).split("");
       const newOtp = [...otp];
       pastedOtp.forEach((digit, i) => {
         if (index + i < 6) {
@@ -98,7 +108,7 @@ export function OTPVerificationScreen({
         }
       });
       setOtp(newOtp);
-      
+
       // Focus last filled input or next empty input
       const nextIndex = Math.min(index + pastedOtp.length, 5);
       setTimeout(() => {
@@ -120,7 +130,7 @@ export function OTPVerificationScreen({
   };
 
   const handleKeyDown = (index: number, e: React.KeyboardEvent) => {
-    if (e.key === 'Backspace' && !otp[index] && index > 0) {
+    if (e.key === "Backspace" && !otp[index] && index > 0) {
       setTimeout(() => {
         inputRefs.current[index - 1]?.focus();
       }, 0);
@@ -128,49 +138,63 @@ export function OTPVerificationScreen({
   };
 
   const handleVerify = async () => {
-    const otpString = otp.join('').replace(/\s/g, ''); // Remove any spaces
-    devAuthConfig.log('Starting OTP verification', { 
-      otp: otpString.replace(/./g, '*'), 
+    const otpString = otp.join("").replace(/\s/g, ""); // Remove any spaces
+    devAuthConfig.log("Starting OTP verification", {
+      otp: otpString.replace(/./g, "*"),
       length: otpString.length,
       phone: phone,
-      isNewUser: isNewUser
+      isNewUser: isNewUser,
     });
-    
+
     if (otpString.length !== 6) {
-      toast.error('Please enter a complete 6-digit code');
+      toast.error("Please enter a complete 6-digit code");
       return;
     }
 
     // Validate that all characters are digits
     if (!/^\d{6}$/.test(otpString)) {
-      toast.error('Please enter only numbers');
+      toast.error("Please enter only numbers");
       return;
     }
 
     setIsLoading(true);
-    
+
     try {
-      devAuthConfig.log('Calling authService.verifyOTP', { phone, isNewUser, name });
-      const result = await authService.verifyOTP(phone, otpString, name, isNewUser);
-      
-      devAuthConfig.log('OTP verification result', { success: result.success, error: result.error });
-      
+      devAuthConfig.log("Calling authService.verifyOTP", {
+        phone,
+        isNewUser,
+        name,
+      });
+      const result = await authService.verifyOTP(
+        phone,
+        otpString,
+        name,
+        isNewUser,
+      );
+
+      devAuthConfig.log("OTP verification result", {
+        success: result.success,
+        error: result.error,
+      });
+
       if (result.success && result.user && result.token) {
-        toast.success(isNewUser ? 'Account created successfully!' : 'Welcome back!');
+        toast.success(
+          isNewUser ? "Account created successfully!" : "Welcome back!",
+        );
         onSuccess({ token: result.token, user: result.user });
       } else {
-        devAuthConfig.logError('Verification failed', result);
-        toast.error(result.error || 'Verification failed');
+        devAuthConfig.logError("Verification failed", result);
+        toast.error(result.error || "Verification failed");
         // Clear OTP on error
-        setOtp(['', '', '', '', '', '']);
+        setOtp(["", "", "", "", "", ""]);
         setTimeout(() => {
           inputRefs.current[0]?.focus();
         }, 100);
       }
     } catch (error) {
-      devAuthConfig.logError('OTP verification error', error);
-      toast.error('Verification failed. Please try again.');
-      setOtp(['', '', '', '', '', '']);
+      devAuthConfig.logError("OTP verification error", error);
+      toast.error("Verification failed. Please try again.");
+      setOtp(["", "", "", "", "", ""]);
       setTimeout(() => {
         inputRefs.current[0]?.focus();
       }, 100);
@@ -183,24 +207,24 @@ export function OTPVerificationScreen({
     setIsResending(true);
     setCanResend(false);
     setCountdown(60);
-    
+
     try {
-      devAuthConfig.log('Resending OTP', { phone, region });
+      devAuthConfig.log("Resending OTP", { phone, region });
       const result = await authService.sendOTP(phone, region);
       if (result.success) {
-        toast.success('Verification code sent');
+        toast.success("Verification code sent");
         // For demo purposes, show the new OTP
         if (result.otp && devAuthConfig.shouldShowOTPDebug()) {
           toast.info(`Demo OTP: ${result.otp}`, { duration: 5000 });
         }
       } else {
-        toast.error(result.error || 'Failed to resend code');
+        toast.error(result.error || "Failed to resend code");
         setCanResend(true);
         setCountdown(0);
       }
     } catch (error) {
-      devAuthConfig.logError('Resend OTP error', error);
-      toast.error('Failed to resend code');
+      devAuthConfig.logError("Resend OTP error", error);
+      toast.error("Failed to resend code");
       setCanResend(true);
       setCountdown(0);
     } finally {
@@ -208,7 +232,8 @@ export function OTPVerificationScreen({
     }
   };
 
-  const formatPhone = (phoneNumber: string) => formatPhoneForRegion(region, phoneNumber);
+  const formatPhone = (phoneNumber: string) =>
+    formatPhoneForRegion(region, phoneNumber);
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/5 to-purple-50">
@@ -258,10 +283,15 @@ export function OTPVerificationScreen({
             {(demoOTP || devAuthConfig.shouldShowOTPDebug()) && (
               <div className="text-center p-3 bg-blue-50 rounded-lg border border-blue-200">
                 <p className="text-sm text-blue-800">
-                  <strong>Demo Mode:</strong> {demoOTP ? `Server OTP: ${demoOTP}` : `Dev Config OTP: ${devAuthConfig.getMockOTP()}`}
+                  <strong>Demo Mode:</strong>{" "}
+                  {demoOTP
+                    ? `Server OTP: ${demoOTP}`
+                    : `Dev Config OTP: ${devAuthConfig.getMockOTP()}`}
                 </p>
                 <p className="text-xs text-blue-600 mt-1">
-                  {demoOTP ? 'OTP auto-filled from server response' : 'Using development configuration OTP'}
+                  {demoOTP
+                    ? "OTP auto-filled from server response"
+                    : "Using development configuration OTP"}
                 </p>
               </div>
             )}
@@ -269,10 +299,10 @@ export function OTPVerificationScreen({
             {/* Verify Button */}
             <Button
               onClick={handleVerify}
-              disabled={isLoading || otp.join('').length !== 6}
+              disabled={isLoading || otp.join("").length !== 6}
               className="w-full h-12"
             >
-              {isLoading ? 'Verifying...' : 'Verify'}
+              {isLoading ? "Verifying..." : "Verify"}
             </Button>
 
             {/* Resend Code */}
@@ -287,7 +317,11 @@ export function OTPVerificationScreen({
                 className="p-0 h-auto"
               >
                 <RotateCcw className="h-4 w-4 mr-1" />
-                {isResending ? 'Sending...' : canResend ? 'Resend code' : `Resend in ${countdown}s`}
+                {isResending
+                  ? "Sending..."
+                  : canResend
+                    ? "Resend code"
+                    : `Resend in ${countdown}s`}
               </Button>
             </div>
           </div>
@@ -296,7 +330,8 @@ export function OTPVerificationScreen({
         {/* Help Text */}
         <div className="text-center">
           <p className="text-xs text-muted-foreground">
-            Make sure you have a stable internet connection and check your SMS inbox
+            Make sure you have a stable internet connection and check your SMS
+            inbox
           </p>
         </div>
       </div>

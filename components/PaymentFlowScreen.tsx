@@ -1,15 +1,38 @@
-import { useState, useEffect } from 'react';
-import { ArrowLeft, Building2, Copy, CheckCircle, ExternalLink, Smartphone, Users, Clock } from 'lucide-react';
-import { Button } from './ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { Badge } from './ui/badge';
-import { Avatar, AvatarFallback } from './ui/avatar';
+import { useState, useEffect } from "react";
+import {
+  ArrowLeft,
+  Building2,
+  Copy,
+  CheckCircle,
+  ExternalLink,
+  Smartphone,
+  Users,
+  Clock,
+} from "lucide-react";
+import { Button } from "./ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "./ui/card";
+import { Badge } from "./ui/badge";
+import { Avatar, AvatarFallback } from "./ui/avatar";
 // import { Separator } from './ui/separator';
-import { toast } from 'sonner';
-import { useUserProfile } from './UserProfileContext';
-import { formatCurrencyForRegion, requiresRoutingNumber, getBankIdentifierLabel, formatBankAccountForRegion } from '../utils/regions';
-import { apiClient } from '../utils/apiClient';
-import { type PaymentMethod, fetchUserPaymentMethods } from '@/api/payment-methods';
+import { toast } from "sonner";
+import { useUserProfile } from "./UserProfileContext";
+import {
+  formatCurrencyForRegion,
+  requiresRoutingNumber,
+  getBankIdentifierLabel,
+  formatBankAccountForRegion,
+} from "../utils/regions";
+import { apiClient } from "../utils/apiClient";
+import {
+  type PaymentMethod,
+  fetchUserPaymentMethods,
+} from "@/api/payment-methods";
 
 interface PaymentFlowScreenProps {
   paymentRequest: {
@@ -29,11 +52,17 @@ interface PaymentFlowScreenProps {
 
 const recipientMethodCache = new Map<string, PaymentMethod | null>();
 
-export function PaymentFlowScreen({ paymentRequest, onNavigate }: PaymentFlowScreenProps) {
+export function PaymentFlowScreen({
+  paymentRequest,
+  onNavigate,
+}: PaymentFlowScreenProps) {
   const { appSettings } = useUserProfile();
-  
-  const [paymentStatus, setPaymentStatus] = useState<'pending' | 'sent' | 'confirmed'>('pending');
-  const [recipientPaymentMethod, setRecipientPaymentMethod] = useState<PaymentMethod | null>(null);
+
+  const [paymentStatus, setPaymentStatus] = useState<
+    "pending" | "sent" | "confirmed"
+  >("pending");
+  const [recipientPaymentMethod, setRecipientPaymentMethod] =
+    useState<PaymentMethod | null>(null);
   const [isMethodLoading, setIsMethodLoading] = useState(false);
   const [methodError, setMethodError] = useState<string | null>(null);
 
@@ -56,7 +85,7 @@ export function PaymentFlowScreen({ paymentRequest, onNavigate }: PaymentFlowScr
         recipientMethodCache.set(recipientId, method);
         setRecipientPaymentMethod(method);
       } catch (err: any) {
-        setMethodError(err.message || 'Failed to load payment method');
+        setMethodError(err.message || "Failed to load payment method");
         recipientMethodCache.set(recipientId, null);
         setRecipientPaymentMethod(null);
       } finally {
@@ -71,10 +100,10 @@ export function PaymentFlowScreen({ paymentRequest, onNavigate }: PaymentFlowScr
     return (
       <div className="min-h-screen bg-background px-4 py-6">
         <div className="flex items-center space-x-4 mb-6">
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={() => onNavigate('home')}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onNavigate("home")}
             className="min-h-[44px] min-w-[44px] -ml-2"
           >
             <ArrowLeft className="h-5 w-5" />
@@ -92,50 +121,56 @@ export function PaymentFlowScreen({ paymentRequest, onNavigate }: PaymentFlowScr
     if (!recipientPaymentMethod) return;
 
     if (!navigator.clipboard || !navigator.clipboard.writeText) {
-      toast.error('Clipboard not supported. Please copy manually.');
+      toast.error("Clipboard not supported. Please copy manually.");
       return;
     }
 
     try {
-      if (recipientPaymentMethod.type === 'bank') {
+      if (recipientPaymentMethod.type === "bank") {
         const usesRouting = requiresRoutingNumber(appSettings.region);
         const label = getBankIdentifierLabel(appSettings.region);
-        const idValue = usesRouting ? recipientPaymentMethod.routingNumber : recipientPaymentMethod.sortCode;
-        const bankInfo = `${recipientPaymentMethod.bank}\nAccount Name: ${recipientPaymentMethod.accountName}\n${label}: ${idValue ?? ''}\nAccount Number: ${recipientPaymentMethod.accountNumber}`;
+        const idValue = usesRouting
+          ? recipientPaymentMethod.routingNumber
+          : recipientPaymentMethod.sortCode;
+        const bankInfo = `${recipientPaymentMethod.bank}\nAccount Name: ${recipientPaymentMethod.accountName}\n${label}: ${idValue ?? ""}\nAccount Number: ${recipientPaymentMethod.accountNumber}`;
         await navigator.clipboard.writeText(bankInfo);
-        toast.success('Bank account details copied to clipboard');
+        toast.success("Bank account details copied to clipboard");
       } else {
         const mobileInfo = `${recipientPaymentMethod.provider}\nPhone Number: ${recipientPaymentMethod.phoneNumber}`;
         await navigator.clipboard.writeText(mobileInfo);
-        toast.success('Mobile money details copied to clipboard');
+        toast.success("Mobile money details copied to clipboard");
       }
     } catch (error) {
-      toast.error('Failed to copy details. Please copy manually.');
+      toast.error("Failed to copy details. Please copy manually.");
     }
   };
 
   const copyAmount = () => {
     navigator.clipboard.writeText(paymentRequest.amount.toFixed(2));
-    toast.success('Amount copied to clipboard');
+    toast.success("Amount copied to clipboard");
   };
 
   const copyReference = async () => {
     try {
       let reference: string | null = null;
       if ((paymentRequest as any)?.billSplitId) {
-        const data = await apiClient(`/bill-splits/${(paymentRequest as any).billSplitId}/reference`, { method: 'POST' });
+        const data = await apiClient(
+          `/bill-splits/${(paymentRequest as any).billSplitId}/reference`,
+          { method: "POST" },
+        );
         reference = data?.reference || null;
       }
-      const refToCopy = reference || `Biltip-${paymentRequest.id}-${Date.now()}`;
+      const refToCopy =
+        reference || `Biltip-${paymentRequest.id}-${Date.now()}`;
       await navigator.clipboard.writeText(refToCopy);
-      toast.success('Payment reference copied to clipboard');
+      toast.success("Payment reference copied to clipboard");
     } catch {
       const fallback = `Biltip-${paymentRequest.id}-${Date.now()}`;
       try {
         await navigator.clipboard.writeText(fallback);
-        toast.success('Payment reference copied to clipboard');
+        toast.success("Payment reference copied to clipboard");
       } catch {
-        toast.error('Failed to copy reference. Please copy manually.');
+        toast.error("Failed to copy reference. Please copy manually.");
       }
     }
   };
@@ -143,24 +178,24 @@ export function PaymentFlowScreen({ paymentRequest, onNavigate }: PaymentFlowScr
   const markAsSent = async () => {
     try {
       // If this flow has a corresponding request transaction id, update it on the server
-      const reqId = (paymentRequest as any)?.requestId as string | undefined
+      const reqId = (paymentRequest as any)?.requestId as string | undefined;
       if (reqId) {
-        await apiClient(`/transactions/${reqId}/mark-sent`, { method: 'POST' })
+        await apiClient(`/transactions/${reqId}/mark-sent`, { method: "POST" });
       }
-      setPaymentStatus('sent');
-      toast.success('Payment marked as sent! The recipient will be notified.');
+      setPaymentStatus("sent");
+      toast.success("Payment marked as sent! The recipient will be notified.");
 
       // Navigate to relevant details after a short delay
       setTimeout(() => {
         if (reqId) {
-          onNavigate('transaction-details', { transactionId: reqId });
+          onNavigate("transaction-details", { transactionId: reqId });
         } else {
-          onNavigate('home');
+          onNavigate("home");
         }
       }, 1500);
     } catch (error) {
-      console.error('Failed to mark payment as sent', error)
-      toast.error('Failed to mark payment as sent');
+      console.error("Failed to mark payment as sent", error);
+      toast.error("Failed to mark payment as sent");
     }
   };
 
@@ -168,10 +203,11 @@ export function PaymentFlowScreen({ paymentRequest, onNavigate }: PaymentFlowScr
     formatBankAccountForRegion(appSettings.region, accountNumber);
 
   const getPaymentInstructions = () => {
-    if (!recipientPaymentMethod) return 'Payment method information not available.';
-    
-    if (recipientPaymentMethod.type === 'bank') {
-      return 'Use your banking app (mobile or web), or visit a branch to send this payment.';
+    if (!recipientPaymentMethod)
+      return "Payment method information not available.";
+
+    if (recipientPaymentMethod.type === "bank") {
+      return "Use your banking app (mobile or web), or visit a branch to send this payment.";
     } else {
       return `Open your ${recipientPaymentMethod.provider} app and send money to the phone number above.`;
     }
@@ -180,10 +216,10 @@ export function PaymentFlowScreen({ paymentRequest, onNavigate }: PaymentFlowScr
   const formatDate = (dateString?: string) => {
     if (!dateString) return null;
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric',
-      year: 'numeric'
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
     });
   };
 
@@ -192,24 +228,26 @@ export function PaymentFlowScreen({ paymentRequest, onNavigate }: PaymentFlowScr
       {/* Header - Sticky for better mobile navigation */}
       <div className="sticky top-0 bg-background/95 backdrop-blur-sm border-b border-border z-10">
         <div className="flex items-center space-x-3 px-4 py-3">
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={() => onNavigate('home')}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onNavigate("home")}
             className="min-h-[44px] min-w-[44px] -ml-2"
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="min-w-0 flex-1">
             <h2 className="text-xl font-semibold">Send Payment</h2>
-            <p className="text-sm text-muted-foreground truncate">{paymentRequest.description}</p>
+            <p className="text-sm text-muted-foreground truncate">
+              {paymentRequest.description}
+            </p>
           </div>
         </div>
       </div>
 
       <div className="px-4 py-6 space-y-6 pb-32">
         {/* Payment Status */}
-        {paymentStatus === 'sent' && (
+        {paymentStatus === "sent" && (
           <Card className="border-success bg-success/5">
             <CardContent className="p-4">
               <div className="flex items-start gap-3 text-success">
@@ -217,7 +255,8 @@ export function PaymentFlowScreen({ paymentRequest, onNavigate }: PaymentFlowScr
                 <div className="min-w-0 flex-1">
                   <span className="font-medium">Payment Sent!</span>
                   <p className="text-sm text-muted-foreground mt-1">
-                    Your payment has been marked as sent. The recipient will be notified.
+                    Your payment has been marked as sent. The recipient will be
+                    notified.
                   </p>
                 </div>
               </div>
@@ -232,12 +271,19 @@ export function PaymentFlowScreen({ paymentRequest, onNavigate }: PaymentFlowScr
               <div className="flex items-start space-x-3">
                 <Avatar className="h-12 w-12 flex-shrink-0">
                   <AvatarFallback className="text-base">
-                    {paymentRequest.recipient.split(' ').map(n => n[0]).join('')}
+                    {paymentRequest.recipient
+                      .split(" ")
+                      .map((n) => n[0])
+                      .join("")}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-medium text-base leading-tight">{paymentRequest.description}</h3>
-                  <p className="text-sm text-muted-foreground mt-1">To {paymentRequest.recipient}</p>
+                  <h3 className="font-medium text-base leading-tight">
+                    {paymentRequest.description}
+                  </h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    To {paymentRequest.recipient}
+                  </p>
                   {paymentRequest.dueDate && (
                     <div className="flex items-center space-x-1 mt-2">
                       <Clock className="h-3 w-3 text-warning flex-shrink-0" />
@@ -253,15 +299,18 @@ export function PaymentFlowScreen({ paymentRequest, onNavigate }: PaymentFlowScr
                   )}
                 </div>
               </div>
-              
+
               {/* Amount - Prominent display */}
               <div className="text-center py-4 bg-background/50 rounded-lg">
                 <div className="text-2xl sm:text-3xl font-bold text-primary mb-2">
-                  {formatCurrencyForRegion(appSettings.region, paymentRequest.amount)}
+                  {formatCurrencyForRegion(
+                    appSettings.region,
+                    paymentRequest.amount,
+                  )}
                 </div>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={copyAmount}
                   className="min-h-[40px]"
                 >
@@ -277,7 +326,9 @@ export function PaymentFlowScreen({ paymentRequest, onNavigate }: PaymentFlowScr
         {isMethodLoading ? (
           <Card>
             <CardContent className="p-6 text-center">
-              <div className="text-muted-foreground text-sm">Loading payment method...</div>
+              <div className="text-muted-foreground text-sm">
+                Loading payment method...
+              </div>
             </CardContent>
           </Card>
         ) : methodError ? (
@@ -290,7 +341,7 @@ export function PaymentFlowScreen({ paymentRequest, onNavigate }: PaymentFlowScr
           <Card>
             <CardHeader className="pb-4">
               <CardTitle className="flex items-center gap-2 text-lg">
-                {recipientPaymentMethod.type === 'bank' ? (
+                {recipientPaymentMethod.type === "bank" ? (
                   <Building2 className="h-5 w-5" />
                 ) : (
                   <Smartphone className="h-5 w-5" />
@@ -308,30 +359,48 @@ export function PaymentFlowScreen({ paymentRequest, onNavigate }: PaymentFlowScr
                     <div className="flex items-start justify-between">
                       <div className="min-w-0 flex-1">
                         <p className="font-medium text-base mb-2">
-                          {recipientPaymentMethod.type === 'bank'
+                          {recipientPaymentMethod.type === "bank"
                             ? recipientPaymentMethod.bank
                             : recipientPaymentMethod.provider}
                         </p>
 
-                        {recipientPaymentMethod.type === 'bank' ? (
+                        {recipientPaymentMethod.type === "bank" ? (
                           <div className="space-y-2 text-sm">
                             <div className="flex justify-between">
-                              <span className="text-muted-foreground">Account Name:</span>
-                              <span className="font-medium">{recipientPaymentMethod.accountName}</span>
+                              <span className="text-muted-foreground">
+                                Account Name:
+                              </span>
+                              <span className="font-medium">
+                                {recipientPaymentMethod.accountName}
+                              </span>
                             </div>
                             {(() => {
-                              const label = getBankIdentifierLabel(appSettings.region);
-                              const usesRouting = requiresRoutingNumber(appSettings.region);
-                              const value = usesRouting ? recipientPaymentMethod.routingNumber : recipientPaymentMethod.sortCode;
+                              const label = getBankIdentifierLabel(
+                                appSettings.region,
+                              );
+                              const usesRouting = requiresRoutingNumber(
+                                appSettings.region,
+                              );
+                              const value = usesRouting
+                                ? recipientPaymentMethod.routingNumber
+                                : recipientPaymentMethod.sortCode;
                               return (
                                 <>
                                   <div className="flex justify-between">
-                                    <span className="text-muted-foreground">{label}:</span>
+                                    <span className="text-muted-foreground">
+                                      {label}:
+                                    </span>
                                     <span className="font-mono">{value}</span>
                                   </div>
                                   <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Account Number:</span>
-                                    <span className="font-mono">{formatAccountNumber(recipientPaymentMethod.accountNumber!)}</span>
+                                    <span className="text-muted-foreground">
+                                      Account Number:
+                                    </span>
+                                    <span className="font-mono">
+                                      {formatAccountNumber(
+                                        recipientPaymentMethod.accountNumber!,
+                                      )}
+                                    </span>
                                   </div>
                                 </>
                               );
@@ -340,8 +409,12 @@ export function PaymentFlowScreen({ paymentRequest, onNavigate }: PaymentFlowScr
                         ) : (
                           <div className="text-sm">
                             <div className="flex justify-between">
-                              <span className="text-muted-foreground">Phone Number:</span>
-                              <span className="font-mono">{recipientPaymentMethod.phoneNumber}</span>
+                              <span className="text-muted-foreground">
+                                Phone Number:
+                              </span>
+                              <span className="font-mono">
+                                {recipientPaymentMethod.phoneNumber}
+                              </span>
                             </div>
                           </div>
                         )}
@@ -369,7 +442,8 @@ export function PaymentFlowScreen({ paymentRequest, onNavigate }: PaymentFlowScr
             <CardContent className="p-6 text-center">
               <div className="space-y-3">
                 <div className="text-muted-foreground text-sm">
-                  ⚠️ Payment method information not available for {paymentRequest.recipient}.
+                  ⚠️ Payment method information not available for{" "}
+                  {paymentRequest.recipient}.
                 </div>
                 <p className="text-sm">
                   Please contact them directly for payment details.
@@ -390,7 +464,8 @@ export function PaymentFlowScreen({ paymentRequest, onNavigate }: PaymentFlowScr
           <CardContent>
             <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
               <span className="font-mono text-sm min-w-0 flex-1 break-all">
-                Biltip-{paymentRequest.id}-{paymentRequest.description.replace(/\s+/g, '').slice(0, 10)}
+                Biltip-{paymentRequest.id}-
+                {paymentRequest.description.replace(/\s+/g, "").slice(0, 10)}
               </span>
               <Button
                 variant="ghost"
@@ -415,9 +490,11 @@ export function PaymentFlowScreen({ paymentRequest, onNavigate }: PaymentFlowScr
           <CardContent className="space-y-4">
             <div>
               <p className="text-sm text-muted-foreground mb-1">Description</p>
-              <p className="text-sm leading-relaxed">{paymentRequest.description}</p>
+              <p className="text-sm leading-relaxed">
+                {paymentRequest.description}
+              </p>
             </div>
-            
+
             <div>
               <p className="text-sm text-muted-foreground mb-1">Recipient</p>
               <p className="text-sm">{paymentRequest.recipient}</p>
@@ -432,7 +509,9 @@ export function PaymentFlowScreen({ paymentRequest, onNavigate }: PaymentFlowScr
 
             {paymentRequest.groupId && (
               <div>
-                <p className="text-sm text-muted-foreground mb-1">Payment Type</p>
+                <p className="text-sm text-muted-foreground mb-1">
+                  Payment Type
+                </p>
                 <p className="text-sm">Group Payment</p>
               </div>
             )}
@@ -449,7 +528,10 @@ export function PaymentFlowScreen({ paymentRequest, onNavigate }: PaymentFlowScr
               <li>• Click "Mark as Sent" after completing the transfer</li>
               <li>• The recipient will be notified of your payment</li>
               {!recipientPaymentMethod && (
-                <li>• Contact the recipient directly if payment details are missing</li>
+                <li>
+                  • Contact the recipient directly if payment details are
+                  missing
+                </li>
               )}
             </ul>
           </CardContent>
@@ -459,9 +541,12 @@ export function PaymentFlowScreen({ paymentRequest, onNavigate }: PaymentFlowScr
       {/* Fixed Action Buttons at Bottom */}
       <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border p-4">
         <div className="max-w-md mx-auto space-y-3">
-          {paymentStatus === 'pending' && recipientPaymentMethod ? (
+          {paymentStatus === "pending" && recipientPaymentMethod ? (
             <>
-              <Button className="w-full h-12 text-base font-medium" onClick={markAsSent}>
+              <Button
+                className="w-full h-12 text-base font-medium"
+                onClick={markAsSent}
+              >
                 <CheckCircle className="h-5 w-5 mr-2" />
                 Mark as Sent
               </Button>
@@ -470,22 +555,22 @@ export function PaymentFlowScreen({ paymentRequest, onNavigate }: PaymentFlowScr
                   <ExternalLink className="h-4 w-4 mr-2" />
                   Open Banking App
                 </Button>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="h-12"
-                  onClick={() => onNavigate('home')}
+                  onClick={() => onNavigate("home")}
                 >
                   Cancel
                 </Button>
               </div>
             </>
           ) : (
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="w-full h-12"
-              onClick={() => onNavigate('home')}
+              onClick={() => onNavigate("home")}
             >
-              {paymentStatus === 'sent' ? 'Back to Home' : 'Cancel'}
+              {paymentStatus === "sent" ? "Back to Home" : "Cancel"}
             </Button>
           )}
         </div>

@@ -1,6 +1,6 @@
-import { Card } from './card';
-import { Separator } from './separator';
-import { Skeleton } from './skeleton';
+import { Card } from "./card";
+import { Separator } from "./separator";
+import { Skeleton } from "./skeleton";
 
 export function ProfileSkeleton() {
   return (
@@ -77,4 +77,3 @@ export function ProfileSkeleton() {
     </div>
   );
 }
-

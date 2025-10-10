@@ -11,7 +11,12 @@ interface FilterTabsProps {
   className?: string;
 }
 
-export function FilterTabs({ tabs, activeTab, onTabChange, className = '' }: FilterTabsProps) {
+export function FilterTabs({
+  tabs,
+  activeTab,
+  onTabChange,
+  className = "",
+}: FilterTabsProps) {
   return (
     <div className={`flex space-x-1 bg-muted p-1 rounded-lg ${className}`}>
       {tabs.map((tab) => (
@@ -20,12 +25,12 @@ export function FilterTabs({ tabs, activeTab, onTabChange, className = '' }: Fil
           onClick={() => onTabChange(tab.id)}
           className={`flex-1 px-3 py-2 rounded-md text-sm transition-colors ${
             activeTab === tab.id
-              ? 'bg-background text-foreground shadow-sm'
-              : 'text-muted-foreground hover:text-foreground'
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
           }`}
         >
           <span>{tab.label}</span>
-          {typeof tab.count === 'number' && (
+          {typeof tab.count === "number" && (
             <span className="ml-1 text-xs opacity-60">({tab.count})</span>
           )}
         </button>

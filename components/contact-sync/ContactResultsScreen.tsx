@@ -1,14 +1,28 @@
-import { useState, useEffect } from 'react';
-import { ArrowLeft, Users, Search, MessageCircle, UserPlus, CheckCircle, RefreshCw, Share2 } from 'lucide-react';
-import { Button } from '../ui/button';
-import { Card, CardContent } from '../ui/card';
-import { Input } from '../ui/input';
-import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
-import { Badge } from '../ui/badge';
-import { Checkbox } from '../ui/checkbox';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
-import { MatchedContact, ContactSyncScreenProps, ActiveTab } from './types';
-import { filterContacts, handleBulkInviteContacts, handleSingleInvite, handleSendFriendRequest } from './helpers';
+import { useState, useEffect } from "react";
+import {
+  ArrowLeft,
+  Users,
+  Search,
+  MessageCircle,
+  UserPlus,
+  CheckCircle,
+  RefreshCw,
+  Share2,
+} from "lucide-react";
+import { Button } from "../ui/button";
+import { Card, CardContent } from "../ui/card";
+import { Input } from "../ui/input";
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import { Badge } from "../ui/badge";
+import { Checkbox } from "../ui/checkbox";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
+import { MatchedContact, ContactSyncScreenProps, ActiveTab } from "./types";
+import {
+  filterContacts,
+  handleBulkInviteContacts,
+  handleSingleInvite,
+  handleSendFriendRequest,
+} from "./helpers";
 
 interface ContactResultsScreenProps extends ContactSyncScreenProps {
   matchedContacts: MatchedContact[];
@@ -17,8 +31,10 @@ interface ContactResultsScreenProps extends ContactSyncScreenProps {
   isInviting: boolean;
   setIsInviting: (value: boolean) => void;
   onRetrySync?: () => void;
-  syncMethod?: 'contacts' | 'file' | 'demo';
-  updateMatchedContacts: (updater: (prev: MatchedContact[]) => MatchedContact[]) => void;
+  syncMethod?: "contacts" | "file" | "demo";
+  updateMatchedContacts: (
+    updater: (prev: MatchedContact[]) => MatchedContact[],
+  ) => void;
 }
 
 export function ContactResultsScreen({
@@ -29,29 +45,34 @@ export function ContactResultsScreen({
   isInviting,
   setIsInviting,
   onRetrySync,
-  syncMethod = 'contacts',
-  updateMatchedContacts
+  syncMethod = "contacts",
+  updateMatchedContacts,
 }: ContactResultsScreenProps) {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<ActiveTab>('on_app');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState<ActiveTab>("on_app");
   const VISIBLE_BATCH = 50;
   const [visibleOnAppCount, setVisibleOnAppCount] = useState(VISIBLE_BATCH);
   const [visibleInviteCount, setVisibleInviteCount] = useState(VISIBLE_BATCH);
 
   const filteredContacts = filterContacts(matchedContacts, searchQuery);
-  const existingUsers = filteredContacts.filter(c => c.status === 'existing_user');
-  const inviteableContacts = filteredContacts.filter(c => c.status === 'not_on_app');
+  const existingUsers = filteredContacts.filter(
+    (c) => c.status === "existing_user",
+  );
+  const inviteableContacts = filteredContacts.filter(
+    (c) => c.status === "not_on_app",
+  );
 
   const getDisplayContacts = () => {
-    if (activeTab === 'on_app') {
+    if (activeTab === "on_app") {
       return existingUsers.slice(0, visibleOnAppCount);
     }
     return inviteableContacts.slice(0, visibleInviteCount);
   };
 
   const displayContacts = getDisplayContacts();
-  const allDisplayedSelected = displayContacts.length > 0 && 
-    displayContacts.every(contact => selectedContacts.has(contact.id));
+  const allDisplayedSelected =
+    displayContacts.length > 0 &&
+    displayContacts.every((contact) => selectedContacts.has(contact.id));
 
   const toggleContactSelection = (contactId: string) => {
     const newSelected = new Set(selectedContacts);
@@ -67,31 +88,31 @@ export function ContactResultsScreen({
     if (allDisplayedSelected) {
       // Deselect all displayed contacts
       const newSelected = new Set(selectedContacts);
-      displayContacts.forEach(contact => newSelected.delete(contact.id));
+      displayContacts.forEach((contact) => newSelected.delete(contact.id));
       setSelectedContacts(newSelected);
     } else {
       // Select all displayed contacts
       const newSelected = new Set(selectedContacts);
-      displayContacts.forEach(contact => newSelected.add(contact.id));
+      displayContacts.forEach((contact) => newSelected.add(contact.id));
       setSelectedContacts(newSelected);
     }
   };
 
   const handleInviteContacts = () => {
-    const selectedContactsList = inviteableContacts.filter(contact => 
-      selectedContacts.has(contact.id)
+    const selectedContactsList = inviteableContacts.filter((contact) =>
+      selectedContacts.has(contact.id),
     );
     handleBulkInviteContacts(
       selectedContactsList,
       selectedContacts,
       setIsInviting,
-      setSelectedContacts
+      setSelectedContacts,
     );
   };
 
   const handleAddAllFriends = async () => {
-    const selectedFriends = existingUsers.filter(contact => 
-      selectedContacts.has(contact.id)
+    const selectedFriends = existingUsers.filter((contact) =>
+      selectedContacts.has(contact.id),
     );
 
     if (selectedFriends.length === 0) {
@@ -103,9 +124,11 @@ export function ContactResultsScreen({
       for (const contact of selectedFriends) {
         const result = await handleSendFriendRequest(contact);
         if (result.success) {
-          updateMatchedContacts(prev => prev.map(item =>
-            item.id === contact.id ? { ...item, status: 'pending' } : item
-          ));
+          updateMatchedContacts((prev) =>
+            prev.map((item) =>
+              item.id === contact.id ? { ...item, status: "pending" } : item,
+            ),
+          );
         }
       }
     } finally {
@@ -122,12 +145,24 @@ export function ContactResultsScreen({
 
   const getSyncMethodBadge = () => {
     switch (syncMethod) {
-      case 'contacts':
-        return <Badge variant="default" className="text-xs">Live Sync</Badge>;
-      case 'file':
-        return <Badge variant="secondary" className="text-xs">File Import</Badge>;
-      case 'demo':
-        return <Badge variant="outline" className="text-xs">Demo Mode</Badge>;
+      case "contacts":
+        return (
+          <Badge variant="default" className="text-xs">
+            Live Sync
+          </Badge>
+        );
+      case "file":
+        return (
+          <Badge variant="secondary" className="text-xs">
+            File Import
+          </Badge>
+        );
+      case "demo":
+        return (
+          <Badge variant="outline" className="text-xs">
+            Demo Mode
+          </Badge>
+        );
       default:
         return null;
     }
@@ -142,7 +177,7 @@ export function ContactResultsScreen({
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => onNavigate('add-friend')}
+              onClick={() => onNavigate("add-friend")}
               className="min-h-[44px] min-w-[44px] -ml-2"
             >
               <ArrowLeft className="h-5 w-5" />
@@ -157,7 +192,7 @@ export function ContactResultsScreen({
               </p>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-2">
             {onRetrySync && (
               <Button
@@ -181,11 +216,12 @@ export function ContactResultsScreen({
               <div className="flex justify-center">
                 <CheckCircle className="h-12 w-12 text-green-600" />
               </div>
-              
+
               <div>
                 <h3 className="text-lg font-semibold mb-2">Sync Complete!</h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  Found {existingUsers.length + inviteableContacts.length} connections from your contacts
+                  Found {existingUsers.length + inviteableContacts.length}{" "}
+                  connections from your contacts
                 </p>
               </div>
 
@@ -194,15 +230,23 @@ export function ContactResultsScreen({
                   <div className="text-2xl font-bold text-green-600 mb-1">
                     {existingUsers.length}
                   </div>
-                  <p className="text-sm text-muted-foreground">Friends on Biltip</p>
-                  <p className="text-xs text-muted-foreground mt-1">Ready to connect</p>
+                  <p className="text-sm text-muted-foreground">
+                    Friends on Biltip
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Ready to connect
+                  </p>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-blue-600 mb-1">
                     {inviteableContacts.length}
                   </div>
-                  <p className="text-sm text-muted-foreground">Can be invited</p>
-                  <p className="text-xs text-muted-foreground mt-1">Via WhatsApp</p>
+                  <p className="text-sm text-muted-foreground">
+                    Can be invited
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Via WhatsApp
+                  </p>
                 </div>
               </div>
             </div>
@@ -221,7 +265,11 @@ export function ContactResultsScreen({
         </div>
 
         {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as ActiveTab)} className="w-full">
+        <Tabs
+          value={activeTab}
+          onValueChange={(value) => setActiveTab(value as ActiveTab)}
+          className="w-full"
+        >
           <TabsList className="grid w-full grid-cols-2 min-h-[48px]">
             <TabsTrigger value="on_app" className="min-h-[44px]">
               <Users className="h-4 w-4 mr-2" />
@@ -258,17 +306,16 @@ export function ContactResultsScreen({
                       />
                       <div>
                         <p className="font-medium text-sm">
-                          {selectedContacts.size > 0 
-                            ? `${selectedContacts.size} selected` 
-                            : 'Select friends to add'
-                          }
+                          {selectedContacts.size > 0
+                            ? `${selectedContacts.size} selected`
+                            : "Select friends to add"}
                         </p>
                         <p className="text-xs text-muted-foreground">
                           Send friend requests to connect
                         </p>
                       </div>
                     </div>
-                    
+
                     {selectedContacts.size > 0 && (
                       <Button
                         onClick={handleAddAllFriends}
@@ -288,12 +335,12 @@ export function ContactResultsScreen({
             <div className="space-y-3">
               {displayContacts.length > 0 ? (
                 displayContacts.map((contact) => (
-                  <Card 
-                    key={contact.id} 
+                  <Card
+                    key={contact.id}
                     className={`transition-all cursor-pointer min-h-[72px] ${
                       selectedContacts.has(contact.id)
-                        ? 'bg-primary/5 border-primary/30' 
-                        : 'hover:bg-accent/50'
+                        ? "bg-primary/5 border-primary/30"
+                        : "hover:bg-accent/50"
                     }`}
                     onClick={() => toggleContactSelection(contact.id)}
                   >
@@ -304,30 +351,40 @@ export function ContactResultsScreen({
                           onChange={() => toggleContactSelection(contact.id)}
                           className="min-h-[20px] min-w-[20px]"
                         />
-                        
+
                         <Avatar className="h-12 w-12">
                           <AvatarImage src={contact.avatar} />
                           <AvatarFallback>
                             {getInitials(contact.name)}
                           </AvatarFallback>
                         </Avatar>
-                        
+
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <p className="font-medium text-base">{contact.name}</p>
-                            <Badge variant="default" className="text-xs bg-success text-success-foreground">
+                            <p className="font-medium text-base">
+                              {contact.name}
+                            </p>
+                            <Badge
+                              variant="default"
+                              className="text-xs bg-success text-success-foreground"
+                            >
                               On Biltip
                             </Badge>
-                            {contact.mutualFriends && contact.mutualFriends > 0 && (
-                              <Badge variant="secondary" className="text-xs">
-                                {contact.mutualFriends} mutual
-                              </Badge>
-                            )}
+                            {contact.mutualFriends &&
+                              contact.mutualFriends > 0 && (
+                                <Badge variant="secondary" className="text-xs">
+                                  {contact.mutualFriends} mutual
+                                </Badge>
+                              )}
                           </div>
                           <div className="space-y-1">
-                            <p className="text-sm text-muted-foreground">{contact.phone}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {contact.phone}
+                            </p>
                             {contact.username && (
-                              <p className="text-xs text-muted-foreground">{contact.username}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {contact.username}
+                              </p>
                             )}
                           </div>
                         </div>
@@ -339,16 +396,17 @@ export function ContactResultsScreen({
                 <Card>
                   <CardContent className="p-8 text-center">
                     <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                    <h3 className="font-medium mb-2">No friends found on Biltip</h3>
+                    <h3 className="font-medium mb-2">
+                      No friends found on Biltip
+                    </h3>
                     <p className="text-sm text-muted-foreground mb-4">
-                      {searchQuery 
-                        ? 'Try a different search term or check the invite tab' 
-                        : 'None of your contacts are using Biltip yet'
-                      }
+                      {searchQuery
+                        ? "Try a different search term or check the invite tab"
+                        : "None of your contacts are using Biltip yet"}
                     </p>
-                    <Button 
-                      variant="outline" 
-                      onClick={() => setActiveTab('invite')}
+                    <Button
+                      variant="outline"
+                      onClick={() => setActiveTab("invite")}
                       className="min-h-[44px]"
                     >
                       <MessageCircle className="h-4 w-4 mr-2" />
@@ -358,18 +416,21 @@ export function ContactResultsScreen({
                 </Card>
               )}
             </div>
-            {activeTab === 'on_app' && existingUsers.length > visibleOnAppCount && (
-              <div className="text-center pt-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setVisibleOnAppCount(count => count + VISIBLE_BATCH)}
-                  className="min-h-[40px]"
-                >
-                  Load More Contacts
-                </Button>
-              </div>
-            )}
+            {activeTab === "on_app" &&
+              existingUsers.length > visibleOnAppCount && (
+                <div className="text-center pt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setVisibleOnAppCount((count) => count + VISIBLE_BATCH)
+                    }
+                    className="min-h-[40px]"
+                  >
+                    Load More Contacts
+                  </Button>
+                </div>
+              )}
           </TabsContent>
 
           {/* Invite Tab */}
@@ -387,19 +448,18 @@ export function ContactResultsScreen({
                       />
                       <div>
                         <p className="font-medium text-sm">
-                          {selectedContacts.size > 0 
-                            ? `${selectedContacts.size} selected for WhatsApp invite` 
-                            : 'Select contacts to invite'
-                          }
+                          {selectedContacts.size > 0
+                            ? `${selectedContacts.size} selected for WhatsApp invite`
+                            : "Select contacts to invite"}
                         </p>
                         <p className="text-xs text-muted-foreground">
                           Send personalized invitations via WhatsApp
                         </p>
                       </div>
                     </div>
-                    
+
                     {selectedContacts.size > 0 && (
-                      <Button 
+                      <Button
                         onClick={handleInviteContacts}
                         disabled={isInviting}
                         className="min-h-[40px] bg-green-600 hover:bg-green-700 text-white"
@@ -423,12 +483,12 @@ export function ContactResultsScreen({
             <div className="space-y-3">
               {displayContacts.length > 0 ? (
                 displayContacts.map((contact) => (
-                  <Card 
+                  <Card
                     key={contact.id}
                     className={`transition-all cursor-pointer min-h-[72px] ${
                       selectedContacts.has(contact.id)
-                        ? 'bg-green-50 border-green-200 dark:bg-green-950/20' 
-                        : 'hover:bg-accent/50'
+                        ? "bg-green-50 border-green-200 dark:bg-green-950/20"
+                        : "hover:bg-accent/50"
                     }`}
                     onClick={() => toggleContactSelection(contact.id)}
                   >
@@ -439,27 +499,36 @@ export function ContactResultsScreen({
                           onChange={() => toggleContactSelection(contact.id)}
                           className="min-h-[20px] min-w-[20px]"
                         />
-                        
+
                         <Avatar className="h-12 w-12">
                           <AvatarFallback>
                             {getInitials(contact.name)}
                           </AvatarFallback>
                         </Avatar>
-                        
+
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <p className="font-medium text-base">{contact.name}</p>
-                            <Badge variant="outline" className="text-xs border-orange-200 text-orange-700">
+                            <p className="font-medium text-base">
+                              {contact.name}
+                            </p>
+                            <Badge
+                              variant="outline"
+                              className="text-xs border-orange-200 text-orange-700"
+                            >
                               Not on Biltip
                             </Badge>
                           </div>
-                          <p className="text-sm text-muted-foreground">{contact.phone}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {contact.phone}
+                          </p>
                           {contact.email && (
-                            <p className="text-xs text-muted-foreground">{contact.email}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {contact.email}
+                            </p>
                           )}
                         </div>
-                        
-                        <Button 
+
+                        <Button
                           size="sm"
                           variant="outline"
                           onClick={(e) => {
@@ -481,14 +550,13 @@ export function ContactResultsScreen({
                     <MessageCircle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                     <h3 className="font-medium mb-2">No contacts to invite</h3>
                     <p className="text-sm text-muted-foreground mb-4">
-                      {searchQuery 
-                        ? 'Try a different search term or check the friends tab' 
-                        : 'All your contacts are already using Biltip!'
-                      }
+                      {searchQuery
+                        ? "Try a different search term or check the friends tab"
+                        : "All your contacts are already using Biltip!"}
                     </p>
-                    <Button 
-                      variant="outline" 
-                      onClick={() => setActiveTab('on_app')}
+                    <Button
+                      variant="outline"
+                      onClick={() => setActiveTab("on_app")}
                       className="min-h-[44px]"
                     >
                       <Users className="h-4 w-4 mr-2" />
@@ -498,18 +566,21 @@ export function ContactResultsScreen({
                 </Card>
               )}
             </div>
-            {activeTab === 'invite' && inviteableContacts.length > visibleInviteCount && (
-              <div className="text-center pt-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setVisibleInviteCount(count => count + VISIBLE_BATCH)}
-                  className="min-h-[40px]"
-                >
-                  Load More Contacts
-                </Button>
-              </div>
-            )}
+            {activeTab === "invite" &&
+              inviteableContacts.length > visibleInviteCount && (
+                <div className="text-center pt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setVisibleInviteCount((count) => count + VISIBLE_BATCH)
+                    }
+                    className="min-h-[40px]"
+                  >
+                    Load More Contacts
+                  </Button>
+                </div>
+              )}
           </TabsContent>
         </Tabs>
 
@@ -517,10 +588,10 @@ export function ContactResultsScreen({
         <div className="grid gap-3">
           <Card>
             <CardContent className="p-4">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="w-full justify-start h-auto py-3"
-                onClick={() => onNavigate('add-friend')}
+                onClick={() => onNavigate("add-friend")}
               >
                 <div className="flex items-center space-x-3">
                   <div className="p-2 bg-primary/10 rounded-full">
@@ -528,7 +599,9 @@ export function ContactResultsScreen({
                   </div>
                   <div className="text-left">
                     <p className="font-medium">Add More Friends</p>
-                    <p className="text-sm text-muted-foreground">Search by phone number or username</p>
+                    <p className="text-sm text-muted-foreground">
+                      Search by phone number or username
+                    </p>
                   </div>
                 </div>
               </Button>
@@ -538,13 +611,13 @@ export function ContactResultsScreen({
           {inviteableContacts.length > 0 && (
             <Card>
               <CardContent className="p-4">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="w-full justify-start h-auto py-3"
                   onClick={() => {
                     const message = `Hey! I'm using Biltip to split bills and expenses easily. You should join too! Download it here: https://biltip.com/download`;
                     const url = `whatsapp://send?text=${encodeURIComponent(message)}`;
-                    window.open(url, '_blank');
+                    window.open(url, "_blank");
                   }}
                 >
                   <div className="flex items-center space-x-3">
@@ -553,7 +626,9 @@ export function ContactResultsScreen({
                     </div>
                     <div className="text-left">
                       <p className="font-medium">Share Biltip</p>
-                      <p className="text-sm text-muted-foreground">Send a general invitation via WhatsApp</p>
+                      <p className="text-sm text-muted-foreground">
+                        Send a general invitation via WhatsApp
+                      </p>
                     </div>
                   </div>
                 </Button>
@@ -565,4 +640,4 @@ export function ContactResultsScreen({
     </div>
   );
 }
-import { getInitials } from '../../utils/name';
+import { getInitials } from "../../utils/name";

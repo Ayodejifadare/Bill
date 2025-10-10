@@ -26,26 +26,26 @@ The Biltip sharing system has been streamlined and consolidated into a unified, 
 ### Basic Usage
 
 ```tsx
-import { ShareUtils } from './ShareUtils';
+import { ShareUtils } from "./ShareUtils";
 
 // Basic share button
-<ShareUtils 
+<ShareUtils
   shareData={{
-    type: 'bill_split',
-    title: 'Dinner at Tony\'s',
-    amount: 142.50,
-    participantNames: ['John', 'Jane', 'Bob']
+    type: "bill_split",
+    title: "Dinner at Tony's",
+    amount: 142.5,
+    participantNames: ["John", "Jane", "Bob"],
   }}
-/>
+/>;
 ```
 
 ### Specialized Components
 
 ```tsx
-import { 
-  ShareTransactionButton, 
-  ShareBillSplitButton, 
-  SharePaymentRequestButton 
+import {
+  ShareTransactionButton,
+  ShareBillSplitButton,
+  SharePaymentRequestButton
 } from './ShareUtils';
 
 // Transaction sharing
@@ -68,21 +68,26 @@ import {
 ### Quick Share Button
 
 ```tsx
-import { QuickShareButton } from './ShareUtils';
+import { QuickShareButton } from "./ShareUtils";
 
-<QuickShareButton 
+<QuickShareButton
   shareData={shareData}
   variant="outline"
   size="sm"
   showText={false}
-/>
+/>;
 ```
 
 ## ShareData Interface
 
 ```tsx
 interface ShareData {
-  type: 'bill_split' | 'payment_request' | 'transaction' | 'payment_confirmation' | 'group_summary';
+  type:
+    | "bill_split"
+    | "payment_request"
+    | "transaction"
+    | "payment_confirmation"
+    | "group_summary";
   title: string;
   amount: number;
   description?: string;
@@ -99,17 +104,20 @@ interface ShareData {
 ## Sharing Formats
 
 ### 1. WhatsApp Sharing
+
 - **Primary format** for instant messaging
 - **Fallbacks**: Direct WhatsApp link → Clipboard → Manual copy
 - **Features**: Markdown formatting, emoji support, mobile optimization
 
 ### 2. PDF Sharing
+
 - **Format**: Generated PDF document
 - **Use Cases**: Receipts, invoices, formal documentation
 - **Fallbacks**: Native file sharing → Text sharing → Clipboard → Manual copy
 - **Features**: Professional formatting, print-ready
 
 ### 3. Image Sharing
+
 - **Format**: PNG/JPEG image
 - **Use Cases**: Social sharing, visual documentation
 - **Fallbacks**: File sharing → Text sharing → Clipboard → Manual copy
@@ -134,16 +142,19 @@ The sharing system uses a multi-tiered fallback approach:
 ## Performance Optimizations
 
 ### Code Splitting
+
 - Lazy loading of sharing components
 - On-demand PDF/image generation
 - Minimal bundle impact
 
 ### Memory Management
+
 - Cleanup of generated files and canvas elements
 - Efficient blob handling
 - Garbage collection friendly patterns
 
 ### User Experience
+
 - Loading states for all operations
 - Progress indicators for long operations
 - Immediate feedback for all actions
@@ -154,23 +165,24 @@ The sharing system uses a multi-tiered fallback approach:
 
 ```tsx
 // OLD
-import { SocialSharingUtils } from './SocialSharingUtils';
+import { SocialSharingUtils } from "./SocialSharingUtils";
 
 // NEW
-import { ShareUtils } from './ShareUtils';
+import { ShareUtils } from "./ShareUtils";
 ```
 
 ### From SimpleShareUtils.tsx
 
 ```tsx
 // OLD
-import { SimpleShareUtils } from './SimpleShareUtils';
+import { SimpleShareUtils } from "./SimpleShareUtils";
 
 // NEW
-import { ShareUtils } from './ShareUtils';
+import { ShareUtils } from "./ShareUtils";
 ```
 
 ### Breaking Changes
+
 - **None** - Full backwards compatibility maintained
 - Legacy files export the new components
 - Gradual migration recommended
@@ -199,16 +211,19 @@ import { ShareUtils } from './ShareUtils';
 ## Testing Considerations
 
 ### Browser Compatibility
+
 - Test on mobile Safari (iOS sharing restrictions)
 - Test on Chrome Android (different permission model)
 - Test on desktop browsers (limited native sharing)
 
 ### Permission Scenarios
+
 - Test with clipboard permissions denied
 - Test with file sharing unsupported
 - Test in insecure contexts (HTTP)
 
 ### Network Conditions
+
 - Test with poor connectivity
 - Test PDF/image generation timeouts
 - Test WhatsApp fallback scenarios
@@ -216,12 +231,14 @@ import { ShareUtils } from './ShareUtils';
 ## Future Enhancements
 
 ### Planned Features
+
 - **Custom PDF templates** per content type
 - **Advanced image generation** with branded layouts
 - **Analytics tracking** for sharing patterns
 - **Social platform detection** for optimized sharing
 
 ### Technical Improvements
+
 - **Service Worker integration** for offline sharing
 - **Background PDF generation** for better performance
 - **Enhanced accessibility** features
@@ -239,14 +256,16 @@ import { ShareUtils } from './ShareUtils';
 ### Debug Mode
 
 Enable debug logging:
+
 ```tsx
 // Set in browser console
-localStorage.setItem('biltip_debug_sharing', 'true');
+localStorage.setItem("biltip_debug_sharing", "true");
 ```
 
 ## Support
 
 For issues or questions about the sharing system:
+
 1. Check browser console for error details
 2. Verify network connectivity
 3. Test in different browsers
@@ -254,5 +273,5 @@ For issues or questions about the sharing system:
 
 ---
 
-*Last updated: January 2025*
-*Version: 2.0.0*
+_Last updated: January 2025_
+_Version: 2.0.0_

@@ -1,30 +1,59 @@
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { Label } from './ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Badge } from './ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
-import { ArrowLeft, Plus, Building2, Smartphone, Copy, Trash2, Check, Crown } from 'lucide-react';
-import { toast } from 'sonner';
-import { useUserProfile } from './UserProfileContext';
-import { getBankDirectoryForRegion } from '../utils/banks';
-import { getMobileMoneyProviders } from '../utils/providers';
-import { getRegionConfig, validateBankAccountNumber, getBankAccountLength, requiresRoutingNumber, getBankIdentifierLabel, formatBankAccountForRegion } from '../utils/regions';
-import { apiClient } from '../utils/apiClient';
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
+import { Badge } from "./ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "./ui/dialog";
+import {
+  ArrowLeft,
+  Plus,
+  Building2,
+  Smartphone,
+  Copy,
+  Trash2,
+  Check,
+  Crown,
+} from "lucide-react";
+import { toast } from "sonner";
+import { useUserProfile } from "./UserProfileContext";
+import { getBankDirectoryForRegion } from "../utils/banks";
+import { getMobileMoneyProviders } from "../utils/providers";
+import {
+  getRegionConfig,
+  validateBankAccountNumber,
+  getBankAccountLength,
+  requiresRoutingNumber,
+  getBankIdentifierLabel,
+  formatBankAccountForRegion,
+} from "../utils/regions";
+import { apiClient } from "../utils/apiClient";
 
 interface ExternalAccount {
   id: string;
   name: string;
-  type: 'bank' | 'mobile_money';
+  type: "bank" | "mobile_money";
   // Bank fields
   bankName?: string;
   accountNumber?: string;
   accountHolderName?: string;
   sortCode?: string;
   routingNumber?: string;
-  accountType?: 'checking' | 'savings';
+  accountType?: "checking" | "savings";
   // Mobile money fields
   provider?: string;
   phoneNumber?: string;
@@ -49,33 +78,38 @@ interface VirtualAccountScreenProps {
 
 // providers sourced from utils/providers per region
 
-export function VirtualAccountScreen({ groupId, onNavigate }: VirtualAccountScreenProps) {
+export function VirtualAccountScreen({
+  groupId,
+  onNavigate,
+}: VirtualAccountScreenProps) {
   const { appSettings } = useUserProfile();
   const banks = getBankDirectoryForRegion(appSettings.region);
   const providers = getMobileMoneyProviders(appSettings.region);
   const phoneCountryCode = getRegionConfig(appSettings.region).phoneCountryCode;
 
   const [group, setGroup] = useState<Group | null>(null);
-  const [externalAccounts, setExternalAccounts] = useState<ExternalAccount[]>([]);
+  const [externalAccounts, setExternalAccounts] = useState<ExternalAccount[]>(
+    [],
+  );
   const [isGroupLoading, setIsGroupLoading] = useState(true);
 
   const [isAddingMethod, setIsAddingMethod] = useState(false);
-  const [methodType, setMethodType] = useState<'bank' | 'mobile_money'>('bank');
+  const [methodType, setMethodType] = useState<"bank" | "mobile_money">("bank");
   interface FormDataState {
     bank: string;
     accountNumber: string;
     accountName: string;
-    accountType: 'checking' | 'savings';
+    accountType: "checking" | "savings";
     provider: string;
     phoneNumber: string;
   }
   const [formData, setFormData] = useState<FormDataState>({
-    bank: '',
-    accountNumber: '',
-    accountName: '',
-    accountType: 'checking',
-    provider: '',
-    phoneNumber: ''
+    bank: "",
+    accountNumber: "",
+    accountName: "",
+    accountType: "checking",
+    provider: "",
+    phoneNumber: "",
   });
   const [isLoading, setIsLoading] = useState(false);
 
@@ -98,7 +132,7 @@ export function VirtualAccountScreen({ groupId, onNavigate }: VirtualAccountScre
         setGroup(null);
       }
     } catch (error) {
-      toast.error('Failed to load group');
+      toast.error("Failed to load group");
       setGroup(null);
     } finally {
       setIsGroupLoading(false);
@@ -115,7 +149,7 @@ export function VirtualAccountScreen({ groupId, onNavigate }: VirtualAccountScre
       }));
       setExternalAccounts(accounts);
     } catch (error) {
-      toast.error('Failed to load group accounts');
+      toast.error("Failed to load group accounts");
     }
   };
 
@@ -128,7 +162,12 @@ export function VirtualAccountScreen({ groupId, onNavigate }: VirtualAccountScre
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => onNavigate('friends')} className="p-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onNavigate("friends")}
+            className="p-2"
+          >
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
@@ -144,7 +183,12 @@ export function VirtualAccountScreen({ groupId, onNavigate }: VirtualAccountScre
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => onNavigate('friends')} className="p-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onNavigate("friends")}
+            className="p-2"
+          >
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
@@ -158,32 +202,39 @@ export function VirtualAccountScreen({ groupId, onNavigate }: VirtualAccountScre
 
   const resetForm = () => {
     setFormData({
-      bank: '',
-      accountNumber: '',
-      accountName: '',
-      accountType: 'checking',
-      provider: '',
-      phoneNumber: ''
+      bank: "",
+      accountNumber: "",
+      accountName: "",
+      accountType: "checking",
+      provider: "",
+      phoneNumber: "",
     });
   };
 
   const handleAddMethod = async () => {
-    if (methodType === 'bank') {
+    if (methodType === "bank") {
       if (!formData.bank || !formData.accountNumber || !formData.accountName) {
-        toast.error('Please fill in all bank details');
+        toast.error("Please fill in all bank details");
         return;
       }
-      if (!validateBankAccountNumber(appSettings.region, formData.accountNumber)) {
-        toast.error('Please enter a valid account number');
+      if (
+        !validateBankAccountNumber(appSettings.region, formData.accountNumber)
+      ) {
+        toast.error("Please enter a valid account number");
         return;
       }
     } else {
       if (!formData.provider || !formData.phoneNumber) {
-        toast.error('Please fill in all mobile money details');
+        toast.error("Please fill in all mobile money details");
         return;
       }
-      if (phoneCountryCode && !formData.phoneNumber.startsWith(phoneCountryCode)) {
-        toast.error(`Please enter a valid phone number starting with ${phoneCountryCode}`);
+      if (
+        phoneCountryCode &&
+        !formData.phoneNumber.startsWith(phoneCountryCode)
+      ) {
+        toast.error(
+          `Please enter a valid phone number starting with ${phoneCountryCode}`,
+        );
         return;
       }
     }
@@ -191,38 +242,36 @@ export function VirtualAccountScreen({ groupId, onNavigate }: VirtualAccountScre
     setIsLoading(true);
 
     try {
-      const selectedBank = banks.find(bank => bank.name === formData.bank);
+      const selectedBank = banks.find((bank) => bank.name === formData.bank);
       const payload: any = {
         type: methodType,
-        ...(methodType === 'bank'
+        ...(methodType === "bank"
           ? {
               bank: formData.bank,
               accountNumber: formData.accountNumber,
               accountName: formData.accountName,
               accountType: formData.accountType,
-              ...(
-                requiresRoutingNumber(appSettings.region)
-                  ? { routingNumber: selectedBank?.code }
-                  : { sortCode: selectedBank?.code }
-              )
+              ...(requiresRoutingNumber(appSettings.region)
+                ? { routingNumber: selectedBank?.code }
+                : { sortCode: selectedBank?.code }),
             }
           : {
               provider: formData.provider,
-              phoneNumber: formData.phoneNumber
-            })
+              phoneNumber: formData.phoneNumber,
+            }),
       };
 
       await apiClient(`/groups/${groupId}/accounts`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       });
-      toast.success('External account added successfully!');
+      toast.success("External account added successfully!");
       setIsAddingMethod(false);
       resetForm();
       await fetchAccounts();
     } catch (error: any) {
-      toast.error(error.message || 'Failed to add account');
+      toast.error(error.message || "Failed to add account");
     } finally {
       setIsLoading(false);
     }
@@ -232,14 +281,14 @@ export function VirtualAccountScreen({ groupId, onNavigate }: VirtualAccountScre
     if (!groupId) return;
     try {
       await apiClient(`/groups/${groupId}/accounts/${accountId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isDefault: true })
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isDefault: true }),
       });
-      toast.success('Default external account updated');
+      toast.success("Default external account updated");
       await fetchAccounts();
     } catch (error: any) {
-      toast.error(error.message || 'Failed to update default account');
+      toast.error(error.message || "Failed to update default account");
     }
   };
 
@@ -247,26 +296,28 @@ export function VirtualAccountScreen({ groupId, onNavigate }: VirtualAccountScre
     if (!groupId) return;
     try {
       await apiClient(`/groups/${groupId}/accounts/${accountId}`, {
-        method: 'DELETE'
+        method: "DELETE",
       });
-      toast.success('External account removed');
+      toast.success("External account removed");
       await fetchAccounts();
     } catch (error: any) {
-      toast.error(error.message || 'Failed to remove account');
+      toast.error(error.message || "Failed to remove account");
     }
   };
 
   const copyToClipboard = (text: string, label?: string) => {
     navigator.clipboard.writeText(text);
-    toast.success(label ? `${label} copied to clipboard!` : 'Copied to clipboard!');
+    toast.success(
+      label ? `${label} copied to clipboard!` : "Copied to clipboard!",
+    );
   };
 
   const copyFullAccountInfo = (account: ExternalAccount) => {
-    if (account.type === 'bank') {
+    if (account.type === "bank") {
       const usesRouting = requiresRoutingNumber(appSettings.region);
       const label = getBankIdentifierLabel(appSettings.region);
       const idValue = usesRouting ? account.routingNumber : account.sortCode;
-      const accountInfo = `${account.bankName}\nAccount Name: ${account.accountHolderName}\n${label}: ${idValue ?? ''}\nAccount Number: ${account.accountNumber}`;
+      const accountInfo = `${account.bankName}\nAccount Name: ${account.accountHolderName}\n${label}: ${idValue ?? ""}\nAccount Number: ${account.accountNumber}`;
       copyToClipboard(accountInfo);
     } else {
       copyToClipboard(`${account.provider}\nPhone: ${account.phoneNumber}`);
@@ -277,15 +328,15 @@ export function VirtualAccountScreen({ groupId, onNavigate }: VirtualAccountScre
     formatBankAccountForRegion(appSettings.region, accountNumber);
 
   const handleBankChange = (bankName: string) => {
-    setFormData(prev => ({ ...prev, bank: bankName }));
+    setFormData((prev) => ({ ...prev, bank: bankName }));
   };
 
   const formatDate = (isoString: string) => {
     const date = new Date(isoString);
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
     });
   };
 
@@ -294,13 +345,21 @@ export function VirtualAccountScreen({ groupId, onNavigate }: VirtualAccountScre
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => onNavigate('group-details', { groupId })} className="p-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onNavigate("group-details", { groupId })}
+            className="p-2"
+          >
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
             <h1>Group Accounts</h1>
             <p className="text-muted-foreground">
-              {group.name} • {group.isAdmin ? 'Manage group payment accounts' : 'View group payment accounts'}
+              {group.name} •{" "}
+              {group.isAdmin
+                ? "Manage group payment accounts"
+                : "View group payment accounts"}
             </p>
           </div>
         </div>
@@ -311,7 +370,7 @@ export function VirtualAccountScreen({ groupId, onNavigate }: VirtualAccountScre
               Admin
             </Badge>
           )}
-          
+
           {group.isAdmin && (
             <Dialog open={isAddingMethod} onOpenChange={setIsAddingMethod}>
               <DialogTrigger asChild>
@@ -324,26 +383,27 @@ export function VirtualAccountScreen({ groupId, onNavigate }: VirtualAccountScre
                 <DialogHeader>
                   <DialogTitle>Add Group Account</DialogTitle>
                   <DialogDescription>
-                    Add a payment account that group members can use as a destination when creating splits.
+                    Add a payment account that group members can use as a
+                    destination when creating splits.
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4">
-
-
                   {/* Method Type Selection - Only show when mobile money is supported */}
                   {providers.length > 0 && (
                     <div className="grid grid-cols-2 gap-2">
                       <Button
-                        variant={methodType === 'bank' ? 'default' : 'outline'}
-                        onClick={() => setMethodType('bank')}
+                        variant={methodType === "bank" ? "default" : "outline"}
+                        onClick={() => setMethodType("bank")}
                         className="h-auto p-3 flex flex-col gap-2"
                       >
                         <Building2 className="h-5 w-5" />
                         <span className="text-sm">Bank Account</span>
                       </Button>
                       <Button
-                        variant={methodType === 'mobile_money' ? 'default' : 'outline'}
-                        onClick={() => setMethodType('mobile_money')}
+                        variant={
+                          methodType === "mobile_money" ? "default" : "outline"
+                        }
+                        onClick={() => setMethodType("mobile_money")}
                         className="h-auto p-3 flex flex-col gap-2"
                       >
                         <Smartphone className="h-5 w-5" />
@@ -352,11 +412,14 @@ export function VirtualAccountScreen({ groupId, onNavigate }: VirtualAccountScre
                     </div>
                   )}
 
-                  {(providers.length === 0 || methodType === 'bank') ? (
+                  {providers.length === 0 || methodType === "bank" ? (
                     <>
                       <div className="space-y-2">
                         <Label>Bank</Label>
-                        <Select value={formData.bank} onValueChange={handleBankChange}>
+                        <Select
+                          value={formData.bank}
+                          onValueChange={handleBankChange}
+                        >
                           <SelectTrigger>
                             <SelectValue placeholder="Select your bank" />
                           </SelectTrigger>
@@ -374,7 +437,12 @@ export function VirtualAccountScreen({ groupId, onNavigate }: VirtualAccountScre
                         <Label>Account Holder Name</Label>
                         <Input
                           value={formData.accountName}
-                          onChange={(e) => setFormData(prev => ({ ...prev, accountName: e.target.value }))}
+                          onChange={(e) =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              accountName: e.target.value,
+                            }))
+                          }
                           placeholder={"Full name as it appears on account"}
                         />
                       </div>
@@ -382,7 +450,15 @@ export function VirtualAccountScreen({ groupId, onNavigate }: VirtualAccountScre
                       {requiresRoutingNumber(appSettings.region) && (
                         <div className="space-y-2">
                           <Label>Account Type</Label>
-                          <Select value={formData.accountType} onValueChange={(value: 'checking' | 'savings') => setFormData(prev => ({ ...prev, accountType: value }))}>
+                          <Select
+                            value={formData.accountType}
+                            onValueChange={(value: "checking" | "savings") =>
+                              setFormData((prev) => ({
+                                ...prev,
+                                accountType: value,
+                              }))
+                            }
+                          >
                             <SelectTrigger>
                               <SelectValue />
                             </SelectTrigger>
@@ -397,14 +473,34 @@ export function VirtualAccountScreen({ groupId, onNavigate }: VirtualAccountScre
                       <div className="space-y-2">
                         <Label>Account Number</Label>
                         <Input
-                          type={getBankAccountLength(appSettings.region) ? 'number' : 'password'}
+                          type={
+                            getBankAccountLength(appSettings.region)
+                              ? "number"
+                              : "password"
+                          }
                           value={formData.accountNumber}
-                          onChange={(e) => setFormData(prev => ({ 
-                            ...prev, 
-                            accountNumber: getBankAccountLength(appSettings.region) ? e.target.value.slice(0, getBankAccountLength(appSettings.region)) : e.target.value 
-                          }))}
-                          placeholder={getBankAccountLength(appSettings.region) ? '1234567890' : 'Account number'}
-                          maxLength={getBankAccountLength(appSettings.region) || undefined}
+                          onChange={(e) =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              accountNumber: getBankAccountLength(
+                                appSettings.region,
+                              )
+                                ? e.target.value.slice(
+                                    0,
+                                    getBankAccountLength(appSettings.region),
+                                  )
+                                : e.target.value,
+                            }))
+                          }
+                          placeholder={
+                            getBankAccountLength(appSettings.region)
+                              ? "1234567890"
+                              : "Account number"
+                          }
+                          maxLength={
+                            getBankAccountLength(appSettings.region) ||
+                            undefined
+                          }
                         />
                       </div>
                     </>
@@ -412,13 +508,24 @@ export function VirtualAccountScreen({ groupId, onNavigate }: VirtualAccountScre
                     <>
                       <div className="space-y-2">
                         <Label>Provider</Label>
-                        <Select value={formData.provider} onValueChange={(value) => setFormData(prev => ({ ...prev, provider: value }))}>
+                        <Select
+                          value={formData.provider}
+                          onValueChange={(value) =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              provider: value,
+                            }))
+                          }
+                        >
                           <SelectTrigger>
                             <SelectValue placeholder="Select provider" />
                           </SelectTrigger>
                           <SelectContent>
                             {providers.map((provider) => (
-                              <SelectItem key={provider.code} value={provider.name}>
+                              <SelectItem
+                                key={provider.code}
+                                value={provider.name}
+                              >
                                 {provider.name}
                               </SelectItem>
                             ))}
@@ -431,16 +538,21 @@ export function VirtualAccountScreen({ groupId, onNavigate }: VirtualAccountScre
                         <Input
                           type="tel"
                           value={formData.phoneNumber}
-                          onChange={(e) => setFormData(prev => ({ ...prev, phoneNumber: e.target.value }))}
-                          placeholder={`${phoneCountryCode || '+Country'} 801 234 5678`}
+                          onChange={(e) =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              phoneNumber: e.target.value,
+                            }))
+                          }
+                          placeholder={`${phoneCountryCode || "+Country"} 801 234 5678`}
                         />
                       </div>
                     </>
                   )}
 
                   <div className="flex gap-2 pt-4">
-                    <Button 
-                      className="flex-1" 
+                    <Button
+                      className="flex-1"
                       onClick={handleAddMethod}
                       disabled={isLoading}
                     >
@@ -450,10 +562,13 @@ export function VirtualAccountScreen({ groupId, onNavigate }: VirtualAccountScre
                           Verifying...
                         </>
                       ) : (
-                        'Add Account'
+                        "Add Account"
                       )}
                     </Button>
-                    <Button variant="outline" onClick={() => setIsAddingMethod(false)}>
+                    <Button
+                      variant="outline"
+                      onClick={() => setIsAddingMethod(false)}
+                    >
                       Cancel
                     </Button>
                   </div>
@@ -470,7 +585,9 @@ export function VirtualAccountScreen({ groupId, onNavigate }: VirtualAccountScre
           <CardContent className="p-4">
             <div className="bg-blue-50 p-3 rounded-lg">
               <p className="text-sm text-blue-800">
-                <strong>Group Account Access:</strong> Only group administrators can manage external accounts. These accounts are available as payment destinations when creating group splits.
+                <strong>Group Account Access:</strong> Only group administrators
+                can manage external accounts. These accounts are available as
+                payment destinations when creating group splits.
               </p>
             </div>
           </CardContent>
@@ -492,10 +609,9 @@ export function VirtualAccountScreen({ groupId, onNavigate }: VirtualAccountScre
               )}
               <h3 className="mb-2">No external accounts</h3>
               <p className="text-muted-foreground mb-4">
-                {group.isAdmin 
+                {group.isAdmin
                   ? "Add payment accounts that group members can use when creating splits"
-                  : "No payment accounts have been added to this group yet"
-                }
+                  : "No payment accounts have been added to this group yet"}
               </p>
               {group.isAdmin && (
                 <Button onClick={() => setIsAddingMethod(true)}>
@@ -511,10 +627,12 @@ export function VirtualAccountScreen({ groupId, onNavigate }: VirtualAccountScre
               <CardContent className="p-4">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                      account.type === 'bank' ? 'bg-blue-100' : 'bg-green-100'
-                    }`}>
-                      {account.type === 'bank' ? (
+                    <div
+                      className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                        account.type === "bank" ? "bg-blue-100" : "bg-green-100"
+                      }`}
+                    >
+                      {account.type === "bank" ? (
                         <Building2 className="h-5 w-5 text-blue-600" />
                       ) : (
                         <Smartphone className="h-5 w-5 text-green-600" />
@@ -523,7 +641,10 @@ export function VirtualAccountScreen({ groupId, onNavigate }: VirtualAccountScre
                     <div>
                       <h4>{account.name}</h4>
                       <p className="text-sm text-muted-foreground">
-                        {account.type === 'bank' ? account.bankName : account.provider} • Added by {account.createdBy}
+                        {account.type === "bank"
+                          ? account.bankName
+                          : account.provider}{" "}
+                        • Added by {account.createdBy}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {formatDate(account.createdDate)}
@@ -531,7 +652,10 @@ export function VirtualAccountScreen({ groupId, onNavigate }: VirtualAccountScre
                     </div>
                   </div>
                   {account.isDefault && (
-                    <Badge variant="secondary" className="bg-green-100 text-green-800">
+                    <Badge
+                      variant="secondary"
+                      className="bg-green-100 text-green-800"
+                    >
                       <Check className="h-3 w-3 mr-1" />
                       Default
                     </Badge>
@@ -539,44 +663,68 @@ export function VirtualAccountScreen({ groupId, onNavigate }: VirtualAccountScre
                 </div>
 
                 <div className="space-y-2 mb-4">
-                  {account.type === 'bank' ? (
+                  {account.type === "bank" ? (
                     <>
                       <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">Account Holder:</span>
+                        <span className="text-sm text-muted-foreground">
+                          Account Holder:
+                        </span>
                         <div className="flex items-center gap-2">
                           <span>{account.accountHolderName}</span>
                           <Button
                             variant="ghost"
                             size="sm"
                             className="h-6 w-6 p-0"
-                            onClick={() => copyToClipboard(account.accountHolderName!, 'Account name')}
+                            onClick={() =>
+                              copyToClipboard(
+                                account.accountHolderName!,
+                                "Account name",
+                              )
+                            }
                           >
                             <Copy className="h-3 w-3" />
                           </Button>
                         </div>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">Account Number:</span>
+                        <span className="text-sm text-muted-foreground">
+                          Account Number:
+                        </span>
                         <div className="flex items-center gap-2">
-                          <span className="font-mono">{formatAccountNumber(account.accountNumber!)}</span>
+                          <span className="font-mono">
+                            {formatAccountNumber(account.accountNumber!)}
+                          </span>
                           <Button
                             variant="ghost"
                             size="sm"
                             className="h-6 w-6 p-0"
-                            onClick={() => copyToClipboard(account.accountNumber!, 'Account number')}
+                            onClick={() =>
+                              copyToClipboard(
+                                account.accountNumber!,
+                                "Account number",
+                              )
+                            }
                           >
                             <Copy className="h-3 w-3" />
                           </Button>
                         </div>
                       </div>
                       {(() => {
-                        const usesRouting = requiresRoutingNumber(appSettings.region);
-                        const label = getBankIdentifierLabel(appSettings.region);
-                        const value = usesRouting ? account.routingNumber : account.sortCode;
+                        const usesRouting = requiresRoutingNumber(
+                          appSettings.region,
+                        );
+                        const label = getBankIdentifierLabel(
+                          appSettings.region,
+                        );
+                        const value = usesRouting
+                          ? account.routingNumber
+                          : account.sortCode;
                         if (!value) return null;
                         return (
                           <div className="flex items-center justify-between">
-                            <span className="text-sm text-muted-foreground">{label}:</span>
+                            <span className="text-sm text-muted-foreground">
+                              {label}:
+                            </span>
                             <div className="flex items-center gap-2">
                               <span className="font-mono">{value}</span>
                               <Button
@@ -594,14 +742,21 @@ export function VirtualAccountScreen({ groupId, onNavigate }: VirtualAccountScre
                     </>
                   ) : (
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Phone Number:</span>
+                      <span className="text-sm text-muted-foreground">
+                        Phone Number:
+                      </span>
                       <div className="flex items-center gap-2">
                         <span className="font-mono">{account.phoneNumber}</span>
                         <Button
                           variant="ghost"
                           size="sm"
                           className="h-6 w-6 p-0"
-                          onClick={() => copyToClipboard(account.phoneNumber!, 'Phone number')}
+                          onClick={() =>
+                            copyToClipboard(
+                              account.phoneNumber!,
+                              "Phone number",
+                            )
+                          }
                         >
                           <Copy className="h-3 w-3" />
                         </Button>
@@ -652,7 +807,10 @@ export function VirtualAccountScreen({ groupId, onNavigate }: VirtualAccountScre
         <CardContent className="p-4">
           <div className="bg-blue-50 p-3 rounded-lg">
             <p className="text-sm text-blue-800">
-              <strong>Group Accounts:</strong> These payment accounts are shared with all group members and can be selected as payment destinations when creating group splits. Only group administrators can add, edit, or remove accounts.
+              <strong>Group Accounts:</strong> These payment accounts are shared
+              with all group members and can be selected as payment destinations
+              when creating group splits. Only group administrators can add,
+              edit, or remove accounts.
             </p>
           </div>
         </CardContent>
@@ -666,16 +824,30 @@ export function VirtualAccountScreen({ groupId, onNavigate }: VirtualAccountScre
         <CardContent className="p-4 pt-0">
           <div className="space-y-3 text-sm text-muted-foreground">
             <div className="flex gap-3">
-              <div className="bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 text-xs">1</div>
-              <p>Group admins add group accounts that can receive group payments</p>
+              <div className="bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 text-xs">
+                1
+              </div>
+              <p>
+                Group admins add group accounts that can receive group payments
+              </p>
             </div>
             <div className="flex gap-3">
-              <div className="bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 text-xs">2</div>
-              <p>When creating group splits, members can choose these accounts as payment destinations</p>
+              <div className="bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 text-xs">
+                2
+              </div>
+              <p>
+                When creating group splits, members can choose these accounts as
+                payment destinations
+              </p>
             </div>
             <div className="flex gap-3">
-              <div className="bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 text-xs">3</div>
-              <p>Payment details are automatically shared with all group members for easy transfers</p>
+              <div className="bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 text-xs">
+                3
+              </div>
+              <p>
+                Payment details are automatically shared with all group members
+                for easy transfers
+              </p>
             </div>
           </div>
         </CardContent>

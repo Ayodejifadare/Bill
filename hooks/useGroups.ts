@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback } from 'react';
-import { apiClient } from '../utils/apiClient';
+import { useEffect, useState, useCallback } from "react";
+import { apiClient } from "../utils/apiClient";
 
 export interface Group {
   id: string;
@@ -39,30 +39,31 @@ export function useGroups(): UseGroupsResult {
 
   const mapRawGroup = useCallback((g: any): Group => {
     const getInitials = (name: string | undefined): string => {
-      return (name || '')
+      return (name || "")
         .split(/\s+/)
-        .map(n => n[0])
+        .map((n) => n[0])
         .filter(Boolean)
         .slice(0, 2)
-        .join('')
+        .join("")
         .toUpperCase();
     };
     const membersRaw = Array.isArray(g.members) ? g.members : [];
     const members: string[] = membersRaw.map((m: any) =>
-      typeof m === 'string' ? m : getInitials(m?.name)
+      typeof m === "string" ? m : getInitials(m?.name),
     );
     return {
       id: g.id,
       name: g.name,
-      description: g.description || '',
-      memberCount: typeof g.memberCount === 'number' ? g.memberCount : members.length,
-      totalSpent: typeof g.totalSpent === 'number' ? g.totalSpent : 0,
-      recentActivity: g.recentActivity || '',
+      description: g.description || "",
+      memberCount:
+        typeof g.memberCount === "number" ? g.memberCount : members.length,
+      totalSpent: typeof g.totalSpent === "number" ? g.totalSpent : 0,
+      recentActivity: g.recentActivity || "",
       members,
       isAdmin: Boolean(g.isAdmin),
       lastActive: g.lastActive ?? null,
-      pendingBills: typeof g.pendingBills === 'number' ? g.pendingBills : 0,
-      color: g.color || ''
+      pendingBills: typeof g.pendingBills === "number" ? g.pendingBills : 0,
+      color: g.color || "",
     } as Group;
   }, []);
 
@@ -70,12 +71,12 @@ export function useGroups(): UseGroupsResult {
     setLoading(true);
     setError(null);
     try {
-      const data = await apiClient('/groups');
+      const data = await apiClient("/groups");
       const rawGroups = Array.isArray(data.groups) ? data.groups : [];
       const mapped = rawGroups.map((g: any) => mapRawGroup(g));
       setGroups(mapped);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch groups');
+      setError(err instanceof Error ? err.message : "Failed to fetch groups");
       setGroups([]);
     } finally {
       setLoading(false);
@@ -89,56 +90,69 @@ export function useGroups(): UseGroupsResult {
   // Allow other parts of the app to request a refresh
   useEffect(() => {
     const handler = () => fetchGroups();
-    window.addEventListener('groupsUpdated', handler);
-    return () => window.removeEventListener('groupsUpdated', handler);
+    window.addEventListener("groupsUpdated", handler);
+    return () => window.removeEventListener("groupsUpdated", handler);
   }, [fetchGroups]);
 
   const joinGroup = useCallback(async (groupId: string) => {
     setError(null);
     try {
-      const data = await apiClient(`/groups/${groupId}/join`, { method: 'POST' });
+      const data = await apiClient(`/groups/${groupId}/join`, {
+        method: "POST",
+      });
       if (data?.group) {
-        setGroups(prev => [...prev, data.group]);
+        setGroups((prev) => [...prev, data.group]);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to join group');
+      setError(err instanceof Error ? err.message : "Failed to join group");
     }
   }, []);
 
   const leaveGroup = useCallback(async (groupId: string) => {
     setError(null);
     try {
-      await apiClient(`/groups/${groupId}/leave`, { method: 'POST' });
-      setGroups(prev => prev.filter(g => g.id !== groupId));
+      await apiClient(`/groups/${groupId}/leave`, { method: "POST" });
+      setGroups((prev) => prev.filter((g) => g.id !== groupId));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to leave group');
+      setError(err instanceof Error ? err.message : "Failed to leave group");
     }
   }, []);
 
-  const createGroup = useCallback(async (payload: CreateGroupPayload) => {
-    setError(null);
-    try {
-      const data = await apiClient('/groups', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const raw = data.group || data;
-      const mapped = raw ? mapRawGroup(raw) : undefined;
-      if (mapped) {
-        setGroups(prev => [...prev, mapped]);
-        try {
-          window.dispatchEvent(new Event('groupsUpdated'));
-        } catch (error) {
-          console.warn('groupsUpdated dispatch failed', error);
+  const createGroup = useCallback(
+    async (payload: CreateGroupPayload) => {
+      setError(null);
+      try {
+        const data = await apiClient("/groups", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const raw = data.group || data;
+        const mapped = raw ? mapRawGroup(raw) : undefined;
+        if (mapped) {
+          setGroups((prev) => [...prev, mapped]);
+          try {
+            window.dispatchEvent(new Event("groupsUpdated"));
+          } catch (error) {
+            console.warn("groupsUpdated dispatch failed", error);
+          }
         }
+        return mapped;
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to create group");
+        throw err;
       }
-      return mapped;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create group');
-      throw err;
-    }
-  }, [mapRawGroup]);
+    },
+    [mapRawGroup],
+  );
 
-  return { groups, loading, error, refetch: fetchGroups, joinGroup, leaveGroup, createGroup };
+  return {
+    groups,
+    loading,
+    error,
+    refetch: fetchGroups,
+    joinGroup,
+    leaveGroup,
+    createGroup,
+  };
 }

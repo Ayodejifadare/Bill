@@ -1,15 +1,21 @@
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Button } from './ui/button';
-import { Badge } from './ui/badge';
-import { Building2, Smartphone } from 'lucide-react';
-import { BankAccountCard } from './BankAccountCard';
-import { MobileMoneyCard } from './MobileMoneyCard';
-import { useUserProfile } from './UserProfileContext';
-import { formatBankAccountForRegion } from '../utils/regions';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
+import { Button } from "./ui/button";
+import { Badge } from "./ui/badge";
+import { Building2, Smartphone } from "lucide-react";
+import { BankAccountCard } from "./BankAccountCard";
+import { MobileMoneyCard } from "./MobileMoneyCard";
+import { useUserProfile } from "./UserProfileContext";
+import { formatBankAccountForRegion } from "../utils/regions";
 
 export interface PaymentMethod {
   id: string;
-  type: 'bank' | 'mobile_money';
+  type: "bank" | "mobile_money";
   // Bank fields
   bankName?: string;
   bank?: string;
@@ -18,7 +24,7 @@ export interface PaymentMethod {
   accountName?: string;
   sortCode?: string;
   routingNumber?: string;
-  accountType?: 'checking' | 'savings';
+  accountType?: "checking" | "savings";
   // Mobile money fields
   provider?: string;
   phoneNumber?: string;
@@ -55,7 +61,7 @@ export function PaymentMethodSelector({
   const renderSelectItem = (method: PaymentMethod) => (
     <SelectItem key={method.id} value={method.id}>
       <div className="flex items-center gap-2">
-        {method.type === 'bank' ? (
+        {method.type === "bank" ? (
           <Building2 className="h-4 w-4" />
         ) : (
           <Smartphone className="h-4 w-4" />
@@ -63,18 +69,18 @@ export function PaymentMethodSelector({
         <span>
           {method.isExternal
             ? method.name
-            : method.type === 'bank'
+            : method.type === "bank"
               ? method.bankName || method.bank
               : method.provider}
         </span>
         <span className="text-muted-foreground">•</span>
         <span className="text-muted-foreground text-sm">
           {method.isExternal
-            ? method.type === 'bank'
+            ? method.type === "bank"
               ? method.bankName
               : method.provider
-            : method.type === 'bank'
-              ? formatAccountNumber(method.accountNumber || '')
+            : method.type === "bank"
+              ? formatAccountNumber(method.accountNumber || "")
               : method.phoneNumber}
         </span>
         {method.isDefault && (
@@ -91,7 +97,7 @@ export function PaymentMethodSelector({
   return (
     <div className="space-y-4">
       <Select
-        value={selectedId || ''}
+        value={selectedId || ""}
         disabled={loading}
         onValueChange={(value) => {
           const method = methods.find((m) => m.id === value) || null;
@@ -119,13 +125,18 @@ export function PaymentMethodSelector({
         </SelectContent>
       </Select>
 
-      {selectedMethod && (
-        selectedMethod.type === 'bank' ? (
-          <BankAccountCard account={selectedMethod as any} showAdminActions={false} />
+      {selectedMethod &&
+        (selectedMethod.type === "bank" ? (
+          <BankAccountCard
+            account={selectedMethod as any}
+            showAdminActions={false}
+          />
         ) : (
-          <MobileMoneyCard account={selectedMethod as any} showAdminActions={false} />
-        )
-      )}
+          <MobileMoneyCard
+            account={selectedMethod as any}
+            showAdminActions={false}
+          />
+        ))}
 
       {onManage && (
         <Button

@@ -23,16 +23,16 @@ function Avatar({
 
 function AvatarImage({
   className,
-  loading = 'lazy',
-  decoding = 'async',
-  fetchPriority = 'low',
-  referrerPolicy = 'no-referrer',
+  loading = "lazy",
+  decoding = "async",
+  fetchPriority = "low",
+  referrerPolicy = "no-referrer",
   ...props
 }: React.ComponentProps<typeof AvatarPrimitive.Image> & {
-  loading?: 'eager' | 'lazy';
-  decoding?: 'async' | 'sync' | 'auto';
-  fetchPriority?: 'high' | 'low' | 'auto';
-  referrerPolicy?: React.ImgHTMLAttributes<HTMLImageElement>['referrerPolicy'];
+  loading?: "eager" | "lazy";
+  decoding?: "async" | "sync" | "auto";
+  fetchPriority?: "high" | "low" | "auto";
+  referrerPolicy?: React.ImgHTMLAttributes<HTMLImageElement>["referrerPolicy"];
 }) {
   return (
     <AvatarPrimitive.Image

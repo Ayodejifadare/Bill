@@ -4,5 +4,4 @@ export {
   QuickShareButton,
   createDeepLink,
   type ShareData,
-} from './ShareUtils';
-
+} from "./ShareUtils";

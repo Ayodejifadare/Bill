@@ -1,6 +1,9 @@
-import { useEffect, useState, useCallback } from 'react';
-import type { TransactionType, TransactionStatus } from '../shared/transactions';
-import { apiClient } from '../utils/apiClient';
+import { useEffect, useState, useCallback } from "react";
+import type {
+  TransactionType,
+  TransactionStatus,
+} from "../shared/transactions";
+import { apiClient } from "../utils/apiClient";
 
 export interface TransactionUser {
   name: string;
@@ -9,6 +12,7 @@ export interface TransactionUser {
 
 export interface Transaction {
   id: string;
+  billSplitId?: string;
   type: TransactionType;
   amount: number;
   description: string;
@@ -58,21 +62,23 @@ export interface TransactionSummary {
   netFlow: number;
 }
 
-export function useTransactions(initialOptions: UseTransactionsOptions = {}): UseTransactionsResult {
-    const {
-      page = 1,
-      size,
-      cursor,
-      limit,
-      startDate,
-      endDate,
-      type,
-      status,
-      category,
-      minAmount,
-      maxAmount,
-      keyword,
-    } = initialOptions;
+export function useTransactions(
+  initialOptions: UseTransactionsOptions = {},
+): UseTransactionsResult {
+  const {
+    page = 1,
+    size,
+    cursor,
+    limit,
+    startDate,
+    endDate,
+    type,
+    status,
+    category,
+    minAmount,
+    maxAmount,
+    keyword,
+  } = initialOptions;
 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -112,24 +118,28 @@ export function useTransactions(initialOptions: UseTransactionsOptions = {}): Us
         const effectiveLimit = current.limit ?? current.size ?? 20;
         const effectiveSize = current.size ?? current.limit ?? 20;
         if (current.cursor || (!current.page && !current.size)) {
-          if (current.cursor) params.append('cursor', current.cursor);
-          params.append('limit', String(effectiveLimit));
+          if (current.cursor) params.append("cursor", current.cursor);
+          params.append("limit", String(effectiveLimit));
         } else {
-          params.append('page', String(current.page ?? 1));
-          params.append('size', String(effectiveSize));
+          params.append("page", String(current.page ?? 1));
+          params.append("size", String(effectiveSize));
         }
-        if (current.startDate) params.append('startDate', current.startDate);
-        if (current.endDate) params.append('endDate', current.endDate);
-        if (current.type) params.append('type', current.type);
-        if (current.status) params.append('status', current.status);
-        if (current.category) params.append('category', current.category);
-        if (current.minAmount !== undefined) params.append('minAmount', String(current.minAmount));
-        if (current.maxAmount !== undefined) params.append('maxAmount', String(current.maxAmount));
-        if (current.keyword) params.append('keyword', current.keyword);
-        params.append('includeSummary', 'true');
+        if (current.startDate) params.append("startDate", current.startDate);
+        if (current.endDate) params.append("endDate", current.endDate);
+        if (current.type) params.append("type", current.type);
+        if (current.status) params.append("status", current.status);
+        if (current.category) params.append("category", current.category);
+        if (current.minAmount !== undefined)
+          params.append("minAmount", String(current.minAmount));
+        if (current.maxAmount !== undefined)
+          params.append("maxAmount", String(current.maxAmount));
+        if (current.keyword) params.append("keyword", current.keyword);
+        params.append("includeSummary", "true");
 
         const data = await apiClient(`/transactions?${params.toString()}`);
-        const fetched = Array.isArray(data?.transactions) ? data.transactions : [];
+        const fetched = Array.isArray(data?.transactions)
+          ? data.transactions
+          : [];
         setTransactions(fetched);
         setHasMore(Boolean(data?.hasMore));
         setNextCursor(data?.nextCursor ?? null);
@@ -141,7 +151,9 @@ export function useTransactions(initialOptions: UseTransactionsOptions = {}): Us
           netFlow: data?.netFlow ?? 0,
         });
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch transactions');
+        setError(
+          err instanceof Error ? err.message : "Failed to fetch transactions",
+        );
         setTransactions([]);
         setHasMore(false);
         setNextCursor(null);
@@ -165,7 +177,7 @@ export function useTransactions(initialOptions: UseTransactionsOptions = {}): Us
       minAmount,
       maxAmount,
       keyword,
-    ]
+    ],
   );
 
   useEffect(() => {
