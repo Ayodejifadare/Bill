@@ -5,6 +5,12 @@ import bcrypt from 'bcryptjs'
 
 dotenv.config()
 
+// Prevent accidental seeding in production unless explicitly allowed
+if (process.env.NODE_ENV === 'production' && process.env.ALLOW_SEED_PROD !== '1') {
+  console.log('Seeding disabled in production. Set ALLOW_SEED_PROD=1 to override.')
+  process.exit(0)
+}
+
 const prisma = new PrismaClient()
 
 async function upsertUser({ email, name, phone, region = 'US', currency = 'USD' }) {
