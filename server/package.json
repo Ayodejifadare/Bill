@@ -12,7 +12,8 @@
                     "db:generate":  "prisma generate",
                     "db:studio":  "prisma studio",
                     "db:seed":  "node scripts/seed.js",
-                    "db:backfill:region": "node scripts/backfill-region-currency.js"
+                    "db:backfill:region": "node scripts/backfill-region-currency.js",
+                    "cleanup:demo-users": "node scripts/cleanupDemoUsers.js"
                 },
   "dependencies":  {
                          "@prisma/client":  "^5.9.1",

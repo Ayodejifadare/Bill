@@ -26,17 +26,10 @@ services:
       - key: NODE_VERSION
         value: 20.11.1
       - key: DATABASE_URL
-        fromDatabase:
-          name: biltip-postgres
-          property: connectionString
+        sync: false
       - key: DIRECT_URL
-        fromDatabase:
-          name: biltip-postgres
-          property: connectionString
-      - key: SHADOW_DATABASE_URL
-        fromDatabase:
-          name: biltip-postgres
-          property: connectionString
+        sync: false
+      # SHADOW_DATABASE_URL is not required in production; set only in dev/CI if needed
       - key: REDIS_URL
         fromService:
           name: biltip-redis
