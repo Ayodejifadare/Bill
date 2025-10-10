@@ -62,6 +62,9 @@ async function main() {
     return
   }
 
+  const txTimeout = Number(process.env.TX_TIMEOUT_MS ?? 60000)
+  const txMaxWait = Number(process.env.TX_MAX_WAIT_MS ?? 15000)
+
   await prisma.$transaction(async (tx) => {
     // Remove dependent rows that can block deletes (order matters)
     await tx.verificationCode.deleteMany({ where: { userId: { in: ids } } })
@@ -142,7 +145,7 @@ async function main() {
 
     // Finally, delete users
     await tx.user.deleteMany({ where: { id: { in: ids } } })
-  })
+  }, { timeout: txTimeout, maxWait: txMaxWait })
 
   console.log('Cleanup complete.')
 }
@@ -155,4 +158,3 @@ main()
   .finally(async () => {
     await prisma.$disconnect()
   })
-
