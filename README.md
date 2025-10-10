@@ -40,3 +40,11 @@ The `apiClient` utility reads these variables to determine whether to use mock m
 ## User Registration
 
 When calling the `/api/auth/register` endpoint, clients should provide `firstName` and `lastName` fields. The server automatically combines these into a single `name` value, so there is no need to send a separate `name` field in the request body.
+
+## Backend Seeding Policy
+
+- Seeding is disabled in production by default to avoid demo/test data in live environments.
+- To seed locally or in staging, run `npm run db:seed` from `server/`.
+- In production, seeding will no-op unless you explicitly set `ALLOW_SEED_PROD=1`.
+- File of interest: `server/scripts/seed.js` (contains the production guard).
+- To clean demo/seed users, use: `server/scripts/cleanupDemoUsers.js` (dry-run by default; set `CONFIRM=1`).
