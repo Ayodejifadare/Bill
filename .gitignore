@@ -110,3 +110,7 @@ server/dev.db
 server/prisma/dev.db*
 server/prisma/test.db*server/prisma/friends-test.db
 server/prisma/friends-test.db
+
+# Prod DB artifacts
+server/pre-cleanup.backup
+server/prod_schema.prisma
