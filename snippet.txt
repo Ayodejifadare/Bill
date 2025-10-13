@@ -1,0 +1,18 @@
+if (payment.type === "bill_split") {
+              const participants = Array.isArray(payment.participants)
+                ? payment.participants
+                : [];
+              const total = participants.length || 0;
+              const paidCount = participants.filter((p: any) => p?.isPaid)
+                .length;
+              const percent = total > 0 ? Math.round((paidCount / total) * 100) : 0;
+              const isOverdue = payment.status === "overdue";
+
+              return (
+                <Card
+                  key={payment.id}
+                  className={`p-4 transition-colors cursor-pointer ${
+                    isOverdue ? "border-2 border-destructive" : "hover:bg-muted/50"
+                  }`}
+                  onClick={() => {
+                    if (payment.billSp

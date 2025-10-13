@@ -9,11 +9,13 @@ import {
   Users,
   CreditCard,
   AlertCircle,
+  Undo2,
 } from "lucide-react";
 import { useUserProfile } from "./UserProfileContext";
 import { formatCurrencyForRegion } from "../utils/regions";
 import { formatDueDate } from "../utils/formatDueDate";
 import { ListSkeleton } from "./ui/loading";
+import { Progress } from "./ui/progress";
 import { Alert, AlertDescription } from "./ui/alert";
 import { useUpcomingPayments } from "../hooks/useUpcomingPayments";
 
@@ -63,6 +65,21 @@ export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
     }
   };
 
+  const getStatusLabel = (status: string) => {
+    if (status === "overdue") return "Overdue";
+    if (status === "due_soon" || status === "pending") return "Pending";
+    return "Upcoming";
+  };
+
+  const shortDate = (iso: string) => {
+    try {
+      const d = new Date(iso);
+      return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    } catch {
+      return "";
+    }
+  };
+
   const getTypeIcon = (type: string) => {
     switch (type) {
       case "bill_split":
@@ -93,7 +110,7 @@ export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3>Pending Payments</h3>
+        <h3>Pending</h3>
         <Button
           variant="ghost"
           size="sm"
@@ -107,7 +124,10 @@ export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
         {upcomingPayments
           .filter(
             (payment) =>
-              payment.status === "upcoming" || payment.status === "due_soon",
+              payment.status === "upcoming" ||
+              payment.status === "due_soon" ||
+              payment.status === "overdue" ||
+              payment.status === "pending",
           )
           .slice(0, 2)
           .map((payment) => {
@@ -117,6 +137,150 @@ export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
                 ? duePhrase
                 : `Due ${duePhrase}`
               : "Due date unavailable";
+
+            // Bill split: specialized card design with progress and urgency
+            if (payment.type === "bill_split") {
+              const participants = Array.isArray(payment.participants)
+                ? payment.participants
+                : [];
+              const total = participants.length || 0;
+              const paidCount = participants.filter((p: any) => p?.isPaid)
+                .length;
+              const percent = total > 0 ? Math.round((paidCount / total) * 100) : 0;
+              const isOverdue = payment.status === "overdue";
+
+              return (
+                <Card
+                  key={payment.id}
+                  className={`p-4 transition-colors cursor-pointer ${
+                    isOverdue ? "border-2 border-destructive" : "hover:bg-muted/50"
+                  }`}
+                  onClick={() => {
+                    if (payment.billSplitId) {
+                      onNavigate("pay-bill", { billId: payment.billSplitId });
+                    }
+                  }}
+                >
+                  <div className="space-y-3">
+                    {/* Header: avatar + name + amount */}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="relative">
+                          <Avatar className="h-10 w-10">
+                            <AvatarImage src={payment.organizer.avatar} />
+                            <AvatarFallback className="bg-secondary text-foreground/70">
+                              {getInitials(payment.organizer.name)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-background shadow flex items-center justify-center">
+                            <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                          </div>
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-medium truncate">{payment.organizer.name}</p>
+                          <p className="text-sm text-muted-foreground truncate">{payment.title}</p>
+                        </div>
+                      </div>
+                      <p className="font-semibold whitespace-nowrap text-destructive">-
+                        {formatCurrencyForRegion(appSettings.region, payment.amount)}
+                      </p>
+                    </div>
+
+                    {/* Due text removed per latest design */}
+
+                    {/* Progress caption */}
+                    <div className="flex items-center justify-between text-sm">
+                      <span>
+                        {paidCount} of {total} paid
+                      </span>
+                      <span>{percent}%</span>
+                    </div>
+
+                    {/* Centered full-width progress bar */}
+                    <div className="w-full mx-auto">
+                      <Progress value={percent} className="h-2 w-full" />
+                    </div>
+
+                    {/* Pay button close to the bar */}
+                    <Button
+                      size="sm"
+                      className="w-full"
+                      variant={isOverdue ? "default" : "outline"}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (payment.billSplitId) {
+                          onNavigate("pay-bill", { billId: payment.billSplitId });
+                        }
+                      }}
+                    >
+                      Pay Now
+                    </Button>
+                  </div>
+                </Card>
+              );
+            }
+
+            if (payment.type === "request") {
+              return (
+                <Card key={payment.id} className="p-4 hover:bg-muted/50 transition-colors">
+                  <div className="space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="relative">
+                          <Avatar className="h-10 w-10">
+                            <AvatarImage src={payment.organizer.avatar} />
+                            <AvatarFallback className="bg-secondary text-foreground/70">
+                              {getInitials(payment.organizer.name)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-background shadow flex items-center justify-center">
+                          <Undo2 className="h-3.5 w-3.5 text-success" />
+                          </div>
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-medium truncate">{payment.organizer.name}</p>
+                          <p className="text-sm text-muted-foreground truncate">{payment.title}</p>
+                        </div>
+                      </div>
+                    <p className="font-semibold whitespace-nowrap text-success">+{formatCurrencyForRegion(appSettings.region, payment.amount)}</p>
+                    </div>
+
+                    <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                      <span>{shortDate(payment.dueDate)}</span>
+                      {payment.status === "overdue" && (
+                        <Badge variant="destructive" className="text-xs">Overdue</Badge>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 pt-1">
+                      <Button
+                        variant="default"
+                        className="w-full"
+                        onClick={() =>
+                          onNavigate("payment-request-cancel", {
+                            requestId: payment.requestId || payment.id,
+                          })
+                        }
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="w-full"
+                        onClick={() =>
+                          onNavigate("send-reminder", {
+                            to: payment.organizer.id || payment.organizer.name,
+                            requestId: payment.requestId || payment.id,
+                          })
+                        }
+                      >
+                        Remind
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              );
+            }
 
             return (
               <Card
@@ -227,11 +391,7 @@ export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
                         }
                       }}
                     >
-                      {payment.status === "overdue"
-                        ? "Pay Overdue"
-                        : payment.status === "due_soon"
-                          ? "Pay Now"
-                          : "Pay"}
+                      Pay Now
                     </Button>
                   </div>
                 </div>

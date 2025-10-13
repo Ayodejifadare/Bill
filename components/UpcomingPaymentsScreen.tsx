@@ -18,6 +18,7 @@ import { formatDueDate } from "../utils/formatDueDate";
 import { ListSkeleton } from "./ui/loading";
 import { Alert, AlertDescription } from "./ui/alert";
 import { useUpcomingPayments } from "../hooks/useUpcomingPayments";
+import { Progress } from "./ui/progress";
 
 interface UpcomingPaymentsScreenProps {
   onNavigate: (tab: string, data?: any) => void;
@@ -68,6 +69,12 @@ export function UpcomingPaymentsScreen({
     }
   };
 
+  const getStatusLabel = (status: string) => {
+    if (status === "overdue") return "Overdue";
+    if (status === "due_soon" || status === "pending") return "Pending";
+    return "Upcoming";
+  };
+
   const getTypeIcon = (type: string) => {
     switch (type) {
       case "bill_split":
@@ -86,6 +93,76 @@ export function UpcomingPaymentsScreen({
         ? duePhrase
         : `Due ${duePhrase}`
       : "Due date unavailable";
+
+    // Specialized bill split design with progress, urgency, and full-width pay button
+    if (payment.type === "bill_split") {
+      const participants = Array.isArray(payment.participants)
+        ? payment.participants
+        : [];
+      const total = participants.length || 0;
+      const paidCount = participants.filter((p: any) => p?.isPaid).length;
+      const percent = total > 0 ? Math.round((paidCount / total) * 100) : 0;
+      const isOverdue = payment.status === "overdue";
+
+      return (
+        <Card
+          className={`p-4 transition-colors cursor-pointer ${
+            isOverdue ? "border-2 border-destructive" : "hover:bg-muted/50"
+          }`}
+          onClick={() => {
+            if (payment.billSplitId) {
+              onNavigate("pay-bill", { billId: payment.billSplitId });
+            }
+          }}
+        >
+          <div className="space-y-2">
+            {/* Header row: title + urgent + amount */}
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <p className="font-medium truncate">{payment.title}</p>
+                <Badge
+                  className={`${getStatusColor(payment.status)} text-xs flex items-center gap-1`}
+                >
+                  {getStatusIcon(payment.status)}
+                  {getStatusLabel(payment.status)}
+                </Badge>
+              </div>
+              <p className="font-medium whitespace-nowrap">{fmt(payment.amount)}</p>
+            </div>
+
+            {/* Due text removed per latest design */}
+
+            {/* Progress caption */}
+            <div className="flex items-center justify-between text-sm">
+              <span>
+                {paidCount} of {total} paid
+              </span>
+              <span>{percent}%</span>
+            </div>
+
+            {/* Centered full-width progress bar */}
+            <div className="w-full mx-auto">
+              <Progress value={percent} className="h-2 w-full" />
+            </div>
+
+            {/* Pay button close to the bar */}
+            <Button
+              size="sm"
+              className="w-full"
+              variant={isOverdue ? "default" : "outline"}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (payment.billSplitId) {
+                  onNavigate("pay-bill", { billId: payment.billSplitId });
+                }
+              }}
+            >
+              Pay Now
+            </Button>
+          </div>
+        </Card>
+      );
+    }
 
     return (
       <Card
@@ -182,11 +259,7 @@ export function UpcomingPaymentsScreen({
                 }
               }}
             >
-              {payment.status === "overdue"
-                ? "Pay Overdue"
-                : payment.status === "due_soon"
-                  ? "Pay Now"
-                  : "Pay"}
+              Pay Now
             </Button>
           </div>
         </div>
@@ -200,7 +273,7 @@ export function UpcomingPaymentsScreen({
           <Button variant="ghost" size="sm" onClick={() => onNavigate("home")}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <h2>Pending Payments</h2>
+          <h2>Pending</h2>
         </div>
         <ListSkeleton count={4} />
       </div>
@@ -214,7 +287,7 @@ export function UpcomingPaymentsScreen({
           <Button variant="ghost" size="sm" onClick={() => onNavigate("home")}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <h2>Pending Payments</h2>
+          <h2>Pending</h2>
         </div>
         <Alert variant="destructive">
           <AlertDescription>{error}</AlertDescription>
@@ -230,7 +303,7 @@ export function UpcomingPaymentsScreen({
         <Button variant="ghost" size="sm" onClick={() => onNavigate("home")}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <h2>Pending Payments</h2>
+        <h2>Pending</h2>
       </div>
 
       {/* Quick Stats */}
