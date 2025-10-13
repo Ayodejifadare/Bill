@@ -178,7 +178,7 @@ export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
                         </div>
                         <div className="min-w-0">
                           <p className="font-medium truncate">{payment.organizer.name}</p>
-                          <p className="text-sm text-muted-foreground truncate">{payment.title}</p>
+                          <p className="text-sm text-muted-foreground truncate mt-0.5">{payment.title}</p>
                         </div>
                       </div>
                       <p className="font-semibold whitespace-nowrap text-destructive">-
@@ -239,7 +239,7 @@ export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
                         </div>
                         <div className="min-w-0">
                           <p className="font-medium truncate">{payment.organizer.name}</p>
-                          <p className="text-sm text-muted-foreground truncate">{payment.title}</p>
+                          <p className="text-sm text-muted-foreground truncate mt-0.5">{payment.title}</p>
                         </div>
                       </div>
                     <p className="font-semibold whitespace-nowrap text-success">+{formatCurrencyForRegion(appSettings.region, payment.amount)}</p>
