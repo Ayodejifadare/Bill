@@ -1,0 +1,36 @@
+name: Mobile CI
+
+on:
+  push:
+    paths:
+      - 'apps/mobile/**'
+      - '.github/workflows/mobile-ci.yml'
+      - '.eslintrc.json'
+      - 'tsconfig.json'
+  pull_request:
+    paths:
+      - 'apps/mobile/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Install root deps
+        run: npm ci
+      - name: Install mobile deps
+        working-directory: apps/mobile
+        run: npm ci
+      - name: Typecheck (mobile)
+        working-directory: apps/mobile
+        run: npx tsc -p . --noEmit
+      - name: Lint (mobile)
+        run: npm run mobile:lint
+      - name: Jest (mobile)
+        working-directory: apps/mobile
+        run: npx jest --ci --passWithNoTests
+

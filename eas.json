@@ -1,0 +1,24 @@
+{
+  "cli": {
+    "appRoot": "apps/mobile"
+  },
+  "build": {
+    "preview": {
+      "channel": "preview",
+      "autoIncrement": "version",
+      "developmentClient": true,
+      "android": { "gradleCommand": ":app:assembleRelease" },
+      "ios": { "simulator": false }
+    },
+    "production": {
+      "channel": "production",
+      "autoIncrement": "version",
+      "android": { "buildType": "app-bundle" },
+      "ios": { "simulator": false }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}
+

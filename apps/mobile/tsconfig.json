@@ -1,0 +1,18 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "allowJs": true,
+    "baseUrl": ".",
+    "paths": {
+      "@shared/*": ["../../shared/*"],
+      "@types/*": ["../../types/*"]
+    },
+    "types": ["jest"]
+  },
+  "include": ["**/*.ts", "**/*.tsx"],
+  "exclude": [
+    "../../utils/config.ts",
+    "../../utils/split-bill-api.ts"
+  ]
+}

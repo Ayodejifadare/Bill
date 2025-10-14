@@ -1,0 +1,42 @@
+{
+  "expo": {
+    "name": "mobile",
+    "slug": "mobile",
+    "scheme": "biltip",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "bundleIdentifier": "com.biltip.app",
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSContactsUsageDescription": "We use your contacts to find friends and split bills.",
+        "NSUserTrackingUsageDescription": "We use this to improve your experience."
+      }
+    },
+    "android": {
+      "package": "com.biltip.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-barcode-scanner"
+    ],
+    "runtimeVersion": { "policy": "appVersion" },
+    "updates": { "enabled": true }
+  }
+}
