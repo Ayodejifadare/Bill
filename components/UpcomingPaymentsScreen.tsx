@@ -6,6 +6,7 @@ import {
   CreditCard,
   Users,
   AlertTriangle,
+  Undo2,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
@@ -51,6 +52,58 @@ export function UpcomingPaymentsScreen({
         return "bg-secondary text-secondary-foreground";
       default:
         return "bg-secondary text-secondary-foreground";
+    }
+
+    if (payment.type === "request") {
+      return (
+        <Card className="p-4 hover:bg-muted/50 transition-colors">
+          <div className="space-y-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="relative">
+                  <Avatar className="h-10 w-10">
+                    <AvatarFallback className="bg-secondary text-foreground/70">
+                      {payment.organizer?.avatar || ""}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-background shadow flex items-center justify-center">
+                    <Undo2 className="h-3.5 w-3.5 text-success" />
+                  </div>
+                </div>
+                <div className="min-w-0">
+                  <p className="font-medium truncate">{payment.organizer?.name}</p>
+                  <p className="text-sm text-muted-foreground truncate mt-0.5">{payment.title}</p>
+                </div>
+              </div>
+              <p className="font-semibold whitespace-nowrap text-success">+{fmt(payment.amount)}</p>
+            </div>
+
+            <div className="flex items-center gap-3 text-sm text-muted-foreground">
+              <span>{shortDate(payment.dueDate)}</span>
+              {payment.status === "overdue" && (
+                <Badge variant="destructive" className="text-xs">Overdue</Badge>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 pt-1">
+              <Button
+                variant="default"
+                className="w-full"
+                onClick={() => onNavigate("payment-request-cancel", { requestId: payment.requestId || payment.id })}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => onNavigate("send-reminder", { to: payment.organizer?.id || payment.organizer?.name, requestId: payment.requestId || payment.id })}
+              >
+                Remind
+              </Button>
+            </div>
+          </div>
+        </Card>
+      );
     }
   };
 
@@ -115,19 +168,28 @@ export function UpcomingPaymentsScreen({
             }
           }}
         >
-          <div className="space-y-2">
-            {/* Header row: title + urgent + amount */}
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex items-center gap-2 min-w-0">
-                <p className="font-medium truncate">{payment.title}</p>
-                <Badge
-                  className={`${getStatusColor(payment.status)} text-xs flex items-center gap-1`}
-                >
-                  {getStatusIcon(payment.status)}
-                  {getStatusLabel(payment.status)}
-                </Badge>
+          <div className="space-y-3">
+            {/* Header: avatar + organizer + amount */}
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="relative">
+                  <Avatar className="h-10 w-10">
+                    <AvatarFallback className="bg-secondary text-foreground/70">
+                      {payment.organizer?.avatar || ""}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-background shadow flex items-center justify-center">
+                    <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                  </div>
+                </div>
+                <div className="min-w-0">
+                  <p className="font-medium truncate">{payment.organizer?.name}</p>
+                  <p className="text-sm text-muted-foreground truncate mt-0.5">{payment.title}</p>
+                </div>
               </div>
-              <p className="font-medium whitespace-nowrap">{fmt(payment.amount)}</p>
+              <p className="font-semibold whitespace-nowrap text-destructive">-
+                {fmt(payment.amount)}
+              </p>
             </div>
 
             {/* Due text removed per latest design */}
