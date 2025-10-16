@@ -27,7 +27,7 @@ export function Card({ style, children, onPress, ...rest }: Props) {
   );
   if (onPress) {
     return (
-      <Pressable onPress={onPress} style={({ pressed }) => [pressed && { opacity: 0.9 }]}> {content} </Pressable>
+      <Pressable onPress={onPress} style={({ pressed }) => [pressed && { opacity: 0.9 }]}>{content}</Pressable>
     );
   }
   return content;
@@ -38,4 +38,3 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
   },
 });
-

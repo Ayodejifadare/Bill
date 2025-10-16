@@ -163,6 +163,10 @@ function findLookupMatch(identifier: string, type: LookupIdentifierType) {
 }
 
 export async function handle(path: string, _init?: RequestInit) {
+  // Current user profile
+  if (/^\/(api\/)?users\/me$/.test(path)) {
+    return { user: demoProfile };
+  }
   // Support both /users/* and /api/users/*
   if (/^\/(api\/)?users\/[^/]+\/stats$/.test(path)) {
     return { stats: demoStats };

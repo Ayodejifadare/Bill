@@ -4,33 +4,44 @@ function makeList() {
   const now = Date.now();
   return [
     {
-      id: "tx-1001",
-      type: "received",
-      amount: 42.5,
-      description: "Dinner split from Alice",
-      recipient: { name: "You" },
-      sender: { name: "Alice" },
-      date: new Date(now - 3600_000).toISOString(),
-      status: "completed",
+      id: 'tx-2001',
+      type: 'received',
+      amount: 25.5,
+      description: 'Coffee and lunch',
+      sender: { name: 'Sarah Johnson' },
+      recipient: { name: 'You' },
+      date: new Date(now - 2 * 24 * 3600_000).toISOString(),
+      status: 'completed',
     },
     {
-      id: "tx-1002",
-      type: "sent",
-      amount: 18.0,
-      description: "Coffee with Bob",
-      recipient: { name: "Bob" },
-      sender: { name: "You" },
-      date: new Date(now - 7200_000).toISOString(),
-      status: "completed",
+      id: 'tx-2002',
+      type: 'sent',
+      amount: 45.0,
+      description: 'Uber ride home',
+      sender: { name: 'You' },
+      recipient: { name: 'Mike Chen' },
+      date: new Date(now - 3 * 24 * 3600_000).toISOString(),
+      status: 'completed',
     },
     {
-      id: "tx-1003",
-      type: "bill_split",
-      amount: 30,
-      description: "Ride share",
-      recipient: { name: "Group" },
-      date: new Date(now - 10800_000).toISOString(),
-      status: "pending",
+      id: 'tx-2003',
+      type: 'received',
+      amount: 60.0,
+      description: 'Concert tickets',
+      sender: { name: 'Alex Rodriguez' },
+      recipient: { name: 'You' },
+      date: new Date(now - 5 * 24 * 3600_000).toISOString(),
+      status: 'completed',
+    },
+    {
+      id: 'tx-2004',
+      type: 'sent',
+      amount: 12.5,
+      description: 'Coffee',
+      sender: { name: 'You' },
+      recipient: { name: 'Jessica Lee' },
+      date: new Date(now - 6 * 24 * 3600_000).toISOString(),
+      status: 'completed',
     },
   ];
 }
@@ -63,11 +74,6 @@ export async function handle(path: string, _init?: RequestInit) {
   }
 
   // Default list
-  return {
-    transactions: makeList(),
-    hasMore: false,
-    nextCursor: null,
-    total: 3,
-    pageCount: 1,
-  };
+  const list = makeList();
+  return { transactions: list, hasMore: false, nextCursor: null, total: list.length, pageCount: 1 };
 }

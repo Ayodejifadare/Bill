@@ -34,3 +34,21 @@ jobs:
         working-directory: apps/mobile
         run: npx jest --ci --passWithNoTests
 
+      - name: Set up Java for Android tools
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Detox Android smoke
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 33
+          target: google_apis
+          arch: x86_64
+          ram-size: 2048M
+          disk-size: 4096M
+          script: |
+            cd apps/mobile
+            npm run detox:build
+            npm run detox:test

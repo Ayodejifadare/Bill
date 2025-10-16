@@ -10,7 +10,10 @@ import HomeScreen from '../screens/Home';
 import BillsScreen from '../screens/Bills';
 import FriendsScreen from '../screens/Friends';
 import ProfileScreen from '../screens/Profile';
+import SplitScreen from '../screens/Split';
+import PendingScreen from '../screens/Pending';
 import TransactionDetailsScreen from '../screens/TransactionDetails';
+import TransactionsScreen from '../screens/Transactions';
 import RecurringPaymentsScreen from '../screens/RecurringPayments';
 import SetupRecurringPaymentScreen from '../screens/SetupRecurringPayment';
 import NotificationsScreen from '../screens/Notifications';
@@ -52,26 +55,13 @@ function TabsInner() {
   const { colors } = useTheme();
   return (
     <Tab.Navigator
-      screenOptions={({ route }) => ({
-        headerShown: false,
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.mutedForeground,
-        tabBarStyle: { backgroundColor: colors.card, borderTopColor: colors.border },
-        tabBarIcon: ({ color, size }) => {
-          const map: Record<string, any> = {
-            HomeTab: 'Home',
-            BillsTab: 'FileText',
-            FriendsTab: 'Users',
-            ProfileTab: 'User',
-          };
-          const name = map[route.name] ?? 'Circle';
-          return <Icon name={name as any} color={color} size={size} />;
-        },
-      })}
+      screenOptions={{ headerShown: false }}
+      tabBar={(props) => <BottomTabBar {...props} />}
     >
       <Tab.Screen name="HomeTab" component={HomeNavigator} options={{ title: 'Home' }} />
-      <Tab.Screen name="BillsTab" component={BillsNavigator} options={{ title: 'Bills' }} />
       <Tab.Screen name="FriendsTab" component={FriendsNavigator} options={{ title: 'Friends' }} />
+      <Tab.Screen name="SplitTab" component={SplitScreen} options={{ title: 'Split' }} />
+      <Tab.Screen name="BillsTab" component={BillsNavigator} options={{ title: 'Bills' }} />
       <Tab.Screen name="ProfileTab" component={ProfileScreen} options={{ title: 'Profile' }} />
       {/* Phase 2 extra entry points through deep links or future menu */}
     </Tab.Navigator>
@@ -85,6 +75,7 @@ const linking: LinkingOptions<RootTabParamList> = {
   config: {
     screens: {
       HomeTab: '',
+      SplitTab: 'split',
       BillsTab: 'bills',
       FriendsTab: 'friends',
       ProfileTab: 'profile',
@@ -129,18 +120,21 @@ export default function RootNavigator() {
 
 function InnerNav({ initialState, onStateChange }: { initialState: any; onStateChange: (s: any) => void }) {
   const { actualTheme, colors } = useTheme();
-  const navTheme = useMemo(() => ({
-    dark: actualTheme === 'dark',
-    colors: {
-      ...(actualTheme === 'dark' ? DarkTheme.colors : DefaultTheme.colors),
-      background: colors.background,
-      border: colors.border,
-      card: colors.card,
-      primary: colors.primary,
-      text: colors.foreground,
-      notification: (actualTheme === 'dark' ? DarkTheme.colors : DefaultTheme.colors).notification,
-    },
-  }), [actualTheme, colors]);
+  const navTheme = useMemo(() => {
+    const base = actualTheme === 'dark' ? DarkTheme : DefaultTheme;
+    return {
+      // Preserve all fields from the base theme (fonts, animation, etc.)
+      ...base,
+      colors: {
+        ...base.colors,
+        background: colors.background,
+        border: colors.border,
+        card: colors.card,
+        primary: colors.primary,
+        text: colors.foreground,
+      },
+    } as typeof DefaultTheme;
+  }, [actualTheme, colors]);
 
   return (
     <NavigationContainer linking={linking} initialState={initialState} onStateChange={onStateChange} theme={navTheme as any}>
@@ -152,9 +146,12 @@ function HomeNavigator() {
   return (
     <HomeStack.Navigator>
       <HomeStack.Screen name="HomeMain" component={HomeScreen} options={{ title: 'Home' }} />
+      <HomeStack.Screen name="Pending" component={PendingScreen} options={{ title: 'Pending' }} />
+      <HomeStack.Screen name="Transactions" component={TransactionsScreen} options={{ title: 'Transactions' }} />
       <HomeStack.Screen name="TransactionDetails" component={TransactionDetailsScreen as any} options={{ title: 'Transaction' }} />
       <HomeStack.Screen name="RecurringPayments" component={RecurringPaymentsScreen as any} options={{ title: 'Recurring' }} />
       <HomeStack.Screen name="Notifications" component={NotificationsScreen as any} options={{ title: 'Notifications' }} />
     </HomeStack.Navigator>
   );
 }
+import BottomTabBar from './BottomTabBar';

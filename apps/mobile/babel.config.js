@@ -3,9 +3,26 @@ module.exports = function (api) {
   return {
     presets: ['babel-preset-expo'],
     plugins: [
+      [
+        'module-resolver',
+        {
+          root: ['.'],
+          extensions: [
+            '.ios.js',
+            '.android.js',
+            '.js',
+            '.ts',
+            '.tsx',
+            '.json',
+          ],
+          alias: {
+            '@shared': '../../shared',
+            '@types': '../../types',
+          },
+        },
+      ],
       // Keep reanimated plugin last
       'react-native-reanimated/plugin',
     ],
   };
 };
-

@@ -1,19 +1,40 @@
 import React, { useEffect, useState } from 'react';
-import { ScrollView, View, Text } from 'react-native';
-import * as Notifications from 'expo-notifications';
+import { ScrollView, View, Text, Platform } from 'react-native';
+import Constants from 'expo-constants';
 import { Button } from '../components/ui/Button';
 import { ThemedText } from '../components/ThemedText';
 import { Card } from '../components/ui/Card';
 
+type ExpoNotifications = typeof import('expo-notifications');
+
 export default function NotificationsScreen() {
   const [status, setStatus] = useState<'undetermined'|'granted'|'denied'>('undetermined');
+  const [NotificationsAPI, setNotificationsAPI] = useState<ExpoNotifications | null>(null);
 
   useEffect(() => {
-    Notifications.getPermissionsAsync().then((p) => setStatus(p.status));
+    // In Expo Go (Android), push notifications aren't supported
+    const isExpoGo = Constants.appOwnership === 'expo';
+    if (isExpoGo && Platform.OS === 'android') {
+      setStatus('denied');
+      return;
+    }
+    // Dynamically import to avoid initializing the module in Expo Go
+    (async () => {
+      const mod = await import('expo-notifications');
+      setNotificationsAPI(mod);
+      const p = await mod.getPermissionsAsync();
+      setStatus(p.status);
+    })();
   }, []);
 
   const request = async () => {
-    const res = await Notifications.requestPermissionsAsync();
+    const isExpoGo = Constants.appOwnership === 'expo';
+    if (isExpoGo && Platform.OS === 'android') {
+      setStatus('denied');
+      return;
+    }
+    const api = NotificationsAPI ?? (await import('expo-notifications'));
+    const res = await api.requestPermissionsAsync();
     setStatus(res.status);
   };
 
@@ -32,4 +53,3 @@ export default function NotificationsScreen() {
     </ScrollView>
   );
 }
-

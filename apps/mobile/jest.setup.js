@@ -39,3 +39,22 @@ jest.mock('expo-barcode-scanner', () => ({
   BarCodeScanner: ({ children }: any) => children || null,
   requestPermissionsAsync: async () => ({ status: 'granted' }),
 }));
+
+// Provide a global NetInfo mock to avoid native internals during tests.
+// Individual tests can override this with their own jest.mock if needed.
+jest.mock('@react-native-community/netinfo', () => {
+  let state = { isConnected: true, isInternetReachable: true };
+  const listeners = new Set();
+  return {
+    addEventListener: (fn) => {
+      listeners.add(fn);
+      return () => listeners.delete(fn);
+    },
+    fetch: jest.fn(() => Promise.resolve(state)),
+    // helper for tests that import this mock directly
+    __setState: (next) => {
+      state = { ...state, ...next };
+      listeners.forEach((fn) => fn(state));
+    },
+  };
+});
