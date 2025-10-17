@@ -121,6 +121,20 @@ export function LoginScreen({ onLogin, onShowRegister }: LoginScreenProps) {
         ? "7123456789"
         : "5551234567";
 
+  // Simplified, design-friendly placeholder per country
+  const phonePlaceholder = (() => {
+    if (selectedCountry?.code === "US" || selectedCountry?.code === "CA") {
+      return "(555) 123-4567";
+    }
+    if (selectedCountry?.code === "GB") {
+      return "07123 456789";
+    }
+    if (selectedCountry?.code === "NG") {
+      return "0801 234 5678";
+    }
+    return "(555) 123-4567";
+  })();
+
   const normalizePhoneInput = () =>
     normalizePhoneNumber(phoneNumber, selectedCountry?.phonePrefix);
 
@@ -210,18 +224,18 @@ export function LoginScreen({ onLogin, onShowRegister }: LoginScreenProps) {
         </div>
 
         {/* Login Form */}
-        <Card className="p-6">
+        <Card className="p-6 rounded-2xl shadow-sm">
           <form onSubmit={handleSendCode} className="space-y-4">
             {/* Country and Phone Number */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               {/* Country */}
               <div className="space-y-2">
                 <label htmlFor="country" className="text-sm font-medium">
                   Country
                 </label>
                 <Select value={country} onValueChange={setCountry} required>
-                  <SelectTrigger className="h-10">
-                    <SelectValue placeholder="Select country">
+                  <SelectTrigger size="lg" className="rounded-xl">
+                    <SelectValue placeholder="Select">
                       {selectedCountry && (
                         <div className="flex items-center space-x-2">
                           {selectedCountry.flag}
@@ -252,28 +266,22 @@ export function LoginScreen({ onLogin, onShowRegister }: LoginScreenProps) {
               </div>
 
               {/* Phone Number */}
-              <div className="space-y-2">
+              <div className="space-y-2 col-span-2">
                 <label htmlFor="phoneNumber" className="text-sm font-medium">
                   Phone number <span className="text-red-500">*</span>
                 </label>
                 <Input
                   id="phoneNumber"
                   type="tel"
-                  placeholder={
-                    selectedCountry
-                      ? `e.g. ${exampleLocalNumber} or ${selectedCountry.phonePrefix}${exampleLocalNumber}`
-                      : "e.g. +15551234567"
-                  }
+                  placeholder={phonePlaceholder}
                   value={phoneNumber}
                   onChange={(e) => setPhoneNumber(e.target.value)}
-                  className="h-10"
+                  className="h-12 rounded-xl"
                   required
                 />
                 {selectedCountry && (
                   <p className="text-xs text-muted-foreground">
-                    Enter your number with or without the country code.
-                    Examples: {exampleLocalNumber},{" "}
-                    {selectedCountry.phonePrefix}
+                    You can include the country code, e.g. {selectedCountry.phonePrefix}
                     {exampleLocalNumber}
                   </p>
                 )}
@@ -293,7 +301,7 @@ export function LoginScreen({ onLogin, onShowRegister }: LoginScreenProps) {
             {/* Send OTP Button */}
             <Button
               type="submit"
-              className="w-full h-12"
+              className="w-full h-12 rounded-xl"
               disabled={isLoading || !phoneNumber || !country}
             >
               {isLoading ? "Sending code..." : "Send verification code"}
@@ -317,7 +325,7 @@ export function LoginScreen({ onLogin, onShowRegister }: LoginScreenProps) {
             <Button
               type="button"
               variant="outline"
-              className="w-full h-12"
+              className="w-full h-12 rounded-xl"
               onClick={handleBiometricLogin}
             >
               <Smartphone className="h-4 w-4 mr-2" />
@@ -326,7 +334,7 @@ export function LoginScreen({ onLogin, onShowRegister }: LoginScreenProps) {
 
             {/* Social Login Options */}
             <div className="grid grid-cols-2 gap-3">
-              <Button variant="outline" className="h-12">
+              <Button variant="outline" className="h-12 rounded-xl">
                 <svg className="h-4 w-4 mr-2" viewBox="0 0 24 24">
                   <path
                     d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -347,7 +355,7 @@ export function LoginScreen({ onLogin, onShowRegister }: LoginScreenProps) {
                 </svg>
                 Google
               </Button>
-              <Button variant="outline" className="h-12">
+              <Button variant="outline" className="h-12 rounded-xl">
                 <svg
                   className="h-4 w-4 mr-2"
                   fill="currentColor"

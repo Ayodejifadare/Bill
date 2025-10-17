@@ -90,6 +90,7 @@ interface GroupTransaction {
   status: "completed" | "pending";
   paidBy: string;
   participants: string[];
+  billSplitId?: string | null;
 }
 
 interface Group {
@@ -536,6 +537,7 @@ export function GroupDetailsScreen({
                   const paidBy =
                     typeof tx.paidBy === "string" ? tx.paidBy : "Unknown";
                   const id = typeof tx.id === "string" ? tx.id : `txn_${index}`;
+                  const billSplitId = typeof (tx as any).billSplitId === "string" ? (tx as any).billSplitId : null;
 
                   return (
                     <TransactionCard
@@ -552,10 +554,10 @@ export function GroupDetailsScreen({
                       onClick={() => {
                         if (transactionType === "bill_split") {
                           if (status === "pending") {
-                            onNavigate("pay-bill", { billId: id });
+                            onNavigate("pay-bill", { billId: billSplitId || id });
                           } else {
                             onNavigate("bill-split-details", {
-                              billSplitId: id,
+                              billSplitId: billSplitId || id,
                             });
                           }
                         } else {

@@ -582,6 +582,7 @@ router.get("/:groupId", authenticate, async (req, res) => {
     const recentSlice = deduped.slice(0, pageSize);
     const recentTransactions = recentSlice.map((t) => ({
       id: t.id,
+      billSplitId: t.billSplitId || null,
       type: TRANSACTION_TYPE_MAP[t.type] || t.type,
       amount: t.amount,
       description: t.description || "",

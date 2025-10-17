@@ -1,4 +1,4 @@
-import {
+﻿import {
   ArrowLeft,
   Calendar,
   AlertCircle,
@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
-import { Avatar, AvatarFallback } from "./ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Badge } from "./ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { useUserProfile } from "./UserProfileContext";
@@ -31,6 +31,14 @@ export function UpcomingPaymentsScreen({
   const { appSettings } = useUserProfile();
   const fmt = (n: number) => formatCurrencyForRegion(appSettings.region, n);
   const { upcomingPayments, loading, error } = useUpcomingPayments();
+  const getInitials = (name: string) =>
+    String(name || "")
+      .split(" ")
+      .filter(Boolean)
+      .map((n) => n[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase();
 
   const dueSoonTotal = upcomingPayments
     .filter((p) => p.status === "overdue" || p.status === "due_soon")
@@ -87,15 +95,15 @@ export function UpcomingPaymentsScreen({
 
             <div className="grid grid-cols-2 gap-3 pt-1">
               <Button
-                variant="default"
-                className="w-full"
+                variant="outline"
+                className="w-full h-12 rounded-xl"
                 onClick={() => onNavigate("payment-request-cancel", { requestId: payment.requestId || payment.id })}
               >
                 Cancel
               </Button>
               <Button
-                variant="outline"
-                className="w-full"
+                variant="default"
+                className="w-full h-12 rounded-xl"
                 onClick={() => onNavigate("send-reminder", { to: payment.organizer?.id || payment.organizer?.name, requestId: payment.requestId || payment.id })}
               >
                 Remind
@@ -196,15 +204,19 @@ export function UpcomingPaymentsScreen({
 
             {/* Progress caption */}
             <div className="flex items-center justify-between text-sm">
-              <span>
+              <span className="text-muted-foreground">
                 {paidCount} of {total} paid
               </span>
               <span>{percent}%</span>
             </div>
 
-            {/* Centered full-width progress bar */}
+            {/* Progress bar styled to match design */}
             <div className="w-full mx-auto">
-              <Progress value={percent} className="h-2 w-full" />
+              <Progress
+                value={percent}
+                className="h-[6px] w-full bg-muted"
+                indicatorClassName="bg-foreground"
+              />
             </div>
 
             {/* Pay button close to the bar */}
@@ -234,7 +246,7 @@ export function UpcomingPaymentsScreen({
             // Go straight to the payment flow for a bill split
             onNavigate("pay-bill", { billId: payment.billSplitId });
           } else if (payment.type === "request") {
-            // Direct request → simplified payment flow
+            // Direct request â†’ simplified payment flow
             onNavigate("payment-flow", {
               paymentRequest: {
                 id: `upcoming-${payment.id}`,
@@ -262,7 +274,7 @@ export function UpcomingPaymentsScreen({
                 <p className="font-medium truncate">{payment.title}</p>
               </div>
               <p className="text-sm text-muted-foreground">
-                {payment.organizer.name} •{" "}
+                {payment.organizer.name} â€¢{" "}
                 {Array.isArray(payment.participants)
                   ? payment.participants.length
                   : payment.participants}{" "}
@@ -328,7 +340,134 @@ export function UpcomingPaymentsScreen({
       </Card>
     );
   };
-  if (loading) {
+    const NewPaymentCard = ({ payment }: { payment: any }) => {
+    const participants = Array.isArray(payment.participants)
+      ? payment.participants
+      : [];
+    const total = participants.length || (typeof payment.participants === "number" ? payment.participants : 0);
+    const paidCount = participants.filter((p: any) => p?.isPaid).length;
+    const percent = total > 0 ? Math.round((paidCount / total) * 100) : 0;
+    const initials = getInitials(payment.organizer?.name);
+    const dateText = formatDueDate(payment.dueDate);
+
+    if (payment.type === "bill_split") {
+      return (
+        <div className="bg-white box-border flex flex-col gap-[16px] pb-[20px] pl-[20px] pr-[20px] pt-[20px] relative rounded-[16px] shrink-0 w-full">
+          <div aria-hidden="true" className="absolute border-[1.268px] border-neutral-200 border-solid inset-0 pointer-events-none rounded-[16px]" />
+          <div className="flex gap-[12px] items-start">
+            <div className="relative shrink-0" style={{ width: "41.999px", height: "41.999px" }}>
+              <Avatar className="h-[41.999px] w-[41.999px]">
+                <AvatarImage src={payment.organizer?.avatar} />
+                <AvatarFallback className="bg-[#f6f6f6] text-[10.5px]">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+              <div className="absolute -bottom-1 -right-1 bg-background rounded-full p-1 border border-border">
+                <Users className="h-3.5 w-3.5 text-primary" />
+              </div>
+            </div>
+            <div className="flex-1 flex flex-col gap-[4px]">
+              <div className="flex items-start justify-between w-full">
+                <p className="font-['Roboto:Medium',_sans-serif] font-medium leading-[21px] text-[14px] text-black" style={{ fontVariationSettings: "'wdth' 100" }}>
+                  {payment.organizer?.name}
+                </p>
+                <p className="font-['Roboto:Medium',_sans-serif] font-medium leading-[21px] text-[14px] text-red-600 whitespace-nowrap" style={{ fontVariationSettings: "'wdth' 100" }}>
+                  -{fmt(Math.abs(payment.amount))}
+                </p>
+              </div>
+              <p className="font-['Roboto:Regular',_sans-serif] font-normal leading-[17.5px] text-[#666666] text-[12.25px]" style={{ fontVariationSettings: "'wdth' 100" }}>
+                {payment.title}
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-col gap-[12px] ml-[54px]">
+            <div className="flex items-center justify-between">
+              <p className="font-['Inter:Regular',_sans-serif] font-normal leading-[20px] not-italic text-[14px] text-zinc-500">
+                {paidCount} of {total} paid
+              </p>
+              <p className="font-['Inter:Regular',_sans-serif] font-normal leading-[20px] not-italic text-[14px] text-zinc-950">
+                {percent}%
+              </p>
+            </div>
+            <div className="relative w-full">
+              <div className="bg-[rgba(24,24,27,0.2)] h-[6px] rounded-[9999px] w-full" />
+              <div className="absolute top-0 bg-zinc-900 h-[6px] rounded-l-[9999px]" style={{ width: `${percent}%` }} />
+            </div>
+            <button
+              onClick={() => payment.billSplitId && onNavigate("pay-bill", { billId: payment.billSplitId })}
+              className="bg-zinc-900 h-[44px] py-[10px] rounded-[8px] hover:bg-zinc-800 transition-colors w-full"
+            >
+              <p className="font-['Inter:Regular',_sans-serif] font-normal leading-[20px] not-italic text-[14px] text-center text-neutral-50">
+                Pay Now
+              </p>
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="bg-white box-border flex flex-col gap-[16px] pb-[20px] pl-[20px] pr-[20px] pt-[20px] relative rounded-[16px] shrink-0 w-full">
+        <div aria-hidden="true" className="absolute border-[1.268px] border-neutral-200 border-solid inset-0 pointer-events-none rounded-[16px]" />
+        <div className="flex gap-[12px] items-start">
+          <div className="relative shrink-0" style={{ width: "41.999px", height: "41.999px" }}>
+            <Avatar className="h-[41.999px] w-[41.999px]">
+              <AvatarImage src={payment.organizer?.avatar} />
+              <AvatarFallback className="bg-[#f6f6f6] text-[10.5px]">
+                {initials}
+              </AvatarFallback>
+            </Avatar>
+            <div className="absolute -bottom-1 -right-1 bg-background rounded-full p-1 border border-border">
+              <Clock className="h-3.5 w-3.5 text-warning" />
+            </div>
+          </div>
+          <div className="flex-1 flex flex-col gap-[4px]">
+            <div className="flex items-start justify-between w-full">
+              <p className="font-['Roboto:Medium',_sans-serif] font-medium leading-[21px] text-[14px] text-black" style={{ fontVariationSettings: "'wdth' 100" }}>
+                {payment.organizer?.name}
+              </p>
+              <p className="font-['Roboto:Medium',_sans-serif] font-medium leading-[21px] text-[14px] text-emerald-600 whitespace-nowrap" style={{ fontVariationSettings: "'wdth' 100" }}>
+                +{fmt(Math.abs(payment.amount))}
+              </p>
+            </div>
+            <p className="font-['Roboto:Regular',_sans-serif] font-normal leading-[17.5px] text-[#666666] text-[12.25px]" style={{ fontVariationSettings: "'wdth' 100" }}>
+              {payment.title}
+            </p>
+          </div>
+        </div>
+        <div className="flex gap-[8px] items-center ml-[54px]">
+          <p className="font-['Roboto:Regular',_sans-serif] font-normal leading-[14px] text-[#666666] text-[10.5px]" style={{ fontVariationSettings: "'wdth' 100" }}>
+            {dateText}
+          </p>
+          {payment.status === "overdue" && (
+            <div className="bg-red-600 h-[20px] rounded-[6px] px-[10px] flex items-center">
+              <p className="font-['Roboto:Medium',_sans-serif] font-medium leading-[14px] text-[10.5px] text-white" style={{ fontVariationSettings: "'wdth' 100" }}>
+                Overdue
+              </p>
+            </div>
+          )}
+        </div>
+        <div className="flex gap-[12px] flex-1 ml-[54px]">
+          <button
+            onClick={() => onNavigate("payment-request-cancel", { requestId: payment.requestId || payment.id })}
+            className="flex-1 bg-white border border-solid border-zinc-200 h-[44px] py-[10px] rounded-[8px] hover:bg-gray-50 transition-colors"
+          >
+            <p className="font-['Inter:Regular',_sans-serif] font-normal leading-[20px] not-italic text-[14px] text-center text-zinc-950">
+              Cancel
+            </p>
+          </button>
+          <button
+            onClick={() => onNavigate("send-reminder", { to: payment.organizer?.id || payment.organizer?.name, requestId: payment.requestId || payment.id })}
+            className="flex-1 bg-zinc-900 h-[44px] py-[10px] rounded-[8px] hover:bg-zinc-800 transition-colors"
+          >
+            <p className="font-['Inter:Regular',_sans-serif] font-normal leading-[20px] not-italic text-[14px] text-center text-neutral-50">
+              Remind
+            </p>
+          </button>
+        </div>
+      </div>
+    );
+  };if (loading) {
     return (
       <div className="p-4 space-y-6 pb-20">
         <div className="flex items-center space-x-4">
@@ -397,7 +536,7 @@ export function UpcomingPaymentsScreen({
             {upcomingPayments
               .filter((p) => p.status === "upcoming" || p.status === "due_soon")
               .map((payment) => (
-                <PaymentCard key={payment.id} payment={payment} />
+                <NewPaymentCard key={payment.id} payment={payment} />
               ))}
             {upcomingPayments.filter(
               (p) => p.status === "upcoming" || p.status === "due_soon",
@@ -415,7 +554,7 @@ export function UpcomingPaymentsScreen({
             {upcomingPayments
               .filter((p) => p.status === "overdue")
               .map((payment) => (
-                <PaymentCard key={payment.id} payment={payment} />
+                <NewPaymentCard key={payment.id} payment={payment} />
               ))}
             {upcomingPayments.filter((p) => p.status === "overdue").length ===
               0 && (
@@ -432,7 +571,7 @@ export function UpcomingPaymentsScreen({
             {upcomingPayments
               .filter((p) => p.status === "upcoming")
               .map((payment) => (
-                <PaymentCard key={payment.id} payment={payment} />
+                <NewPaymentCard key={payment.id} payment={payment} />
               ))}
             {upcomingPayments.filter((p) => p.status === "upcoming").length ===
               0 && (
@@ -461,3 +600,7 @@ export function UpcomingPaymentsScreen({
     </div>
   );
 }
+
+
+
+

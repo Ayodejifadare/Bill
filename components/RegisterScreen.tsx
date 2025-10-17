@@ -315,7 +315,7 @@ export function RegisterScreen({
             </div>
 
             {/* Country and Phone Number */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               {/* Country */}
               <div className="space-y-1">
                 <label htmlFor="country" className="text-sm font-medium">
@@ -357,7 +357,7 @@ export function RegisterScreen({
               </div>
 
               {/* Phone Number */}
-              <div className="space-y-1">
+              <div className="space-y-1 col-span-2">
                 <label htmlFor="phone" className="text-sm font-medium">
                   Phone number <span className="text-red-500">*</span>
                 </label>
