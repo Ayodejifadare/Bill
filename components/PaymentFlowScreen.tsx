@@ -183,8 +183,19 @@ export function PaymentFlowScreen({
     try {
       // If this flow has a corresponding request transaction id, update it on the server
       const reqId = (paymentRequest as any)?.requestId as string | undefined;
+      const billSplitId = (paymentRequest as any)?.billSplitId as
+        | string
+        | undefined;
       let txId: string | undefined;
-      if (reqId) {
+
+      if (billSplitId) {
+        // Bill split payments are tracked per-participant; mark current user as SENT
+        await apiClient(`/bill-splits/${billSplitId}/payments`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "SENT" }),
+        });
+      } else if (reqId) {
         const resp = await apiClient(`/transactions/${reqId}/mark-sent`, {
           method: "POST",
         });
@@ -207,9 +218,11 @@ export function PaymentFlowScreen({
         window.dispatchEvent(new Event("transactionsUpdated"));
       }
 
-      // Navigate to the transaction for pending confirmation when available
+      // Navigate to a relevant screen when available
       setTimeout(() => {
-        if (txId) {
+        if (billSplitId) {
+          onNavigate("bill-split-details", { billSplitId });
+        } else if (txId) {
           onNavigate("transaction-details", { transactionId: txId });
         } else if (reqId) {
           onNavigate("transaction-details", { transactionId: reqId });
