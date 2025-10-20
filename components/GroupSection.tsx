@@ -206,17 +206,7 @@ export function GroupSection({ onNavigate }: GroupSectionProps) {
         />
       )}
 
-      {/* Quick Actions */}
-      <div className="grid grid-cols-2 gap-3">
-        <Button
-          variant="outline"
-          className="w-full"
-          onClick={handleCreateGroup}
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          New Group
-        </Button>
-      </div>
+      {/* Quick Actions removed per request: hide 'New Group' above balance card */}
     </div>
   );
 }

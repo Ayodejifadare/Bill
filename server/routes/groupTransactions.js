@@ -21,24 +21,32 @@ router.get("/transactions", async (req, res) => {
     });
     const memberIds = members.map((m) => m.userId);
 
-    // Only show transactions in this group that involve the authenticated user.
-    // This avoids listing a separate row for every participant when a bill is split.
+    const scope = String(req.query.scope || "my").toLowerCase();
+    const whereBase = {
+      OR: [
+        { senderId: { in: memberIds } },
+        { receiverId: { in: memberIds } },
+      ],
+    };
+
+    const where =
+      scope === "group"
+        ? whereBase // show all group transactions
+        : {
+            ...whereBase,
+            AND: [
+              { OR: [{ senderId: req.userId }, { receiverId: req.userId }] },
+              // Exclude self-referential entries (payer's own share) for cleaner activity
+              {
+                NOT: {
+                  AND: [{ senderId: req.userId }, { receiverId: req.userId }],
+                },
+              },
+            ],
+          };
+
     const transactions = await req.prisma.transaction.findMany({
-      where: {
-        OR: [
-          { senderId: { in: memberIds } },
-          { receiverId: { in: memberIds } },
-        ],
-        AND: [
-          { OR: [{ senderId: req.userId }, { receiverId: req.userId }] },
-          // Exclude self-referential entries (payer's own share) for cleaner activity
-          {
-            NOT: {
-              AND: [{ senderId: req.userId }, { receiverId: req.userId }],
-            },
-          },
-        ],
-      },
+      where,
       include: {
         sender: { select: { id: true, name: true } },
         receiver: { select: { id: true, name: true } },
@@ -52,6 +60,7 @@ router.get("/transactions", async (req, res) => {
 
     const formatted = slice.map((t) => ({
       id: t.id,
+      billSplitId: t.billSplitId || null,
       type: TRANSACTION_TYPE_MAP[t.type] || t.type,
       amount: t.amount,
       description: t.description || "",

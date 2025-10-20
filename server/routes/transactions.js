@@ -683,44 +683,18 @@ router.post("/:id/mark-sent", async (req, res) => {
         });
     }
 
-    // Check balances and perform atomic update + balance transfers
-    const updated = await req.prisma.$transaction(async (prisma) => {
-      // Check sender (payer) balance
-      const payer = await prisma.user.findUnique({
-        where: { id: tx.senderId },
-      });
-      if (!payer || payer.balance < tx.amount) {
-        throw Object.assign(new Error("Insufficient balance"), { status: 400 });
-      }
-
-      // Update transaction state
-      const newTx = await prisma.transaction.update({
-        where: { id },
-        data: {
-          type: "SEND",
-          status: "COMPLETED",
-        },
-        include: {
-          sender: {
-            select: { id: true, name: true, email: true, avatar: true },
-          },
-          receiver: {
-            select: { id: true, name: true, email: true, avatar: true },
-          },
-        },
-      });
-
-      // Transfer balances
-      await prisma.user.update({
-        where: { id: newTx.senderId },
-        data: { balance: { decrement: newTx.amount } },
-      });
-      await prisma.user.update({
-        where: { id: newTx.receiverId },
-        data: { balance: { increment: newTx.amount } },
-      });
-
-      return newTx;
+    // Do NOT transfer funds here. Move to manual confirmation by receiver.
+    // Transition request -> send pending (awaiting confirmation)
+    const updated = await req.prisma.transaction.update({
+      where: { id },
+      data: {
+        type: "SEND",
+        status: "PENDING",
+      },
+      include: {
+        sender: { select: { id: true, name: true, email: true, avatar: true } },
+        receiver: { select: { id: true, name: true, email: true, avatar: true } },
+      },
     });
 
     const formatted = {
@@ -738,10 +712,11 @@ router.post("/:id/mark-sent", async (req, res) => {
     await createNotification(req.prisma, {
       recipientId: updated.receiverId,
       actorId: updated.senderId,
-      type: "payment_sent",
-      title: "Payment sent",
-      message: `${updated.sender.name} sent you ${updated.amount}`,
+      type: "payment_confirm",
+      title: "Confirm payment",
+      message: `${updated.sender.name} marked ${updated.amount} as sent. Tap Accept to confirm. TX:${updated.id}`,
       amount: updated.amount,
+      actionable: true,
     });
 
     res.json({ transaction: formatted });
@@ -761,6 +736,115 @@ router.post("/:id/mark-sent", async (req, res) => {
       return res.status(400).json({ error: message });
     }
     console.error("Mark request as sent error:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// Receiver confirms payment receipt (manual confirmation)
+router.post("/:id/confirm-received", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const tx = await req.prisma.transaction.findUnique({ where: { id } });
+    if (!tx) return res.status(404).json({ error: "Transaction not found" });
+
+    if (tx.receiverId !== req.userId) {
+      return res.status(403).json({ error: "Not authorized to confirm" });
+    }
+
+    if (!(tx.type === "SEND" && tx.status === "PENDING")) {
+      return res.status(400).json({ error: "Not awaiting confirmation" });
+    }
+
+    const updated = await req.prisma.$transaction(async (prisma) => {
+      // Transfer balances now
+      await prisma.user.update({
+        where: { id: tx.senderId },
+        data: { balance: { decrement: tx.amount } },
+      });
+      await prisma.user.update({
+        where: { id: tx.receiverId },
+        data: { balance: { increment: tx.amount } },
+      });
+
+      const newTx = await prisma.transaction.update({
+        where: { id },
+        data: { status: "COMPLETED" },
+        include: {
+          sender: { select: { id: true, name: true, email: true, avatar: true } },
+          receiver: { select: { id: true, name: true, email: true, avatar: true } },
+        },
+      });
+      return newTx;
+    });
+
+    const formatted = {
+      ...updated,
+      type: TRANSACTION_TYPE_MAP[updated.type] || updated.type,
+      status: TRANSACTION_STATUS_MAP[updated.status] || updated.status,
+      ...(updated.category
+        ? {
+            category:
+              TRANSACTION_CATEGORY_MAP[updated.category] || updated.category,
+          }
+        : {}),
+    };
+
+    // Notify payer that receiver confirmed
+    await createNotification(req.prisma, {
+      recipientId: updated.senderId,
+      actorId: updated.receiverId,
+      type: "payment_confirmed",
+      title: "Payment confirmed",
+      message: `${updated.receiver.name} confirmed your payment of ${updated.amount}`,
+      amount: updated.amount,
+    });
+
+    res.json({ transaction: formatted });
+  } catch (error) {
+    console.error("Confirm received error:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// Receiver declines the payment (keeps as request pending)
+router.post("/:id/decline-received", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const tx = await req.prisma.transaction.findUnique({ where: { id } });
+    if (!tx) return res.status(404).json({ error: "Transaction not found" });
+    if (tx.receiverId !== req.userId) {
+      return res.status(403).json({ error: "Not authorized to decline" });
+    }
+    if (!(tx.type === "SEND" && tx.status === "PENDING")) {
+      return res.status(400).json({ error: "Not awaiting confirmation" });
+    }
+
+    const updated = await req.prisma.transaction.update({
+      where: { id },
+      data: { type: "REQUEST", status: "PENDING" },
+      include: {
+        sender: { select: { id: true, name: true, email: true, avatar: true } },
+        receiver: { select: { id: true, name: true, email: true, avatar: true } },
+      },
+    });
+
+    await createNotification(req.prisma, {
+      recipientId: updated.senderId,
+      actorId: updated.receiverId,
+      type: "payment_declined",
+      title: "Confirmation declined",
+      message: `${updated.receiver.name} declined the confirmation for ${updated.amount}`,
+      amount: updated.amount,
+    });
+
+    const formatted = {
+      ...updated,
+      type: TRANSACTION_TYPE_MAP[updated.type] || updated.type,
+      status: TRANSACTION_STATUS_MAP[updated.status] || updated.status,
+    };
+    res.json({ transaction: formatted });
+  } catch (error) {
+    console.error("Decline received error:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 });

@@ -123,11 +123,15 @@ export function GroupDetailsScreen({
   const [transactions, setTransactions] = useState<GroupTransaction[]>([]);
   const [page, setPage] = useState(1);
   const [hasMoreTransactions, setHasMoreTransactions] = useState(true);
+  // Separate state for full group transactions (per-participant), used by Transactions tab
+  const [groupTransactions, setGroupTransactions] = useState<GroupTransaction[]>([]);
+  const [groupPage, setGroupPage] = useState(1);
+  const [hasMoreGroupTransactions, setHasMoreGroupTransactions] = useState(true);
   const [loading, setLoading] = useState(true);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
-  const { appSettings } = useUserProfile();
+  const { appSettings, userProfile } = useUserProfile();
   const fmt = (n: number) => formatCurrencyForRegion(appSettings.region, n);
 
   useEffect(() => {
@@ -157,6 +161,24 @@ export function GroupDetailsScreen({
       }
     };
     fetchGroup();
+  }, [groupId]);
+
+  // Fetch first page of full group transactions (scope=group) for Transactions tab
+  useEffect(() => {
+    const fetchGroupTx = async () => {
+      if (!groupId) return;
+      try {
+        const data = await apiClient(`/groups/${groupId}/transactions?scope=group&page=1`);
+        const list = Array.isArray(data.transactions) ? data.transactions : [];
+        setGroupTransactions(list);
+        setGroupPage(1);
+        setHasMoreGroupTransactions(Boolean(data.hasMore));
+      } catch {
+        setGroupTransactions([]);
+        setHasMoreGroupTransactions(false);
+      }
+    };
+    fetchGroupTx();
   }, [groupId]);
 
   const openEdit = () => {
@@ -301,6 +323,21 @@ export function GroupDetailsScreen({
       if (newTx.length === 0) setHasMoreTransactions(false);
     } catch {
       toast.error("Failed to load more transactions");
+    }
+  };
+
+  const loadMoreGroupTransactions = async () => {
+    try {
+      const next = groupPage + 1;
+      const data = await apiClient(
+        `/groups/${group.id}/transactions?scope=group&page=${next}`,
+      );
+      const newTx = Array.isArray(data.transactions) ? data.transactions : [];
+      setGroupTransactions((prev) => [...prev, ...newTx]);
+      setGroupPage(next);
+      if (newTx.length === 0) setHasMoreGroupTransactions(false);
+    } catch {
+      toast.error("Failed to load more group transactions");
     }
   };
 
@@ -487,9 +524,12 @@ export function GroupDetailsScreen({
 
         {/* Content Tabs */}
         <Tabs defaultValue="activity" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 h-10">
+          <TabsList className="grid w-full grid-cols-3 h-10">
             <TabsTrigger value="activity" className="text-sm">
               Activity
+            </TabsTrigger>
+            <TabsTrigger value="transactions" className="text-sm">
+              Transactions
             </TabsTrigger>
             <TabsTrigger value="members" className="text-sm">
               Members
@@ -588,6 +628,114 @@ export function GroupDetailsScreen({
                 onAction={handleSplitBill}
               />
             )}
+          </TabsContent>
+
+          {/* Transactions tab: show received inflows as participants pay */}
+          <TabsContent
+            value="transactions"
+            className="space-y-3 sm:space-y-4 mt-4"
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="font-medium">Transactions</h3>
+            </div>
+
+            {(() => {
+              // Show per-participant payments for group bill splits
+              const items = groupTransactions.filter((t: any) => {
+                if (!t) return false;
+                const isBillSplit = t.type === "bill_split" || !!t.billSplitId;
+                return isBillSplit && t.status === "completed";
+              });
+
+              // Compute cumulative inflow totals per bill split (ascending by date)
+              const totalsById = new Map<string, number>();
+              const bySplit = new Map<string, any[]>();
+              for (const tx of items) {
+                const key = typeof tx.billSplitId === "string" && tx.billSplitId
+                  ? tx.billSplitId
+                  : `tx_${tx.id}`;
+                const arr = bySplit.get(key) || [];
+                arr.push(tx);
+                bySplit.set(key, arr);
+              }
+              for (const [, arr] of bySplit) {
+                arr.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+                let running = 0;
+                for (const tx of arr) {
+                  const amt = typeof tx.amount === "number" ? tx.amount : Number(tx.amount) || 0;
+                  running += amt;
+                  totalsById.set(String(tx.id), running);
+                }
+              }
+
+              return (
+                <div className="space-y-2 sm:space-y-3">
+                  {items.length === 0 ? (
+                    <>
+                      <EmptyState
+                        icon={Receipt}
+                        title="No bill split payments yet"
+                        description="Payments from participants will appear here"
+                      />
+                      {hasMoreGroupTransactions && (
+                        <Button
+                          variant="outline"
+                          className="w-full mt-2"
+                          onClick={loadMoreGroupTransactions}
+                        >
+                          Load more
+                        </Button>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      {items.map((tx: any, index: number) => {
+                        const amount =
+                          typeof tx.amount === "number" ? tx.amount : Number(tx.amount) || 0;
+                        const description = typeof tx.description === "string" ? tx.description : "";
+                        const date = typeof tx.date === "string" ? tx.date : new Date().toISOString();
+                        const id = typeof tx.id === "string" ? tx.id : `group_tx_${index}`;
+                        const payerName = typeof tx.paidBy === "string" ? tx.paidBy : (tx.participants?.[0] || "Someone");
+                        const billSplitId = typeof tx.billSplitId === "string" ? tx.billSplitId : undefined;
+                        const inflowTotal = totalsById.get(String(tx.id)) || amount;
+
+                        return (
+                          <TransactionCard
+                            key={id}
+                            transaction={{
+                              id,
+                              type: "received",
+                              amount,
+                              description,
+                              date,
+                              status: "completed",
+                              sender: { name: payerName },
+                            }}
+                            extraRightText={`${fmt(inflowTotal)}`}
+                            onClick={() => {
+                              if (billSplitId) {
+                                onNavigate("bill-split-details", { billSplitId });
+                              } else {
+                                onNavigate("transaction-details", { transactionId: id });
+                              }
+                            }}
+                          />
+                        );
+                      })}
+                      {hasMoreGroupTransactions && (
+                        <Button
+                          variant="outline"
+                          className="w-full mt-2"
+                          onClick={loadMoreGroupTransactions}
+                        >
+                          Load more
+                        </Button>
+                      )}
+                    </>
+                  )}
+                </div>
+              );
+            })()}
           </TabsContent>
 
           <TabsContent value="members" className="space-y-3 sm:space-y-4 mt-4">

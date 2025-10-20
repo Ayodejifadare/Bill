@@ -20,6 +20,7 @@ import {
   DialogTrigger,
 } from "./ui/dialog";
 import { EmptyState } from "./ui/empty-state";
+import { AccountCard } from "./AccountCard";
 import {
   ArrowLeft,
   Plus,
@@ -667,220 +668,40 @@ export function GroupAccountScreen({
                   ? "Add payment accounts that group members can use when creating splits"
                   : "No payment accounts have been added to this group yet"
               }
-              actionLabel={
-                group.isAdmin ? "Add First Group Account" : undefined
-              }
-              onAction={
-                group.isAdmin ? () => setIsAddingMethod(true) : undefined
-              }
+              actionLabel={group.isAdmin ? "Add First Group Account" : undefined}
+              onAction={group.isAdmin ? () => setIsAddingMethod(true) : undefined}
             />
           ) : (
-            groupAccounts.map((account) => (
-              <Card key={account.id} className="relative">
-                <CardContent className="p-3 sm:p-4">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                      <div
-                        className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
-                          account.type === "bank"
-                            ? "bg-blue-100"
-                            : "bg-green-100"
-                        }`}
-                      >
-                        {account.type === "bank" ? (
-                          <Building2 className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
-                        ) : (
-                          <Smartphone className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
-                        )}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <h4 className="text-sm sm:text-base truncate">
-                          {account.name}
-                        </h4>
-                        <p className="text-xs sm:text-sm text-muted-foreground truncate">
-                          {account.type === "bank"
-                            ? account.bankName
-                            : account.provider}{" "}
-                          • Added by {account.createdBy}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatDate(account.createdDate)}
-                        </p>
-                      </div>
-                    </div>
-                    {account.isDefault && (
-                      <Badge
-                        variant="secondary"
-                        className="bg-green-100 text-green-800 flex-shrink-0 text-xs"
-                      >
-                        <Check className="h-3 w-3 mr-1" />
-                        Default
-                      </Badge>
-                    )}
-                  </div>
-
-                  <div className="space-y-1 sm:space-y-2 mb-3 sm:mb-4">
-                    {account.type === "bank" ? (
-                      <>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs sm:text-sm text-muted-foreground">
-                            Account Holder:
-                          </span>
-                          <div className="flex items-center gap-1 sm:gap-2 min-w-0">
-                            <span className="text-xs sm:text-sm truncate max-w-[120px] sm:max-w-none">
-                              {account.accountHolderName}
-                            </span>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-5 w-5 sm:h-6 sm:w-6 p-0 flex-shrink-0"
-                              onClick={() =>
-                                copyToClipboard(
-                                  account.accountHolderName!,
-                                  "Account name",
-                                )
-                              }
-                            >
-                              <Copy className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs sm:text-sm text-muted-foreground">
-                            Account Number:
-                          </span>
-                          <div className="flex items-center gap-1 sm:gap-2">
-                            <span className="font-mono text-xs sm:text-sm">
-                              {formatAccountNumber(account.accountNumber!)}
-                            </span>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-5 w-5 sm:h-6 sm:w-6 p-0 flex-shrink-0"
-                              onClick={() =>
-                                copyToClipboard(
-                                  account.accountNumber!,
-                                  "Account number",
-                                )
-                              }
-                            >
-                              <Copy className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        </div>
-                        {(() => {
-                          const usesRouting = requiresRoutingNumber(
-                            appSettings.region,
-                          );
-                          const label = getBankIdentifierLabel(
-                            appSettings.region,
-                          );
-                          const value = usesRouting
-                            ? account.routingNumber
-                            : account.sortCode;
-                          if (!value) return null;
-                          return (
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs sm:text-sm text-muted-foreground">
-                                {label}:
-                              </span>
-                              <div className="flex items-center gap-1 sm:gap-2">
-                                <span className="font-mono text-xs sm:text-sm">
-                                  {value}
-                                </span>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-5 w-5 sm:h-6 sm:w-6 p-0 flex-shrink-0"
-                                  onClick={() => copyToClipboard(value!, label)}
-                                >
-                                  <Copy className="h-3 w-3" />
-                                </Button>
-                              </div>
-                            </div>
-                          );
-                        })()}
-                      </>
-                    ) : (
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs sm:text-sm text-muted-foreground">
-                          Phone Number:
-                        </span>
-                        <div className="flex items-center gap-1 sm:gap-2">
-                          <span className="font-mono text-xs sm:text-sm">
-                            {account.phoneNumber}
-                          </span>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-5 w-5 sm:h-6 sm:w-6 p-0 flex-shrink-0"
-                            onClick={() =>
-                              copyToClipboard(
-                                account.phoneNumber!,
-                                "Phone number",
-                              )
-                            }
-                          >
-                            <Copy className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1 text-xs sm:text-sm h-8 sm:h-9"
-                      onClick={() => copyFullAccountInfo(account)}
-                    >
-                      <Copy className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                      <span className="hidden sm:inline">Copy All Details</span>
-                      <span className="sm:hidden">Copy All</span>
-                    </Button>
-                    {group.isAdmin && !account.isDefault && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1 text-xs sm:text-sm h-8 sm:h-9"
-                        onClick={() => handleSetDefault(account.id)}
-                      >
-                        <span className="hidden sm:inline">Set as Default</span>
-                        <span className="sm:hidden">Set Default</span>
-                      </Button>
-                    )}
-                    {group.isAdmin && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        aria-label="Delete account"
-                        onClick={() => handleDeleteMethod(account.id)}
-                        className="text-destructive hover:text-destructive h-8 sm:h-9 px-2 sm:px-3"
-                      >
-                        <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
-                      </Button>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))
+            groupAccounts.map((account) => {
+              const mapped = {
+                id: account.id,
+                type: account.type,
+                bankName: account.bankName,
+                accountNumber: account.accountNumber,
+                accountHolderName: account.accountHolderName,
+                sortCode: account.sortCode,
+                routingNumber: account.routingNumber,
+                accountType: account.accountType,
+                provider: account.provider,
+                phoneNumber: account.phoneNumber,
+                isDefault: account.isDefault,
+                name: account.name,
+                createdBy: account.createdBy,
+                createdDate: account.createdDate,
+              } as any;
+              return (
+                <AccountCard
+                  key={account.id}
+                  account={mapped}
+                  variant="group"
+                  showAdminActions={group.isAdmin}
+                  onSetDefault={handleSetDefault}
+                  onDelete={handleDeleteMethod}
+                />
+              );
+            })
           )}
         </div>
-
-        {/* Information Card */}
-        <Card>
-          <CardContent className="p-3 sm:p-4">
-            <div className="bg-blue-50 p-2 sm:p-3 rounded-lg">
-              <p className="text-xs sm:text-sm text-blue-800">
-                <strong>Group Accounts:</strong> These payment accounts are
-                shared with all group members and can be selected as payment
-                destinations when creating group splits. Only group
-                administrators can add, edit, or remove accounts.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </div>
   );

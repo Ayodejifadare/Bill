@@ -33,12 +33,18 @@ interface TransactionCardProps {
   onNavigate?: (tab: string, data?: any) => void;
   onClick?: () => void;
   currencySymbol?: string; // deprecated, left for backward compat
+  /** Optional extra label shown under the type label on the right */
+  rightSubLabel?: string;
+  /** Optional plain text shown on bottom-right row next to badges */
+  extraRightText?: string;
 }
 
 export function TransactionCard({
   transaction,
   onNavigate,
   onClick,
+  rightSubLabel,
+  extraRightText,
 }: TransactionCardProps) {
   const { appSettings } = useUserProfile();
   const fmt = (n: number) => formatCurrencyForRegion(appSettings.region, n);
@@ -214,6 +220,12 @@ export function TransactionCard({
                 <p className="text-xs text-muted-foreground">
                   {getTypeLabel()}
                 </p>
+                {rightSubLabel && transaction.status === "pending" &&
+                  transaction.type !== "bill_split" && (
+                    <p className="text-[11px] text-muted-foreground">
+                      {rightSubLabel}
+                    </p>
+                  )}
               </div>
             </div>
             <p className="text-sm text-muted-foreground truncate leading-relaxed mb-1">
@@ -223,7 +235,7 @@ export function TransactionCard({
               <p className="text-xs text-muted-foreground">
                 {formatDate(transaction.date)}
               </p>
-              <div className="flex gap-1">
+              <div className="flex items-center gap-2">
                 {transaction.status === "pending" && (
                   <Badge variant="outline" className="text-xs px-2 py-0 h-5">
                     Pending
@@ -236,6 +248,11 @@ export function TransactionCard({
                   >
                     Failed
                   </Badge>
+                )}
+                {extraRightText && (
+                  <span className="text-xs text-muted-foreground">
+                    {extraRightText}
+                  </span>
                 )}
               </div>
             </div>

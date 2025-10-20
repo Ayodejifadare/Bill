@@ -27,7 +27,7 @@ import { apiClientWithRetry } from "../utils/apiClientWithRetry";
 
 interface Notification {
   id: string;
-  type: "payment" | "request" | "split" | "friend" | "reminder";
+  type: "payment" | "request" | "split" | "friend" | "reminder" | "payment_confirm" | "payment_confirmed" | "payment_declined";
   title: string;
   message: string;
   time: string;
@@ -284,20 +284,45 @@ export function NotificationsScreen({ onNavigate }: NotificationsScreenProps) {
     }
   };
 
-  const handleNotificationAction = (
+  const extractTxId = (message: string) => {
+    const m = /TX:([a-zA-Z0-9_-]+)/.exec(message || "");
+    return m ? m[1] : null;
+  };
+
+  const handleNotificationAction = async (
     notification: Notification,
     action: "accept" | "decline",
   ) => {
-    if (notification.type === "request") {
-      alert(
-        `${action === "accept" ? "Accepted" : "Declined"} payment request from ${notification.user?.name}`,
-      );
-    } else if (notification.type === "friend") {
-      alert(
-        `${action === "accept" ? "Accepted" : "Declined"} friend request from ${notification.user?.name}`,
-      );
+    try {
+      if (notification.type === "payment_confirm") {
+        const txId = extractTxId(notification.message);
+        if (!txId) {
+          toast.error("Missing transaction id in notification");
+          return;
+        }
+        if (action === "accept") {
+          await apiClientWithRetry(`/transactions/${txId}/confirm-received`, {
+            method: "POST",
+          });
+          toast.success("Payment confirmed");
+        } else {
+          await apiClientWithRetry(`/transactions/${txId}/decline-received`, {
+            method: "POST",
+          });
+          toast.success("Confirmation declined");
+        }
+      } else if (notification.type === "request" || notification.type === "friend") {
+        alert(
+          `${action === "accept" ? "Accepted" : "Declined"} ${notification.type} from ${notification.user?.name}`,
+        );
+      }
+    } catch (e) {
+      toast.error("Action failed");
+    } finally {
+      markAsRead(notification.id);
+      // Refresh lists that might be affected
+      window.dispatchEvent(new Event("upcomingPaymentsUpdated"));
     }
-    markAsRead(notification.id);
   };
 
   return (
@@ -462,7 +487,7 @@ export function NotificationsScreen({ onNavigate }: NotificationsScreenProps) {
                           className="flex-1"
                         >
                           <Check className="h-4 w-4 mr-1" />
-                          {notification.type === "request" ? "Pay" : "Accept"}
+                          {notification.type === "payment_confirm" ? "Accept" : notification.type === "request" ? "Pay" : "Accept"}
                         </Button>
                         <Button
                           size="sm"
