@@ -54,6 +54,8 @@ export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
         billSplitId: p.billSplitId,
         requestId: p.requestId || p.id,
         organizerId: p.organizer?.id,
+        senderId: (p as any).senderId,
+        receiverId: (p as any).receiverId,
       } as any;
     });
 
@@ -115,7 +117,8 @@ export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
             onNavigate("send-reminder", { to: transaction.organizerId || transaction.name, requestId: transaction.requestId || id });
           };
 
-          const isRequester = Boolean(transaction.organizerId && userProfile?.id === transaction.organizerId);
+          // Requester is the original sender of the request (not the organizer in our UI)
+          const isRequester = Boolean(transaction.senderId && userProfile?.id === transaction.senderId);
 
           if (transaction.type === 'payment') {
             return (

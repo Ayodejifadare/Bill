@@ -80,6 +80,8 @@ router.get("/upcoming-payments", authenticate, async (req, res) => {
         dueDate: dueDate.toISOString(),
         status: classifyStatus(dueDate),
         organizer: r.sender,
+        senderId: r.sender.id,
+        receiverId: r.receiver.id,
         participants: [r.sender, r.receiver],
         requestId: r.id,
         paymentMethod: null,
@@ -106,6 +108,8 @@ router.get("/upcoming-payments", authenticate, async (req, res) => {
         status: classifyStatus(dueDate),
         // For requests you created, show the receiver as the organizer so it’s clear who owes
         organizer: r.receiver,
+        senderId: r.sender.id,
+        receiverId: r.receiver.id,
         participants: [r.sender, r.receiver],
         requestId: r.id,
         paymentMethod: null,
@@ -133,6 +137,8 @@ router.get("/upcoming-payments", authenticate, async (req, res) => {
         dueDate: dueDate.toISOString(),
         status: classifyStatus(dueDate),
         organizer: r.sender,
+        senderId: r.sender.id,
+        receiverId: r.receiver.id,
         participants: [r.sender, r.receiver],
         // No transaction exists yet; pass null so payment flow won’t call mark-sent
         requestId: null,
@@ -160,6 +166,8 @@ router.get("/upcoming-payments", authenticate, async (req, res) => {
         status: classifyStatus(dueDate),
         // For direct pending requests you created (no transaction yet), also show receiver as organizer
         organizer: r.receiver,
+        senderId: r.sender.id,
+        receiverId: r.receiver.id,
         participants: [r.sender, r.receiver],
         requestId: null,
         paymentMethod: null,
@@ -189,6 +197,13 @@ router.get("/upcoming-payments", authenticate, async (req, res) => {
     if (filter) {
       payments = payments.filter((p) => p.status === filter);
     }
+
+    // Sort by recency (most recent first) using dueDate as canonical timestamp
+    payments.sort((a, b) => {
+      const ad = new Date(a.dueDate).getTime();
+      const bd = new Date(b.dueDate).getTime();
+      return bd - ad;
+    });
 
     res.json({ upcomingPayments: payments });
   } catch (error) {

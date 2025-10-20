@@ -277,3 +277,72 @@ router.delete("/:id", async (req, res) => {
 });
 
 export default router;
+
+// Receiver marks a direct payment request as paid (one-step: accept + mark-sent)
+router.post("/:id/mark-paid", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const pr = await req.prisma.paymentRequest.findUnique({ where: { id } });
+    if (!pr) return res.status(404).json({ error: "Request not found" });
+
+    // Only the receiver (payer) can mark as paid
+    if (pr.receiverId !== req.userId) {
+      return res.status(403).json({ error: "Not authorized" });
+    }
+
+    if (pr.status && pr.status !== "PENDING" && pr.status !== "ACCEPTED") {
+      return res.status(400).json({ error: "Request already processed" });
+    }
+
+    const result = await req.prisma.$transaction(async (prisma) => {
+      // Transition to ACCEPTED if still pending
+      let updatedReq = pr;
+      if (pr.status === "PENDING") {
+        updatedReq = await prisma.paymentRequest.update({
+          where: { id },
+          data: { status: "ACCEPTED" },
+        });
+      }
+
+      // Create a SEND/PENDING transaction to await confirmation from the original sender
+      const tx = await prisma.transaction.create({
+        data: {
+          amount: updatedReq.amount,
+          description: updatedReq.description,
+          status: "PENDING",
+          type: "SEND",
+          senderId: updatedReq.receiverId, // the payer
+          receiverId: updatedReq.senderId, // original requester
+        },
+      });
+
+      return { updatedReq, tx };
+    });
+
+    // Notify original requester to confirm
+    // Avoid duplicate confirm notifications for the same TX id
+    const existingNotif = await req.prisma.notification.findFirst({
+      where: {
+        recipientId: result.updatedReq.senderId,
+        type: "payment_confirm",
+        message: { contains: `TX:${result.tx.id}` },
+      },
+    });
+    if (!existingNotif) {
+      await createNotification(req.prisma, {
+        recipientId: result.updatedReq.senderId,
+        actorId: req.userId,
+        type: "payment_confirm",
+        title: "Confirm payment",
+        message: `A payer marked ${result.updatedReq.amount} as sent. Tap Accept to confirm. TX:${result.tx.id}`,
+        amount: result.updatedReq.amount,
+        actionable: true,
+      });
+    }
+
+    res.json({ request: result.updatedReq, transaction: result.tx });
+  } catch (error) {
+    console.error("Mark request as paid error:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});

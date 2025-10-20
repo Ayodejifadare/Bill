@@ -674,6 +674,41 @@ router.post("/:id/mark-sent", async (req, res) => {
         .json({ error: "Not authorized to update this transaction" });
     }
 
+    // Idempotency: if already marked as sent and awaiting confirmation, do not duplicate
+    if (tx.type === "SEND" && tx.status === "PENDING") {
+      const formatted = {
+        ...tx,
+        type: TRANSACTION_TYPE_MAP[tx.type] || tx.type,
+        status: TRANSACTION_STATUS_MAP[tx.status] || tx.status,
+        ...(tx.category
+          ? {
+              category:
+                TRANSACTION_CATEGORY_MAP[tx.category] || tx.category,
+            }
+          : {}),
+      };
+      // Ensure an actionable notification exists; create only if missing
+      const existingNotif = await req.prisma.notification.findFirst({
+        where: {
+          recipientId: tx.receiverId,
+          type: "payment_confirm",
+          message: { contains: `TX:${tx.id}` },
+        },
+      });
+      if (!existingNotif) {
+        await createNotification(req.prisma, {
+          recipientId: tx.receiverId,
+          actorId: tx.senderId,
+          type: "payment_confirm",
+          title: "Confirm payment",
+          message: `${req.userId} marked ${tx.amount} as sent. Tap Accept to confirm. TX:${tx.id}`,
+          amount: tx.amount,
+          actionable: true,
+        });
+      }
+      return res.json({ transaction: formatted });
+    }
+
     // Only allow transitioning request -> sent when pending
     if (tx.type !== "REQUEST" || tx.status !== "PENDING") {
       return res
@@ -709,15 +744,25 @@ router.post("/:id/mark-sent", async (req, res) => {
         : {}),
     };
 
-    await createNotification(req.prisma, {
-      recipientId: updated.receiverId,
-      actorId: updated.senderId,
-      type: "payment_confirm",
-      title: "Confirm payment",
-      message: `${updated.sender.name} marked ${updated.amount} as sent. Tap Accept to confirm. TX:${updated.id}`,
-      amount: updated.amount,
-      actionable: true,
+    // Avoid duplicate confirmation notifications for the same TX
+    const existingNotif = await req.prisma.notification.findFirst({
+      where: {
+        recipientId: updated.receiverId,
+        type: "payment_confirm",
+        message: { contains: `TX:${updated.id}` },
+      },
     });
+    if (!existingNotif) {
+      await createNotification(req.prisma, {
+        recipientId: updated.receiverId,
+        actorId: updated.senderId,
+        type: "payment_confirm",
+        title: "Confirm payment",
+        message: `${updated.sender.name} marked ${updated.amount} as sent. Tap Accept to confirm. TX:${updated.id}`,
+        amount: updated.amount,
+        actionable: true,
+      });
+    }
 
     res.json({ transaction: formatted });
   } catch (error) {

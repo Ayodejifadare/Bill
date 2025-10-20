@@ -185,6 +185,10 @@ export function PaymentFlowScreen({
       const reqId = (paymentRequest as any)?.requestId as string | undefined;
       if (reqId) {
         await apiClient(`/transactions/${reqId}/mark-sent`, { method: "POST" });
+      } else if ((paymentRequest as any)?.id) {
+        // For direct pending requests (no transaction yet), mark request as paid to create a pending SEND tx
+        const dirReqId = String((paymentRequest as any).id);
+        await apiClient(`/requests/${dirReqId}/mark-paid`, { method: "POST" });
       }
       setPaymentStatus("sent");
       toast.success("Payment marked as sent! The recipient will be notified.");

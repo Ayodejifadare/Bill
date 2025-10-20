@@ -448,7 +448,9 @@ export function UpcomingPaymentsScreen({
           )}
         </div>
         <div className="flex gap-[12px] flex-1 ml-[54px]">
-          {payment.organizer?.id === userProfile?.id ? (
+          {/* Show Cancel/Remind if current user is the original requester (sender),
+              not based on organizer which points to the debtor. */}
+          {payment.senderId && userProfile?.id === payment.senderId ? (
             <>
               <button
                 onClick={() => onNavigate("payment-request-cancel", { requestId: payment.requestId || payment.id })}
