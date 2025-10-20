@@ -130,6 +130,11 @@ const SpendingInsightsScreen = lazy(() =>
     default: m.SpendingInsightsScreen,
   })),
 );
+const PaymentRequestCancelScreen = lazy(() =>
+  import("./components/PaymentRequestCancelScreen").then((m) => ({
+    default: m.PaymentRequestCancelScreen,
+  })),
+);
 const OTPVerificationScreen = lazy(() =>
   import("./components/OTPVerificationScreen").then((m) => ({
     default: m.OTPVerificationScreen,
@@ -242,6 +247,7 @@ interface NavigationState {
   sendMoneyData: any;
   reminderData: any;
   historyBackTo: string | null;
+  cancelRequestId: string | null;
   // Bump to force SplitBill remount and clear lingering inputs
   splitKey: number;
   // Optional friend to prefill in SplitBill
@@ -273,7 +279,8 @@ type NavigationAction =
   | { type: "CLEAR_PREVIOUS_STATE"; payload: string }
   | { type: "BUMP_SPLIT_KEY" }
   // prettier-ignore
-  | { type: 'SET_SPLIT_PREFILL_FRIEND_ID'; payload: string | null };
+  | { type: 'SET_SPLIT_PREFILL_FRIEND_ID'; payload: string | null }
+  | { type: 'SET_CANCEL_REQUEST_ID'; payload: string | null };
 
 const initialState: NavigationState = {
   activeTab: "home",
@@ -296,6 +303,7 @@ const initialState: NavigationState = {
   sendMoneyData: null,
   reminderData: null,
   historyBackTo: null,
+  cancelRequestId: null,
 };
 
 const PRIMARY_TABS = new Set(["home", "friends", "split", "bills", "profile"]);
@@ -347,6 +355,8 @@ const navigationReducer = (
       return { ...state, reminderData: action.payload };
     case "SET_HISTORY_BACK_TO":
       return { ...state, historyBackTo: action.payload };
+    case "SET_CANCEL_REQUEST_ID":
+      return { ...state, cancelRequestId: action.payload };
     case "CLEAR_ALL":
       return initialState;
     case "CLEAR_PREVIOUS_STATE": {
@@ -387,6 +397,9 @@ const navigationReducer = (
           break;
         case "send-reminder":
           newState.reminderData = null;
+          break;
+        case "payment-request-cancel":
+          newState.cancelRequestId = null;
           break;
         case "recurring-payments":
         case "setup-recurring-payment":
@@ -640,6 +653,14 @@ function AppContent() {
               break;
             case "send-reminder":
               dispatch({ type: "SET_REMINDER_DATA", payload: data });
+              break;
+            case "payment-request-cancel":
+              if (data.requestId) {
+                dispatch({
+                  type: "SET_CANCEL_REQUEST_ID",
+                  payload: String(data.requestId),
+                });
+              }
               break;
             case "spending-insights":
               dispatch({
@@ -1113,8 +1134,15 @@ function AppContent() {
         case "payment-flow":
           return (
             <PaymentFlowScreen
-              paymentRequest={navState.paymentRequest}
               onNavigate={handleNavigate}
+              paymentRequest={navState.paymentRequest}
+            />
+          );
+        case "payment-request-cancel":
+          return (
+            <PaymentRequestCancelScreen
+              onNavigate={handleNavigate}
+              requestId={navState.cancelRequestId}
             />
           );
         case "transaction-history":

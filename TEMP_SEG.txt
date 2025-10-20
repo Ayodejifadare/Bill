@@ -1,0 +1,100 @@
+      selectedParticipantDetails[0] ||
+      pendingParticipants[0] ||
+      participants[0] ||
+      undefined
+    );
+  }, [pendingParticipants, participants, selectedParticipantDetails]);
+
+  const getPreviewMessage = () => {
+    const template = reminderTemplates.find((t) => t.id === reminderType);
+    if (!template) return "";
+
+    if (reminderType === "custom") {
+      return customMessage;
+    }
+
+    let message = template.message;
+    message = message.replace("{billTitle}", billTitle || "your bill");
+
+    const fallbackAmount =
+      typeof amount === "number" && Number.isFinite(amount) ? amount : 28.5;
+    const exampleAmount =
+      selectedParticipants.length <= 1
+        ? (previewParticipant?.amount ?? fallbackAmount)
+        : selectedTotalAmount || fallbackAmount;
+    message = message.replace("{amount}", fmt(exampleAmount));
+
+    const nameReplacement =
+      selectedParticipants.length <= 1
+        ? (previewParticipant?.name ?? "friend")
+        : "friends";
+    message = message.replace("{name}", nameReplacement);
+
+    return message;
+  };
+
+  const sendReminders = async () => {
+    if (selectedParticipants.length === 0) {
+      toast.error("Please select at least one participant");
+      return;
+    }
+
+    if (reminderType === "custom" && !customMessage.trim()) {
+      toast.error("Please enter a custom message");
+      return;
+    }
+
+    if (!billSplitId) {
+      if (paymentType && paymentType !== "bill_split") {
+        toast.error("Reminders for this payment type are not available yet.");
+      } else {
+        toast.error("A bill split is required to send reminders.");
+      }
+      return;
+    }
+
+    if (billError) {
+      toast.error("Resolve the bill split issue before sending reminders.");
+      return;
+    }
+
+    const selectedDetails = participants.filter((p) =>
+      selectedParticipants.includes(p.id),
+    );
+    const totalAmount = selectedDetails.reduce((sum, p) => sum + p.amount, 0);
+
+    const templateToSend = (() => {
+      if (reminderType === "custom") {
+        return customMessage.trim();
+      }
+      const template = reminderTemplates.find((t) => t.id === reminderType);
+      if (!template) {
+        return "";
+      }
+      let message = template.message;
+      message = message.replace("{billTitle}", billTitle || "your bill");
+      const amountValue =
+        selectedParticipants.length <= 1
+          ? (selectedDetails[0]?.amount ?? totalAmount)
+          : totalAmount;
+      message = message.replace("{amount}", fmt(amountValue));
+      const nameValue =
+        selectedParticipants.length <= 1
+          ? (selectedDetails[0]?.name ?? "friend")
+          : "friends";
+      message = message.replace("{name}", nameValue);
+      return message;
+    })();
+
+    const payload = {
+      participantIds: selectedParticipants,
+      template: templateToSend,
+      type: reminderType,
+    };
+
+    setSendingReminders(true);
+    try {
+      const response: unknown = await apiClient(
+        `/bill-splits/${billSplitId}/reminders`,
+        {
+          method: "POST",

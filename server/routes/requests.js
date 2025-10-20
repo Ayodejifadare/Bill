@@ -151,53 +151,12 @@ router.get("/", async (req, res) => {
   }
 });
 
-// Accept payment request
-router.post("/:id/accept", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const request = await req.prisma.paymentRequest.findUnique({
-      where: { id },
-    });
-
-    if (!request || request.receiverId !== req.userId) {
-      return res.status(404).json({ error: "Request not found" });
-    }
-
-    if (request.status !== "PENDING") {
-      return res.status(400).json({ error: "Request already processed" });
-    }
-
-    const updated = await req.prisma.paymentRequest.update({
-      where: { id },
-      data: { status: "ACCEPTED" },
-    });
-
-    const transaction = await req.prisma.transaction.create({
-      data: {
-        amount: updated.amount,
-        description: updated.description,
-        status: "PENDING",
-        type: "REQUEST",
-        senderId: updated.receiverId,
-        receiverId: updated.senderId,
-      },
-    });
-
-    // Notify the original sender that the request was accepted
-    await createNotification(req.prisma, {
-      recipientId: updated.senderId,
-      actorId: req.userId,
-      type: "payment_request_accepted",
-      title: "Payment request accepted",
-      message: "Your payment request was accepted",
-      amount: updated.amount,
-    });
-
-    res.json({ request: updated, transaction });
-  } catch (error) {
-    console.error("Accept payment request error:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
+// Accept payment request (deprecated)
+// This flow is no longer required. Users can pay directly and mark as sent.
+router.post("/:id/accept", async (_req, res) => {
+  return res
+    .status(410)
+    .json({ error: "Accept request is deprecated. Pay directly instead." });
 });
 
 // Decline payment request

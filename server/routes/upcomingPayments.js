@@ -66,62 +66,7 @@ router.get("/upcoming-payments", authenticate, async (req, res) => {
       };
     });
 
-    // Request transactions (after acceptance) where current user is receiver (owes)
-    const requests = await req.prisma.transaction.findMany({
-      where: { receiverId: userId, status: "PENDING" },
-      include: {
-        sender: { select: { id: true, name: true, email: true, avatar: true } },
-        receiver: {
-          select: { id: true, name: true, email: true, avatar: true },
-        },
-      },
-    });
-
-    const requestPayments = requests.map((r) => {
-      const dueDate = r.createdAt;
-      return {
-        id: r.id,
-        type: "request",
-        title: r.description || "Payment Request",
-        amount: r.amount,
-        dueDate: dueDate.toISOString(),
-        status: classifyStatus(dueDate),
-        organizer: r.sender,
-        senderId: r.sender.id,
-        receiverId: r.receiver.id,
-        participants: [r.sender, r.receiver],
-        requestId: r.id,
-        paymentMethod: null,
-      };
-    });
-
-    // Also include requests sent by current user (for visibility + cancel/remind)
-    const requestsSent = await req.prisma.transaction.findMany({
-      where: { senderId: userId, status: "PENDING", type: "REQUEST" },
-      include: {
-        sender: { select: { id: true, name: true, email: true, avatar: true } },
-        receiver: { select: { id: true, name: true, email: true, avatar: true } },
-      },
-    });
-
-    const requestPaymentsSent = requestsSent.map((r) => {
-      const dueDate = r.createdAt;
-      return {
-        id: r.id,
-        type: "request",
-        title: r.description || "Payment Request",
-        amount: r.amount,
-        dueDate: dueDate.toISOString(),
-        status: classifyStatus(dueDate),
-        // For requests you created, show the receiver as the organizer so it’s clear who owes
-        organizer: r.receiver,
-        senderId: r.sender.id,
-        receiverId: r.receiver.id,
-        participants: [r.sender, r.receiver],
-        requestId: r.id,
-        paymentMethod: null,
-      };
-    });
+    // Accepted request transactions are not included; users pay direct requests without acceptance.
 
     // Direct pending payment requests (before acceptance)
     const direct = await req.prisma.paymentRequest.findMany({
@@ -183,8 +128,6 @@ router.get("/upcoming-payments", authenticate, async (req, res) => {
 
     let payments = [
       ...billPayments,
-      ...requestPayments,
-      ...requestPaymentsSent,
       ...directRequestPayments,
       ...directRequestPaymentsSent,
     ];
