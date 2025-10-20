@@ -179,7 +179,7 @@ export function BillsScreen({ onNavigate, groupId }: BillsScreenProps) {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-muted-foreground">
-                        Your share
+                        {you && you.paid ? "You paid" : "Your share"}
                       </p>
                       <p className="font-medium">{fmt(bill.yourShare)}</p>
                     </div>
@@ -224,16 +224,32 @@ export function BillsScreen({ onNavigate, groupId }: BillsScreenProps) {
                   <div className="flex gap-2 pt-2">
                     {bill.status === "pending" && (
                       <>
-                        <Button
-                          size="sm"
-                          className="flex-1"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onNavigate("pay-bill", { billId: bill.id });
-                          }}
-                        >
-                          Pay {fmt(bill.yourShare)}
-                        </Button>
+                        {you && (you.paid || (you as any)?.status === "sent") ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleReuseSplit(bill);
+                            }}
+                            className="flex items-center gap-1"
+                            title="Use as template - you can modify before creating"
+                          >
+                            <Copy className="h-3 w-3" />
+                            Reuse
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            className="flex-1"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onNavigate("pay-bill", { billId: bill.id });
+                            }}
+                          >
+                            Pay {fmt(bill.yourShare)}
+                          </Button>
+                        )}
                         <Button
                           size="sm"
                           variant="outline"

@@ -56,28 +56,49 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
   const [hasAnyTransactions, setHasAnyTransactions] = useState(false);
   const [hasCompletedTransactions, setHasCompletedTransactions] = useState(false);
   useEffect(() => {
-    // Defer non-critical counts fetch to idle time to speed up first paint
-    const run = () => {
-      (async () => {
-        try {
-          const data = await apiClient("/transactions/counts");
+    let cancelled = false;
+    const fetchCounts = async () => {
+      try {
+        const data = await apiClient("/transactions/counts");
+        if (!cancelled) {
           setCounts({
             all: data?.total ?? 0,
             sent: data?.sent ?? 0,
             received: data?.received ?? 0,
           });
-        } catch {
-          // Keep counts at 0 on failure
         }
-      })();
+      } catch {
+        // Keep prior counts on failure
+      }
     };
-    const w = window as any;
-    const idleId = w.requestIdleCallback
-      ? w.requestIdleCallback(run, { timeout: 800 })
-      : setTimeout(run, 250);
+
+    // Initial fetch (defer slightly to keep first paint smooth)
+    const t = setTimeout(fetchCounts, 250);
+
+    // Refresh on app-wide updates (e.g., mark-sent, confirmations)
+    const onTxUpdated = () => fetchCounts();
+    const onUpcomingUpdated = () => fetchCounts();
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") fetchCounts();
+    };
+    try {
+      window.addEventListener("transactionsUpdated", onTxUpdated);
+      window.addEventListener("upcomingPaymentsUpdated", onUpcomingUpdated);
+      document.addEventListener("visibilitychange", onVisibility);
+    } catch {
+      // non-browser envs
+    }
+
     return () => {
-      if (w.cancelIdleCallback && idleId) w.cancelIdleCallback(idleId);
-      else clearTimeout(idleId);
+      cancelled = true;
+      clearTimeout(t);
+      try {
+        window.removeEventListener("transactionsUpdated", onTxUpdated);
+        window.removeEventListener("upcomingPaymentsUpdated", onUpcomingUpdated);
+        document.removeEventListener("visibilitychange", onVisibility);
+      } catch {
+        // noop
+      }
     };
   }, []);
 
@@ -98,6 +119,7 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
     if (filterType === "received") return counts.received;
     return 0;
   };
+  const selectedCount = getTransactionCount(activityFilter);
 
   // Collapse multiple transaction rows for the same bill split into a single
   // recent-activity item so group splits don’t appear once per participant.
@@ -236,8 +258,18 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
             })}
           </div>
 
+          {/* Empty state when selected tab has zero count, even if others have data */}
+          {!transactionsLoading && !transactionsError && selectedCount === 0 && (
+            <EmptyState
+              icon={DollarSign}
+              title="No transactions found"
+              description={`No ${activityFilter !== "all" ? activityFilter : ""} transactions found`}
+              className="py-8"
+            />
+          )}
+
           {/* Transactions List */}
-          {(transactionsLoading || transactionsError || hasCompletedTransactions) && (
+          {(transactionsLoading || transactionsError || hasCompletedTransactions) && selectedCount > 0 && (
             <div className="space-y-3">
               {transactionsLoading && (
                 <>
@@ -266,17 +298,6 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
                   ))}
             </div>
           )}
-
-          {!transactionsLoading &&
-            !transactionsError &&
-            !hasAnyTransactions && (
-              <EmptyState
-                icon={DollarSign}
-                title="No transactions found"
-                description={`No ${activityFilter !== "all" ? activityFilter : ""} transactions found`}
-                className="py-8"
-              />
-            )}
 
           {!transactionsLoading &&
             !transactionsError &&
