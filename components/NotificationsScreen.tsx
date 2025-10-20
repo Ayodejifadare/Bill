@@ -322,6 +322,7 @@ export function NotificationsScreen({ onNavigate }: NotificationsScreenProps) {
       markAsRead(notification.id);
       // Refresh lists that might be affected
       window.dispatchEvent(new Event("upcomingPaymentsUpdated"));
+      window.dispatchEvent(new Event("transactionsUpdated"));
     }
   };
 

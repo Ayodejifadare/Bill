@@ -5,8 +5,15 @@ const router = express.Router();
 
 export function classifyStatus(dueDate) {
   const now = new Date();
-  const soonThreshold = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
   const date = new Date(dueDate);
+  const graceMs = 24 * 60 * 60 * 1000; // 24-hour grace period for recent items
+  const soonThreshold = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+  // Treat items that are today or up to 24h past due as pending (due_soon)
+  if (date < now && date >= new Date(now.getTime() - graceMs)) {
+    return "due_soon";
+  }
+
   if (date < now) return "overdue";
   if (date <= soonThreshold) return "due_soon";
   return "upcoming";

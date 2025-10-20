@@ -204,6 +204,7 @@ export function PaymentFlowScreen({
       // Ask lists to refresh
       if (typeof window !== "undefined") {
         window.dispatchEvent(new Event("upcomingPaymentsUpdated"));
+        window.dispatchEvent(new Event("transactionsUpdated"));
       }
 
       // Navigate to the transaction for pending confirmation when available

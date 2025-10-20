@@ -184,6 +184,23 @@ export function useTransactions(
     fetchTransactions();
   }, [fetchTransactions]);
 
+  // Refresh when other parts of the app signal transaction changes
+  useEffect(() => {
+    const onUpdated = () => fetchTransactions();
+    try {
+      window.addEventListener("transactionsUpdated", onUpdated);
+    } catch {
+      /* noop for non-browser envs */
+    }
+    return () => {
+      try {
+        window.removeEventListener("transactionsUpdated", onUpdated);
+      } catch {
+        /* noop */
+      }
+    };
+  }, [fetchTransactions]);
+
   return {
     transactions,
     loading,
