@@ -158,9 +158,21 @@ router.get("/", async (req, res) => {
       if (endDate) baseWhere.createdAt.lte = new Date(endDate);
     }
 
+    // Interpret type filter with user perspective so confirmed payments appear as "received" for the receiver
+    let perspectiveFilter = null;
     if (type) {
-      const mappedType = REVERSE_TRANSACTION_TYPE_MAP[type] || type;
-      baseWhere.type = mappedType;
+      if (String(type).toLowerCase() === "received") {
+        // Show items where current user is the receiver; underlying DB type may still be SEND
+        perspectiveFilter = { receiverId: req.userId };
+        // Do not constrain by underlying type so SEND/RECEIVE both match
+      } else if (String(type).toLowerCase() === "sent") {
+        // Show items where current user is the sender
+        perspectiveFilter = { senderId: req.userId };
+        baseWhere.type = REVERSE_TRANSACTION_TYPE_MAP["sent"] || "SEND";
+      } else {
+        const mappedType = REVERSE_TRANSACTION_TYPE_MAP[type] || type;
+        baseWhere.type = mappedType;
+      }
     }
 
     if (status) {
@@ -201,7 +213,7 @@ router.get("/", async (req, res) => {
 
     const where = {
       ...baseWhere,
-      OR: [{ senderId: req.userId }, { receiverId: req.userId }],
+      ...(perspectiveFilter || { OR: [{ senderId: req.userId }, { receiverId: req.userId }] }),
     };
 
     const baseQuery = {
@@ -819,6 +831,22 @@ router.post("/:id/confirm-received", async (req, res) => {
           receiver: { select: { id: true, name: true, email: true, avatar: true } },
         },
       });
+      // If this transaction relates to a bill split, update the participant's progress
+      if (newTx.billSplitId) {
+        try {
+          await prisma.billSplitParticipant.update({
+            where: {
+              billSplitId_userId: {
+                billSplitId: newTx.billSplitId,
+                userId: newTx.senderId,
+              },
+            },
+            data: { isPaid: true, status: "CONFIRMED" },
+          });
+        } catch (e) {
+          console.warn("Bill split participant update failed during confirm:", e);
+        }
+      }
       return newTx;
     });
 
@@ -872,6 +900,23 @@ router.post("/:id/decline-received", async (req, res) => {
         receiver: { select: { id: true, name: true, email: true, avatar: true } },
       },
     });
+
+    // If tied to a bill split, revert participant status back to PENDING (not paid)
+    if (updated.billSplitId) {
+      try {
+        await req.prisma.billSplitParticipant.update({
+          where: {
+            billSplitId_userId: {
+              billSplitId: updated.billSplitId,
+              userId: updated.senderId,
+            },
+          },
+          data: { status: "PENDING" },
+        });
+      } catch (e) {
+        console.warn("Bill split participant update failed during decline:", e);
+      }
+    }
 
     await createNotification(req.prisma, {
       recipientId: updated.senderId,

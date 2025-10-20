@@ -160,6 +160,15 @@ export function TransactionCard({
     (transaction.type === "bill_split" ? "Bill Split" : "Unknown");
   const avatarFallback = transaction.avatarFallback || getInitials(safeName);
 
+  // Prefer a meaningful subtitle for requests; fall back to generic label
+  const getSubtitle = () => {
+    if (transaction.type === "request") {
+      const msg = (transaction.description || "").trim();
+      return msg.length > 0 ? msg : "Payment request";
+    }
+    return transaction.description;
+  };
+
   const handleClick = () => {
     if (onClick) {
       onClick();
@@ -210,7 +219,7 @@ export function TransactionCard({
               </div>
             </div>
             <p className="text-sm text-muted-foreground truncate leading-relaxed mb-1">
-              {transaction.description}
+              {getSubtitle()}
             </p>
             <div className="flex items-center justify-between">
               <p className="text-xs text-muted-foreground">

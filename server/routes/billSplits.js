@@ -733,22 +733,55 @@ router.post(
       });
 
       if (status === "SENT") {
+        // Ensure a pending SEND transaction exists for this bill split between participant (sender) and creator (receiver)
         const billSplit = await req.prisma.billSplit.findUnique({
           where: { id },
           select: { createdBy: true, title: true },
         });
         if (billSplit && billSplit.createdBy !== req.userId) {
-          // Include participant amount for clearer context
           const amount = participant.amount;
-          await createNotification(req.prisma, {
-            recipientId: billSplit.createdBy,
-            actorId: req.userId,
-            type: "bill_split_payment_sent",
-            title: "Confirm payment received",
-            message: `A participant marked payment as sent for ${billSplit.title}. Please confirm settlement when received.`,
-            amount,
-            actionable: true,
+          // Find existing pending SEND for this participant and bill split
+          let tx = await req.prisma.transaction.findFirst({
+            where: {
+              billSplitId: id,
+              senderId: req.userId,
+              receiverId: billSplit.createdBy,
+              type: "SEND",
+              status: "PENDING",
+            },
           });
+          if (!tx) {
+            tx = await req.prisma.transaction.create({
+              data: {
+                billSplitId: id,
+                senderId: req.userId,
+                receiverId: billSplit.createdBy,
+                amount,
+                description: `Settlement for ${billSplit.title}`,
+                type: "SEND",
+                status: "PENDING",
+              },
+            });
+          }
+          // Send a standard payment_confirm notification for unified manual confirmation UX (include TX:id marker)
+          const existingNotif = await req.prisma.notification.findFirst({
+            where: {
+              recipientId: billSplit.createdBy,
+              type: "payment_confirm",
+              message: { contains: `TX:${tx.id}` },
+            },
+          });
+          if (!existingNotif) {
+            await createNotification(req.prisma, {
+              recipientId: billSplit.createdBy,
+              actorId: req.userId,
+              type: "payment_confirm",
+              title: "Confirm payment",
+              message: `${req.userId} marked ${amount} as sent for ${billSplit.title}. Tap Accept to confirm. TX:${tx.id}`,
+              amount,
+              actionable: true,
+            });
+          }
         }
       }
 
