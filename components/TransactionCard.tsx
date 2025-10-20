@@ -166,27 +166,8 @@ export function TransactionCard({
       return;
     }
     if (onNavigate) {
-      // If this is a pending payment request directed to the user, go straight to payment flow
-      if (transaction.type === "request" && transaction.status === "pending") {
-        const recipientName =
-          transaction.recipient?.name || transaction.user?.name || "Recipient";
-        const recipientId =
-          transaction.recipient?.name ||
-          transaction.user?.name ||
-          recipientName;
-        onNavigate("payment-flow", {
-          paymentRequest: {
-            id: transaction.id,
-            amount: transaction.amount,
-            description: transaction.description,
-            recipient: recipientName,
-            recipientId,
-            requestId: transaction.id,
-          },
-        });
-        return;
-      }
-      // Default: open transaction details
+      // Always open details from history to avoid confusing direct payment on requests.
+      // Pay actions are gated via Upcoming Payments and dedicated flows only.
       onNavigate("transaction-details", { transactionId: transaction.id });
     }
   };

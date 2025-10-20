@@ -52,7 +52,9 @@ export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
         date: formatDueDate(p.dueDate),
         isOverdue: p.status === "overdue",
         billSplitId: p.billSplitId,
-        requestId: p.requestId || p.id,
+        // For direct pending requests, server returns requestId=null; keep it null here
+        // to ensure the payment flow uses direct mark-paid endpoint.
+        requestId: p.requestId ?? null,
         organizerId: p.organizer?.id,
         senderId: (p as any).senderId,
         receiverId: (p as any).receiverId,
@@ -249,16 +251,22 @@ export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
                 ) : (
                   <button
                     onClick={() =>
-                      onNavigate("payment-flow", {
-                        paymentRequest: {
-                          id: `upcoming-${transaction.id}`,
-                          amount: transaction.amount,
-                          description: transaction.description,
-                          recipient: transaction.name,
-                          recipientId: transaction.organizerId || transaction.name,
-                          requestId: transaction.requestId ?? undefined,
-                        },
-                      })
+                onNavigate("payment-flow", {
+                  paymentRequest: {
+                    id: `upcoming-${transaction.id}`,
+                    amount: transaction.amount,
+                    description: transaction.description,
+                    recipient: transaction.name,
+                    recipientId: transaction.organizerId || transaction.name,
+                    // If this is a transaction-backed request it will carry a requestId (now deprecated in list)
+                    requestId: transaction.requestId || undefined,
+                    // For direct pending requests, use the direct request id for mark-paid
+                    directRequestId:
+                      transaction.type === "request" && !transaction.requestId
+                        ? String(transaction.id)
+                        : undefined,
+                  },
+                })
                     }
                     className="flex-1 bg-primary h-[44px] py-[10px] rounded-[8px] hover:bg-primary/90 transition-colors"
                   >
