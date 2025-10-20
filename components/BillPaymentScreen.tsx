@@ -28,6 +28,7 @@ import {
   getBankIdentifierLabel,
   formatBankAccountForRegion,
   formatCurrencyForRegion,
+  formatMobileAccountNumberForRegion,
 } from "../utils/regions";
 import { apiClient } from "../utils/apiClient";
 
@@ -258,7 +259,10 @@ export function BillPaymentScreen({
         await navigator.clipboard.writeText(toCopy);
         toast.success("Account number copied to clipboard");
       } else {
-        const toCopy = paymentMethod.phoneNumber ?? "";
+        const toCopy = formatMobileAccountNumberForRegion(
+          appSettings.region,
+          paymentMethod.phoneNumber ?? "",
+        );
         await navigator.clipboard.writeText(toCopy);
         toast.success("Phone number copied to clipboard");
       }
@@ -476,7 +480,10 @@ export function BillPaymentScreen({
                               Phone Number:
                             </span>
                             <span className="font-mono">
-                              {bill.paymentMethod.phoneNumber}
+                              {formatMobileAccountNumberForRegion(
+                                appSettings.region,
+                                bill.paymentMethod.phoneNumber || "",
+                              )}
                             </span>
                           </div>
                         </div>

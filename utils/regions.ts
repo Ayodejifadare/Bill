@@ -268,3 +268,37 @@ export function formatCurrencyForRegion(
     return `${symbol}${amount.toFixed(2)}`;
   }
 }
+
+// Normalize a mobile money account number to a national significant number (no leading 0, no country code)
+export function normalizeMobileAccountNumber(
+  region: RegionCode | undefined | null,
+  input: string,
+): string {
+  const code = getRegionConfig(region).phoneCountryCode;
+  const ccDigits = (code || "").replace(/\D/g, "");
+  let digits = String(input || "").replace(/\D/g, "");
+  if (!digits) return "";
+
+  if (digits.startsWith("00")) {
+    digits = digits.replace(/^0+/, "");
+  }
+  if (ccDigits && digits.startsWith(ccDigits)) {
+    digits = digits.slice(ccDigits.length);
+  }
+  digits = digits.replace(/^0+/, "");
+
+  // Nigeria: ensure 10 digits by taking the last 10 if longer
+  const r = getRegionConfig(region);
+  if (r.code === "NG" && digits.length > 10) {
+    digits = digits.slice(-10);
+  }
+  return digits;
+}
+
+// Format a mobile money account number for display (currently same as normalize)
+export function formatMobileAccountNumberForRegion(
+  region: RegionCode | undefined | null,
+  input: string,
+): string {
+  return normalizeMobileAccountNumber(region, input);
+}

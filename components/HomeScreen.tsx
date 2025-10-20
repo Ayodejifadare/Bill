@@ -53,6 +53,8 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
     sent: number;
     received: number;
   }>({ all: 0, sent: 0, received: 0 });
+  const [hasAnyTransactions, setHasAnyTransactions] = useState(false);
+  const [hasCompletedTransactions, setHasCompletedTransactions] = useState(false);
   useEffect(() => {
     // Defer non-critical counts fetch to idle time to speed up first paint
     const run = () => {
@@ -83,6 +85,12 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
     const type = activityFilter === "all" ? undefined : activityFilter;
     refetch({ type });
   }, [activityFilter, refetch]);
+
+  useEffect(() => {
+    const deduped = dedupeByBillSplit(transactions);
+    setHasAnyTransactions(deduped.length > 0);
+    setHasCompletedTransactions(deduped.some((t) => t.status === "completed"));
+  }, [transactions]);
 
   const getTransactionCount = (filterType: "all" | "sent" | "received") => {
     if (filterType === "all") return counts.all;
@@ -184,6 +192,7 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
         <UpcomingPayments onNavigate={onNavigate} />
 
         {/* Recent Activity */}
+        {(transactionsLoading || transactionsError || hasCompletedTransactions || !hasAnyTransactions) && (
         <div>
           <div className="flex items-center justify-between mb-4">
             <h3>Recent Activity</h3>
@@ -228,36 +237,39 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
           </div>
 
           {/* Transactions List */}
-          <div className="space-y-3">
-            {transactionsLoading && (
-              <>
-                <TransactionSkeleton />
-                <TransactionSkeleton />
-                <TransactionSkeleton />
-              </>
-            )}
-            {transactionsError && (
-              <Alert variant="destructive">
-                <AlertDescription>{transactionsError}</AlertDescription>
-              </Alert>
-            )}
-            {!transactionsLoading &&
-              !transactionsError &&
-              dedupeByBillSplit(transactions)
-                .slice(0, 4)
-                .map((transaction) => (
-                  <TransactionCard
-                    key={transaction.id}
-                    transaction={transaction}
-                    onNavigate={onNavigate}
-                    currencySymbol={currencySymbol}
-                  />
-                ))}
-          </div>
+          {(transactionsLoading || transactionsError || hasCompletedTransactions) && (
+            <div className="space-y-3">
+              {transactionsLoading && (
+                <>
+                  <TransactionSkeleton />
+                  <TransactionSkeleton />
+                  <TransactionSkeleton />
+                </>
+              )}
+              {transactionsError && (
+                <Alert variant="destructive">
+                  <AlertDescription>{transactionsError}</AlertDescription>
+                </Alert>
+              )}
+              {!transactionsLoading &&
+                !transactionsError &&
+                dedupeByBillSplit(transactions)
+                  .filter((t) => t.status === "completed")
+                  .slice(0, 4)
+                  .map((transaction) => (
+                    <TransactionCard
+                      key={transaction.id}
+                      transaction={transaction}
+                      onNavigate={onNavigate}
+                      currencySymbol={currencySymbol}
+                    />
+                  ))}
+            </div>
+          )}
 
           {!transactionsLoading &&
             !transactionsError &&
-            dedupeByBillSplit(transactions).length === 0 && (
+            !hasAnyTransactions && (
               <EmptyState
                 icon={DollarSign}
                 title="No transactions found"
@@ -268,7 +280,7 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
 
           {!transactionsLoading &&
             !transactionsError &&
-            dedupeByBillSplit(transactions).length > 4 && (
+            dedupeByBillSplit(transactions).filter((t) => t.status === "completed").length > 4 && (
               <div className="text-center mt-4">
                 <Button
                   variant="outline"
@@ -282,6 +294,7 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
               </div>
             )}
         </div>
+        )}
       </div>
     </div>
   );

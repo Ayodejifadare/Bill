@@ -5,6 +5,7 @@ import {
   validateBankAccountNumber,
   hasValidPhonePrefix,
 } from "../utils/regions.js";
+import { normalizeMobileAccountNumber } from "../utils/phone.js";
 import {
   BANK_DIRECTORY_BY_REGION,
   MOBILE_MONEY_PROVIDERS_BY_REGION,
@@ -105,12 +106,18 @@ router.post("/", requireGroupAdmin, async (req, res) => {
       if (!provider || !phoneNumber || !isValidProvider(provider)) {
         return res.status(400).json({ error: "Invalid provider details" });
       }
-      if (!hasValidPhonePrefix(region, phoneNumber)) {
-        const prefix = getRegionConfig(region).phoneCountryCode;
-        return res
-          .status(400)
-          .json({ error: `Phone number must start with ${prefix}` });
+      // Accept either international (+234...) or local (0XXXXXXXXXX) inputs and normalize to national
+      const normalized = normalizeMobileAccountNumber(phoneNumber, region);
+      // Basic length check: NG expects 10 digits after normalization; others allow 6-17
+      const onlyDigits = (normalized || "").replace(/\D/g, "");
+      const { code } = getRegionConfig(region);
+      const isValidLength =
+        code === "NG" ? onlyDigits.length === 10 : onlyDigits.length >= 6;
+      if (!isValidLength) {
+        return res.status(400).json({ error: "Invalid phone number for region" });
       }
+      // Overwrite request body so it gets persisted in normalized form below
+      req.body.phoneNumber = normalized;
     } else {
       return res.status(400).json({ error: "Invalid account type" });
     }
@@ -163,6 +170,21 @@ router.put("/:accountId", requireGroupAdmin, async (req, res) => {
         where: { groupId: req.params.groupId },
         data: { isDefault: false },
       });
+    }
+
+    // Normalize phoneNumber on update if present and mobile_money
+    if (
+      (req.body.type === "mobile_money" || account.type === "MOBILE_MONEY") &&
+      typeof req.body.phoneNumber === "string"
+    ) {
+      const user = await req.prisma.user.findUnique({
+        where: { id: req.user.id },
+        select: { region: true },
+      });
+      req.body.phoneNumber = normalizeMobileAccountNumber(
+        req.body.phoneNumber,
+        user?.region || "NG",
+      );
     }
 
     const updated = await req.prisma.groupAccount.update({

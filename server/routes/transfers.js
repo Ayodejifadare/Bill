@@ -1,5 +1,6 @@
 import express from "express";
 import authenticate from "../middleware/auth.js";
+import { generateBankSafeReference } from "../utils/paymentReference.js";
 
 const router = express.Router();
 
@@ -48,8 +49,18 @@ router.post("/initiate-transfer", authenticate, async (req, res) => {
         .json({ error: "Not authorized for this bill split" });
     }
 
-    // Create a payment reference for auditing (does not require a receiver user)
-    const code = `TRF-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+    // Resolve region for better reference semantics
+    let userRegion = "US";
+    try {
+      const u = await req.prisma.user.findUnique({
+        where: { id: req.user.id },
+        select: { region: true },
+      });
+      if (u?.region) userRegion = String(u.region).toUpperCase();
+    } catch {}
+
+    // Create a bank-safe numeric reference with checksum (avoids words/prefixes)
+    const code = generateBankSafeReference({ totalLength: 16 });
     await req.prisma.paymentReference.create({
       data: {
         code,

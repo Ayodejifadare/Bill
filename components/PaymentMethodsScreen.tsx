@@ -28,6 +28,7 @@ import {
   requiresRoutingNumber,
   validateBankAccountNumber,
   getBankAccountLength,
+  normalizeMobileAccountNumber,
 } from "../utils/regions";
 import { BankAccountCard } from "./BankAccountCard";
 import { MobileMoneyCard } from "./MobileMoneyCard";
@@ -123,13 +124,15 @@ export function PaymentMethodsScreen({
         toast.error("Please fill in all mobile money details");
         return;
       }
+      const normalizedMobile = normalizeMobileAccountNumber(
+        appSettings.region,
+        formData.phoneNumber,
+      );
       if (
-        phoneCountryCode &&
-        !formData.phoneNumber.startsWith(phoneCountryCode)
+        appSettings.region?.toUpperCase() === "NG" &&
+        normalizedMobile.length !== 10
       ) {
-        toast.error(
-          `Please enter a valid phone number starting with ${phoneCountryCode}`,
-        );
+        toast.error("Enter a valid mobile number (10 digits)");
         return;
       }
     }
@@ -154,7 +157,10 @@ export function PaymentMethodsScreen({
           : {
               type: "mobile_money",
               provider: formData.provider,
-              phoneNumber: formData.phoneNumber,
+              phoneNumber: normalizeMobileAccountNumber(
+                appSettings.region,
+                formData.phoneNumber,
+              ),
               isDefault: false,
             };
 

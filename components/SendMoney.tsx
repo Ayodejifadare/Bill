@@ -30,6 +30,7 @@ import {
   formatCurrencyForRegion,
   getBankIdentifierLabel,
   requiresRoutingNumber,
+  formatMobileAccountNumberForRegion,
 } from "../utils/regions";
 
 import { PaymentMethodSelector, PaymentMethod } from "./PaymentMethodSelector";
@@ -201,7 +202,10 @@ Account: ${selectedPaymentMethod.accountNumber}`;
 
 Mobile Money:
 ${selectedPaymentMethod.provider}
-Phone: ${selectedPaymentMethod.phoneNumber}`;
+Phone: ${formatMobileAccountNumberForRegion(
+        appSettings.region,
+        selectedPaymentMethod.phoneNumber || "",
+      )}`;
     }
 
     details += `

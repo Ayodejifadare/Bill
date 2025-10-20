@@ -41,6 +41,8 @@ import {
   getBankAccountLength,
   getBankIdentifierLabel,
   formatBankAccountForRegion,
+  normalizeMobileAccountNumber,
+  formatMobileAccountNumberForRegion,
 } from "../utils/regions";
 import { apiClient } from "../utils/apiClient";
 
@@ -235,13 +237,15 @@ export function GroupAccountScreen({
         toast.error("Please select a valid provider");
         return;
       }
+      const normalizedMobile = normalizeMobileAccountNumber(
+        appSettings.region,
+        formData.phoneNumber,
+      );
       if (
-        phoneCountryCode &&
-        !formData.phoneNumber.startsWith(phoneCountryCode)
+        appSettings.region?.toUpperCase() === "NG" &&
+        normalizedMobile.length !== 10
       ) {
-        toast.error(
-          `Please enter a valid phone number starting with ${phoneCountryCode}`,
-        );
+        toast.error("Enter a valid mobile number (10 digits)");
         return;
       }
     }
@@ -264,7 +268,10 @@ export function GroupAccountScreen({
             }
           : {
               provider: formData.provider,
-              phoneNumber: formData.phoneNumber,
+              phoneNumber: normalizeMobileAccountNumber(
+                appSettings.region,
+                formData.phoneNumber,
+              ),
             }),
       };
 
@@ -330,7 +337,12 @@ export function GroupAccountScreen({
       const accountInfo = `${account.bankName}\nAccount Name: ${account.accountHolderName}\n${label}: ${idValue ?? ""}\nAccount Number: ${account.accountNumber}`;
       copyToClipboard(accountInfo);
     } else {
-      copyToClipboard(`${account.provider}\nPhone: ${account.phoneNumber}`);
+      copyToClipboard(
+        `${account.provider}\nPhone: ${formatMobileAccountNumberForRegion(
+          appSettings.region,
+          account.phoneNumber || "",
+        )}`,
+      );
     }
   };
 

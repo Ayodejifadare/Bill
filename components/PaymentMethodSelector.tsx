@@ -11,7 +11,10 @@ import { Building2, Smartphone } from "lucide-react";
 import { BankAccountCard } from "./BankAccountCard";
 import { MobileMoneyCard } from "./MobileMoneyCard";
 import { useUserProfile } from "./UserProfileContext";
-import { formatBankAccountForRegion } from "../utils/regions";
+import {
+  formatBankAccountForRegion,
+  formatMobileAccountNumberForRegion,
+} from "../utils/regions";
 
 export interface PaymentMethod {
   id: string;
@@ -79,9 +82,12 @@ export function PaymentMethodSelector({
             ? method.type === "bank"
               ? method.bankName
               : method.provider
-            : method.type === "bank"
-              ? formatAccountNumber(method.accountNumber || "")
-              : method.phoneNumber}
+              : method.type === "bank"
+                ? formatAccountNumber(method.accountNumber || "")
+                : formatMobileAccountNumberForRegion(
+                    region,
+                    method.phoneNumber || "",
+                  )}
         </span>
         {method.isDefault && (
           <Badge variant="secondary" className="text-xs">

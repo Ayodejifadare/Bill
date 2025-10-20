@@ -15,6 +15,7 @@ import {
   formatBankAccountForRegion,
   getBankIdentifierLabel,
   requiresRoutingNumber,
+  formatMobileAccountNumberForRegion,
 } from "../utils/regions";
 
 interface BaseAccount {
@@ -82,7 +83,11 @@ export function AccountCard({
       const accountInfo = `${bank}\nAccount Name: ${accountName}\n${label}: ${identifier ?? ""}\nAccount Number: ${account.accountNumber}`;
       copyToClipboard(accountInfo);
     } else {
-      copyToClipboard(`${account.provider}\nPhone: ${account.phoneNumber}`);
+      const formatted = formatMobileAccountNumberForRegion(
+        appSettings.region,
+        account.phoneNumber || "",
+      );
+      copyToClipboard(`${account.provider}\nPhone: ${formatted}`);
     }
   };
 
@@ -230,16 +235,25 @@ export function AccountCard({
               <span className="text-xs sm:text-sm text-muted-foreground">
                 Phone Number:
               </span>
-              <div className="flex items-center gap-1 sm:gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
                 <span className="font-mono text-xs sm:text-sm">
-                  {account.phoneNumber}
+                  {formatMobileAccountNumberForRegion(
+                    appSettings.region,
+                    account.phoneNumber || "",
+                  )}
                 </span>
                 <Button
                   variant="ghost"
                   size="sm"
                   className="h-5 w-5 sm:h-6 sm:w-6 p-0 flex-shrink-0"
                   onClick={() =>
-                    copyToClipboard(account.phoneNumber!, "Phone number")
+                    copyToClipboard(
+                      formatMobileAccountNumberForRegion(
+                        appSettings.region,
+                        account.phoneNumber || "",
+                      ),
+                      "Phone number",
+                    )
                   }
                 >
                   <Copy className="h-3 w-3" />

@@ -52,6 +52,7 @@ import {
   getBankIdentifierLabel,
   formatCurrencyForRegion,
   formatBankAccountForRegion,
+  formatMobileAccountNumberForRegion,
 } from "../utils/regions";
 import { ShareSheet } from "./ui/share-sheet";
 import { createDeepLink } from "./ShareUtils";
@@ -592,7 +593,10 @@ export function BillSplitDetailsScreen({
                         </>
                       ) : (
                         <p className="text-sm text-muted-foreground">
-                          Phone Number: {billSplit.paymentMethod.phoneNumber}
+                          Phone Number: {formatMobileAccountNumberForRegion(
+                            appSettings.region,
+                            billSplit.paymentMethod.phoneNumber || "",
+                          )}
                         </p>
                       )}
                     </div>

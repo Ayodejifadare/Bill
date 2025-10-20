@@ -29,6 +29,7 @@ import {
   getBankIdentifierLabel,
   formatBankAccountForRegion,
   formatCurrencyForRegion,
+  formatMobileAccountNumberForRegion,
 } from "../utils/regions";
 import { ShareSheet } from "./ui/share-sheet";
 import { createDeepLink } from "./ShareUtils";
@@ -287,7 +288,10 @@ export function TransactionDetailsScreen({
           }
         }
       } else {
-        const mobileInfo = `${paymentMethod.provider}\nPhone Number: ${paymentMethod.phoneNumber}`;
+        const mobileInfo = `${paymentMethod.provider}\nPhone Number: ${formatMobileAccountNumberForRegion(
+          appSettings.region,
+          paymentMethod.phoneNumber || "",
+        )}`;
 
         // Try modern clipboard first
         if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -486,7 +490,10 @@ export function TransactionDetailsScreen({
                         </>
                       ) : (
                         <p className="text-sm text-muted-foreground">
-                          Phone Number: {transaction.paymentMethod.phoneNumber}
+                          Phone Number: {formatMobileAccountNumberForRegion(
+                            appSettings.region,
+                            transaction.paymentMethod.phoneNumber || "",
+                          )}
                         </p>
                       )}
                     </div>

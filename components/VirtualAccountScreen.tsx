@@ -40,6 +40,8 @@ import {
   requiresRoutingNumber,
   getBankIdentifierLabel,
   formatBankAccountForRegion,
+  normalizeMobileAccountNumber,
+  formatMobileAccountNumberForRegion,
 } from "../utils/regions";
 import { apiClient } from "../utils/apiClient";
 
@@ -228,13 +230,15 @@ export function VirtualAccountScreen({
         toast.error("Please fill in all mobile money details");
         return;
       }
+      const normalizedMobile = normalizeMobileAccountNumber(
+        appSettings.region,
+        formData.phoneNumber,
+      );
       if (
-        phoneCountryCode &&
-        !formData.phoneNumber.startsWith(phoneCountryCode)
+        appSettings.region?.toUpperCase() === "NG" &&
+        normalizedMobile.length !== 10
       ) {
-        toast.error(
-          `Please enter a valid phone number starting with ${phoneCountryCode}`,
-        );
+        toast.error("Enter a valid mobile number (10 digits)");
         return;
       }
     }
@@ -257,7 +261,10 @@ export function VirtualAccountScreen({
             }
           : {
               provider: formData.provider,
-              phoneNumber: formData.phoneNumber,
+              phoneNumber: normalizeMobileAccountNumber(
+                appSettings.region,
+                formData.phoneNumber,
+              ),
             }),
       };
 
@@ -320,7 +327,11 @@ export function VirtualAccountScreen({
       const accountInfo = `${account.bankName}\nAccount Name: ${account.accountHolderName}\n${label}: ${idValue ?? ""}\nAccount Number: ${account.accountNumber}`;
       copyToClipboard(accountInfo);
     } else {
-      copyToClipboard(`${account.provider}\nPhone: ${account.phoneNumber}`);
+      const formatted = formatMobileAccountNumberForRegion(
+        appSettings.region,
+        account.phoneNumber || "",
+      );
+      copyToClipboard(`${account.provider}\nPhone: ${formatted}`);
     }
   };
 
@@ -745,22 +756,30 @@ export function VirtualAccountScreen({
                       <span className="text-sm text-muted-foreground">
                         Phone Number:
                       </span>
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono">{account.phoneNumber}</span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0"
-                          onClick={() =>
-                            copyToClipboard(
-                              account.phoneNumber!,
-                              "Phone number",
-                            )
-                          }
-                        >
-                          <Copy className="h-3 w-3" />
-                        </Button>
-                      </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono">
+                        {formatMobileAccountNumberForRegion(
+                          appSettings.region,
+                          account.phoneNumber || "",
+                        )}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0"
+                        onClick={() =>
+                          copyToClipboard(
+                            formatMobileAccountNumberForRegion(
+                              appSettings.region,
+                              account.phoneNumber || "",
+                            ),
+                            "Phone number",
+                          )
+                        }
+                      >
+                        <Copy className="h-3 w-3" />
+                      </Button>
+                    </div>
                     </div>
                   )}
                 </div>

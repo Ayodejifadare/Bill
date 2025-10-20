@@ -27,6 +27,7 @@ import {
   requiresRoutingNumber,
   getBankIdentifierLabel,
   formatBankAccountForRegion,
+  formatMobileAccountNumberForRegion,
 } from "../utils/regions";
 import { apiClient } from "../utils/apiClient";
 import {
@@ -136,7 +137,10 @@ export function PaymentFlowScreen({
         await navigator.clipboard.writeText(bankInfo);
         toast.success("Bank account details copied to clipboard");
       } else {
-        const mobileInfo = `${recipientPaymentMethod.provider}\nPhone Number: ${recipientPaymentMethod.phoneNumber}`;
+        const mobileInfo = `${recipientPaymentMethod.provider}\nPhone Number: ${formatMobileAccountNumberForRegion(
+          appSettings.region,
+          recipientPaymentMethod.phoneNumber || "",
+        )}`;
         await navigator.clipboard.writeText(mobileInfo);
         toast.success("Mobile money details copied to clipboard");
       }
@@ -413,7 +417,10 @@ export function PaymentFlowScreen({
                                 Phone Number:
                               </span>
                               <span className="font-mono">
-                                {recipientPaymentMethod.phoneNumber}
+                                {formatMobileAccountNumberForRegion(
+                                  appSettings.region,
+                                  recipientPaymentMethod.phoneNumber || "",
+                                )}
                               </span>
                             </div>
                           </div>
