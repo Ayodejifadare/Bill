@@ -474,7 +474,8 @@ export function UpcomingPaymentsScreen({
               onClick={() =>
                 onNavigate("payment-flow", {
                   paymentRequest: {
-                    id: `upcoming-${payment.id}`,
+                    id: String(payment.id), // keep raw id for reference display
+                    directRequestId: payment.requestId ? undefined : String(payment.id),
                     amount: payment.amount,
                     description: payment.title,
                     recipient: payment.organizer?.name,

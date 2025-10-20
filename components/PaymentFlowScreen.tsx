@@ -183,24 +183,39 @@ export function PaymentFlowScreen({
     try {
       // If this flow has a corresponding request transaction id, update it on the server
       const reqId = (paymentRequest as any)?.requestId as string | undefined;
+      let txId: string | undefined;
       if (reqId) {
-        await apiClient(`/transactions/${reqId}/mark-sent`, { method: "POST" });
-      } else if ((paymentRequest as any)?.id) {
-        // For direct pending requests (no transaction yet), mark request as paid to create a pending SEND tx
-        const dirReqId = String((paymentRequest as any).id);
-        await apiClient(`/requests/${dirReqId}/mark-paid`, { method: "POST" });
+        const resp = await apiClient(`/transactions/${reqId}/mark-sent`, {
+          method: "POST",
+        });
+        txId = resp?.transaction?.id || reqId;
+      } else if ((paymentRequest as any)?.directRequestId) {
+        // For direct pending requests (no transaction yet), create a pending SEND tx
+        const dirReqId = String((paymentRequest as any).directRequestId);
+        const resp = await apiClient(`/requests/${dirReqId}/mark-paid`, {
+          method: "POST",
+        });
+        txId = resp?.transaction?.id;
       }
+
       setPaymentStatus("sent");
       toast.success("Payment marked as sent! The recipient will be notified.");
 
-      // Navigate to relevant details after a short delay
+      // Ask lists to refresh
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("upcomingPaymentsUpdated"));
+      }
+
+      // Navigate to the transaction for pending confirmation when available
       setTimeout(() => {
-        if (reqId) {
+        if (txId) {
+          onNavigate("transaction-details", { transactionId: txId });
+        } else if (reqId) {
           onNavigate("transaction-details", { transactionId: reqId });
         } else {
           onNavigate("home");
         }
-      }, 1500);
+      }, 1200);
     } catch (error) {
       console.error("Failed to mark payment as sent", error);
       toast.error("Failed to mark payment as sent");
