@@ -13,7 +13,7 @@ interface UpcomingPaymentsProps {
 
 export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
   const { upcomingPayments, loading, error } = useUpcomingPayments();
-  const { appSettings } = useUserProfile();
+  const { appSettings, userProfile } = useUserProfile();
   const fmt = (n: number) => formatCurrencyForRegion(appSettings.region, n);
 
   const handleSeeAll = () => onNavigate("upcoming-payments");
@@ -115,6 +115,8 @@ export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
             onNavigate("send-reminder", { to: transaction.organizerId || transaction.name, requestId: transaction.requestId || id });
           };
 
+          const isRequester = Boolean(transaction.organizerId && userProfile?.id === transaction.organizerId);
+
           if (transaction.type === 'payment') {
             return (
               <div key={transaction.id} className="bg-card box-border flex flex-col gap-[16px] pb-[20px] pl-[20px] pr-[20px] pt-[20px] relative rounded-[16px] shrink-0 w-full">
@@ -177,6 +179,7 @@ export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
             );
           }
 
+          // Request card
           return (
             <div key={transaction.id} className="bg-card box-border flex flex-col gap-[16px] pb-[20px] pl-[20px] pr-[20px] pt-[20px] relative rounded-[16px] shrink-0 w-full">
               <div aria-hidden="true" className="absolute border-[1.268px] border-border border-solid inset-0 pointer-events-none rounded-[16px]" />
@@ -227,16 +230,40 @@ export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
               </div>
 
               <div className="flex gap-[12px] flex-1 ml-[54px]">
-                <button onClick={() => handleCancel(transaction.id)} className="flex-1 bg-background border border-solid border-border h-[44px] py-[10px] rounded-[8px] hover:bg-muted transition-colors">
-                  <p className="font-['Inter:Regular',_sans-serif] font-normal leading-[20px] not-italic text-[14px] text-center text-foreground">
-                    Cancel
-                  </p>
-                </button>
-                <button onClick={() => handleRemind(transaction.id)} className="flex-1 bg-primary h-[44px] py-[10px] rounded-[8px] hover:bg-primary/90 transition-colors">
-                  <p className="font-['Inter:Regular',_sans-serif] font-normal leading-[20px] not-italic text-[14px] text-center text-primary-foreground">
-                    Remind
-                  </p>
-                </button>
+                {isRequester ? (
+                  <>
+                    <button onClick={() => handleCancel(transaction.id)} className="flex-1 bg-background border border-solid border-border h-[44px] py-[10px] rounded-[8px] hover:bg-muted transition-colors">
+                      <p className="font-['Inter:Regular',_sans-serif] font-normal leading-[20px] not-italic text-[14px] text-center text-foreground">
+                        Cancel
+                      </p>
+                    </button>
+                    <button onClick={() => handleRemind(transaction.id)} className="flex-1 bg-primary h-[44px] py-[10px] rounded-[8px] hover:bg-primary/90 transition-colors">
+                      <p className="font-['Inter:Regular',_sans-serif] font-normal leading-[20px] not-italic text-[14px] text-center text-primary-foreground">
+                        Remind
+                      </p>
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() =>
+                      onNavigate("payment-flow", {
+                        paymentRequest: {
+                          id: `upcoming-${transaction.id}`,
+                          amount: transaction.amount,
+                          description: transaction.description,
+                          recipient: transaction.name,
+                          recipientId: transaction.organizerId || transaction.name,
+                          requestId: transaction.requestId ?? undefined,
+                        },
+                      })
+                    }
+                    className="flex-1 bg-primary h-[44px] py-[10px] rounded-[8px] hover:bg-primary/90 transition-colors"
+                  >
+                    <p className="font-['Inter:Regular',_sans-serif] font-normal leading-[20px] not-italic text-[14px] text-center text-primary-foreground">
+                      Pay Now
+                    </p>
+                  </button>
+                )}
               </div>
             </div>
           );

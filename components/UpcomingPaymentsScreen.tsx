@@ -28,7 +28,7 @@ interface UpcomingPaymentsScreenProps {
 export function UpcomingPaymentsScreen({
   onNavigate,
 }: UpcomingPaymentsScreenProps) {
-  const { appSettings } = useUserProfile();
+  const { appSettings, userProfile } = useUserProfile();
   const fmt = (n: number) => formatCurrencyForRegion(appSettings.region, n);
   const { upcomingPayments, loading, error } = useUpcomingPayments();
   const getInitials = (name: string) =>
@@ -448,22 +448,46 @@ export function UpcomingPaymentsScreen({
           )}
         </div>
         <div className="flex gap-[12px] flex-1 ml-[54px]">
-          <button
-            onClick={() => onNavigate("payment-request-cancel", { requestId: payment.requestId || payment.id })}
-            className="flex-1 bg-background border border-solid border-border h-[44px] py-[10px] rounded-[8px] hover:bg-muted transition-colors"
-          >
-            <p className="font-['Inter:Regular',_sans-serif] font-normal leading-[20px] not-italic text-[14px] text-center text-foreground">
-              Cancel
-            </p>
-          </button>
-          <button
-            onClick={() => onNavigate("send-reminder", { to: payment.organizer?.id || payment.organizer?.name, requestId: payment.requestId || payment.id })}
-            className="flex-1 bg-primary h-[44px] py-[10px] rounded-[8px] hover:bg-primary/90 transition-colors"
-          >
-            <p className="font-['Inter:Regular',_sans-serif] font-normal leading-[20px] not-italic text-[14px] text-center text-primary-foreground">
-              Remind
-            </p>
-          </button>
+          {payment.organizer?.id === userProfile?.id ? (
+            <>
+              <button
+                onClick={() => onNavigate("payment-request-cancel", { requestId: payment.requestId || payment.id })}
+                className="flex-1 bg-background border border-solid border-border h-[44px] py-[10px] rounded-[8px] hover:bg-muted transition-colors"
+              >
+                <p className="font-['Inter:Regular',_sans-serif] font-normal leading-[20px] not-italic text-[14px] text-center text-foreground">
+                  Cancel
+                </p>
+              </button>
+              <button
+                onClick={() => onNavigate("send-reminder", { to: payment.organizer?.id || payment.organizer?.name, requestId: payment.requestId || payment.id })}
+                className="flex-1 bg-primary h-[44px] py-[10px] rounded-[8px] hover:bg-primary/90 transition-colors"
+              >
+                <p className="font-['Inter:Regular',_sans-serif] font-normal leading-[20px] not-italic text-[14px] text-center text-primary-foreground">
+                  Remind
+                </p>
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() =>
+                onNavigate("payment-flow", {
+                  paymentRequest: {
+                    id: `upcoming-${payment.id}`,
+                    amount: payment.amount,
+                    description: payment.title,
+                    recipient: payment.organizer?.name,
+                    recipientId: payment.organizer?.id || payment.organizer?.name,
+                    requestId: payment.requestId ?? undefined,
+                  },
+                })
+              }
+              className="flex-1 bg-primary h-[44px] py-[10px] rounded-[8px] hover:bg-primary/90 transition-colors"
+            >
+              <p className="font-['Inter:Regular',_sans-serif] font-normal leading-[20px] not-italic text-[14px] text-center text-primary-foreground">
+                Pay Now
+              </p>
+            </button>
+          )}
         </div>
       </div>
     );

@@ -59,7 +59,7 @@ router.get("/upcoming-payments", authenticate, async (req, res) => {
       };
     });
 
-    // Request transactions (after acceptance)
+    // Request transactions (after acceptance) where current user is receiver (owes)
     const requests = await req.prisma.transaction.findMany({
       where: { receiverId: userId, status: "PENDING" },
       include: {
@@ -71,6 +71,31 @@ router.get("/upcoming-payments", authenticate, async (req, res) => {
     });
 
     const requestPayments = requests.map((r) => {
+      const dueDate = r.createdAt;
+      return {
+        id: r.id,
+        type: "request",
+        title: r.description || "Payment Request",
+        amount: r.amount,
+        dueDate: dueDate.toISOString(),
+        status: classifyStatus(dueDate),
+        organizer: r.sender,
+        participants: [r.sender, r.receiver],
+        requestId: r.id,
+        paymentMethod: null,
+      };
+    });
+
+    // Also include requests sent by current user (for visibility + cancel/remind)
+    const requestsSent = await req.prisma.transaction.findMany({
+      where: { senderId: userId, status: "PENDING" },
+      include: {
+        sender: { select: { id: true, name: true, email: true, avatar: true } },
+        receiver: { select: { id: true, name: true, email: true, avatar: true } },
+      },
+    });
+
+    const requestPaymentsSent = requestsSent.map((r) => {
       const dueDate = r.createdAt;
       return {
         id: r.id,
@@ -114,10 +139,37 @@ router.get("/upcoming-payments", authenticate, async (req, res) => {
       };
     });
 
+    // Direct pending requests created by current user (sender)
+    const directSent = await req.prisma.paymentRequest.findMany({
+      where: { senderId: userId, status: "PENDING" },
+      include: {
+        sender: { select: { id: true, name: true, email: true, avatar: true } },
+        receiver: { select: { id: true, name: true, email: true, avatar: true } },
+      },
+    });
+
+    const directRequestPaymentsSent = directSent.map((r) => {
+      const dueDate = r.nextDueDate || r.createdAt;
+      return {
+        id: r.id,
+        type: "request",
+        title: r.description || "Payment Request",
+        amount: r.amount,
+        dueDate: dueDate.toISOString(),
+        status: classifyStatus(dueDate),
+        organizer: r.sender,
+        participants: [r.sender, r.receiver],
+        requestId: null,
+        paymentMethod: null,
+      };
+    });
+
     let payments = [
       ...billPayments,
       ...requestPayments,
+      ...requestPaymentsSent,
       ...directRequestPayments,
+      ...directRequestPaymentsSent,
     ];
     const { filter } = req.query;
     if (filter) {
