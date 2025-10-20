@@ -214,6 +214,7 @@ router.get(
         groupName: billSplit.group ? billSplit.group.name : undefined,
         paymentMethod,
         participants: billSplit.participants.map((p) => ({
+          userId: p.userId,
           name: p.userId === req.userId ? "You" : p.user.name,
           amount: p.amount,
           paid: p.isPaid,
@@ -754,6 +755,137 @@ router.post(
       res.json({ message: "Payment status updated" });
     } catch (error) {
       console.error("Update payment status error:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  },
+);
+
+// Creator confirms a participant's payment and records transaction
+router.post(
+  "/:id/confirm-payment",
+  [
+    authenticateToken,
+    param("id").trim().notEmpty(),
+    body("participantUserId").trim().notEmpty(),
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    try {
+      const { id } = req.params;
+      const { participantUserId } = req.body;
+
+      // Load bill split with creator, participants and payment method
+      const billSplit = await req.prisma.billSplit.findUnique({
+        where: { id },
+        include: {
+          participants: true,
+          creator: { select: { id: true } },
+        },
+      });
+
+      if (!billSplit) {
+        return res.status(404).json({ error: "Bill split not found" });
+      }
+
+      // Ensure requester is the creator
+      if (billSplit.createdBy !== req.userId) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
+
+      // Ensure participant exists on this bill
+      const participant = billSplit.participants.find(
+        (p) => p.userId === participantUserId,
+      );
+      if (!participant) {
+        return res.status(404).json({ error: "Participant not found" });
+      }
+
+      // No-op if already confirmed
+      if (participant.isPaid) {
+        return res.json({ message: "Already confirmed" });
+      }
+
+      const updated = await req.prisma.$transaction(async (prisma) => {
+        // Mark participant as paid/confirmed
+        await prisma.billSplitParticipant.update({
+          where: {
+            billSplitId_userId: { billSplitId: id, userId: participantUserId },
+          },
+          data: { isPaid: true, status: "CONFIRMED" },
+        });
+
+        // Create settlement transaction if it doesn't exist
+        const existingTx = await prisma.transaction.findFirst({
+          where: {
+            billSplitId: id,
+            senderId: participantUserId,
+            receiverId: billSplit.createdBy,
+            type: "BILL_SPLIT",
+          },
+        });
+
+        if (!existingTx) {
+          const newTx = await prisma.transaction.create({
+            data: {
+              senderId: participantUserId,
+              receiverId: billSplit.createdBy,
+              amount: participant.amount,
+              description: `Settlement for ${billSplit.title}`,
+              type: "BILL_SPLIT",
+              status: "COMPLETED",
+              billSplitId: id,
+            },
+          });
+
+          // Transfer balances
+          await prisma.user.update({
+            where: { id: newTx.senderId },
+            data: { balance: { decrement: newTx.amount } },
+          });
+          await prisma.user.update({
+            where: { id: newTx.receiverId },
+            data: { balance: { increment: newTx.amount } },
+          });
+        }
+
+        // Return lightweight progress summary
+        const refreshed = await prisma.billSplit.findUnique({
+          where: { id },
+          include: { participants: true },
+        });
+
+        const paidCount = refreshed.participants.filter((p) => p.isPaid).length;
+        const totalCount = refreshed.participants.length;
+        const totalPaid = refreshed.participants
+          .filter((p) => p.isPaid)
+          .reduce((sum, p) => sum + Number(p.amount || 0), 0);
+
+        return { paidCount, totalCount, totalPaid };
+      });
+
+      // Notify participant that the payment was confirmed
+      try {
+        await createNotification(req.prisma, {
+          recipientId: participantUserId,
+          actorId: req.userId,
+          type: "bill_split_payment_confirmed",
+          title: "Payment confirmed",
+          message: `Your payment was confirmed for ${billSplit.title}`,
+          amount: participant.amount,
+          actionable: false,
+        });
+      } catch (e) {
+        // Non-fatal
+        console.warn("Notification error (confirm-payment):", e);
+      }
+
+      return res.json({ message: "Payment confirmed", progress: updated });
+    } catch (error) {
+      console.error("Confirm participant payment error:", error);
       res.status(500).json({ error: "Internal server error" });
     }
   },

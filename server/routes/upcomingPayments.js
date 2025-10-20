@@ -88,7 +88,7 @@ router.get("/upcoming-payments", authenticate, async (req, res) => {
 
     // Also include requests sent by current user (for visibility + cancel/remind)
     const requestsSent = await req.prisma.transaction.findMany({
-      where: { senderId: userId, status: "PENDING" },
+      where: { senderId: userId, status: "PENDING", type: "REQUEST" },
       include: {
         sender: { select: { id: true, name: true, email: true, avatar: true } },
         receiver: { select: { id: true, name: true, email: true, avatar: true } },
@@ -104,7 +104,8 @@ router.get("/upcoming-payments", authenticate, async (req, res) => {
         amount: r.amount,
         dueDate: dueDate.toISOString(),
         status: classifyStatus(dueDate),
-        organizer: r.sender,
+        // For requests you created, show the receiver as the organizer so it’s clear who owes
+        organizer: r.receiver,
         participants: [r.sender, r.receiver],
         requestId: r.id,
         paymentMethod: null,
@@ -157,7 +158,8 @@ router.get("/upcoming-payments", authenticate, async (req, res) => {
         amount: r.amount,
         dueDate: dueDate.toISOString(),
         status: classifyStatus(dueDate),
-        organizer: r.sender,
+        // For direct pending requests you created (no transaction yet), also show receiver as organizer
+        organizer: r.receiver,
         participants: [r.sender, r.receiver],
         requestId: null,
         paymentMethod: null,
@@ -171,6 +173,18 @@ router.get("/upcoming-payments", authenticate, async (req, res) => {
       ...directRequestPayments,
       ...directRequestPaymentsSent,
     ];
+    // Deduplicate potential overlaps for requests (edge cases during state transitions)
+    const seen = new Set();
+    payments = payments.filter((p) => {
+      if (p.type !== "request") return true;
+      const ids = Array.isArray(p.participants)
+        ? p.participants.map((x) => x?.id).filter(Boolean).sort().join(",")
+        : "";
+      const key = `${p.type}|${ids}|${p.amount}|${p.status}|${p.title}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
     const { filter } = req.query;
     if (filter) {
       payments = payments.filter((p) => p.status === filter);

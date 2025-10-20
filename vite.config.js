@@ -6,9 +6,10 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      // Put more specific aliases before generic '@' to avoid prefix collisions
       "@/components": path.resolve(__dirname, "./components"),
       "@/styles": path.resolve(__dirname, "./styles"),
+      "@": path.resolve(__dirname, "./src"),
     },
   },
   css: {

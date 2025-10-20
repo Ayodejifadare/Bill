@@ -66,6 +66,7 @@ interface BillSplitDetailsScreenProps {
 }
 
 interface Participant {
+  userId?: string;
   name: string;
   avatar: string;
   amount: number;
@@ -163,6 +164,12 @@ export function BillSplitDetailsScreen({
                     ? p.isPaid
                     : false;
               const status: "paid" | "pending" = paidBool ? "paid" : "pending";
+              const userId: string | undefined =
+                typeof p?.userId === "string"
+                  ? p.userId
+                  : typeof p?.user?.id === "string"
+                    ? p.user.id
+                    : undefined;
               const avatar: string = (name || "U")
                 .split(" ")
                 .filter(Boolean)
@@ -170,7 +177,7 @@ export function BillSplitDetailsScreen({
                 .join("")
                 .slice(0, 2)
                 .toUpperCase();
-              return { name, amount, status, avatar };
+              return { userId, name, amount, status, avatar };
             })
           : [];
 
@@ -234,6 +241,22 @@ export function BillSplitDetailsScreen({
   const isCreator =
     !!billSplit &&
     (userProfile?.id ? billSplit.creatorId === userProfile.id : false);
+
+  const confirmPayment = async (participantUserId?: string, participantName?: string) => {
+    if (!billSplitId || !participantUserId) return;
+    try {
+      await apiClient(`/bill-splits/${billSplitId}/confirm-payment`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ participantUserId }),
+      });
+      toast.success(`${participantName || "Participant"} marked as paid`);
+      // Refresh details to update progress and statuses
+      await fetchBillSplit();
+    } catch (err) {
+      toast.error("Failed to confirm payment");
+    }
+  };
 
   if (loading) {
     return <PageLoading message="Loading bill split..." />;
@@ -672,17 +695,28 @@ export function BillSplitDetailsScreen({
                       </p>
                     </div>
                   </div>
-                  <div className="flex-shrink-0 ml-3">
+                  <div className="flex items-center gap-2 flex-shrink-0 ml-3">
                     {participant.status === "paid" ? (
                       <Badge className="bg-success text-success-foreground">
                         <Check className="h-3 w-3 mr-1" />
                         Paid
                       </Badge>
                     ) : (
-                      <Badge variant="outline" className="text-warning">
-                        <Clock className="h-3 w-3 mr-1" />
-                        Pending
-                      </Badge>
+                      <>
+                        <Badge variant="outline" className="text-warning">
+                          <Clock className="h-3 w-3 mr-1" />
+                          Pending
+                        </Badge>
+                        {isCreator && participant.userId && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => confirmPayment(participant.userId, participant.name)}
+                          >
+                            Mark as Paid
+                          </Button>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
