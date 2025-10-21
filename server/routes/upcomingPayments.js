@@ -23,8 +23,11 @@ router.get("/upcoming-payments", authenticate, async (req, res) => {
   try {
     const userId = req.user.id;
 
-    const billParticipants = await req.prisma.billSplitParticipant.findMany({
-      where: { userId, isPaid: false },
+  const billParticipants = await req.prisma.billSplitParticipant.findMany({
+      // Hide items that the participant has already marked as SENT.
+      // They reappear if the receiver declines (status reset to PENDING),
+      // or disappear permanently once CONFIRMED (isPaid=true).
+      where: { userId, isPaid: false, NOT: { status: "SENT" } },
       include: {
         billSplit: {
           include: {

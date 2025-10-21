@@ -55,6 +55,7 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
   }>({ all: 0, sent: 0, received: 0 });
   const [hasAnyTransactions, setHasAnyTransactions] = useState(false);
   const [hasCompletedTransactions, setHasCompletedTransactions] = useState(false);
+  const [balanceSummary, setBalanceSummary] = useState<{ owedToUser: number; userOwes: number }>({ owedToUser: 0, userOwes: 0 });
   useEffect(() => {
     let cancelled = false;
     const fetchCounts = async () => {
@@ -71,15 +72,40 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
         // Keep prior counts on failure
       }
     };
+    const fetchBalanceSummary = async () => {
+      try {
+        const data = await apiClient("/friends/summary");
+        if (!cancelled) {
+          setBalanceSummary({
+            owedToUser: data?.owedToUser ?? 0,
+            userOwes: data?.userOwes ?? 0,
+          });
+        }
+      } catch {
+        // Keep prior summary on failure
+      }
+    };
 
     // Initial fetch (defer slightly to keep first paint smooth)
-    const t = setTimeout(fetchCounts, 250);
+    const t = setTimeout(() => {
+      fetchCounts();
+      fetchBalanceSummary();
+    }, 250);
 
     // Refresh on app-wide updates (e.g., mark-sent, confirmations)
-    const onTxUpdated = () => fetchCounts();
-    const onUpcomingUpdated = () => fetchCounts();
+    const onTxUpdated = () => {
+      fetchCounts();
+      fetchBalanceSummary();
+    };
+    const onUpcomingUpdated = () => {
+      fetchCounts();
+      fetchBalanceSummary();
+    };
     const onVisibility = () => {
-      if (document.visibilityState === "visible") fetchCounts();
+      if (document.visibilityState === "visible") {
+        fetchCounts();
+        fetchBalanceSummary();
+      }
     };
     try {
       window.addEventListener("transactionsUpdated", onTxUpdated);
@@ -170,16 +196,13 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
           <div className="grid grid-cols-2 gap-4">
             <div className="text-center">
               <p className="text-2xl font-medium text-success">
-                {formatCurrencyForRegion(
-                  appSettings.region,
-                  summary.totalReceived,
-                )}
+                {formatCurrencyForRegion(appSettings.region, balanceSummary.owedToUser)}
               </p>
               <p className="text-sm text-muted-foreground">You are owed</p>
             </div>
             <div className="text-center">
               <p className="text-2xl font-medium text-destructive">
-                {formatCurrencyForRegion(appSettings.region, summary.totalSent)}
+                {formatCurrencyForRegion(appSettings.region, balanceSummary.userOwes)}
               </p>
               <p className="text-sm text-muted-foreground">You owe</p>
             </div>
