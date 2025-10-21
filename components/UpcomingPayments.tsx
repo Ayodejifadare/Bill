@@ -344,17 +344,17 @@ export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
                           toast.error('Failed to confirm all payments');
                         }
                       }}
-                      className="flex-1 bg-primary h-[44px] py-[10px] rounded-[8px] hover:bg-primary/90 transition-colors"
+                      className="flex-1 bg-background border border-solid border-border h-[44px] py-[10px] rounded-[8px] hover:bg-muted transition-colors"
                     >
-                      <p className="font-['Inter:Regular',_sans-serif] font-normal leading-[20px] not-italic text-[14px] text-center text-primary-foreground">
+                      <p className="font-['Inter:Regular',_sans-serif] font-normal leading-[20px] not-italic text-[14px] text-center text-foreground">
                         Settle
                       </p>
                     </button>
                     <button
                       onClick={(e) => { e.stopPropagation(); onNavigate('send-reminder', { billSplitId: transaction.billSplitId, paymentType: 'bill_split' }); }}
-                      className="flex-1 bg-background border border-solid border-border h-[44px] py-[10px] rounded-[8px] hover:bg-muted transition-colors"
+                      className="flex-1 bg-primary h-[44px] py-[10px] rounded-[8px] hover:bg-primary/90 transition-colors"
                     >
-                      <p className="font-['Inter:Regular',_sans-serif] font-normal leading-[20px] not-italic text-[14px] text-center text-foreground">
+                      <p className="font-['Inter:Regular',_sans-serif] font-normal leading-[20px] not-italic text-[14px] text-center text-primary-foreground">
                         Remind
                       </p>
                     </button>
