@@ -551,25 +551,9 @@ function AppContent() {
     checkAuthStatus();
   }, []);
 
-  // Restore navigation state from URL hash after authentication
-  useEffect(() => {
-    if (!isAuthenticated) return;
-    const { tab, data } = parseHash();
-    if (tab) {
-      // Use a microtask to ensure reducer is ready
-      Promise.resolve().then(() => handleNavigate(tab, data));
-    }
+  
 
-    // Listen for back/forward navigation via hash changes
-    const onHashChange = () => {
-      const { tab: t, data: d } = parseHash();
-      if (t) {
-        handleNavigate(t, d);
-      }
-    };
-    window.addEventListener("hashchange", onHashChange);
-    return () => window.removeEventListener("hashchange", onHashChange);
-  }, [isAuthenticated, handleNavigate]);
+  
 
   // Keep primary tabs mounted to avoid refetch/reload on quick navigation
   useEffect(() => {
@@ -783,6 +767,26 @@ function AppContent() {
     },
     [navState.activeTab],
   );
+
+  // Restore navigation state from URL hash after authentication
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const { tab, data } = parseHash();
+    if (tab) {
+      // Use a microtask to ensure reducer is ready
+      Promise.resolve().then(() => handleNavigate(tab, data));
+    }
+
+    // Listen for back/forward navigation via hash changes
+    const onHashChange = () => {
+      const { tab: t, data: d } = parseHash();
+      if (t) {
+        handleNavigate(t, d);
+      }
+    };
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, [isAuthenticated, handleNavigate]);
 
   // Prefetch common screens after initial render to make subsequent navigations snappier
   useEffect(() => {
