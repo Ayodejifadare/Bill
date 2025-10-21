@@ -748,7 +748,11 @@ router.post(
                 where: { id: billSplit.paymentMethodId },
                 select: { userId: true },
               });
-              if (pm && pm.userId === billSplit.createdBy) {
+              // Auto-confirm if the selected payment method belongs to either
+              // the bill creator (typical receiving account) OR the current
+              // user (explicit request: auto-confirm when current user id
+              // matches payment method user id).
+              if (pm && (pm.userId === billSplit.createdBy || pm.userId === req.userId)) {
                 await req.prisma.$transaction(async (prisma) => {
                   // Mark participant as paid/confirmed
                   await prisma.billSplitParticipant.update({

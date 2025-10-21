@@ -308,8 +308,13 @@ export function BillPaymentScreen({
       });
       setPaymentStatus("sent");
       toast.success(
-        "Payment marked as sent! The bill creator will be notified.",
+        "Payment marked as sent! We'll update the bill progress.",
       );
+
+      try {
+        window.dispatchEvent(new Event("transactionsUpdated"));
+        window.dispatchEvent(new Event("upcomingPaymentsUpdated"));
+      } catch {}
 
       // Navigate to the bill split details after a short delay for better UX
       setTimeout(() => {

@@ -4,7 +4,7 @@ import { EventSourcePolyfill } from "event-source-polyfill";
 import { Button } from "./button";
 import { Alert, AlertDescription } from "./alert";
 import { apiClientWithRetry } from "../../utils/apiClientWithRetry";
-import { apiBaseUrl } from "../../utils/config";
+import { apiBaseUrl, useMockApi, useDevAuth, devUserId } from "../../utils/config";
 
 interface NotificationBellProps {
   onClick: () => void;
@@ -54,30 +54,53 @@ export function NotificationBell({ onClick }: NotificationBellProps) {
     return `${base.replace(/\/+$/, "")}${resource}`;
   }
 
+  function readStoredUserId(): string | null {
+    try {
+      const s = localStorage.getItem("biltip_user");
+      if (!s) return null;
+      const parsed = JSON.parse(s);
+      return parsed?.id ? String(parsed.id) : null;
+    } catch {
+      return null;
+    }
+  }
+
   const connectSSE = () => {
+    if (useMockApi) return; // Skip SSE in mock mode; rely on polling
+    if (typeof window === "undefined") return;
+
     const storedAuth = localStorage.getItem("biltip_auth");
     const token = storedAuth ? JSON.parse(storedAuth).token : null;
-    if (token && typeof window !== "undefined") {
-      const url = buildSseUrl();
-      const es = new EventSourcePolyfill(url, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      es.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (typeof data.unread === "number") {
-            setUnread(data.unread);
-          }
-        } catch {
-          // ignore parse errors
-        }
-      };
-      es.onerror = () => {
-        setError("Connection error");
-        handleFailure();
-      };
-      esRef.current = es;
+
+    // Dev auth fallback when no JWT
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    } else if (useDevAuth) {
+      const xUserId = devUserId || readStoredUserId();
+      if (xUserId) headers["x-user-id"] = xUserId;
     }
+
+    // If no auth available, don't attempt SSE
+    if (Object.keys(headers).length === 0) return;
+
+    const url = buildSseUrl();
+    const es = new EventSourcePolyfill(url, { headers });
+    es.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (typeof data.unread === "number") {
+          setUnread(data.unread);
+        }
+      } catch {
+        // ignore parse errors
+      }
+    };
+    es.onerror = () => {
+      // Do not surface SSE disconnects as user-facing errors; we keep polling
+      handleFailure();
+    };
+    esRef.current = es;
   };
 
   const fetchUnread = async (manual = false) => {
