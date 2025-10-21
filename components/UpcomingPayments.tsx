@@ -231,11 +231,54 @@ export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
                     <div className="absolute top-0 bg-foreground h-[6px] rounded-l-[9999px]" style={{ width: `${percentage}%` }} />
                   </div>
 
-                  <button onClick={(e) => handlePayNow(e, transaction.id)} className="bg-primary h-[44px] py-[10px] rounded-[8px] hover:bg-primary/90 transition-colors w-full">
-                    <p className="font-['Inter:Regular',_sans-serif] font-normal leading-[20px] not-italic text-[14px] text-center text-primary-foreground">
-                      {transaction.youOwe ? 'Pay Now' : 'View'}
-                    </p>
-                  </button>
+                  {transaction.youOwe ? (
+                    <button
+                      onClick={(e) => handlePayNow(e, transaction.id)}
+                      className="bg-primary h-[44px] py-[10px] rounded-[8px] hover:bg-primary/90 transition-colors w-full"
+                    >
+                      <p className="font-['Inter:Regular',_sans-serif] font-normal leading-[20px] not-italic text-[14px] text-center text-primary-foreground">
+                        Pay Now
+                      </p>
+                    </button>
+                  ) : transaction.isCreator && transaction.paid < transaction.total ? (
+                    <div className="flex gap-[12px] w-full">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (transaction.billSplitId) {
+                            onNavigate('bill-split-details', { billSplitId: transaction.billSplitId });
+                          }
+                        }}
+                        className="flex-1 bg-background border border-solid border-border h-[44px] py-[10px] rounded-[8px] hover:bg-muted transition-colors"
+                      >
+                        <p className="font-['Inter:Regular',_sans-serif] font-normal leading-[20px] not-italic text-[14px] text-center text-foreground">
+                          Cancel
+                        </p>
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (transaction.billSplitId) {
+                            onNavigate('send-reminder', { billSplitId: transaction.billSplitId, paymentType: 'bill-split' });
+                          }
+                        }}
+                        className="flex-1 bg-primary h-[44px] py-[10px] rounded-[8px] hover:bg-primary/90 transition-colors"
+                      >
+                        <p className="font-['Inter:Regular',_sans-serif] font-normal leading-[20px] not-italic text-[14px] text-center text-primary-foreground">
+                          Remind
+                        </p>
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={(e) => handlePayNow(e, transaction.id)}
+                      className="bg-primary h-[44px] py-[10px] rounded-[8px] hover:bg-primary/90 transition-colors w-full"
+                    >
+                      <p className="font-['Inter:Regular',_sans-serif] font-normal leading-[20px] not-italic text-[14px] text-center text-primary-foreground">
+                        View
+                      </p>
+                    </button>
+                  )}
                 </div>
               </div>
             );

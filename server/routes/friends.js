@@ -98,35 +98,79 @@ router.get("/", async (req, res) => {
             ? friendship.user2
             : friendship.user1;
 
-        const lastTransaction = await req.prisma.transaction.findFirst({
-          where: {
-            OR: [
-              { senderId: req.userId, receiverId: friend.id },
-              { senderId: friend.id, receiverId: req.userId },
-            ],
-          },
-          orderBy: { createdAt: "desc" },
-        });
-
         const baseFriend = {
           id: friend.id,
           name: friend.name,
           avatar: friend.avatar,
           email: friend.email,
+          username: friend.email,
           // Align with client expectation: expose an explicit status
           status: "active",
           phoneNumber: friend.phone,
         };
 
-        if (!lastTransaction) {
+        // Compute accurate outstanding balance between user and this friend
+        const pendingStatus =
+          Object.keys(TRANSACTION_STATUS_MAP).find(
+            (key) => TRANSACTION_STATUS_MAP[key] === "pending",
+          ) || "PENDING";
+
+        const [owedAgg, owesAgg, unpaidAsCreator, unpaidAsParticipant] =
+          await req.prisma.$transaction([
+            // Direct transactions where friend owes the user
+            req.prisma.transaction.aggregate({
+              where: {
+                receiverId: req.userId,
+                senderId: friend.id,
+                status: pendingStatus,
+                NOT: { type: "BILL_SPLIT" },
+              },
+              _sum: { amount: true },
+            }),
+            // Direct transactions where the user owes the friend
+            req.prisma.transaction.aggregate({
+              where: {
+                senderId: req.userId,
+                receiverId: friend.id,
+                status: pendingStatus,
+                NOT: { type: "BILL_SPLIT" },
+              },
+              _sum: { amount: true },
+            }),
+            // Unpaid bill split shares where user is creator (friend owes user)
+            req.prisma.billSplitParticipant.aggregate({
+              where: {
+                userId: friend.id,
+                isPaid: false,
+                billSplit: { createdBy: req.userId },
+              },
+              _sum: { amount: true },
+            }),
+            // Unpaid bill split shares where friend is creator (user owes friend)
+            req.prisma.billSplitParticipant.aggregate({
+              where: {
+                userId: req.userId,
+                isPaid: false,
+                billSplit: { createdBy: friend.id },
+              },
+              _sum: { amount: true },
+            }),
+          ]);
+
+        const owedToUser = (owedAgg._sum.amount || 0) + (unpaidAsCreator._sum.amount || 0);
+        const userOwes = (owesAgg._sum.amount || 0) + (unpaidAsParticipant._sum.amount || 0);
+        const balance = owedToUser - userOwes;
+
+        if (balance === 0) {
           return baseFriend;
         }
 
         return {
           ...baseFriend,
+          // Reuse list card field: encode net balance as a badge descriptor
           lastTransaction: {
-            amount: lastTransaction.amount,
-            type: lastTransaction.senderId === req.userId ? "owes" : "owed",
+            amount: Math.abs(balance),
+            type: balance > 0 ? "owed" : "owes",
           },
         };
       }),
@@ -138,6 +182,7 @@ router.get("/", async (req, res) => {
         name: request.sender.name,
         avatar: request.sender.avatar,
         email: request.sender.email,
+        username: request.sender.email,
         status: "pending",
         requestId: request.id,
         direction: "incoming",
@@ -148,6 +193,7 @@ router.get("/", async (req, res) => {
         name: request.receiver.name,
         avatar: request.receiver.avatar,
         email: request.receiver.email,
+        username: request.receiver.email,
         status: "pending",
         requestId: request.id,
         direction: "outgoing",
