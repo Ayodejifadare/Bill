@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   ArrowLeft,
   Minus,
@@ -316,10 +316,11 @@ export function SplitBill({
   };
 
   const addGroupMembers = (group: Group) => {
+    const currentId = userProfile?.id ?? currentUser.id;
     const newMembers = group.members.filter(
       (member) =>
-        !participants.some((p) => p.friend.id === member.id) &&
-        availableFriends.some((f) => f.id === member.id),
+        member.id !== currentId &&
+        !participants.some((p) => p.friend.id === member.id),
     );
 
     const newParticipants = newMembers.map((member) => ({
@@ -572,10 +573,17 @@ export function SplitBill({
         description: description || undefined,
         splitMethod,
         groupId: groupId || undefined,
-        // Always send a paymentMethodId; strip any external prefix if present
-        paymentMethodId: selectedPaymentMethod
-          ? String(selectedPaymentMethod.id).replace(/^external-/, "")
-          : undefined,
+        // Send either personal paymentMethodId or groupAccountId based on selection
+        ...(selectedPaymentMethod
+          ? selectedPaymentMethod.isExternal
+            ? {
+                groupAccountId: String(selectedPaymentMethod.id).replace(
+                  /^external-/,
+                  "",
+                ),
+              }
+            : { paymentMethodId: String(selectedPaymentMethod.id) }
+          : {}),
         isRecurring,
         frequency: isRecurring ? recurringFrequency : undefined,
         day:
@@ -1058,7 +1066,7 @@ export function SplitBill({
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Add People</span>
-                {availableFriends.length > 0 && (
+                {groups.length > 0 && (
                   <Button
                     variant="outline"
                     size="sm"
@@ -1079,11 +1087,11 @@ export function SplitBill({
                   </p>
                   <div className="grid grid-cols-1 gap-2">
                     {groups.map((group) => {
+                      const currentId = userProfile?.id ?? currentUser.id;
                       const unselectedMembers = group.members.filter(
                         (member) =>
-                          !participants.some(
-                            (p) => p.friend.id === member.id,
-                          ) && availableFriends.some((f) => f.id === member.id),
+                          member.id !== currentId &&
+                          !participants.some((p) => p.friend.id === member.id),
                       );
 
                       return (
@@ -1383,7 +1391,7 @@ export function SplitBill({
             }
           >
             {submitting ? (
-              "Creatingâ€¦"
+              "Creating..."
             ) : isRecurring ? (
               <>
                 <Repeat className="h-5 w-5 mr-2" />
@@ -1406,13 +1414,17 @@ export function SplitBill({
                 among {participants.length}{" "}
                 {participants.length === 1 ? "person" : "people"}
               </p>
-              /* eslint-disable no-irregular-whitespace */
-              {Math.abs(getTotalSplit() - parseFloat(totalAmount)) > 0.01 && (
-                <p className="text-xs text-destructive mt-1">
-                  âš ï¸ Split amounts don't match total
-                </p>
-              )}
-              /* eslint-enable no-irregular-whitespace */
+              {(() => {
+                const total = parseFloat(totalAmount || "0");
+                const sum = getTotalSplit();
+                const mismatch = total > 0 && Math.abs(sum - total) > 0.01;
+                const shouldWarn = mismatch && (splitMethod !== "equal" || sum > 0);
+                return shouldWarn ? (
+                  <p className="text-xs text-destructive mt-1">
+                    Warning: Split amounts don't match total. Please adjust amounts.
+                  </p>
+                ) : null;
+              })()}
             </div>
           )}
         </div>

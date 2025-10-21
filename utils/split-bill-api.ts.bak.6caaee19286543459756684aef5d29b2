@@ -1,0 +1,93 @@
+﻿// Typed API utilities for SplitBill component with simple in-memory caching
+// to avoid repeated network calls when navigating between screens.
+//
+// These helpers originally returned mocked data with simulated latency. They
+// now call the real API endpoints while preserving the same caching behaviour
+// so navigation between screens doesn't trigger redundant network requests.
+
+import { fetchFriends as fetchFriendsApi, Friend } from "../hooks/useFriends";
+import { apiClient } from "./apiClient";
+
+export interface Group {
+  id: string;
+  name: string;
+  members: Friend[];
+  color: string;
+}
+
+export interface ExternalAccount {
+  id: string;
+  name: string;
+  type: "bank" | "mobile_money";
+  // Bank fields
+  bankName?: string;
+  accountNumber?: string;
+  accountHolderName?: string;
+  sortCode?: string;
+  routingNumber?: string;
+  accountType?: "checking" | "savings";
+  // Mobile money fields
+  provider?: string;
+  phoneNumber?: string;
+  // Metadata
+  isDefault: boolean;
+  createdBy: string;
+  createdDate: string;
+}
+
+// Map backend group member to Friend shape expected by SplitBill
+function mapMemberToFriend(member: any): Friend | null {
+  try {
+    if (!member || typeof member !== "object") return null;
+
+    // Shape 1: { user: { id, name, avatar, phone } }
+    const u = (member as any).user;
+    if (u && typeof u === "object") {
+      const id = (u as any).id != null ? String((u as any).id) : undefined;
+      const name = (u as any).name ?? "Unknown";
+      if (!id) return null;
+      return {
+        id,
+        name,
+        avatar: (u as any).avatar,
+        phoneNumber: (u as any).phone,
+        status: "active",
+      };
+    }
+
+    // Shape 2: { id, name, avatar, phone | phoneNumber }
+    const id = (member as any).id != null ? String((member as any).id) : undefined;
+    const name = (member as any).name ?? "Unknown";
+    if (!id) return null;
+    return {
+      id,
+      name,
+      avatar: (member as any).avatar,
+      phoneNumber: (member as any).phoneNumber || (member as any).phone,
+      status: "active",
+    };
+  } catch {
+    return null;
+  }
+}
+export async function fetchExternalAccounts(
+  groupId: string,
+): Promise<ExternalAccount[]> {
+  if (externalAccountsCache.has(groupId)) {
+    return externalAccountsCache.get(groupId)!;
+  }
+
+  const data = await apiClient(`/groups/${groupId}/accounts`);
+  const accounts: ExternalAccount[] = Array.isArray(data.accounts)
+    ? data.accounts.map((a: any) => ({
+        ...a,
+        createdDate: a.createdDate || a.createdAt,
+      }))
+    : data;
+  externalAccountsCache.set(groupId, accounts);
+  return accounts;
+}
+
+
+
+

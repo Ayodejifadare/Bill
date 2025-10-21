@@ -1,8 +1,3 @@
-﻿
-// Part1
-
-// Part2
-
 // Typed API utilities for SplitBill component with simple in-memory caching
 // to avoid repeated network calls when navigating between screens.
 //
@@ -24,78 +19,102 @@ export interface ExternalAccount {
   id: string;
   name: string;
   type: "bank" | "mobile_money";
+  // Bank fields
   bankName?: string;
   accountNumber?: string;
   accountHolderName?: string;
   sortCode?: string;
   routingNumber?: string;
   accountType?: "checking" | "savings";
+  // Mobile money fields
   provider?: string;
   phoneNumber?: string;
+  // Metadata
   isDefault: boolean;
   createdBy: string;
   createdDate: string;
 }
+
+// Map backend group member to Friend shape expected by SplitBill
 function mapMemberToFriend(member: any): Friend | null {
   try {
-    if (!member || typeof member !== "object") return null;
-    const u = (member as any).user;
-    if (u && typeof u === "object") {
-      const id = (u as any).id != null ? String((u as any).id) : undefined;
-      const name = (u as any).name ?? "Unknown";
-      if (!id) return null;
-      return {
-        id,
-        name,
-        avatar: (u as any).avatar,
-        phoneNumber: (u as any).phone,
-        status: "active",
-      } as Friend;
-    }
-    const id = (member as any).id != null ? String((member as any).id) : undefined;
-    const name = (member as any).name ?? "Unknown";
+    const u = member && typeof member === "object" ? (member as any).user : undefined;
+    if (!u || typeof u !== "object") return null;
+    const id = (u as any).id != null ? String((u as any).id) : undefined;
+    const name = (u as any).name ?? "Unknown";
     if (!id) return null;
     return {
       id,
       name,
-      avatar: (member as any).avatar,
-      phoneNumber: (member as any).phoneNumber || (member as any).phone,
+      avatar: (u as any).avatar,
+      phoneNumber: (u as any).phone,
       status: "active",
-    } as Friend;
+    };
   } catch {
     return null;
   }
 }
 
+// Simple caches to prevent duplicate network calls
 let groupsCache: Group[] | null = null;
 const groupMembersCache = new Map<string, Friend[]>();
+
+// Removed unused helper to satisfy lint: mapGroupMemberToFriend
 const externalAccountsCache = new Map<string, ExternalAccount[]>();
 
 export type { Friend } from "../hooks/useFriends";
-export async function fetchFriends(): Promise<Friend[]> { return fetchFriendsApi(); }
+
+export async function fetchFriends(): Promise<Friend[]> {
+  return fetchFriendsApi();
+}
+
 export async function fetchGroups(): Promise<Group[]> {
   if (groupsCache) return groupsCache;
+
   const data = await apiClient("/groups");
-  const rawGroups = Array.isArray((data as any)?.groups) ? (data as any).groups : Array.isArray(data) ? data : [];
+  const rawGroups = Array.isArray((data as any)?.groups)
+    ? (data as any).groups
+    : Array.isArray(data)
+      ? data
+      : [];
+
   const normalized = await Promise.all(
     rawGroups.map(async (group: any) => {
       const groupId = String(group.id);
-      const members = Array.isArray(group?.members) && group.members.some((member: any) => typeof (member as any)?.id === "string")
-        ? (group.members as Friend[])
-        : await fetchGroupMembers(groupId);
-      return { id: groupId, name: group.name || "Untitled group", members, color: group.color || "bg-blue-500" } as Group;
-    })
+      const members =
+        Array.isArray(group?.members) &&
+        group.members.some(
+          (member: any) => typeof (member as any)?.id === "string",
+        )
+          ? (group.members as Friend[])
+          : await fetchGroupMembers(groupId);
+
+      return {
+        id: groupId,
+        name: group.name || "Untitled group",
+        members,
+        color: group.color || "bg-blue-500",
+      } as Group;
+    }),
   );
+
   groupsCache = normalized;
   return groupsCache;
 }
+
 export async function fetchGroupMembers(groupId: string): Promise<Friend[]> {
-  if (groupMembersCache.has(groupId)) return groupMembersCache.get(groupId)!;
+  if (groupMembersCache.has(groupId)) {
+    return groupMembersCache.get(groupId)!;
+  }
+
   try {
     const data = await apiClient(`/groups/${groupId}`);
     const group = (data as any)?.group ?? data;
-    const list: any[] = Array.isArray(group?.members) ? (group.members as any[]) : [];
-    const members = list.map((member) => mapMemberToFriend(member)).filter((m): m is Friend => Boolean(m));
+    const members = Array.isArray(group?.members)
+      ? (group.members as any[])
+          .map((member) => mapMemberToFriend(member))
+          .filter((member): member is Friend => Boolean(member))
+      : [];
     groupMembersCache.set(groupId, members);
     return members;
   } catch (error) {
@@ -107,11 +126,18 @@ export async function fetchGroupMembers(groupId: string): Promise<Friend[]> {
 export async function fetchExternalAccounts(
   groupId: string,
 ): Promise<ExternalAccount[]> {
-  if (externalAccountsCache.has(groupId)) return externalAccountsCache.get(groupId)!;
+  if (externalAccountsCache.has(groupId)) {
+    return externalAccountsCache.get(groupId)!;
+  }
+
   const data = await apiClient(`/groups/${groupId}/accounts`);
-  const accounts: ExternalAccount[] = Array.isArray((data as any)?.accounts)
-    ? (data as any).accounts.map((a: any) => ({ ...a, createdDate: a.createdDate || a.createdAt }))
-    : (Array.isArray(data) ? data : []);
+  const accounts: ExternalAccount[] = Array.isArray(data.accounts)
+    ? data.accounts.map((a: any) => ({
+        ...a,
+        createdDate: a.createdDate || a.createdAt,
+      }))
+    : data;
   externalAccountsCache.set(groupId, accounts);
   return accounts;
 }
+

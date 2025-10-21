@@ -169,6 +169,7 @@ router.get(
 
       let paymentMethod = null;
       if (billSplit.paymentMethodId) {
+        // Try personal payment method first
         const pm = await req.prisma.paymentMethod.findUnique({
           where: { id: billSplit.paymentMethodId },
         });
@@ -185,7 +186,30 @@ router.get(
             provider: pm.provider,
             phoneNumber: pm.phoneNumber,
             isDefault: pm.isDefault,
+            isExternal: false,
           };
+        } else if (billSplit.groupId) {
+          // Fallback: if this id refers to a GroupAccount, include its details as the destination
+          const ga = await req.prisma.groupAccount.findUnique({
+            where: { id: billSplit.paymentMethodId },
+          });
+          if (ga && ga.groupId === billSplit.groupId) {
+            paymentMethod = {
+              id: ga.id,
+              type: ga.type === "BANK" ? "bank" : "mobile_money",
+              bankName: ga.bank,
+              accountNumber: ga.accountNumber,
+              accountHolderName: ga.accountName,
+              sortCode: ga.sortCode,
+              routingNumber: ga.routingNumber,
+              accountType: ga.accountType,
+              provider: ga.provider,
+              phoneNumber: ga.phoneNumber,
+              isDefault: ga.isDefault,
+              isExternal: true,
+              name: ga.name,
+            };
+          }
         }
       }
 
@@ -418,7 +442,9 @@ router.post(
     body("participants.*.amount").isFloat({ gt: 0 }),
     body("splitMethod").optional().isString(),
     body("groupId").optional().trim(),
+    // Accept either a personal payment method id or a group account id
     body("paymentMethodId").optional().trim(),
+    body("groupAccountId").optional().trim(),
     body("isRecurring").optional().isBoolean(),
     body("frequency").optional().isString(),
     body("day").optional().isInt(),
@@ -450,6 +476,7 @@ router.post(
         splitMethod,
         groupId,
         paymentMethodId,
+        groupAccountId,
         isRecurring = false,
         frequency,
         day,
@@ -488,6 +515,9 @@ router.post(
             ? parseInt(day, 10)
             : day;
 
+      // Normalize receiving account id: prefer explicit personal paymentMethodId, else groupAccountId
+      const receivingAccountId = paymentMethodId || groupAccountId || null;
+
       const billSplit = await req.prisma.$transaction(async (prisma) => {
         const newBillSplit = await prisma.billSplit.create({
           data: {
@@ -497,7 +527,7 @@ router.post(
             createdBy: req.userId,
             ...(splitMethod && { splitMethod }),
             ...(groupId && { groupId }),
-            ...(paymentMethodId && { paymentMethodId }),
+            ...(receivingAccountId && { paymentMethodId: receivingAccountId }),
             isRecurring,
           },
         });
@@ -588,7 +618,9 @@ router.put(
     body("participants.*.id").trim().notEmpty(),
     body("participants.*.amount").isFloat({ gt: 0 }),
     body("splitMethod").isIn(["equal", "percentage", "custom"]),
-    body("paymentMethodId").trim().notEmpty(),
+    // Accept either a personal payment method id or a group account id
+    body("paymentMethodId").optional().trim(),
+    body("groupAccountId").optional().trim(),
     body("location").optional().trim(),
     body("date").optional().isISO8601(),
     body("note").optional().trim(),
@@ -607,6 +639,7 @@ router.put(
         participants,
         splitMethod,
         paymentMethodId,
+        groupAccountId,
         location,
         date,
         note,
@@ -631,6 +664,8 @@ router.put(
         0,
       );
 
+      const receivingAccountId = paymentMethodId || groupAccountId || null;
+
       const billSplit = await req.prisma.$transaction(async (prisma) => {
         // Update bill split record
         await prisma.billSplit.update({
@@ -641,7 +676,7 @@ router.put(
             date: date ? new Date(date) : undefined,
             note,
             splitMethod,
-            paymentMethodId,
+            ...(receivingAccountId && { paymentMethodId: receivingAccountId }),
             totalAmount,
           },
         });
