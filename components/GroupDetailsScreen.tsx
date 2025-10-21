@@ -549,9 +549,16 @@ export function GroupDetailsScreen({
               </Button>
             </div>
 
-            {transactions.length > 0 ? (
+            {
+              (() => {
+                const activityItems = transactions.filter((t: any) => {
+                  const ttype = typeof t?.type === "string" ? t.type : "";
+                  const hasBillId = typeof t?.billSplitId === "string" && t.billSplitId;
+                  return ttype === "bill_split" || Boolean(hasBillId);
+                });
+                return activityItems.length > 0 ? (
               <div className="space-y-2 sm:space-y-3">
-                {transactions.map((transaction, index) => {
+                {activityItems.map((transaction, index) => {
                   const tx = transaction as any;
                   if (!tx || typeof tx !== "object") {
                     return null;
@@ -619,7 +626,7 @@ export function GroupDetailsScreen({
                   </Button>
                 )}
               </div>
-            ) : (
+                ) : (
               <EmptyState
                 icon={Receipt}
                 title="No activity yet"
@@ -627,7 +634,9 @@ export function GroupDetailsScreen({
                 actionLabel="Split First Bill"
                 onAction={handleSplitBill}
               />
-            )}
+                );
+              })()
+            }
           </TabsContent>
 
           {/* Transactions tab: show received inflows as participants pay */}
