@@ -1,0 +1,74 @@
+                        >
+                          Pending
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Help Text */}
+        <Card className="bg-muted/30">
+          <CardContent className="p-4">
+            <h4 className="font-medium mb-3">Need Help?</h4>
+            <ul className="text-sm text-muted-foreground space-y-2">
+              <li>• Make sure to include the payment reference</li>
+              <li>• Double-check the account details before sending</li>
+              <li>• Click "Mark as Sent" after completing the transfer</li>
+              <li>• The bill creator will confirm receipt of your payment</li>
+            </ul>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Fixed Action Buttons at Bottom */}
+      <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border p-4">
+        <div className="max-w-md mx-auto space-y-3">
+          {paymentStatus === "pending" && (
+            <>
+              <Button
+                className="w-full h-12 text-base font-medium"
+                onClick={markAsSent}
+              >
+                <CheckCircle className="h-5 w-5 mr-2" />
+                Mark as Sent
+              </Button>
+              <div className="grid grid-cols-2 gap-3">
+                <Button variant="outline" className="h-12">
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  Open Banking App
+                </Button>
+                <Button
+                  variant="outline"
+                  className="h-12"
+                  onClick={() =>
+                    onNavigate("bill-split-details", { billSplitId: bill.id })
+                  }
+                >
+                  View Bill Details
+                </Button>
+              </div>
+            </>
+          )}
+
+          {paymentStatus === "sent" && (
+            <Button
+              variant="outline"
+              className="w-full h-12"
+              onClick={() =>
+                onNavigate("bill-split-details", { billSplitId: bill.id })
+              }
+            >
+              View Bill Details
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+import { getInitials } from "../utils/name";

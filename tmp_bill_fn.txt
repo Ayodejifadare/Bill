@@ -1,0 +1,40 @@
+import { getInitials } from "../utils/name";
+import { getInitials } from "../utils/name";
+import { getInitials } from "../utils/name";
+import { getInitials } from "../utils/name";
+import { getInitials } from "../utils/name";
+;
+import {
+  ArrowLeft,
+  Building2,
+  Copy,
+  CheckCircle,
+  ExternalLink,
+  Smartphone,
+  Users,
+  DollarSign,
+  AlertTriangle,
+} from "lucide-react";
+import { Button } from "./ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "./ui/card";
+import { Badge } from "./ui/badge";
+import { Avatar, AvatarFallback } from "./ui/avatar";
+import { Separator } from "./ui/separator";
+import { toast } from "sonner";
+import { useUserProfile } from "./UserProfileContext";
+import {
+  requiresRoutingNumber,
+  getBankIdentifierLabel,
+  formatBankAccountForRegion,
+  formatCurrencyForRegion,
+  formatMobileAccountNumberForRegion,
+} from "../utils/regions";
+import { apiClient } from "../utils/apiClient";
+
+interface BillPaymentScreenProps {

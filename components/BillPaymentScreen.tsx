@@ -301,14 +301,17 @@ export function BillPaymentScreen({
   const markAsSent = async () => {
     if (!bill) return;
     try {
-      await apiClient(`/bill-splits/${bill.id}/payments`, {
+      const resp = await apiClient(`/bill-splits/${bill.id}/payments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "SENT" }),
       });
-      setPaymentStatus("sent");
+      const autoConfirmed = Boolean((resp as any)?.autoConfirmed);
+      setPaymentStatus(autoConfirmed ? "confirmed" : "sent");
       toast.success(
-        "Payment marked as sent! We'll update the bill progress.",
+        autoConfirmed
+          ? "Payment confirmed! Your share has been settled."
+          : "Payment marked as sent! We'll update the bill progress.",
       );
 
       try {
@@ -363,6 +366,22 @@ export function BillPaymentScreen({
 
       <div className="px-4 py-6 space-y-6 pb-32">
         {/* Payment Status */}
+        {paymentStatus === "confirmed" && (
+          <Card className="border-success bg-success/5">
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3 text-success">
+                <CheckCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+                <div className="min-w-0 flex-1">
+                  <span className="font-medium">Payment Confirmed!</span>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Your payment has been confirmed and your share is settled.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {paymentStatus === "sent" && (
           <Card className="border-success bg-success/5">
             <CardContent className="p-4">
@@ -669,7 +688,7 @@ export function BillPaymentScreen({
             </>
           )}
 
-          {paymentStatus === "sent" && (
+          {(paymentStatus === "sent" || paymentStatus === "confirmed") && (
             <Button
               variant="outline"
               className="w-full h-12"
