@@ -120,6 +120,11 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
     return 0;
   };
   const selectedCount = getTransactionCount(activityFilter);
+  const filterLabel = (activityFilter === "all"
+    ? "All"
+    : activityFilter === "sent"
+      ? "Sent"
+      : "Received");
 
   // Collapse multiple transaction rows for the same bill split into a single
   // recent-activity item so group splits don’t appear once per participant.
@@ -214,7 +219,6 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
         <UpcomingPayments onNavigate={onNavigate} />
 
         {/* Recent Activity */}
-        {(transactionsLoading || transactionsError || hasCompletedTransactions || !hasAnyTransactions) && (
         <div>
           <div className="flex items-center justify-between mb-4">
             <h3>Recent Activity</h3>
@@ -257,65 +261,81 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
               );
             })}
           </div>
-
-          {/* Empty state when selected tab has zero count, even if others have data */}
-          {!transactionsLoading && !transactionsError && selectedCount === 0 && (
-            <EmptyState
-              icon={DollarSign}
-              title="No transactions found"
-              description={`No ${activityFilter !== "all" ? activityFilter : ""} transactions found`}
-              className="py-8"
-            />
-          )}
-
-          {/* Transactions List */}
-          {(transactionsLoading || transactionsError || hasCompletedTransactions) && selectedCount > 0 && (
-            <div className="space-y-3">
-              {transactionsLoading && (
-                <>
-                  <TransactionSkeleton />
-                  <TransactionSkeleton />
-                  <TransactionSkeleton />
-                </>
-              )}
-              {transactionsError && (
-                <Alert variant="destructive">
-                  <AlertDescription>{transactionsError}</AlertDescription>
-                </Alert>
-              )}
-              {!transactionsLoading &&
-                !transactionsError &&
-                dedupeByBillSplit(transactions)
-                  .filter((t) => t.status === "completed")
-                  .slice(0, 4)
-                  .map((transaction) => (
-                    <TransactionCard
-                      key={transaction.id}
-                      transaction={transaction}
-                      onNavigate={onNavigate}
-                      currencySymbol={currencySymbol}
-                    />
-                  ))}
-            </div>
-          )}
-
-          {!transactionsLoading &&
-            !transactionsError &&
-            dedupeByBillSplit(transactions).filter((t) => t.status === "completed").length > 4 && (
-              <div className="text-center mt-4">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    onNavigate("transaction-history", { from: "home" })
-                  }
-                >
-                  Load More
-                </Button>
-              </div>
+          {/* Content */}
+          <div className="space-y-3">
+            {/* Loading state */}
+            {transactionsLoading && (
+              <>
+                <TransactionSkeleton />
+                <TransactionSkeleton />
+                <TransactionSkeleton />
+              </>
             )}
+
+            {/* Error state */}
+            {transactionsError && (
+              <Alert variant="destructive">
+                <AlertDescription>{transactionsError}</AlertDescription>
+              </Alert>
+            )}
+
+            {/* Empty state when selected tab has zero count, even if others have data */}
+            {!transactionsLoading && !transactionsError && selectedCount === 0 && (
+              <EmptyState
+                icon={DollarSign}
+                title={`No ${filterLabel} transactions yet`}
+                description={undefined}
+                className="py-8"
+              />
+            )}
+
+            {/* Completed Transactions List (only when we have any count for the tab) */}
+            {!transactionsLoading &&
+              !transactionsError &&
+              selectedCount > 0 && (
+                (() => {
+                  const completed = dedupeByBillSplit(transactions).filter(
+                    (t) => t.status === "completed",
+                  );
+                  if (completed.length === 0) {
+                    return (
+                      <EmptyState
+                        icon={DollarSign}
+                        title="No completed transactions yet"
+                        description="Completed activity will appear here"
+                        className="py-8"
+                      />
+                    );
+                  }
+                  return (
+                    <>
+                      {completed.slice(0, 4).map((transaction) => (
+                        <TransactionCard
+                          key={transaction.id}
+                          transaction={transaction}
+                          onNavigate={onNavigate}
+                          currencySymbol={currencySymbol}
+                        />
+                      ))}
+                      {completed.length > 4 && (
+                        <div className="text-center mt-4">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              onNavigate("transaction-history", { from: "home" })
+                            }
+                          >
+                            Load More
+                          </Button>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()
+              )}
+          </div>
         </div>
-        )}
       </div>
     </div>
   );
