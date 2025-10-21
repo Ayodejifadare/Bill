@@ -555,6 +555,8 @@ router.get("/:groupId", authenticate, async (req, res) => {
           { senderId: { in: memberIds } },
           { receiverId: { in: memberIds } },
         ],
+        // Only include transactions that belong to bill splits within this group
+        billSplit: { groupId: group.id },
         AND: [
           { OR: [{ senderId: req.user.id }, { receiverId: req.user.id }] },
           { NOT: { AND: [{ senderId: req.user.id }, { receiverId: req.user.id }] } },

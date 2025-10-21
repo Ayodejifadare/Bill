@@ -27,6 +27,8 @@ router.get("/transactions", async (req, res) => {
         { senderId: { in: memberIds } },
         { receiverId: { in: memberIds } },
       ],
+      // Restrict to transactions tied to bill splits within this group
+      billSplit: { groupId: req.params.groupId },
     };
 
     const where =
