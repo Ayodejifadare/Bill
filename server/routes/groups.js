@@ -10,6 +10,7 @@ import {
   TRANSACTION_STATUS_MAP,
 } from "../../shared/transactions.js";
 import authenticate from "../middleware/auth.js";
+import { requireGroupAdmin } from "../utils/permissions.js";
 
 const COLOR_CLASS_MAP = {
   blue: "bg-blue-500",
@@ -43,43 +44,20 @@ function getInitials(name = "") {
 
 // Helper to format group information with aggregates
 async function formatGroup(prisma, group, userId) {
-  const memberIds = group.members.map((m) => m.userId);
-
+  // NOTE: Group totals should be scoped to the group only.
+  // Sum of bill split totalAmount within this group is the canonical "total spent".
+  // Transactions are tied to bill splits for groups, so we do not sum transactions here
+  // to avoid double counting.
   let totalSpent = 0;
   let lastActive = null;
 
-  if (memberIds.length > 0) {
-    const txAgg = await prisma.transaction.aggregate({
-      where: {
-        OR: [
-          { senderId: { in: memberIds } },
-          { receiverId: { in: memberIds } },
-        ],
-      },
-      _sum: { amount: true },
-      _max: { createdAt: true },
-    });
-
-    totalSpent += txAgg._sum.amount || 0;
-    lastActive = txAgg._max.createdAt;
-
-    const billSplits = await prisma.billSplit.findMany({
-      where: { groupId: group.id },
-      select: {
-        createdAt: true,
-        participants: { select: { amount: true } },
-      },
-    });
-
-    billSplits.forEach((bs) => {
-      bs.participants.forEach((p) => {
-        totalSpent += p.amount;
-      });
-      if (!lastActive || bs.createdAt > lastActive) {
-        lastActive = bs.createdAt;
-      }
-    });
-  }
+  const agg = await prisma.billSplit.aggregate({
+    where: { groupId: group.id },
+    _sum: { totalAmount: true },
+    _max: { createdAt: true },
+  });
+  totalSpent = agg._sum.totalAmount || 0;
+  lastActive = agg._max.createdAt || null;
 
   const pendingBills = userId
     ? await prisma.billSplitParticipant.count({
@@ -147,21 +125,15 @@ router.get("/", authenticate, async (req, res) => {
         const fg = await formatGroup(req.prisma, g, req.user.id);
 
         // Derive a human-friendly recent activity description and a relative lastActive
-        const memberIds = g.members.map((m) => m.userId);
-
-        const [tx] = memberIds.length
-          ? await req.prisma.transaction.findMany({
-              where: {
-                OR: [
-                  { senderId: { in: memberIds } },
-                  { receiverId: { in: memberIds } },
-                ],
-              },
-              orderBy: { createdAt: "desc" },
-              take: 1,
-              select: { createdAt: true, description: true, type: true },
-            })
-          : [];
+        // Only consider transactions tied to bill splits within this group
+        const [tx] = await req.prisma.transaction.findMany({
+          where: {
+            billSplit: { groupId: g.id },
+          },
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: { createdAt: true, description: true, type: true },
+        });
 
         const bill = await req.prisma.billSplit.findFirst({
           where: { groupId: g.id },
@@ -615,6 +587,11 @@ router.get("/:groupId", authenticate, async (req, res) => {
         : "",
     }));
 
+    // Per-current-user summary fields
+    const myBalance = Number(memberBalanceMap.get(userId) || 0);
+    const youAreOwed = myBalance > 0 ? myBalance : 0;
+    const youOwe = myBalance < 0 ? Math.abs(myBalance) : 0;
+
     const response = {
       id: base.id,
       name: base.name,
@@ -633,6 +610,8 @@ router.get("/:groupId", authenticate, async (req, res) => {
       members,
       recentTransactions,
       hasMoreTransactions: hasMore,
+      youAreOwed,
+      youOwe,
     };
 
     res.json({ group: response });
@@ -756,7 +735,8 @@ router.post("/:groupId/potential-members", authenticate, async (req, res) => {
 });
 
 // Invite contacts to group
-router.post("/:groupId/invite", async (req, res) => {
+// Creating invites should require auth + admin privileges
+router.post("/:groupId/invite", authenticate, requireGroupAdmin, async (req, res) => {
   try {
     const { method, contacts = [], contact } = req.body || {};
     const items = contacts.length ? contacts : contact ? [contact] : [];

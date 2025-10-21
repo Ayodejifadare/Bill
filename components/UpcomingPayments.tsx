@@ -6,6 +6,8 @@ import { formatDueDate } from "../utils/formatDueDate";
 import { useUserProfile } from "./UserProfileContext";
 import { formatCurrencyForRegion } from "../utils/regions";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
+import { apiClient } from "../utils/apiClient";
+import { toast } from "sonner";
 
 interface UpcomingPaymentsProps {
   onNavigate: (tab: string, data?: any) => void;
@@ -231,7 +233,7 @@ export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
 
                   <button onClick={(e) => handlePayNow(e, transaction.id)} className="bg-primary h-[44px] py-[10px] rounded-[8px] hover:bg-primary/90 transition-colors w-full">
                     <p className="font-['Inter:Regular',_sans-serif] font-normal leading-[20px] not-italic text-[14px] text-center text-primary-foreground">
-                      Pay Now
+                      {transaction.youOwe ? 'Pay Now' : 'Settle/Remind'}
                     </p>
                   </button>
                 </div>
@@ -310,7 +312,38 @@ export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
                 ) : transaction.type === 'payment' && transaction.isCreator && transaction.billSplitId ? (
                   <>
                     <button
-                      onClick={(e) => { e.stopPropagation(); onNavigate('settlement', { billSplitId: transaction.billSplitId }); }}
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        try {
+                          const id = transaction.billSplitId;
+                          const data = await apiClient(`/bill-splits/${id}`);
+                          const bill = data.billSplit ?? data;
+                          const participants: any[] = Array.isArray(bill?.participants) ? bill.participants : [];
+                          const creatorId: string | undefined = bill?.creator?.id || bill?.createdBy || bill?.creatorId;
+                          const toConfirm = participants
+                            .map((p: any) => ({
+                              userId: p?.userId || p?.user?.id,
+                              paid: typeof p?.isPaid === 'boolean' ? p.isPaid : (typeof p?.paid === 'boolean' ? p.paid : false),
+                            }))
+                            .filter((p: any) => p.userId && !p.paid && (!creatorId || String(p.userId) !== String(creatorId)));
+                          if (toConfirm.length === 0) {
+                            toast.success('All participants already confirmed');
+                          } else {
+                            await Promise.all(
+                              toConfirm.map((p: any) =>
+                                apiClient(`/bill-splits/${id}/confirm-payment`, {
+                                  method: 'POST',
+                                  body: { participantUserId: p.userId },
+                                }),
+                              ),
+                            );
+                            toast.success('All participant payments confirmed');
+                          }
+                          try { window.dispatchEvent(new Event('upcomingPaymentsUpdated')); } catch {}
+                        } catch (err) {
+                          toast.error('Failed to confirm all payments');
+                        }
+                      }}
                       className="flex-1 bg-primary h-[44px] py-[10px] rounded-[8px] hover:bg-primary/90 transition-colors"
                     >
                       <p className="font-['Inter:Regular',_sans-serif] font-normal leading-[20px] not-italic text-[14px] text-center text-primary-foreground">

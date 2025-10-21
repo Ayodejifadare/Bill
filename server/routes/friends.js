@@ -726,6 +726,8 @@ router.get("/:friendId", async (req, res) => {
 
         const txAggregate = await req.prisma.transaction.aggregate({
           where: {
+            // Only consider transactions tied to bill splits within this specific group
+            billSplit: { groupId: g.id },
             OR: [
               { senderId: req.userId, receiverId: friendId },
               { senderId: friendId, receiverId: req.userId },
@@ -738,6 +740,7 @@ router.get("/:friendId", async (req, res) => {
 
         const billSplits = await req.prisma.billSplit.findMany({
           where: {
+            groupId: g.id,
             participants: {
               some: { userId: req.userId },
             },

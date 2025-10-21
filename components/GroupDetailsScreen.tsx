@@ -263,14 +263,11 @@ export function GroupDetailsScreen({
     );
   }
 
-  const totalOwed = group.members.reduce(
-    (sum, member) => sum + Math.max(0, Number(member.balance ?? 0)),
-    0,
-  );
-  const totalOwe = group.members.reduce(
-    (sum, member) => sum + Math.abs(Math.min(0, Number(member.balance ?? 0))),
-    0,
-  );
+  // Per-user summary: "You're Owed" (owed to current user) and "You Owe" (owed by current user)
+  const myMember = group?.members?.find((m) => m.id === userProfile?.id);
+  const myBalance = Number(myMember?.balance ?? 0);
+  const totalOwed = Math.max(0, myBalance);
+  const totalOwe = Math.max(0, -myBalance);
 
   const handleSplitBill = () => {
     if (!group) return;

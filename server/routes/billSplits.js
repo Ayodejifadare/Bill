@@ -702,7 +702,7 @@ router.post(
   [
     authenticateToken,
     param("id").trim().notEmpty(),
-    body("status").optional().isIn(["SENT", "CONFIRMED"]),
+    body("status").optional().isIn(["SENT"]),
   ],
   async (req, res) => {
     const errors = validationResult(req);
@@ -713,6 +713,10 @@ router.post(
     try {
       const { id } = req.params;
       const { status = "SENT" } = req.body;
+      if (status === "CONFIRMED") {
+        // Confirmation must be performed by the creator via confirm-payment endpoint
+        return res.status(400).json({ error: "Use confirm-payment endpoint for confirmations" });
+      }
 
       const participant = await req.prisma.billSplitParticipant.findUnique({
         where: { billSplitId_userId: { billSplitId: id, userId: req.userId } },
@@ -741,68 +745,69 @@ router.post(
         });
         if (billSplit) {
           const amount = participant.amount;
-          // Auto-confirm when the bill's payment method belongs to the creator
+          // Auto-confirm only in the unique case where the current user IS the receiver/creator.
+          // This avoids the extra confirmation step when someone is effectively paying themselves.
           let autoConfirmed = false;
-          if (billSplit.paymentMethodId) {
-            try {
+          try {
+            const isCreator = req.userId === billSplit.createdBy;
+            let pmBelongsToCreator = false;
+            if (billSplit.paymentMethodId) {
               const pm = await req.prisma.paymentMethod.findUnique({
                 where: { id: billSplit.paymentMethodId },
                 select: { userId: true },
               });
-              // Auto-confirm if the selected payment method belongs to either
-              // the bill creator (typical receiving account) OR the current
-              // user (explicit request: auto-confirm when current user id
-              // matches payment method user id).
-              if (pm && (pm.userId === billSplit.createdBy || pm.userId === req.userId)) {
-                await req.prisma.$transaction(async (prisma) => {
-                  // Mark participant as paid/confirmed
-                  await prisma.billSplitParticipant.update({
-                    where: {
-                      billSplitId_userId: { billSplitId: id, userId: req.userId },
-                    },
-                    data: { isPaid: true, status: "CONFIRMED" },
+              pmBelongsToCreator = !!pm && pm.userId === billSplit.createdBy;
+            }
+
+            if (isCreator && (!billSplit.paymentMethodId || pmBelongsToCreator)) {
+              await req.prisma.$transaction(async (prisma) => {
+                // Mark participant (the creator in this unique case) as paid/confirmed
+                await prisma.billSplitParticipant.update({
+                  where: {
+                    billSplitId_userId: { billSplitId: id, userId: req.userId },
+                  },
+                  data: { isPaid: true, status: "CONFIRMED" },
+                });
+                // If sender and receiver are different users (shouldn't be in this branch), handle balances/tx
+                if (req.userId !== billSplit.createdBy) {
+                  await prisma.user.update({
+                    where: { id: req.userId },
+                    data: { balance: { decrement: amount } },
                   });
-                  // If sender and receiver are different users, move balances and record transaction
-                  if (req.userId !== billSplit.createdBy) {
-                    await prisma.user.update({
-                      where: { id: req.userId },
-                      data: { balance: { decrement: amount } },
-                    });
-                    await prisma.user.update({
-                      where: { id: billSplit.createdBy },
-                      data: { balance: { increment: amount } },
-                    });
-                    // Avoid duplicate transactions
-                    const existing = await prisma.transaction.findFirst({
-                      where: {
+                  await prisma.user.update({
+                    where: { id: billSplit.createdBy },
+                    data: { balance: { increment: amount } },
+                  });
+                  // Avoid duplicate transactions
+                  const existing = await prisma.transaction.findFirst({
+                    where: {
+                      billSplitId: id,
+                      senderId: req.userId,
+                      receiverId: billSplit.createdBy,
+                      type: "BILL_SPLIT",
+                      status: "COMPLETED",
+                    },
+                  });
+                  if (!existing) {
+                    await prisma.transaction.create({
+                      data: {
                         billSplitId: id,
                         senderId: req.userId,
                         receiverId: billSplit.createdBy,
+                        amount,
+                        description: `Settlement for ${billSplit.title}`,
                         type: "BILL_SPLIT",
                         status: "COMPLETED",
                       },
                     });
-                    if (!existing) {
-                      await prisma.transaction.create({
-                        data: {
-                          billSplitId: id,
-                          senderId: req.userId,
-                          receiverId: billSplit.createdBy,
-                          amount,
-                          description: `Settlement for ${billSplit.title}`,
-                          type: "BILL_SPLIT",
-                          status: "COMPLETED",
-                        },
-                      });
-                    }
                   }
-                });
-                autoConfirmed = true;
-                autoConfirmedResponse = true;
-              }
-            } catch {
-              /* ignore auto-confirm failure */
+                }
+              });
+              autoConfirmed = true;
+              autoConfirmedResponse = true;
             }
+          } catch {
+            /* ignore auto-confirm failure */
           }
           if (!autoConfirmed && billSplit.createdBy !== req.userId) {
           // Find existing pending SEND for this participant and bill split

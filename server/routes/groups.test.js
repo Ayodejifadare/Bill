@@ -268,14 +268,21 @@ describe("Group join/leave routes", () => {
       ],
     });
 
-    await prisma.transaction.create({
+    // Create a bill split within the group to drive group-scoped totals
+    const bill = await prisma.billSplit.create({
       data: {
-        senderId: "user1",
-        receiverId: "user2",
-        amount: 10,
-        type: "SEND",
-        status: "COMPLETED",
+        title: "Test Split",
+        totalAmount: 10,
+        createdBy: "user1",
+        groupId,
+        status: "PENDING",
       },
+    });
+    await prisma.billSplitParticipant.createMany({
+      data: [
+        { billSplitId: bill.id, userId: "user1", amount: 5, isPaid: true },
+        { billSplitId: bill.id, userId: "user2", amount: 5, isPaid: false },
+      ],
     });
 
     const res = await request(app)
