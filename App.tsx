@@ -25,6 +25,49 @@ import { saveAuth, loadAuth, clearAuth } from "./utils/auth";
 import { apiClient } from "./utils/apiClient";
 import { authService } from "./services/auth";
 import { resolveRegionForSignup } from "./utils/regions";
+// Simple hash-based deep-linking utilities
+function encodeHash(tab: string, data?: any): string {
+  try {
+    const p = new URLSearchParams();
+    p.set("tab", tab);
+    if (data) {
+      if (data.groupId) p.set("groupId", String(data.groupId));
+      if (data.billSplitId) p.set("billSplitId", String(data.billSplitId));
+      if (data.billId) p.set("billId", String(data.billId));
+      if (data.transactionId) p.set("transactionId", String(data.transactionId));
+      if (data.friendId) p.set("friendId", String(data.friendId));
+      if (data.from) p.set("from", String(data.from));
+    }
+    const s = p.toString();
+    return s ? `#${s}` : "";
+  } catch {
+    return `#tab=${encodeURIComponent(tab)}`;
+  }
+}
+
+function parseHash(): { tab?: string; data: any } {
+  try {
+    const h = (window.location.hash || "").replace(/^#/, "");
+    const p = new URLSearchParams(h);
+    const tab = p.get("tab") || undefined;
+    const data: any = {};
+    const groupId = p.get("groupId");
+    const billSplitId = p.get("billSplitId");
+    const billId = p.get("billId");
+    const transactionId = p.get("transactionId");
+    const friendId = p.get("friendId");
+    const from = p.get("from");
+    if (groupId) data.groupId = groupId;
+    if (billSplitId) data.billSplitId = billSplitId;
+    if (billId) data.billId = billId;
+    if (transactionId) data.transactionId = transactionId;
+    if (friendId) data.friendId = friendId;
+    if (from) data.from = from;
+    return { tab, data };
+  } catch {
+    return { data: {} };
+  }
+}
 
 // Lazy load components for code splitting
 import { HomeScreen } from "./components/HomeScreen";
@@ -508,6 +551,26 @@ function AppContent() {
     checkAuthStatus();
   }, []);
 
+  // Restore navigation state from URL hash after authentication
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const { tab, data } = parseHash();
+    if (tab) {
+      // Use a microtask to ensure reducer is ready
+      Promise.resolve().then(() => handleNavigate(tab, data));
+    }
+
+    // Listen for back/forward navigation via hash changes
+    const onHashChange = () => {
+      const { tab: t, data: d } = parseHash();
+      if (t) {
+        handleNavigate(t, d);
+      }
+    };
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, [isAuthenticated, handleNavigate]);
+
   // Keep primary tabs mounted to avoid refetch/reload on quick navigation
   useEffect(() => {
     if (!isAuthenticated) {
@@ -696,6 +759,12 @@ function AppContent() {
         }
 
         dispatch({ type: "SET_TAB", payload: tab });
+
+        // Update hash to reflect current screen for refresh/back support
+        const nextHash = encodeHash(tab, data);
+        if (window.location.hash !== nextHash) {
+          window.location.hash = nextHash;
+        }
 
         performance.mark("navigation-end");
         performance.measure(

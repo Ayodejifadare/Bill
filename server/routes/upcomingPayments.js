@@ -66,6 +66,63 @@ router.get("/upcoming-payments", authenticate, async (req, res) => {
       };
     });
 
+    // As creator: include bill splits where you've already paid your share
+    // but other participants are still unpaid. Keep them in the Pending view
+    // so you can settle funds or remind others.
+    const createdUnsettled = await req.prisma.billSplit.findMany({
+      where: {
+        createdBy: userId,
+        // creator's own participant has paid
+        participants: {
+          some: { userId, isPaid: true },
+        },
+        // at least one other participant still unpaid
+        AND: [
+          {
+            participants: {
+              some: { isPaid: false },
+            },
+          },
+        ],
+      },
+      include: {
+        creator: { select: { id: true, name: true, email: true, avatar: true } },
+        participants: {
+          include: {
+            user: { select: { id: true, name: true, email: true, avatar: true } },
+          },
+        },
+      },
+    });
+
+    const creatorPayments = createdUnsettled.map((split) => {
+      const dueDate = split.date || split.createdAt;
+      const outstanding = split.participants
+        .filter((part) => !part.isPaid)
+        .reduce((sum, part) => sum + (Number(part.amount) || 0), 0);
+      return {
+        id: split.id,
+        type: "bill_split",
+        title: split.title,
+        // For creators, show total outstanding amount remaining to collect
+        amount: outstanding,
+        dueDate: new Date(dueDate).toISOString(),
+        status: classifyStatus(dueDate),
+        organizer: split.creator,
+        participants: split.participants.map((part) => ({
+          id: part.user.id,
+          name: part.user.name,
+          email: part.user.email,
+          avatar: part.user.avatar,
+          amount: part.amount,
+          isPaid: part.isPaid,
+        })),
+        billSplitId: split.id,
+        paymentMethod: split.paymentMethodId || null,
+        isCreator: true,
+      };
+    });
+
     // Accepted request transactions are not included; users pay direct requests without acceptance.
 
     // Direct pending payment requests (before acceptance)
@@ -128,6 +185,7 @@ router.get("/upcoming-payments", authenticate, async (req, res) => {
 
     let payments = [
       ...billPayments,
+      ...creatorPayments,
       ...directRequestPayments,
       ...directRequestPaymentsSent,
     ];

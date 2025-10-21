@@ -139,6 +139,10 @@ export function BillsScreen({ onNavigate, groupId }: BillsScreenProps) {
               you &&
               you.paid === false &&
               bill.yourShare > 0;
+            const isCreator = bill.createdBy === "You";
+            const hasUnpaidOthers = bill.participants.some(
+              (p: any) => !p.paid && p.name !== "You",
+            );
             return (
               <Card
                 key={bill.id}
@@ -224,7 +228,73 @@ export function BillsScreen({ onNavigate, groupId }: BillsScreenProps) {
                   <div className="flex gap-2 pt-2">
                     {bill.status === "pending" && (
                       <>
-                        {you && (you.paid || (you as any)?.status === "sent") ? (
+                        {isCreator && you?.paid ? (
+                          <>
+                            <Button
+                              size="sm"
+                              className="flex-1"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onNavigate("settlement", { billSplitId: bill.id });
+                              }}
+                            >
+                              Settle
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const unpaidParticipants = bill.participants.filter(
+                                  (p) => !p.paid && p.name !== "You",
+                                );
+                                if (unpaidParticipants.length > 0) {
+                                  onNavigate("send-reminder", {
+                                    billSplitId: bill.id,
+                                    paymentType: "bill-split",
+                                  });
+                                } else {
+                                  toast.info("All participants have already paid");
+                                }
+                              }}
+                            >
+                              Remind Others
+                            </Button>
+                          </>
+                        ) : requiresYourPayment ? (
+                          <>
+                            <Button
+                              size="sm"
+                              className="flex-1"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onNavigate("pay-bill", { billId: bill.id });
+                              }}
+                            >
+                              Pay {fmt(bill.yourShare)}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const unpaidParticipants = bill.participants.filter(
+                                  (p) => !p.paid && p.name !== "You",
+                                );
+                                if (unpaidParticipants.length > 0) {
+                                  onNavigate("send-reminder", {
+                                    billSplitId: bill.id,
+                                    paymentType: "bill-split",
+                                  });
+                                } else {
+                                  toast.info("All participants have already paid");
+                                }
+                              }}
+                            >
+                              Remind Others
+                            </Button>
+                          </>
+                        ) : (
                           <Button
                             size="sm"
                             variant="outline"
@@ -238,38 +308,7 @@ export function BillsScreen({ onNavigate, groupId }: BillsScreenProps) {
                             <Copy className="h-3 w-3" />
                             Reuse
                           </Button>
-                        ) : (
-                          <Button
-                            size="sm"
-                            className="flex-1"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onNavigate("pay-bill", { billId: bill.id });
-                            }}
-                          >
-                            Pay {fmt(bill.yourShare)}
-                          </Button>
                         )}
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const unpaidParticipants = bill.participants.filter(
-                              (p) => !p.paid && p.name !== "You",
-                            );
-                            if (unpaidParticipants.length > 0) {
-                              onNavigate("send-reminder", {
-                                billSplitId: bill.id,
-                                paymentType: "bill-split",
-                              });
-                            } else {
-                              toast.info("All participants have already paid");
-                            }
-                          }}
-                        >
-                          Remind Others
-                        </Button>
                       </>
                     )}
 

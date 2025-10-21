@@ -39,6 +39,22 @@ export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
       const participants = Array.isArray(p.participants) ? p.participants : [];
       const total = participants.length || (typeof p.participants === "number" ? p.participants : 0);
       const paid = participants.filter((x: any) => x?.isPaid).length;
+      // Determine if current user still owes for this item
+      let youOwe = false;
+      if (p.type === "bill_split") {
+        if ((p as any).isCreator) {
+          youOwe = false;
+        } else if (Array.isArray(p.participants)) {
+          const you = participants.find((x: any) =>
+            x?.id === userProfile?.id || x?.userId === userProfile?.id || x?.name === "You",
+          );
+          youOwe = Boolean(you && you.isPaid === false);
+        }
+      } else if (p.type === "request") {
+        youOwe = (p as any).receiverId && userProfile?.id
+          ? String((p as any).receiverId) === String(userProfile.id)
+          : false;
+      }
       return {
         id: p.id,
         type: p.type === "bill_split" ? "payment" : "request",
@@ -52,12 +68,14 @@ export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
         date: formatDueDate(p.dueDate),
         isOverdue: p.status === "overdue",
         billSplitId: p.billSplitId,
+        isCreator: Boolean((p as any).isCreator),
         // For direct pending requests, server returns requestId=null; keep it null here
         // to ensure the payment flow uses direct mark-paid endpoint.
         requestId: p.requestId ?? null,
         organizerId: p.organizer?.id,
         senderId: (p as any).senderId,
         receiverId: (p as any).receiverId,
+        youOwe,
       } as any;
     });
 
@@ -107,24 +125,61 @@ export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
         {transactions.slice(0, 2).map((transaction: any) => {
           const percentage = transaction.total > 0 ? Math.round((transaction.paid / transaction.total) * 100) : 0;
 
-          const handlePayNow = (id: string) => {
+          const handlePayNow = (e: React.MouseEvent, id: string) => {
+            e.stopPropagation();
             if (transaction.billSplitId) {
               onNavigate("pay-bill", { billId: transaction.billSplitId });
             }
           };
-          const handleCancel = (id: string) => {
+          const handleCancel = (e: React.MouseEvent, id: string) => {
+            e.stopPropagation();
             onNavigate("payment-request-cancel", { requestId: transaction.requestId || id });
           };
-          const handleRemind = (id: string) => {
+          const handleRemind = (e: React.MouseEvent, id: string) => {
+            e.stopPropagation();
             onNavigate("send-reminder", { to: transaction.organizerId || transaction.name, requestId: transaction.requestId || id });
           };
 
           // Requester is the original sender of the request (not the organizer in our UI)
           const isRequester = Boolean(transaction.senderId && userProfile?.id === transaction.senderId);
 
+          const handleCardClick = () => {
+            if (transaction.type === 'payment' && transaction.billSplitId) {
+              if (transaction.youOwe) {
+                onNavigate('pay-bill', { billId: transaction.billSplitId });
+              } else {
+                onNavigate('bill-split-details', { billSplitId: transaction.billSplitId });
+              }
+              return;
+            }
+            // request card
+            if (transaction.type === 'request') {
+              if (transaction.youOwe) {
+                onNavigate('payment-flow', {
+                  paymentRequest: {
+                    id: `upcoming-${transaction.id}`,
+                    amount: transaction.amount,
+                    description: transaction.description,
+                    recipient: transaction.name,
+                    recipientId: transaction.organizerId || transaction.name,
+                    requestId: transaction.requestId || undefined,
+                    directRequestId:
+                      !transaction.requestId ? String(transaction.id) : undefined,
+                  },
+                });
+              } else if (transaction.requestId) {
+                onNavigate('transaction-details', { transactionId: transaction.requestId });
+              }
+            }
+          };
+
           if (transaction.type === 'payment') {
             return (
-              <div key={transaction.id} className="bg-card box-border flex flex-col gap-[16px] pb-[20px] pl-[20px] pr-[20px] pt-[20px] relative rounded-[16px] shrink-0 w-full">
+              <div
+                key={transaction.id}
+                onClick={handleCardClick}
+                className="bg-card box-border flex flex-col gap-[16px] pb-[20px] pl-[20px] pr-[20px] pt-[20px] relative rounded-[16px] shrink-0 w-full cursor-pointer hover:bg-muted/50 transition-colors"
+              >
                 <div aria-hidden="true" className="absolute border-[1.268px] border-border border-solid inset-0 pointer-events-none rounded-[16px]" />
                 
                 <div className="flex gap-[12px] items-start">
@@ -174,7 +229,7 @@ export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
                     <div className="absolute top-0 bg-foreground h-[6px] rounded-l-[9999px]" style={{ width: `${percentage}%` }} />
                   </div>
 
-                  <button onClick={() => handlePayNow(transaction.id)} className="bg-primary h-[44px] py-[10px] rounded-[8px] hover:bg-primary/90 transition-colors w-full">
+                  <button onClick={(e) => handlePayNow(e, transaction.id)} className="bg-primary h-[44px] py-[10px] rounded-[8px] hover:bg-primary/90 transition-colors w-full">
                     <p className="font-['Inter:Regular',_sans-serif] font-normal leading-[20px] not-italic text-[14px] text-center text-primary-foreground">
                       Pay Now
                     </p>
@@ -186,7 +241,11 @@ export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
 
           // Request card
           return (
-            <div key={transaction.id} className="bg-card box-border flex flex-col gap-[16px] pb-[20px] pl-[20px] pr-[20px] pt-[20px] relative rounded-[16px] shrink-0 w-full">
+            <div
+              key={transaction.id}
+              onClick={handleCardClick}
+              className="bg-card box-border flex flex-col gap-[16px] pb-[20px] pl-[20px] pr-[20px] pt-[20px] relative rounded-[16px] shrink-0 w-full cursor-pointer hover:bg-muted/50 transition-colors"
+            >
               <div aria-hidden="true" className="absolute border-[1.268px] border-border border-solid inset-0 pointer-events-none rounded-[16px]" />
               
               <div className="flex gap-[12px] items-start">
@@ -237,37 +296,57 @@ export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
               <div className="flex gap-[12px] flex-1 ml-[54px]">
                 {isRequester ? (
                   <>
-                    <button onClick={() => handleCancel(transaction.id)} className="flex-1 bg-background border border-solid border-border h-[44px] py-[10px] rounded-[8px] hover:bg-muted transition-colors">
+                    <button onClick={(e) => handleCancel(e, transaction.id)} className="flex-1 bg-background border border-solid border-border h-[44px] py-[10px] rounded-[8px] hover:bg-muted transition-colors">
                       <p className="font-['Inter:Regular',_sans-serif] font-normal leading-[20px] not-italic text-[14px] text-center text-foreground">
                         Cancel
                       </p>
                     </button>
-                    <button onClick={() => handleRemind(transaction.id)} className="flex-1 bg-primary h-[44px] py-[10px] rounded-[8px] hover:bg-primary/90 transition-colors">
+                    <button onClick={(e) => handleRemind(e, transaction.id)} className="flex-1 bg-primary h-[44px] py-[10px] rounded-[8px] hover:bg-primary/90 transition-colors">
                       <p className="font-['Inter:Regular',_sans-serif] font-normal leading-[20px] not-italic text-[14px] text-center text-primary-foreground">
+                        Remind
+                      </p>
+                    </button>
+                  </>
+                ) : transaction.type === 'payment' && transaction.isCreator && transaction.billSplitId ? (
+                  <>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onNavigate('settlement', { billSplitId: transaction.billSplitId }); }}
+                      className="flex-1 bg-primary h-[44px] py-[10px] rounded-[8px] hover:bg-primary/90 transition-colors"
+                    >
+                      <p className="font-['Inter:Regular',_sans-serif] font-normal leading-[20px] not-italic text-[14px] text-center text-primary-foreground">
+                        Settle
+                      </p>
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onNavigate('send-reminder', { billSplitId: transaction.billSplitId, paymentType: 'bill_split' }); }}
+                      className="flex-1 bg-background border border-solid border-border h-[44px] py-[10px] rounded-[8px] hover:bg-muted transition-colors"
+                    >
+                      <p className="font-['Inter:Regular',_sans-serif] font-normal leading-[20px] not-italic text-[14px] text-center text-foreground">
                         Remind
                       </p>
                     </button>
                   </>
                 ) : (
                   <button
-                    onClick={() =>
-                onNavigate("payment-flow", {
-                  paymentRequest: {
-                    id: `upcoming-${transaction.id}`,
-                    amount: transaction.amount,
-                    description: transaction.description,
-                    recipient: transaction.name,
-                    recipientId: transaction.organizerId || transaction.name,
-                    // If this is a transaction-backed request it will carry a requestId (now deprecated in list)
-                    requestId: transaction.requestId || undefined,
-                    // For direct pending requests, use the direct request id for mark-paid
-                    directRequestId:
-                      transaction.type === "request" && !transaction.requestId
-                        ? String(transaction.id)
-                        : undefined,
-                  },
-                })
-                    }
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onNavigate("payment-flow", {
+                        paymentRequest: {
+                          id: `upcoming-${transaction.id}`,
+                          amount: transaction.amount,
+                          description: transaction.description,
+                          recipient: transaction.name,
+                          recipientId: transaction.organizerId || transaction.name,
+                          // If this is a transaction-backed request it will carry a requestId (now deprecated in list)
+                          requestId: transaction.requestId || undefined,
+                          // For direct pending requests, use the direct request id for mark-paid
+                          directRequestId:
+                            transaction.type === "request" && !transaction.requestId
+                              ? String(transaction.id)
+                              : undefined,
+                        },
+                      });
+                    }}
                     className="flex-1 bg-primary h-[44px] py-[10px] rounded-[8px] hover:bg-primary/90 transition-colors"
                   >
                     <p className="font-['Inter:Regular',_sans-serif] font-normal leading-[20px] not-italic text-[14px] text-center text-primary-foreground">
