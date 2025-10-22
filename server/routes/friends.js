@@ -714,10 +714,44 @@ router.get("/:friendId", async (req, res) => {
     // Base balance from direct send/receive transactions only (exclude bill splits to avoid double counting)
     let balance = 0;
     transactionsData.forEach((t) => {
-      if (t.type !== "BILL_SPLIT") {
+      if (t.type !== "BILL_SPLIT" && t.status === "COMPLETED") {
         if (t.receiverId === req.userId) balance += t.amount;
         if (t.senderId === req.userId) balance -= t.amount;
       }
+    });
+
+    // Include outstanding direct payment requests between these two users (PENDING only)
+    const pendingRequests = await req.prisma.paymentRequest.findMany({
+      where: {
+        status: "PENDING",
+        OR: [
+          { senderId: req.userId, receiverId: friendId },
+          { senderId: friendId, receiverId: req.userId },
+        ],
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    // Adjust balance for pending requests: requests you sent increase balance (they owe you),
+    // requests they sent decrease balance (you owe them)
+    pendingRequests.forEach((r) => {
+      if (r.senderId === req.userId) balance += r.amount;
+      else balance -= r.amount;
+    });
+
+    // Project pending requests into transaction-like entries so they are visible in the UI
+    pendingRequests.forEach((r) => {
+      const youAreRequester = r.senderId === req.userId;
+      transactions.push({
+        id: `req_${r.id}`,
+        amount: r.amount,
+        description: r.description || "Payment request",
+        date: r.createdAt,
+        type: "request",
+        status: "pending",
+        sender: youAreRequester ? { name: "You" } : { name: friendUser.name, avatar: friendUser.avatar },
+        recipient: youAreRequester ? { name: friendUser.name, avatar: friendUser.avatar } : { name: "You" },
+      });
     });
 
     // Add outstanding bill-split obligations between these two users
@@ -743,6 +777,54 @@ router.get("/:friendId", async (req, res) => {
     const splitUserOwes = userOwesFriend._sum.amount || 0;
     balance += splitOwedToUser;
     balance -= splitUserOwes;
+
+    // Also surface each outstanding bill split share as a visible transaction-like entry
+    const [unpaidFromFriend, unpaidFromYou] = await req.prisma.$transaction([
+      req.prisma.billSplitParticipant.findMany({
+        where: {
+          userId: friendId,
+          isPaid: false,
+          billSplit: { createdBy: req.userId },
+        },
+        include: { billSplit: { select: { id: true, title: true, createdAt: true } } },
+        orderBy: { createdAt: "desc" },
+      }),
+      req.prisma.billSplitParticipant.findMany({
+        where: {
+          userId: req.userId,
+          isPaid: false,
+          billSplit: { createdBy: friendId },
+        },
+        include: { billSplit: { select: { id: true, title: true, createdAt: true } } },
+        orderBy: { createdAt: "desc" },
+      }),
+    ]);
+
+    unpaidFromFriend.forEach((p) => {
+      transactions.push({
+        id: `bs_${p.billSplit.id}_${p.userId}`,
+        amount: p.amount,
+        description: `Share for ${p.billSplit.title}`,
+        date: p.billSplit.createdAt,
+        type: "bill_split",
+        status: "pending",
+        // Show the friend as the counterparty for clarity
+        recipient: { name: friendUser.name, avatar: friendUser.avatar },
+      });
+    });
+
+    unpaidFromYou.forEach((p) => {
+      transactions.push({
+        id: `bs_${p.billSplit.id}_${p.userId}`,
+        amount: p.amount,
+        description: `Share for ${p.billSplit.title}`,
+        date: p.billSplit.createdAt,
+        type: "bill_split",
+        status: "pending",
+        // Show the friend as the counterparty for clarity
+        recipient: { name: friendUser.name, avatar: friendUser.avatar },
+      });
+    });
 
     let currentBalance = null;
     if (balance > 0) currentBalance = { amount: balance, type: "owed" };
@@ -824,6 +906,9 @@ router.get("/:friendId", async (req, res) => {
         };
       }),
     );
+
+    // Ensure combined list is sorted by date descending
+    transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
 
     const method = await req.prisma.paymentMethod.findFirst({
       where: { userId: friendUser.id, isDefault: true },

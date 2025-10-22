@@ -212,6 +212,16 @@ export function FriendProfileScreen({
     onNavigate("group-details", { groupId });
   };
 
+  // Derive filtered views per tab requirements
+  const activityTransactions = transactions.filter(
+    (t) =>
+      (t.type === "sent" || t.type === "received") && t.status === "completed",
+  );
+
+  const billTransactions = transactions.filter(
+    (t) => t.type === "bill_split" || t.type === "split",
+  );
+
   return (
     <div className="min-h-screen">
       {/* Static Header */}
@@ -433,9 +443,9 @@ export function FriendProfileScreen({
           </TabsList>
 
           <TabsContent value="activity" className="space-y-4 mt-4">
-            {transactions.length > 0 ? (
+            {activityTransactions.length > 0 ? (
               <div className="space-y-3">
-                {transactions.map((transaction) => (
+                {activityTransactions.map((transaction) => (
                   <TransactionCard
                     key={transaction.id}
                     transaction={transaction}
@@ -446,7 +456,7 @@ export function FriendProfileScreen({
             ) : (
               <div className="text-center py-8">
                 <Receipt className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-                <p className="text-muted-foreground">No transactions yet</p>
+                <p className="text-muted-foreground">No completed transfers yet</p>
                 <p className="text-sm text-muted-foreground">
                   Start by sending money or splitting a bill!
                 </p>
@@ -455,28 +465,20 @@ export function FriendProfileScreen({
           </TabsContent>
 
           <TabsContent value="shared" className="space-y-4 mt-4">
-            {transactions.filter(
-              (t) => t.type === "split" || t.type === "bill_split",
-            ).length > 0 ? (
+            {billTransactions.length > 0 ? (
               <div className="space-y-3">
-                {transactions
-                  .filter(
-                    (transaction) =>
-                      transaction.type === "split" ||
-                      transaction.type === "bill_split",
-                  )
-                  .map((transaction) => (
-                    <TransactionCard
-                      key={transaction.id}
-                      transaction={transaction}
-                      onNavigate={onNavigate}
-                    />
-                  ))}
+                {billTransactions.map((transaction) => (
+                  <TransactionCard
+                    key={transaction.id}
+                    transaction={transaction}
+                    onNavigate={onNavigate}
+                  />
+                ))}
               </div>
             ) : (
               <div className="text-center py-8">
                 <Receipt className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-                <p className="text-muted-foreground">No shared bills yet</p>
+                <p className="text-muted-foreground">No bill payments yet</p>
                 <p className="text-sm text-muted-foreground">
                   Split your first bill together!
                 </p>
