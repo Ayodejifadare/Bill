@@ -252,7 +252,7 @@ export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
                         className="flex-1 bg-background border border-solid border-border h-[44px] py-[10px] rounded-[8px] hover:bg-muted transition-colors"
                       >
                         <p className="font-['Inter:Regular',_sans-serif] font-normal leading-[20px] not-italic text-[14px] text-center text-foreground">
-                          Cancel
+                          Settle
                         </p>
                       </button>
                       <button
@@ -343,7 +343,7 @@ export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
                   <>
                     <button onClick={(e) => handleCancel(e, transaction.id)} className="flex-1 bg-background border border-solid border-border h-[44px] py-[10px] rounded-[8px] hover:bg-muted transition-colors">
                       <p className="font-['Inter:Regular',_sans-serif] font-normal leading-[20px] not-italic text-[14px] text-center text-foreground">
-                        Cancel
+                        Settle
                       </p>
                     </button>
                     <button onClick={(e) => handleRemind(e, transaction.id)} className="flex-1 bg-primary h-[44px] py-[10px] rounded-[8px] hover:bg-primary/90 transition-colors">

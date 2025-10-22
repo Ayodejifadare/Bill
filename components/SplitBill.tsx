@@ -120,6 +120,41 @@ export function SplitBill({
   // Personal payment methods fetched from API
   const [personalMethods, setPersonalMethods] = useState<PaymentMethod[]>([]);
 
+  // Safely parse currency input strings like "10,000" -> 10000
+  const parseAmountValue = (v: string): number => {
+    if (!v) return 0;
+    const normalized = String(v).replace(/,/g, "").trim();
+    const n = parseFloat(normalized);
+    return isNaN(n) ? 0 : n;
+  };
+
+  // Round to currency cents to avoid floating errors
+  const roundToCents = (n: number): number => {
+    return Math.round(Number(n) * 100) / 100;
+  };
+
+  // Format a numeric string with thousands separators while typing
+  const formatWithCommas = (raw: string): string => {
+    if (!raw) return "";
+    // Keep only digits and at most one decimal point
+    const cleaned = raw.replace(/[^\d.]/g, "");
+    const parts = cleaned.split(".");
+    const intRaw = parts[0] || "";
+    const decRaw = parts.slice(1).join(""); // merge any extra dots
+
+    // Add commas to integer part
+    const intFormatted = intRaw.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+
+    // Preserve a trailing dot if user just typed it
+    if (cleaned.endsWith(".") && decRaw.length === 0) {
+      return intFormatted + ".";
+    }
+
+    // Limit to 2 decimals for currency
+    const dec = decRaw ? decRaw.slice(0, 2) : "";
+    return dec ? `${intFormatted}.${dec}` : intFormatted;
+  };
+
   // Safe initials helper to avoid runtime errors when name is missing
   const getInitials = (name?: string) => {
     const parts = (name || "").trim().split(/\s+/).filter(Boolean);
@@ -376,8 +411,11 @@ export function SplitBill({
     }
   };
 
-  const calculateEqualSplit = (participantsList: SplitParticipant[]) => {
-    const total = parseFloat(totalAmount) || 0;
+  const calculateEqualSplit = (
+    participantsList: SplitParticipant[],
+    overrideTotal?: number,
+  ) => {
+    const total = (overrideTotal !== undefined ? overrideTotal : parseAmountValue(totalAmount)) || 0;
     if (participantsList.length === 0) return; // Prevent division by zero
 
     const totalCents = Math.round(total * 100);
@@ -409,13 +447,13 @@ export function SplitBill({
   };
 
   const updateParticipantAmount = (friendId: string, amount: number) => {
-    const total = parseFloat(totalAmount) || 1; // Prevent division by zero
+    const total = parseAmountValue(totalAmount) || 1; // Prevent division by zero
     setParticipants(
       participants.map((p) =>
         p.friend.id === friendId
           ? {
               ...p,
-              amount: isNaN(amount) ? 0 : amount,
+              amount: isNaN(amount) ? 0 : roundToCents(amount),
               percentage: (amount / total) * 100,
             }
           : p,
@@ -427,7 +465,7 @@ export function SplitBill({
     friendId: string,
     percentage: number,
   ) => {
-    const total = parseFloat(totalAmount) || 0;
+    const total = parseAmountValue(totalAmount) || 0;
     const safePercentage = isNaN(percentage)
       ? 0
       : Math.max(0, Math.min(100, percentage)); // Clamp between 0-100
@@ -437,7 +475,7 @@ export function SplitBill({
           ? {
               ...p,
               percentage: safePercentage,
-              amount: (safePercentage / 100) * total,
+              amount: roundToCents((safePercentage / 100) * total),
             }
           : p,
       ),
@@ -483,15 +521,17 @@ export function SplitBill({
   };
 
   const handleTotalAmountChange = (value: string) => {
-    setTotalAmount(value);
+    const formatted = formatWithCommas(value);
+    setTotalAmount(formatted);
     if (splitMethod === "equal" && participants.length > 0) {
-      calculateEqualSplit(participants);
+      const total = parseAmountValue(formatted) || 0;
+      calculateEqualSplit(participants, total);
     } else if (splitMethod === "percentage") {
-      const total = parseFloat(value) || 0;
+      const total = parseAmountValue(formatted) || 0;
       setParticipants(
         participants.map((p) => ({
           ...p,
-          amount: ((p.percentage || 0) / 100) * total,
+          amount: roundToCents(((p.percentage || 0) / 100) * total),
         })),
       );
     }
@@ -510,7 +550,7 @@ export function SplitBill({
       return;
     }
 
-    if (!totalAmount || parseFloat(totalAmount) <= 0) {
+    if (!totalAmount || parseAmountValue(totalAmount) <= 0) {
       toast.error("Please enter a valid total amount");
       return;
     }
@@ -550,7 +590,7 @@ export function SplitBill({
     const splitTotalCents = Math.round(
       dedupParticipants.reduce((sum, p) => sum + p.amount, 0) * 100,
     );
-    const expectedTotalCents = Math.round(parseFloat(totalAmount) * 100);
+    const expectedTotalCents = Math.round(parseAmountValue(totalAmount) * 100);
 
     if (splitTotalCents !== expectedTotalCents) {
       toast.error(
@@ -569,7 +609,7 @@ export function SplitBill({
       setSubmitting(true);
       const payload: any = {
         title: billName.trim(),
-        totalAmount: parseFloat(totalAmount),
+        totalAmount: parseAmountValue(totalAmount),
         description: description || undefined,
         splitMethod,
         groupId: groupId || undefined,
@@ -856,8 +896,8 @@ export function SplitBill({
                 </span>
                 <Input
                   id="totalAmount"
-                  type="number"
-                  step="0.01"
+                  type="text"
+                  inputMode="decimal"
                   value={totalAmount}
                   onChange={(e) => handleTotalAmountChange(e.target.value)}
                   placeholder="0.00"

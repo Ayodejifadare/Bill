@@ -99,7 +99,7 @@ export function UpcomingPaymentsScreen({
                 className="w-full h-12 rounded-xl"
                 onClick={() => onNavigate("payment-request-cancel", { requestId: payment.requestId || payment.id })}
               >
-                Cancel
+                Settle
               </Button>
               <Button
                 variant="default"
@@ -404,7 +404,7 @@ export function UpcomingPaymentsScreen({
                   className="flex-1 bg-background border border-solid border-border h-[44px] py-[10px] rounded-[8px] hover:bg-muted transition-colors"
                 >
                   <p className="font-['Inter:Regular',_sans-serif] font-normal leading-[20px] not-italic text-[14px] text-center text-foreground">
-                    Cancel
+                    Settle
                   </p>
                 </button>
                 <button
@@ -486,7 +486,7 @@ export function UpcomingPaymentsScreen({
                 className="flex-1 bg-background border border-solid border-border h-[44px] py-[10px] rounded-[8px] hover:bg-muted transition-colors"
               >
                 <p className="font-['Inter:Regular',_sans-serif] font-normal leading-[20px] not-italic text-[14px] text-center text-foreground">
-                  Cancel
+                  Settle
                 </p>
               </button>
               <button
