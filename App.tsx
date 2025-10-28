@@ -9,6 +9,7 @@ import {
   ReactNode,
 } from "react";
 import { lazy } from "react";
+import { GoogleOAuthProvider } from "@react-oauth/google";
 import { UserProfileProvider } from "./components/UserProfileContext";
 import { BottomNavigation } from "./components/BottomNavigation";
 import { ThemeProvider } from "./components/ThemeContext";
@@ -25,6 +26,11 @@ import { saveAuth, loadAuth, clearAuth } from "./utils/auth";
 import { apiClient } from "./utils/apiClient";
 import { authService } from "./services/auth";
 import { resolveRegionForSignup } from "./utils/regions";
+
+const rawGoogleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
+const GOOGLE_AUTH_ENABLED = Boolean(rawGoogleClientId);
+const GOOGLE_PROVIDER_CLIENT_ID =
+  rawGoogleClientId || "placeholder.apps.googleusercontent.com";
 // Simple hash-based deep-linking utilities
 function encodeHash(tab: string, data?: any): string {
   try {
@@ -1081,6 +1087,7 @@ function AppContent() {
               <LoginScreen
                 onLogin={handleLogin}
                 onShowRegister={() => setShowLogin(false)}
+                googleEnabled={GOOGLE_AUTH_ENABLED}
               />
             </Suspense>
           </PageErrorBoundary>
@@ -1094,6 +1101,8 @@ function AppContent() {
             <RegisterScreen
               onRegister={handleRegister}
               onShowLogin={() => setShowLogin(true)}
+              onSocialLogin={handleLogin}
+              googleEnabled={GOOGLE_AUTH_ENABLED}
             />
           </Suspense>
         </PageErrorBoundary>
@@ -1446,13 +1455,15 @@ const MemoizedAppContent = memo(AppContent);
 export default function App() {
   return (
     <CriticalErrorBoundary>
-      <ThemeProvider defaultTheme="system">
-        <LoadingStateProvider>
-          <UserProfileProvider>
-            <MemoizedAppContent />
-          </UserProfileProvider>
-        </LoadingStateProvider>
-      </ThemeProvider>
+      <GoogleOAuthProvider clientId={GOOGLE_PROVIDER_CLIENT_ID}>
+        <ThemeProvider defaultTheme="system">
+          <LoadingStateProvider>
+            <UserProfileProvider>
+              <MemoizedAppContent />
+            </UserProfileProvider>
+          </LoadingStateProvider>
+        </ThemeProvider>
+      </GoogleOAuthProvider>
     </CriticalErrorBoundary>
   );
 }

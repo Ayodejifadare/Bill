@@ -2,6 +2,7 @@ import express from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { body, validationResult } from "express-validator";
+import { OAuth2Client } from "google-auth-library";
 import authenticate from "../middleware/auth.js";
 import { defaultSettings as defaultNotificationSettings } from "./notifications.js";
 import {
@@ -14,6 +15,86 @@ const { JWT_SECRET } = process.env;
 if (!JWT_SECRET) {
   throw new Error("JWT_SECRET environment variable is not defined");
 }
+
+const googleClientId = (process.env.GOOGLE_CLIENT_ID || "").trim();
+const googleClientSecret = (process.env.GOOGLE_CLIENT_SECRET || "").trim();
+const additionalGoogleAudiences = [
+  ...(process.env.GOOGLE_ADDITIONAL_CLIENT_IDS || "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean),
+  ...(process.env.GOOGLE_CLIENT_IDS || "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean),
+];
+const googleAudiences = Array.from(
+  new Set(
+    [
+      googleClientId,
+      ...additionalGoogleAudiences,
+    ].filter(Boolean),
+  ),
+);
+
+const getGoogleOAuthClient = () => {
+  if (!googleClientId || !googleClientSecret) {
+    return null;
+  }
+  return new OAuth2Client(googleClientId, googleClientSecret);
+};
+
+const REGION_CURRENCY_MAP = {
+  NG: { region: "NG", currency: "NGN" },
+  US: { region: "US", currency: "USD" },
+  GB: { region: "GB", currency: "GBP" },
+  CA: { region: "CA", currency: "CAD" },
+  AU: { region: "AU", currency: "AUD" },
+  EU: { region: "EU", currency: "EUR" },
+};
+
+const FALLBACK_REGION_CURRENCY = REGION_CURRENCY_MAP.NG;
+
+function normalizeRegionCurrency(regionInput, currencyInput) {
+  const regionKey =
+    typeof regionInput === "string" ? regionInput.trim().toUpperCase() : "";
+  if (regionKey && REGION_CURRENCY_MAP[regionKey]) {
+    return REGION_CURRENCY_MAP[regionKey];
+  }
+
+  const currencyKey =
+    typeof currencyInput === "string" ? currencyInput.trim().toUpperCase() : "";
+  if (currencyKey) {
+    const entry = Object.values(REGION_CURRENCY_MAP).find(
+      (item) => item.currency === currencyKey,
+    );
+    if (entry) {
+      return entry;
+    }
+  }
+
+  return FALLBACK_REGION_CURRENCY;
+}
+
+const authUserSelect = {
+  id: true,
+  email: true,
+  name: true,
+  firstName: true,
+  lastName: true,
+  phone: true,
+  avatar: true,
+  balance: true,
+  region: true,
+  currency: true,
+  onboardingCompleted: true,
+  phoneVerified: true,
+  emailVerified: true,
+  idVerified: true,
+  documentsSubmitted: true,
+  tokenVersion: true,
+  googleId: true,
+};
 
 const router = express.Router();
 
@@ -248,6 +329,195 @@ router.post(
     } catch (error) {
       console.error("Registration error:", error);
       res.status(500).json({ error: "Internal server error" });
+    }
+  },
+);
+
+// Google OAuth sign-in/sign-up
+router.post(
+  "/google",
+  [
+    body("code")
+      .isString()
+      .notEmpty()
+      .withMessage("Authorization code is required"),
+    body("region").optional().isString(),
+    body("currency").optional().isString(),
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const oauthClient = getGoogleOAuthClient();
+      if (!oauthClient) {
+        return res
+          .status(503)
+          .json({ error: "Google sign-in is not configured" });
+      }
+
+      const { code, region, currency } = req.body;
+      let tokens;
+      try {
+        const tokenResponse = await oauthClient.getToken({
+          code,
+          redirect_uri: "postmessage",
+        });
+        tokens = tokenResponse.tokens;
+      } catch (tokenError) {
+        console.error("Google token exchange failed:", tokenError);
+        return res
+          .status(400)
+          .json({ error: "Invalid Google authorization code" });
+      }
+
+      if (!tokens?.id_token) {
+        return res.status(400).json({ error: "Missing Google ID token" });
+      }
+
+      const audienceSetting =
+        googleAudiences.length === 1 ? googleAudiences[0] : googleAudiences;
+      let payload;
+      try {
+        const ticket = await oauthClient.verifyIdToken({
+          idToken: tokens.id_token,
+          audience: googleAudiences.length ? audienceSetting : undefined,
+        });
+        payload = ticket.getPayload();
+      } catch (verifyError) {
+        console.error("Google ID token verification failed:", verifyError);
+        return res
+          .status(400)
+          .json({ error: "Unable to verify Google credentials" });
+      }
+
+      if (!payload) {
+        return res.status(400).json({ error: "Google profile is unavailable" });
+      }
+
+      const googleSub = payload.sub;
+      const email = (payload.email || "").toLowerCase();
+      if (!googleSub || !email) {
+        return res
+          .status(400)
+          .json({ error: "Google account is missing required data" });
+      }
+
+      const nameFromPayload = String(payload.name || "").trim();
+      const derivedName = [payload.given_name, payload.family_name]
+        .map((part) => (part ? String(part).trim() : ""))
+        .filter(Boolean)
+        .join(" ")
+        .trim();
+      const displayName =
+        nameFromPayload || derivedName || email.split("@")[0] || "Google User";
+      const normalizedRegion = normalizeRegionCurrency(region, currency);
+      const givenName =
+        typeof payload.given_name === "string"
+          ? payload.given_name.trim()
+          : null;
+      const familyName =
+        typeof payload.family_name === "string"
+          ? payload.family_name.trim()
+          : null;
+      const picture =
+        typeof payload.picture === "string" ? payload.picture.trim() : null;
+      const emailIsVerified = Boolean(payload.email_verified);
+
+      let user = await req.prisma.user.findFirst({
+        where: {
+          OR: [{ googleId: googleSub }, { email }],
+        },
+        select: authUserSelect,
+      });
+
+      let isNewUser = false;
+      if (!user) {
+        user = await req.prisma.user.create({
+          data: {
+            email,
+            name: displayName,
+            firstName: givenName,
+            lastName: familyName,
+            googleId: googleSub,
+            avatar: picture,
+            password: "",
+            region: normalizedRegion.region,
+            currency: normalizedRegion.currency,
+            emailVerified: emailIsVerified,
+            onboardingCompleted: true,
+          },
+          select: authUserSelect,
+        });
+        isNewUser = true;
+
+        await req.prisma.notificationPreference.upsert({
+          where: { userId: user.id },
+          update: {},
+          create: {
+            userId: user.id,
+            preferences: JSON.stringify(defaultNotificationSettings),
+          },
+        });
+      } else {
+        const updates = {};
+        if (!user.googleId) {
+          updates.googleId = googleSub;
+        }
+        if (!user.emailVerified && emailIsVerified) {
+          updates.emailVerified = true;
+        }
+        if (!user.avatar && picture) {
+          updates.avatar = picture;
+        }
+        if (!user.name && displayName) {
+          updates.name = displayName;
+        }
+        if (!user.firstName && givenName) {
+          updates.firstName = givenName;
+        }
+        if (!user.lastName && familyName) {
+          updates.lastName = familyName;
+        }
+
+        if (Object.keys(updates).length > 0) {
+          user = await req.prisma.user.update({
+            where: { id: user.id },
+            data: updates,
+            select: authUserSelect,
+          });
+        }
+      }
+
+      if (tokens?.access_token) {
+        oauthClient
+          .revokeToken(tokens.access_token)
+          .catch((revokeError) =>
+            console.warn("Failed to revoke Google access token", revokeError),
+          );
+      }
+
+      const token = jwt.sign(
+        { userId: user.id, tokenVersion: user.tokenVersion },
+        JWT_SECRET,
+        { expiresIn: "7d" },
+      );
+
+      const { googleId: _googleId, ...userWithoutProvider } = user;
+
+      res.json({
+        token,
+        user: userWithoutProvider,
+        isNewUser,
+        provider: "google",
+      });
+    } catch (error) {
+      console.error("Google auth error:", error);
+      res
+        .status(500)
+        .json({ error: "Failed to authenticate with Google. Try again later." });
     }
   },
 );

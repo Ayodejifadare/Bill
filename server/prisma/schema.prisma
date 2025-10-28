@@ -23,6 +23,7 @@ model User {
   address             String?
   bio                 String?
   phone               String?  @unique
+  googleId            String?  @unique
   avatar              String?
   balance             Float     @default(0)
   twoFactorEnabled    Boolean   @default(false)

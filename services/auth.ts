@@ -53,4 +53,45 @@ export const authService = {
       return { success: false, error: e?.message || "OTP verification failed" };
     }
   },
+
+  async loginWithGoogle({
+    code,
+    region,
+    currency,
+  }: {
+    code: string;
+    region?: string;
+    currency?: string;
+  }): Promise<{
+    success: boolean;
+    token?: string;
+    user?: any;
+    isNewUser?: boolean;
+    error?: string;
+  }> {
+    try {
+      const data = await apiClient("/auth/google", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, region, currency }),
+      });
+      if (data?.token && data?.user) {
+        return {
+          success: true,
+          token: data.token,
+          user: data.user,
+          isNewUser: data?.isNewUser,
+        };
+      }
+      return {
+        success: false,
+        error: data?.error || "Google authentication failed",
+      };
+    } catch (e: any) {
+      return {
+        success: false,
+        error: e?.message || "Google authentication failed",
+      };
+    }
+  },
 };

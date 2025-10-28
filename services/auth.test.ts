@@ -93,4 +93,46 @@ describe("authService", () => {
       expect(result).toEqual({ success: false, error: "Wrong code" });
     });
   });
+
+  describe("loginWithGoogle", () => {
+    it("posts the authorization code and returns auth data", async () => {
+      apiClientMock.mockResolvedValueOnce({
+        token: "token-456",
+        user: { id: "google-user" },
+        isNewUser: true,
+      });
+
+      const result = await authService.loginWithGoogle({
+        code: "auth-code",
+        region: "US",
+        currency: "USD",
+      });
+
+      expect(apiClientMock).toHaveBeenCalledWith("/auth/google", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: "auth-code",
+          region: "US",
+          currency: "USD",
+        }),
+      });
+      expect(result).toEqual({
+        success: true,
+        token: "token-456",
+        user: { id: "google-user" },
+        isNewUser: true,
+      });
+    });
+
+    it("returns failure when google authentication fails", async () => {
+      apiClientMock.mockRejectedValueOnce(new Error("Nope"));
+
+      const result = await authService.loginWithGoogle({
+        code: "bad-code",
+      });
+
+      expect(result).toEqual({ success: false, error: "Nope" });
+    });
+  });
 });
