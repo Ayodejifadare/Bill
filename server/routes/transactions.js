@@ -80,6 +80,21 @@ router.get("/counts", async (req, res) => {
         : [keywordFilter];
     }
 
+    const billSplitPlaceholderFilter = {
+      AND: [
+        { type: "BILL_SPLIT" },
+        { receiverId: req.userId },
+        { billSplit: { createdBy: { not: req.userId } } },
+      ],
+    };
+    if (baseWhere.NOT) {
+      baseWhere.NOT = Array.isArray(baseWhere.NOT)
+        ? [...baseWhere.NOT, billSplitPlaceholderFilter]
+        : [baseWhere.NOT, billSplitPlaceholderFilter];
+    } else {
+      baseWhere.NOT = [billSplitPlaceholderFilter];
+    }
+
     const totalWhere = {
       ...baseWhere,
       OR: [{ senderId: req.userId }, { receiverId: req.userId }],
@@ -209,6 +224,21 @@ router.get("/", async (req, res) => {
       baseWhere.AND = Array.isArray(baseWhere.AND)
         ? [...baseWhere.AND, keywordFilter]
         : [keywordFilter];
+    }
+
+    const billSplitPlaceholderFilter = {
+      AND: [
+        { type: "BILL_SPLIT" },
+        { receiverId: req.userId },
+        { billSplit: { createdBy: { not: req.userId } } },
+      ],
+    };
+    if (baseWhere.NOT) {
+      baseWhere.NOT = Array.isArray(baseWhere.NOT)
+        ? [...baseWhere.NOT, billSplitPlaceholderFilter]
+        : [baseWhere.NOT, billSplitPlaceholderFilter];
+    } else {
+      baseWhere.NOT = [billSplitPlaceholderFilter];
     }
 
     const where = {

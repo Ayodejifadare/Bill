@@ -312,6 +312,70 @@ describe("Transaction routes", () => {
     expect(res.body.transactions[0].category).toBe("entertainment");
   });
 
+  it("omits bill split placeholders for participants", async () => {
+    await prisma.user.createMany({
+      data: [
+        { id: "creator", email: "creator@example.com", name: "Creator" },
+        {
+          id: "participant",
+          email: "participant@example.com",
+          name: "Participant",
+        },
+      ],
+    });
+
+    const split = await prisma.billSplit.create({
+      data: {
+        id: "bs-placeholder",
+        title: "Placeholder Split",
+        totalAmount: 40,
+        createdBy: "creator",
+      },
+    });
+
+    await prisma.transaction.create({
+      data: {
+        id: "tx-placeholder",
+        amount: 40,
+        senderId: "creator",
+        receiverId: "participant",
+        type: "BILL_SPLIT",
+        status: "PENDING",
+        billSplitId: split.id,
+      },
+    });
+
+    const before = await request(app)
+      .get("/transactions")
+      .set("Authorization", `Bearer ${sign("participant")}`)
+      .send();
+
+    expect(before.status).toBe(200);
+    expect(before.body.transactions).toHaveLength(0);
+
+    await prisma.transaction.create({
+      data: {
+        id: "tx-actual",
+        amount: 40,
+        senderId: "participant",
+        receiverId: "creator",
+        type: "BILL_SPLIT",
+        status: "COMPLETED",
+        billSplitId: split.id,
+      },
+    });
+
+    const after = await request(app)
+      .get("/transactions")
+      .set("Authorization", `Bearer ${sign("participant")}`)
+      .send();
+
+    expect(after.status).toBe(200);
+    expect(after.body.transactions).toHaveLength(1);
+    expect(after.body.transactions[0].recipient.id).toBe("creator");
+    expect(after.body.transactions[0].type).toBe("bill_split");
+  });
+
   it("searches transactions by keyword in description and participant names", async () => {
     await prisma.user.createMany({
       data: [
