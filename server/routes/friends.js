@@ -711,6 +711,12 @@ router.get("/:friendId", async (req, res) => {
       };
     });
 
+    const billSplitTransactionIds = new Set(
+      transactionsData
+        .filter((t) => t.type === "BILL_SPLIT" && t.billSplitId)
+        .map((t) => t.billSplitId),
+    );
+
     // Base balance from direct send/receive transactions only (exclude bill splits to avoid double counting)
     let balance = 0;
     transactionsData.forEach((t) => {
@@ -801,6 +807,9 @@ router.get("/:friendId", async (req, res) => {
     ]);
 
     unpaidFromFriend.forEach((p) => {
+      if (billSplitTransactionIds.has(p.billSplit.id)) {
+        return;
+      }
       transactions.push({
         id: `bs_${p.billSplit.id}_${p.userId}`,
         amount: p.amount,
@@ -814,6 +823,9 @@ router.get("/:friendId", async (req, res) => {
     });
 
     unpaidFromYou.forEach((p) => {
+      if (billSplitTransactionIds.has(p.billSplit.id)) {
+        return;
+      }
       transactions.push({
         id: `bs_${p.billSplit.id}_${p.userId}`,
         amount: p.amount,
