@@ -787,7 +787,7 @@ router.get("/:friendId", async (req, res) => {
           billSplit: { createdBy: req.userId },
         },
         include: { billSplit: { select: { id: true, title: true, createdAt: true } } },
-        orderBy: { createdAt: "desc" },
+        orderBy: { billSplit: { createdAt: "desc" } },
       }),
       req.prisma.billSplitParticipant.findMany({
         where: {
@@ -796,7 +796,7 @@ router.get("/:friendId", async (req, res) => {
           billSplit: { createdBy: friendId },
         },
         include: { billSplit: { select: { id: true, title: true, createdAt: true } } },
-        orderBy: { createdAt: "desc" },
+        orderBy: { billSplit: { createdAt: "desc" } },
       }),
     ]);
 
