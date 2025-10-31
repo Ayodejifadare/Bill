@@ -75,8 +75,11 @@ function parseHash(): { tab?: string; data: any } {
   }
 }
 
-// Lazy load components for code splitting
+// Lazily load heavy, secondary screens to keep initial load quick
 import { HomeScreen } from "./components/HomeScreen";
+import { LoginScreen } from "./components/LoginScreen";
+import { RegisterScreen } from "./components/RegisterScreen";
+import { OTPVerificationScreen } from "./components/OTPVerificationScreen";
 const SendMoney = lazy(() =>
   import("./components/SendMoney").then((m) => ({ default: m.SendMoney })),
 );
@@ -107,14 +110,6 @@ const SettingsScreen = lazy(() =>
 const NotificationsScreen = lazy(() =>
   import("./components/NotificationsScreen").then((m) => ({
     default: m.NotificationsScreen,
-  })),
-);
-const LoginScreen = lazy(() =>
-  import("./components/LoginScreen").then((m) => ({ default: m.LoginScreen })),
-);
-const RegisterScreen = lazy(() =>
-  import("./components/RegisterScreen").then((m) => ({
-    default: m.RegisterScreen,
   })),
 );
 const KycVerificationScreen = lazy(() =>
@@ -182,11 +177,6 @@ const SpendingInsightsScreen = lazy(() =>
 const PaymentRequestCancelScreen = lazy(() =>
   import("./components/PaymentRequestCancelScreen").then((m) => ({
     default: m.PaymentRequestCancelScreen,
-  })),
-);
-const OTPVerificationScreen = lazy(() =>
-  import("./components/OTPVerificationScreen").then((m) => ({
-    default: m.OTPVerificationScreen,
   })),
 );
 
@@ -774,51 +764,147 @@ function AppContent() {
     [navState.activeTab],
   );
 
+  const handleNavigateRef = useRef(handleNavigate);
+
+  useEffect(() => {
+    handleNavigateRef.current = handleNavigate;
+  }, [handleNavigate]);
+
   // Restore navigation state from URL hash after authentication
   useEffect(() => {
     if (!isAuthenticated) return;
     const { tab, data } = parseHash();
     if (tab) {
       // Use a microtask to ensure reducer is ready
-      Promise.resolve().then(() => handleNavigate(tab, data));
+      if (typeof queueMicrotask === "function") {
+        queueMicrotask(() => handleNavigateRef.current?.(tab, data));
+      } else {
+        Promise.resolve().then(() =>
+          handleNavigateRef.current?.(tab, data),
+        );
+      }
     }
 
     // Listen for back/forward navigation via hash changes
     const onHashChange = () => {
       const { tab: t, data: d } = parseHash();
       if (t) {
-        handleNavigate(t, d);
+        handleNavigateRef.current?.(t, d);
       }
     };
     window.addEventListener("hashchange", onHashChange);
     return () => window.removeEventListener("hashchange", onHashChange);
-  }, [isAuthenticated, handleNavigate]);
+  }, [isAuthenticated]);
 
   // Prefetch common screens after initial render to make subsequent navigations snappier
   useEffect(() => {
     if (!isAuthenticated) return;
     const w = window as any;
-    const run = () => {
+    const queue: Array<() => Promise<unknown>> = [
+      () => import("./components/FriendsList"),
+      () => import("./components/SplitBill"),
+      () => import("./components/BillsScreen"),
+      () => import("./components/ProfileScreen"),
+      () => import("./components/TransactionHistoryScreen"),
+      () => import("./components/SpendingInsightsScreen"),
+      () => import("./components/GroupDetailsScreen"),
+      () => import("./components/NotificationsScreen"),
+      () => import("./components/PaymentMethodsScreen"),
+    ];
+
+    let cancelled = false;
+    let idleHandle: number | null = null;
+    let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
+
+    const scheduleNext = () => {
+      if (cancelled || queue.length === 0) return;
+
+      const schedule = () => {
+        if (cancelled) return;
+        const loader = queue.shift();
+        if (!loader) return;
+        loader()
+          .catch(() => {
+            /* ignore individual prefetch failures */
+          })
+          .finally(() => scheduleNext());
+      };
+
+      if (w.requestIdleCallback) {
+        idleHandle = w.requestIdleCallback(
+          () => {
+            idleHandle = null;
+            schedule();
+          },
+          { timeout: queue.length > 4 ? 1800 : 900 },
+        );
+      } else {
+        timeoutHandle = setTimeout(() => {
+          timeoutHandle = null;
+          schedule();
+        }, queue.length > 4 ? 900 : 450);
+      }
+    };
+
+    scheduleNext();
+    return () => {
+      cancelled = true;
+      if (idleHandle !== null && w.cancelIdleCallback) {
+        w.cancelIdleCallback(idleHandle);
+      }
+      if (timeoutHandle !== null) {
+        clearTimeout(timeoutHandle);
+      }
+    };
+  }, [isAuthenticated]);
+
+  // Warm up frequently used data so navigation-heavy screens are ready instantly
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    let cancelled = false;
+    let idleHandle: number | null = null;
+    let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
+    const w = window as typeof window & {
+      requestIdleCallback?: (
+        callback: IdleRequestCallback,
+        options?: IdleRequestOptions,
+      ) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+
+    const warmup = () => {
+      if (cancelled) return;
       Promise.allSettled([
-        import("./components/FriendsList"),
-        import("./components/SplitBill"),
-        import("./components/BillsScreen"),
-        import("./components/ProfileScreen"),
-        import("./components/TransactionHistoryScreen"),
-        import("./components/SpendingInsightsScreen"),
-        import("./components/GroupDetailsScreen"),
-        import("./components/NotificationsScreen"),
-        import("./components/PaymentMethodsScreen"),
+        import("./hooks/useFriends").then((mod) => mod.fetchFriends?.()),
+        import("./utils/split-bill-api").then((mod) => mod.fetchGroups?.()),
+        import("./services/paymentMethods").then((mod) =>
+          mod.loadPaymentMethods?.(),
+        ),
       ]).catch(() => {
-        /* ignore */
+        /* ignore background warmup failures */
       });
     };
-    const idleId = w.requestIdleCallback
-      ? w.requestIdleCallback(run, { timeout: 1200 })
-      : setTimeout(run, 600);
+
+    if (w.requestIdleCallback) {
+      idleHandle = w.requestIdleCallback(
+        () => {
+          idleHandle = null;
+          warmup();
+        },
+        { timeout: 1600 },
+      );
+    } else {
+      timeoutHandle = setTimeout(warmup, 700);
+    }
+
     return () => {
-      if (w.cancelIdleCallback && idleId) w.cancelIdleCallback(idleId);
-      else clearTimeout(idleId);
+      cancelled = true;
+      if (idleHandle !== null && w.cancelIdleCallback) {
+        w.cancelIdleCallback(idleHandle);
+      }
+      if (timeoutHandle) {
+        clearTimeout(timeoutHandle);
+      }
     };
   }, [isAuthenticated]);
 

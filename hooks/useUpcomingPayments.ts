@@ -59,7 +59,42 @@ export function useUpcomingPayments(): UseUpcomingPaymentsResult {
   }, []);
 
   useEffect(() => {
-    fetchUpcomingPayments();
+    let cancelled = false;
+    let idleHandle: number | null = null;
+    let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
+    const w = window as typeof window & {
+      requestIdleCallback?: (
+        callback: IdleRequestCallback,
+        options?: IdleRequestOptions,
+      ) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+    const run = () => {
+      if (cancelled) return;
+      void fetchUpcomingPayments();
+    };
+
+    if (typeof w.requestIdleCallback === "function") {
+      idleHandle = w.requestIdleCallback(
+        () => {
+          idleHandle = null;
+          run();
+        },
+        { timeout: 900 },
+      );
+    } else {
+      timeoutHandle = setTimeout(run, 300);
+    }
+
+    return () => {
+      cancelled = true;
+      if (idleHandle !== null && typeof w.cancelIdleCallback === "function") {
+        w.cancelIdleCallback(idleHandle);
+      }
+      if (timeoutHandle) {
+        clearTimeout(timeoutHandle);
+      }
+    };
   }, [fetchUpcomingPayments]);
 
   useEffect(() => {

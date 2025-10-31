@@ -1,18 +1,23 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { TransactionCard } from "./TransactionCard";
-import { UpcomingPayments } from "./UpcomingPayments";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { EmptyState } from "./ui/empty-state";
 import { Send, Users, Receipt, Plus, DollarSign } from "lucide-react";
 import { Alert, AlertDescription } from "./ui/alert";
 import { useUserProfile } from "./UserProfileContext";
 import { getCurrencySymbol, formatCurrencyForRegion } from "../utils/regions";
-import { TransactionSkeleton } from "./ui/loading";
+import { TransactionSkeleton, ListSkeleton } from "./ui/loading";
 import { useTransactions } from "../hooks/useTransactions";
 import { NotificationBell } from "./ui/notification-bell";
 import { apiClient } from "../utils/apiClient";
+
+const UpcomingPaymentsSection = lazy(() =>
+  import("./UpcomingPayments").then((m) => ({
+    default: m.UpcomingPayments,
+  })),
+);
 
 const quickActions = [
   { id: "send", icon: Send, label: "Send", color: "bg-blue-500" },
@@ -45,7 +50,6 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
     transactions,
     loading: transactionsLoading,
     error: transactionsError,
-    summary,
     refetch,
   } = useTransactions();
   const [counts, setCounts] = useState<{
@@ -53,58 +57,79 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
     sent: number;
     received: number;
   }>({ all: 0, sent: 0, received: 0 });
-  const [hasAnyTransactions, setHasAnyTransactions] = useState(false);
-  const [hasCompletedTransactions, setHasCompletedTransactions] = useState(false);
   const [balanceSummary, setBalanceSummary] = useState<{ owedToUser: number; userOwes: number }>({ owedToUser: 0, userOwes: 0 });
   useEffect(() => {
     let cancelled = false;
     const fetchCounts = async () => {
       try {
         const data = await apiClient("/transactions/counts");
-        if (!cancelled) {
-          setCounts({
-            all: data?.total ?? 0,
-            sent: data?.sent ?? 0,
-            received: data?.received ?? 0,
-          });
-        }
+        if (cancelled) return;
+        setCounts({
+          all: data?.total ?? 0,
+          sent: data?.sent ?? 0,
+          received: data?.received ?? 0,
+        });
       } catch {
-        // Keep prior counts on failure
+        /* retain previous counts on failure */
       }
     };
     const fetchBalanceSummary = async () => {
       try {
         const data = await apiClient("/friends/summary");
-        if (!cancelled) {
-          setBalanceSummary({
-            owedToUser: data?.owedToUser ?? 0,
-            userOwes: data?.userOwes ?? 0,
-          });
-        }
+        if (cancelled) return;
+        setBalanceSummary({
+          owedToUser: data?.owedToUser ?? 0,
+          userOwes: data?.userOwes ?? 0,
+        });
       } catch {
-        // Keep prior summary on failure
+        /* retain previous summary on failure */
       }
     };
 
+    const refreshMetrics = async () => {
+      await Promise.allSettled([fetchCounts(), fetchBalanceSummary()]);
+      if (cancelled) return;
+    };
+
     // Initial fetch (defer slightly to keep first paint smooth)
-    const t = setTimeout(() => {
-      fetchCounts();
-      fetchBalanceSummary();
-    }, 250);
+    let idleHandle: number | null = null;
+    let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
+    const w = window as typeof window & {
+      requestIdleCallback?: (
+        callback: IdleRequestCallback,
+        options?: IdleRequestOptions,
+      ) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+    const scheduleInitialFetch = () => {
+      const run = () => {
+        timeoutHandle = null;
+        void refreshMetrics();
+      };
+      if (typeof w.requestIdleCallback === "function") {
+        idleHandle = w.requestIdleCallback(
+          () => {
+            idleHandle = null;
+            run();
+          },
+          { timeout: 700 },
+        );
+        return;
+      }
+      timeoutHandle = setTimeout(run, 300);
+    };
+    scheduleInitialFetch();
 
     // Refresh on app-wide updates (e.g., mark-sent, confirmations)
     const onTxUpdated = () => {
-      fetchCounts();
-      fetchBalanceSummary();
+      void refreshMetrics();
     };
     const onUpcomingUpdated = () => {
-      fetchCounts();
-      fetchBalanceSummary();
+      void refreshMetrics();
     };
     const onVisibility = () => {
       if (document.visibilityState === "visible") {
-        fetchCounts();
-        fetchBalanceSummary();
+        void refreshMetrics();
       }
     };
     try {
@@ -117,7 +142,12 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
 
     return () => {
       cancelled = true;
-      clearTimeout(t);
+      if (idleHandle !== null && typeof w.cancelIdleCallback === "function") {
+        w.cancelIdleCallback(idleHandle);
+      }
+      if (timeoutHandle) {
+        clearTimeout(timeoutHandle);
+      }
       try {
         window.removeEventListener("transactionsUpdated", onTxUpdated);
         window.removeEventListener("upcomingPaymentsUpdated", onUpcomingUpdated);
@@ -128,16 +158,16 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
     };
   }, []);
 
+  const hasAppliedFilterOnce = useRef(false);
+
   useEffect(() => {
+    if (!hasAppliedFilterOnce.current) {
+      hasAppliedFilterOnce.current = true;
+      return;
+    }
     const type = activityFilter === "all" ? undefined : activityFilter;
     refetch({ type });
   }, [activityFilter, refetch]);
-
-  useEffect(() => {
-    const deduped = dedupeByBillSplit(transactions);
-    setHasAnyTransactions(deduped.length > 0);
-    setHasCompletedTransactions(deduped.some((t) => t.status === "completed"));
-  }, [transactions]);
 
   const getTransactionCount = (filterType: "all" | "sent" | "received") => {
     if (filterType === "all") return counts.all;
@@ -239,7 +269,9 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
         </div>
 
         {/* Upcoming Payments */}
-        <UpcomingPayments onNavigate={onNavigate} />
+        <Suspense fallback={<ListSkeleton count={2} />}>
+          <UpcomingPaymentsSection onNavigate={onNavigate} />
+        </Suspense>
 
         {/* Recent Activity */}
         <div>

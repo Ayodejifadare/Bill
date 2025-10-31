@@ -10,7 +10,11 @@
 // now call the real API endpoints while preserving the same caching behaviour
 // so navigation between screens doesn't trigger redundant network requests.
 
-import { fetchFriends as fetchFriendsApi, Friend } from "../hooks/useFriends";
+import {
+  fetchFriends as fetchFriendsApi,
+  getCachedFriends,
+  Friend,
+} from "../hooks/useFriends";
 import { apiClient } from "./apiClient";
 
 export interface Group {
@@ -73,6 +77,10 @@ const externalAccountsCache = new Map<string, ExternalAccount[]>();
 
 export type { Friend } from "../hooks/useFriends";
 export async function fetchFriends(): Promise<Friend[]> { return fetchFriendsApi(); }
+export { getCachedFriends };
+export function getCachedGroups(): Group[] | null {
+  return groupsCache ? [...groupsCache] : null;
+}
 export async function fetchGroups(): Promise<Group[]> {
   if (groupsCache) return groupsCache;
   const data = await apiClient("/groups");

@@ -35,6 +35,10 @@ export async function fetchFriends(): Promise<Friend[]> {
   return inflight!;
 }
 
+export function getCachedFriends(): Friend[] | null {
+  return friendsCache ? [...friendsCache] : null;
+}
+
 export function invalidateFriendsCache() {
   friendsCache = null;
   window.dispatchEvent(new Event("friendsUpdated"));

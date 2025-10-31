@@ -62,6 +62,8 @@ export interface TransactionSummary {
   netFlow: number;
 }
 
+const DEFAULT_PAGE_SIZE = 10;
+
 export function useTransactions(
   initialOptions: UseTransactionsOptions = {},
 ): UseTransactionsResult {
@@ -115,8 +117,10 @@ export function useTransactions(
       setError(null);
       try {
         const params = new URLSearchParams();
-        const effectiveLimit = current.limit ?? current.size ?? 20;
-        const effectiveSize = current.size ?? current.limit ?? 20;
+        const effectiveLimit =
+          current.limit ?? current.size ?? DEFAULT_PAGE_SIZE;
+        const effectiveSize =
+          current.size ?? current.limit ?? DEFAULT_PAGE_SIZE;
         if (current.cursor || (!current.page && !current.size)) {
           if (current.cursor) params.append("cursor", current.cursor);
           params.append("limit", String(effectiveLimit));

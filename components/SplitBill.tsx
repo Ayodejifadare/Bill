@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   Minus,
@@ -52,8 +52,14 @@ import {
   Friend,
   Group,
   ExternalAccount,
+  getCachedFriends,
+  getCachedGroups,
 } from "../utils/split-bill-api";
 import { PaymentMethodSelector, PaymentMethod } from "./PaymentMethodSelector";
+import {
+  getCachedPaymentMethods,
+  loadPaymentMethods,
+} from "../services/paymentMethods";
 interface SplitParticipant {
   friend: Friend;
   amount: number;
@@ -73,6 +79,16 @@ export function SplitBill({
 }: SplitBillProps) {
   const { appSettings, userProfile } = useUserProfile();
   const currencySymbol = getCurrencySymbol(appSettings.region);
+  const currentUser = useMemo<Friend>(
+    () => ({
+      id: userProfile?.id ?? "me",
+      name: userProfile?.name ?? "You",
+      avatar: userProfile?.avatar,
+      phoneNumber: userProfile?.phone,
+      status: "active",
+    }),
+    [userProfile?.avatar, userProfile?.id, userProfile?.name, userProfile?.phone],
+  );
   // Legacy variable for unreachable code block (safe to remove when legacy block is deleted)
   const [billName, setBillName] = useState("");
   const [totalAmount, setTotalAmount] = useState("");
@@ -80,8 +96,17 @@ export function SplitBill({
   const [splitMethod, setSplitMethod] = useState<
     "equal" | "percentage" | "custom"
   >("equal");
-  const [participants, setParticipants] = useState<SplitParticipant[]>([]);
-  const [availableFriends, setAvailableFriends] = useState<Friend[]>([]);
+  const [participants, setParticipants] = useState<SplitParticipant[]>(() => [
+    {
+      friend: currentUser,
+      amount: 0,
+      percentage: 0,
+    },
+  ]);
+  const [availableFriends, setAvailableFriends] = useState<Friend[]>(() => {
+    const cached = getCachedFriends();
+    return cached ? [...cached] : [];
+  });
   const [selectedPaymentMethod, setSelectedPaymentMethod] =
     useState<PaymentMethod | null>(null);
   const [showGroupSelection, setShowGroupSelection] = useState(false);
@@ -92,12 +117,22 @@ export function SplitBill({
   const [recurringDayOfWeek, setRecurringDayOfWeek] = useState("monday");
 
   // Async data states
-  const [groups, setGroups] = useState<Group[]>([]);
+  const [groups, setGroups] = useState<Group[]>(() => {
+    const cached = getCachedGroups();
+    return cached ? [...cached] : [];
+  });
   const [externalAccounts, setExternalAccounts] = useState<ExternalAccount[]>(
     [],
   );
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>(() => {
+    const cached = getCachedPaymentMethods();
+    return cached ? [...cached] : [];
+  });
+  const [loading, setLoading] = useState(() => {
+    const hasFriends = Boolean(getCachedFriends());
+    const hasGroups = Boolean(getCachedGroups());
+    return !(hasFriends && hasGroups);
+  });
   const [error, setError] = useState<string | null>(null);
   const [accountsLoading, setAccountsLoading] = useState(false);
   const [accountsError, setAccountsError] = useState<string | null>(null);
@@ -106,19 +141,13 @@ export function SplitBill({
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
   const [showSplitDetails, setShowSplitDetails] = useState(false);
 
-  // Current user data
-  const currentUser: Friend = {
-    id: userProfile?.id ?? "me",
-    name: userProfile?.name ?? "You",
-    avatar: userProfile?.avatar,
-    phoneNumber: userProfile?.phone,
-    status: "active",
-  };
-
   const [submitting, setSubmitting] = useState(false);
 
   // Personal payment methods fetched from API
-  const [personalMethods, setPersonalMethods] = useState<PaymentMethod[]>([]);
+  const [personalMethods, setPersonalMethods] = useState<PaymentMethod[]>(() => {
+    const cached = getCachedPaymentMethods();
+    return cached ? [...cached] : [];
+  });
 
   // Safely parse currency input strings like "10,000" -> 10000
   const parseAmountValue = (v: string): number => {
@@ -168,34 +197,20 @@ export function SplitBill({
 
   useEffect(() => {
     let cancelled = false;
-    async function loadPaymentMethods() {
-      try {
-        const data = await apiClient("/payment-methods");
-        if (cancelled) return;
-        const methods = Array.isArray((data as any).paymentMethods)
-          ? (data as any).paymentMethods
-          : data;
-        const mapped: PaymentMethod[] = methods.map((method: any) => ({
-          id: String(method.id),
-          type: method.type,
-          bankName: method.bank || method.bankName,
-          bank: method.bank,
-          accountNumber: method.accountNumber,
-          accountHolderName: method.accountName || method.accountHolderName,
-          accountName: method.accountName,
-          sortCode: method.sortCode,
-          routingNumber: method.routingNumber,
-          accountType: method.accountType,
-          provider: method.provider,
-          phoneNumber: method.phoneNumber,
-          isDefault: method.isDefault,
-        }));
-        setPersonalMethods(mapped);
-      } catch (err) {
-        console.error("Failed to load payment methods", err);
-      }
+    const cached = getCachedPaymentMethods();
+    if (cached && cached.length > 0) {
+      setPersonalMethods(cached);
     }
-    loadPaymentMethods();
+    loadPaymentMethods({ force: !cached || cached.length === 0 })
+      .then((methods) => {
+        if (cancelled) return;
+        setPersonalMethods(methods);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          console.error("Failed to load payment methods", err);
+        }
+      });
     return () => {
       cancelled = true;
     };
@@ -204,57 +219,66 @@ export function SplitBill({
   // Fetch friends and groups
   useEffect(() => {
     let cancelled = false;
-    async function load() {
-      try {
-        setLoading(true);
-        setError(null);
-        const [friends, fetchedGroups] = await Promise.all([
-          fetchFriends(),
-          fetchGroups(),
-        ]);
-        if (cancelled) return;
-        setGroups(fetchedGroups);
+    const applyData = (friends: Friend[], fetchedGroups: Group[]) => {
+      if (cancelled) return;
+      setGroups(fetchedGroups);
+      const creatorParticipant: SplitParticipant = {
+        friend: currentUser,
+        amount: 0,
+        percentage: 0,
+      };
 
-        const creatorParticipant: SplitParticipant = {
-          friend: currentUser,
+      if (groupId) {
+        const group = fetchedGroups.find((g) => g.id === groupId);
+        const groupMembers = group ? group.members : [];
+        const filteredMembers = groupMembers.filter(
+          (m) => m.id !== (userProfile?.id ?? currentUser.id),
+        );
+        const groupParticipants = filteredMembers.map((friend) => ({
+          friend,
           amount: 0,
           percentage: 0,
-        };
-
-        if (groupId) {
-          const group = fetchedGroups.find((g) => g.id === groupId);
-          const groupMembers = group ? group.members : [];
-          // Exclude the current user from groupParticipants to avoid duplication
-          const filteredMembers = groupMembers.filter(
-            (m) => m.id !== (userProfile?.id ?? currentUser.id),
-          );
-          const groupParticipants = filteredMembers.map((friend) => ({
-            friend,
-            amount: 0,
-            percentage: 0,
-          }));
-          setParticipants([creatorParticipant, ...groupParticipants]);
-          setAvailableFriends(
-            friends.filter(
-              (friend) =>
-                !groupMembers.some((member) => member.id === friend.id),
-            ),
-          );
-        } else {
-          setParticipants([creatorParticipant]);
-          setAvailableFriends(friends);
-        }
-      } catch (err) {
-        if (!cancelled) setError("Failed to load data");
-      } finally {
-        if (!cancelled) setLoading(false);
+        }));
+        setParticipants([creatorParticipant, ...groupParticipants]);
+        setAvailableFriends(
+          friends.filter(
+            (friend) => !groupMembers.some((member) => member.id === friend.id),
+          ),
+        );
+      } else {
+        setParticipants([creatorParticipant]);
+        setAvailableFriends(friends);
       }
+    };
+
+    const cachedFriends = getCachedFriends();
+    const cachedGroups = getCachedGroups();
+    if (cachedFriends && cachedGroups) {
+      applyData(cachedFriends, cachedGroups);
+      setLoading(false);
+    } else {
+      setLoading(true);
     }
-    load();
+
+    setError(null);
+    Promise.all([fetchFriends(), fetchGroups()])
+      .then(([friends, fetchedGroups]) => {
+        applyData(friends, fetchedGroups);
+        if (!cancelled) {
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setError("Failed to load data");
+          setLoading(false);
+        }
+      });
+
     return () => {
       cancelled = true;
     };
-  }, [groupId]);
+  }, [groupId, currentUser, userProfile?.id]);
 
   // Prefill a single friend as participant when provided (and no group preselection)
   useEffect(() => {
@@ -840,9 +864,8 @@ export function SplitBill({
     return recurringFrequency;
   };
 
-  if (loading) {
-    return <div className="p-4">Loading...</div>;
-  }
+  const showInitialLoading =
+    loading && availableFriends.length === 0 && groups.length === 0;
 
   if (error) {
     return <div className="p-4 text-red-500">{error}</div>;
@@ -871,6 +894,13 @@ export function SplitBill({
 
       {/* Main Content */}
       <div className="py-4 space-y-6">
+        {showInitialLoading && (
+          <div className="px-4">
+            <div className="rounded-lg border border-dashed border-border bg-muted/40 p-4 text-sm text-muted-foreground">
+              Loading split details...
+            </div>
+          </div>
+        )}
         {/* Bill Details */}
         <Card>
           <CardHeader>

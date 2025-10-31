@@ -64,5 +64,30 @@ export async function handle(path: string, init?: RequestInit) {
     return { message: "Logged out" };
   }
 
+  if (path === "/auth/google") {
+    if (!data?.code) {
+      throw new Error("Missing Google authorization code");
+    }
+
+    const region = data?.region || "US";
+    const currency = data?.currency || "USD";
+
+    return {
+      token: demoJwt,
+      user: {
+        id: "mock-google-user-id",
+        email: data?.email || "google.user@example.com",
+        name: "Google User",
+        region,
+        currency,
+        phoneVerified: true,
+        emailVerified: true,
+        onboardingCompleted: true,
+        createdAt: new Date().toISOString(),
+      },
+      isNewUser: false,
+    };
+  }
+
   throw new Error(`No mock handler for path: ${path}`);
 }
