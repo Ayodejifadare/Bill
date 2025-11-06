@@ -10,6 +10,7 @@ import { handle as mockAuth } from "../mocks/auth";
 import { handle as mockUsers } from "../mocks/users";
 import { handle as mockContacts } from "../mocks/contacts";
 import { clearAuth } from "./auth";
+import { clearBiometricCredential } from "./biometric-storage";
 
 type MockHandler = (path: string, init?: RequestInit) => Promise<any>;
 
@@ -149,6 +150,7 @@ export async function apiClient(
     if (token) {
       console.warn("Invalid auth token, Authorization header omitted");
       clearAuth();
+      clearBiometricCredential();
       resetAuthCache();
       if (typeof window !== "undefined") {
         window.dispatchEvent(new CustomEvent("session-expired"));
@@ -203,6 +205,7 @@ export async function apiClient(
       // If server says we're unauthorized, clear auth and notify app
       if (response.status === 401) {
         clearAuth();
+        clearBiometricCredential();
         resetAuthCache();
         if (typeof window !== "undefined") {
           window.dispatchEvent(new CustomEvent("session-expired"));

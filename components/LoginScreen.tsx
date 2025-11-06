@@ -15,6 +15,11 @@ import { useUserProfile } from "./UserProfileContext";
 import OTPVerificationScreen from "./OTPVerificationScreen";
 import { toast } from "sonner";
 import { apiClient } from "../utils/apiClient";
+import {
+  getBiometricCredential,
+  clearBiometricCredential,
+} from "../utils/biometric-storage";
+import { apiBaseUrl, useMockApi } from "../utils/config";
 import { Separator } from "./ui/separator";
 import { normalizePhoneNumber } from "../utils/phone";
 import { authService } from "../services/auth";
@@ -68,6 +73,34 @@ const CanadaFlag = () => (
   </svg>
 );
 
+const stripLeadingSlash = (value: string) => value.replace(/^\/+/, "");
+const stripTrailingSlash = (value: string) => value.replace(/\/+$/, "");
+
+const buildApiUrl = (path: string) => {
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  const base = apiBaseUrl || "";
+
+  if (/^https?:\/\//i.test(base)) {
+    const url = new URL(base);
+    const basePath = stripTrailingSlash(url.pathname);
+    url.pathname = `${basePath}/${stripLeadingSlash(normalizedPath)}`.replace(
+      /\/{2,}/g,
+      "/",
+    );
+    return url.toString();
+  }
+
+  const basePath = stripTrailingSlash(base);
+  const combined = `${basePath}/${stripLeadingSlash(normalizedPath)}`.replace(
+    /\/{2,}/g,
+    "/",
+  );
+  if (!combined.startsWith("/")) {
+    return `/${combined}`;
+  }
+  return combined;
+};
+
 const countryOptions = [
   {
     code: "NG",
@@ -120,6 +153,7 @@ export function LoginScreen({
   } | null>(null);
   const [error, setError] = useState<string>("");
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [isBiometricLoading, setIsBiometricLoading] = useState(false);
 
   const selectedCountry = countryOptions.find((c) => c.code === country);
   const exampleLocalNumber =
@@ -262,8 +296,94 @@ export function LoginScreen({
     }
   };
 
-  const handleBiometricLogin = () => {
-    toast.info("Not implemented");
+  const handleBiometricLogin = async () => {
+    if (isBiometricLoading) return;
+
+    const credential = getBiometricCredential();
+    if (!credential) {
+      toast.info(
+        "Turn on biometric authentication from your profile to use this shortcut.",
+      );
+      return;
+    }
+
+    if (!credential.token) {
+      clearBiometricCredential();
+      toast.error(
+        "Biometric setup is incomplete. Please log in with your phone number.",
+      );
+      return;
+    }
+
+    if (credential.expiresAt && credential.expiresAt <= Date.now()) {
+      clearBiometricCredential();
+      toast.error(
+        "Biometric session expired. Please log in with your phone number.",
+      );
+      return;
+    }
+
+    setIsBiometricLoading(true);
+
+    try {
+      if (useMockApi) {
+        if (!credential.user) {
+          throw new Error(
+            "Missing cached user data. Please log in manually once.",
+          );
+        }
+        onLogin({ token: credential.token, user: credential.user });
+        return;
+      }
+
+      const response = await fetch(buildApiUrl("/auth/me"), {
+        headers: {
+          Authorization: `Bearer ${credential.token}`,
+        },
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          clearBiometricCredential();
+          throw new Error(
+            "Biometric session expired. Please log in with your phone number.",
+          );
+        }
+
+        let errorMessage = "Unable to authenticate with biometrics.";
+        try {
+          const data = await response.json();
+          errorMessage = data?.error || data?.message || errorMessage;
+        } catch {
+          try {
+            const text = await response.text();
+            if (text) errorMessage = text;
+          } catch {
+            /* ignore */
+          }
+        }
+        throw new Error(errorMessage);
+      }
+
+      let payload: any = null;
+      try {
+        payload = await response.json();
+      } catch {
+        /* ignore */
+      }
+
+      const user = payload?.user || credential.user || { id: credential.userId };
+      onLogin({ token: credential.token, user });
+    } catch (error) {
+      console.error("Biometric login error:", error);
+      toast.error(
+        error instanceof Error && error.message
+          ? error.message
+          : "Biometric login failed. Please use your verification code.",
+      );
+    } finally {
+      setIsBiometricLoading(false);
+    }
   };
 
   if (showOtpScreen && otpContext) {
@@ -289,7 +409,7 @@ export function LoginScreen({
           </div>
           <h1 className="text-2xl">Welcome back</h1>
           <p className="text-muted-foreground">
-            Sign in to your Biltip account
+            Sign in to your Bankdrop account
           </p>
         </div>
 
@@ -397,9 +517,19 @@ export function LoginScreen({
               variant="outline"
               className="w-full h-12 rounded-xl"
               onClick={handleBiometricLogin}
+              disabled={isBiometricLoading}
             >
-              <Smartphone className="h-4 w-4 mr-2" />
-              Use Biometric Login
+              {isBiometricLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Checking biometrics...
+                </>
+              ) : (
+                <>
+                  <Smartphone className="h-4 w-4 mr-2" />
+                  Use Biometric Login
+                </>
+              )}
             </Button>
 
             {/* Social Login Options */}
@@ -459,18 +589,15 @@ export function LoginScreen({
           </div>
         </Card>
 
-        {/* Sign Up Link */}
-        <div className="text-center">
-          <p className="text-muted-foreground">
-            Don't have an account?{" "}
-            <Button
-              variant="link"
-              className="p-0 h-auto"
-              onClick={onShowRegister}
-            >
-              Sign up
-            </Button>
-          </p>
+        {/* Create Account Button */}
+        <div className="mt-6">
+          <Button
+            type="button"
+            className="w-full h-12 rounded-xl"
+            onClick={onShowRegister}
+          >
+            Create New Account
+          </Button>
         </div>
       </div>
     </div>

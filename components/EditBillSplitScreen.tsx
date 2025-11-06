@@ -152,18 +152,44 @@ export function EditBillSplitScreen({
         fetchBillSplit(billSplitId),
         fetchPaymentMethods(),
       ]);
+      const normalizedItems = Array.isArray(bs.items) ? [...bs.items] : [];
+      const itemTotal = normalizedItems.reduce(
+        (sum, item) => sum + item.price * item.quantity,
+        0,
+      );
+      const normalizedTotal =
+        typeof bs.totalAmount === "number" && !Number.isNaN(bs.totalAmount)
+          ? bs.totalAmount
+          : itemTotal;
+
+      const populatedParticipants = (bs.participants ?? []).map(
+        (participant) => {
+          const safeAmount = Number.isFinite(participant.amount)
+            ? participant.amount
+            : 0;
+          const baseTotal = normalizedTotal > 0 ? normalizedTotal : itemTotal;
+          const inferredPercentage =
+            participant.percentage ??
+            (baseTotal > 0 ? (safeAmount / baseTotal) * 100 : 0);
+
+          return {
+            ...participant,
+            amount: safeAmount,
+            percentage: inferredPercentage,
+          };
+        },
+      );
+
       setBillSplit(bs);
       setPaymentMethods(methods);
       setTitle(bs.title);
       setLocation(bs.location);
       setDate(bs.date);
       setNote(bs.note);
-      setItems(bs.items);
-      setParticipants(bs.participants);
-      setTotalAmount(
-        bs.items.reduce((sum, item) => sum + item.price * item.quantity, 0),
-      );
-      setSplitMethod(bs.splitMethod);
+      setItems(normalizedItems);
+      setParticipants(populatedParticipants);
+      setTotalAmount(normalizedTotal);
+      setSplitMethod(bs.splitMethod ?? "equal");
       const defaultMethod =
         bs.paymentMethod || methods.find((m) => m.isDefault) || null;
       setSelectedPaymentMethod(defaultMethod);
@@ -200,18 +226,37 @@ export function EditBillSplitScreen({
 
   if (error) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center space-x-4">
-          <Button variant="ghost" size="sm" onClick={() => onNavigate("bills")}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <h2>Edit Bill Split</h2>
+      <div className="min-h-screen bg-background pb-24">
+        <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b border-border/60">
+          <div className="flex items-center gap-3 px-4 py-3 max-w-3xl mx-auto">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onNavigate("bills")}
+              className="min-h-[44px] min-w-[44px] -ml-2"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div className="flex-1 min-w-0">
+              <h1 className="text-lg font-semibold truncate">
+                Edit Bill Split
+              </h1>
+              <p className="text-xs text-muted-foreground">
+                Something went wrong. Please try again.
+              </p>
+            </div>
+          </div>
         </div>
-        <div className="text-center py-8 space-y-4">
-          <p className="text-muted-foreground">{error}</p>
-          <Button onClick={fetchData} variant="outline">
-            Retry
-          </Button>
+
+        <div className="px-4 py-6 space-y-4 max-w-3xl mx-auto">
+          <Card>
+            <CardContent className="py-10 text-center space-y-4">
+              <p className="text-muted-foreground">{error}</p>
+              <Button onClick={fetchData} variant="outline">
+                Retry
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       </div>
     );
@@ -219,15 +264,37 @@ export function EditBillSplitScreen({
 
   if (!billSplit) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center space-x-4">
-          <Button variant="ghost" size="sm" onClick={() => onNavigate("bills")}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <h2>Edit Bill Split</h2>
+      <div className="min-h-screen bg-background pb-24">
+        <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b border-border/60">
+          <div className="flex items-center gap-3 px-4 py-3 max-w-3xl mx-auto">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onNavigate("bills")}
+              className="min-h-[44px] min-w-[44px] -ml-2"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div className="flex-1 min-w-0">
+              <h1 className="text-lg font-semibold truncate">
+                Edit Bill Split
+              </h1>
+              <p className="text-xs text-muted-foreground">
+                We couldn't find that bill split.
+              </p>
+            </div>
+          </div>
         </div>
-        <div className="text-center py-8">
-          <p className="text-muted-foreground">Bill split not found</p>
+
+        <div className="px-4 py-6 max-w-3xl mx-auto">
+          <Card>
+            <CardContent className="py-10 text-center space-y-3">
+              <p className="text-muted-foreground">Bill split not found.</p>
+              <Button variant="outline" onClick={() => onNavigate("bills")}>
+                Back to Bills
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       </div>
     );
@@ -236,45 +303,58 @@ export function EditBillSplitScreen({
   // Check access control - only creator can edit
   if (!isCreator) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center space-x-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onNavigate("bill-split-details", { billSplitId })}
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <h2>Edit Bill Split</h2>
-        </div>
-
-        <Card className="p-6">
-          <div className="text-center space-y-4">
-            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto">
-              <Edit className="h-8 w-8 text-muted-foreground" />
-            </div>
-            <div>
-              <h3 className="font-medium">Access Restricted</h3>
-              <p className="text-sm text-muted-foreground mt-2">
-                Only the creator of this bill split can edit it. You can view
-                the details and pay your share, but editing is restricted to
-                maintain payment coordination integrity.
+      <div className="min-h-screen bg-background pb-24">
+        <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b border-border/60">
+          <div className="flex items-center gap-3 px-4 py-3 max-w-3xl mx-auto">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() =>
+                onNavigate("bill-split-details", { billSplitId })
+              }
+              className="min-h-[44px] min-w-[44px] -ml-2"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div className="flex-1 min-w-0">
+              <h1 className="text-lg font-semibold truncate">
+                Edit Bill Split
+              </h1>
+              <p className="text-xs text-muted-foreground">
+                Editing is limited to the bill creator.
               </p>
             </div>
-            <div className="flex flex-col gap-3 mt-6">
-              <Button
-                onClick={() =>
-                  onNavigate("bill-split-details", { billSplitId })
-                }
-              >
-                View Bill Split Details
-              </Button>
-              <Button variant="outline" onClick={() => onNavigate("bills")}>
-                Back to Bills
-              </Button>
-            </div>
           </div>
-        </Card>
+        </div>
+
+        <div className="px-4 py-6 max-w-3xl mx-auto">
+          <Card className="p-6">
+            <div className="text-center space-y-4">
+              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto">
+                <Edit className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <div>
+                <h3 className="font-medium">Access Restricted</h3>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Only the creator of this bill split can make changes. You can
+                  still review the details or pay your share.
+                </p>
+              </div>
+              <div className="flex flex-col gap-3 mt-6">
+                <Button
+                  onClick={() =>
+                    onNavigate("bill-split-details", { billSplitId })
+                  }
+                >
+                  View Bill Split Details
+                </Button>
+                <Button variant="outline" onClick={() => onNavigate("bills")}>
+                  Back to Bills
+                </Button>
+              </div>
+            </div>
+          </Card>
+        </div>
       </div>
     );
   }
@@ -496,63 +576,73 @@ export function EditBillSplitScreen({
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
+    <div className="min-h-screen bg-background pb-24">
+      <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b border-border/60">
+        <div className="flex items-center gap-3 px-4 py-3 max-w-3xl mx-auto">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => onNavigate("bill-split-details", { billSplitId })}
+            className="min-h-[44px] min-w-[44px] -ml-2"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="h-5 w-5" />
           </Button>
-          <h2>Edit Bill Split</h2>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-lg font-semibold truncate">Edit Bill Split</h1>
+            <p className="text-xs text-muted-foreground">
+              Update bill details and participant shares.
+            </p>
+          </div>
+          <Button
+            onClick={saveBillSplitHandler}
+            disabled={saving}
+            className="min-h-[44px] px-4"
+          >
+            {saving && <LoadingSpinner size="sm" className="mr-2" />}
+            Save
+          </Button>
         </div>
-        <Button onClick={saveBillSplitHandler} disabled={saving}>
-          {saving && <LoadingSpinner size="sm" className="mr-2" />}
-          Save Changes
-        </Button>
       </div>
 
-      {/* Basic Information */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Bill Information</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <Label htmlFor="title">Title *</Label>
-            <Input
-              id="title"
-              placeholder="Enter bill title"
+      <div className="px-4 py-6 space-y-6 max-w-3xl mx-auto">
+        {/* Basic Information */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle>Bill Information</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 p-4 sm:p-6">
+            <div>
+              <Label htmlFor="title">Title *</Label>
+              <Input
+                id="title"
+                placeholder="Enter bill title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
             />
           </div>
 
-          <div>
-            <Label htmlFor="location">Location</Label>
-            <div className="relative">
-              <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                id="location"
-                placeholder="Enter location"
-                value={location}
+            <div>
+              <Label htmlFor="location">Location</Label>
+              <div className="relative">
+                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="location"
+                  placeholder="Enter location"
+                  value={location}
                 onChange={(e) => setLocation(e.target.value)}
                 className="pl-10"
               />
             </div>
           </div>
 
-          <div>
-            <Label htmlFor="date">Date</Label>
-            <div className="relative">
-              <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                id="date"
-                type="date"
-                value={date}
+            <div>
+              <Label htmlFor="date">Date</Label>
+              <div className="relative">
+                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="date"
+                  type="date"
+                  value={date}
                 onChange={(e) => setDate(e.target.value)}
                 className="pl-10"
               />
@@ -573,17 +663,17 @@ export function EditBillSplitScreen({
       </Card>
 
       {/* Payment Destination */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Building2 className="h-5 w-5" />
-            Payment Destination
-          </CardTitle>
-          <CardDescription>
-            Participants will send payments to this account
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
+        <Card>
+          <CardHeader className="space-y-1">
+            <CardTitle className="flex items-center gap-2">
+              <Building2 className="h-5 w-5" />
+              Payment Destination
+            </CardTitle>
+            <CardDescription>
+              Participants will send payments to this account
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4 p-4 sm:p-6">
           <Select
             value={selectedPaymentMethod?.id || ""}
             onValueChange={(value) => {
@@ -608,7 +698,12 @@ export function EditBillSplitScreen({
                         ? method.bankName
                         : method.provider}
                     </span>
-                    <span className="text-muted-foreground">•</span>
+                    <span
+                      aria-hidden="true"
+                      className="text-muted-foreground px-1"
+                    >
+                      &middot;
+                    </span>
                     <span className="text-muted-foreground">
                       {method.type === "bank"
                         ? method.accountNumber
@@ -627,8 +722,8 @@ export function EditBillSplitScreen({
 
           {selectedPaymentMethod && (
             <Card className="bg-muted">
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between">
+              <CardContent className="p-4 sm:p-5">
+                <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1">
                     <p className="font-medium">
                       {selectedPaymentMethod.type === "bank"
@@ -698,10 +793,10 @@ export function EditBillSplitScreen({
 
       {/* Split Method */}
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-2">
           <CardTitle>Split Method</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-4 sm:p-6">
           <Select value={splitMethod} onValueChange={handleSplitMethodChange}>
             <SelectTrigger>
               <SelectValue />
@@ -717,26 +812,26 @@ export function EditBillSplitScreen({
 
       {/* Participants */}
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" />
             Participants ({participants.length})
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 p-4 sm:p-6">
           <div className="space-y-3">
             {participants.map((participant) => (
               <div
                 key={participant.id}
-                className="flex items-center justify-between p-3 bg-muted rounded-lg"
+                className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between p-3 bg-muted rounded-lg"
               >
-                <div className="flex items-center space-x-3">
-                  <Avatar className="h-8 w-8">
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-9 w-9">
                     <AvatarFallback>{participant.avatar}</AvatarFallback>
                   </Avatar>
                   <span className="font-medium">{participant.name}</span>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap sm:justify-end">
                   {splitMethod === "custom" && (
                     <div className="flex items-center gap-1">
                       <span className="text-xs text-muted-foreground">
@@ -745,14 +840,18 @@ export function EditBillSplitScreen({
                       <Input
                         type="number"
                         step="0.01"
-                        value={participant.amount || ""}
+                        value={
+                          Number.isFinite(participant.amount)
+                            ? participant.amount
+                            : ""
+                        }
                         onChange={(e) =>
                           updateParticipantAmount(
                             participant.id,
                             parseFloat(e.target.value) || 0,
                           )
                         }
-                        className="w-16 h-8 text-xs"
+                        className="w-24 h-9 text-sm"
                         placeholder="0.00"
                       />
                     </div>
@@ -765,14 +864,18 @@ export function EditBillSplitScreen({
                         step="0.01"
                         min="0"
                         max="100"
-                        value={participant.percentage || ""}
+                        value={
+                          Number.isFinite(participant.percentage)
+                            ? participant.percentage
+                            : ""
+                        }
                         onChange={(e) =>
                           updateParticipantPercentage(
                             participant.id,
                             parseFloat(e.target.value) || 0,
                           )
                         }
-                        className="w-16 h-8 text-xs"
+                        className="w-20 h-9 text-sm"
                         placeholder="0"
                       />
                       <span className="text-xs text-muted-foreground">%</span>
@@ -812,7 +915,7 @@ export function EditBillSplitScreen({
 
       {/* Bill Items */}
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-2">
           <CardTitle className="flex items-center justify-between">
             Bill Items
             <Button variant="outline" size="sm" onClick={addItem}>
@@ -821,101 +924,100 @@ export function EditBillSplitScreen({
             </Button>
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 p-4 sm:p-6">
           <div className="space-y-3">
-            {items.map((item) => (
-              <div key={item.id} className="space-y-3 p-3 border rounded-lg">
-                <div className="flex items-center justify-between">
-                  <Input
-                    placeholder="Item name"
-                    value={item.name}
-                    onChange={(e) =>
-                      updateItem(item.id, "name", e.target.value)
-                    }
-                    className="flex-1 mr-2"
-                  />
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removeItem(item.id)}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
+              {items.map((item) => (
+                <div key={item.id} className="space-y-3 p-3 border rounded-lg">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <Input
+                      placeholder="Item name"
+                      value={item.name}
+                      onChange={(e) =>
+                        updateItem(item.id, "name", e.target.value)
+                      }
+                      className="flex-1 sm:mr-2"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeItem(item.id)}
+                      className="self-end sm:self-auto"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <Label className="text-xs">Price</Label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-sm">
-                        {currencySymbol}
-                      </span>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        placeholder="0.00"
-                        value={item.price || ""}
-                        onChange={(e) =>
-                          updateItem(
-                            item.id,
-                            "price",
-                            parseFloat(e.target.value) || 0,
-                          )
-                        }
-                        className="pl-8"
-                      />
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+                    <div>
+                      <Label className="text-xs">Price</Label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm">
+                          {currencySymbol}
+                        </span>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          placeholder="0.00"
+                          value={item.price || ""}
+                          onChange={(e) =>
+                            updateItem(
+                              item.id,
+                              "price",
+                              parseFloat(e.target.value) || 0,
+                            )
+                          }
+                          className="pl-8"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label className="text-xs">Quantity</Label>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            updateItem(
+                              item.id,
+                              "quantity",
+                              Math.max(1, item.quantity - 1),
+                            )
+                          }
+                        >
+                          <Minus className="h-3 w-3" />
+                        </Button>
+                        <Input
+                          type="number"
+                          min="1"
+                          value={item.quantity}
+                          onChange={(e) =>
+                            updateItem(
+                              item.id,
+                              "quantity",
+                              parseInt(e.target.value) || 1,
+                            )
+                          }
+                          className="text-center flex-1"
+                        />
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            updateItem(item.id, "quantity", item.quantity + 1)
+                          }
+                        >
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
 
-                  <div>
-                    <Label className="text-xs">Quantity</Label>
-                    <div className="flex items-center space-x-1">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                          updateItem(
-                            item.id,
-                            "quantity",
-                            Math.max(1, item.quantity - 1),
-                          )
-                        }
-                      >
-                        <Minus className="h-3 w-3" />
-                      </Button>
-                      <Input
-                        type="number"
-                        min="1"
-                        value={item.quantity}
-                        onChange={(e) =>
-                          updateItem(
-                            item.id,
-                            "quantity",
-                            parseInt(e.target.value) || 1,
-                          )
-                        }
-                        className="text-center flex-1"
-                      />
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                          updateItem(item.id, "quantity", item.quantity + 1)
-                        }
-                      >
-                        <Plus className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="text-right">
-                  <span className="text-sm text-muted-foreground">
+                  <div className="text-sm text-muted-foreground text-right">
                     Subtotal: {fmt(item.price * item.quantity)}
-                  </span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
           </div>
 
           {items.length === 0 && (
@@ -930,7 +1032,7 @@ export function EditBillSplitScreen({
 
       {/* Split Summary */}
       <Card className="border-primary">
-        <CardContent className="p-4">
+        <CardContent className="p-4 sm:p-6">
           <div className="space-y-3">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Total Amount:</span>
@@ -947,7 +1049,7 @@ export function EditBillSplitScreen({
 
             {Math.abs(getTotalSplit() - totalAmount) > 0.01 && (
               <div className="text-xs text-warning bg-warning/10 p-2 rounded">
-                ⚠️ Split amounts don't match total. Please adjust amounts.
+                Heads up: Split amounts don't match total. Please adjust amounts.
               </div>
             )}
           </div>
@@ -955,7 +1057,7 @@ export function EditBillSplitScreen({
       </Card>
 
       {/* Save Button */}
-      <div className="space-y-3">
+      <div className="space-y-3 pb-4">
         <Button
           className="w-full"
           onClick={saveBillSplitHandler}

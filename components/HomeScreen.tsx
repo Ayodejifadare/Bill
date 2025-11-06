@@ -1,4 +1,12 @@
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { TransactionCard } from "./TransactionCard";
@@ -10,6 +18,7 @@ import { useUserProfile } from "./UserProfileContext";
 import { getCurrencySymbol, formatCurrencyForRegion } from "../utils/regions";
 import { TransactionSkeleton, ListSkeleton } from "./ui/loading";
 import { useTransactions } from "../hooks/useTransactions";
+import type { Transaction } from "../hooks/useTransactions";
 import { NotificationBell } from "./ui/notification-bell";
 import { apiClient } from "../utils/apiClient";
 
@@ -25,6 +34,18 @@ const quickActions = [
   { id: "split", icon: Users, label: "Split", color: "bg-purple-500" },
   { id: "bills", icon: Receipt, label: "Bills", color: "bg-orange-500" },
 ];
+
+const dedupeByBillSplit = (list: Transaction[]): Transaction[] => {
+  const seen = new Set<string>();
+  const result: Transaction[] = [];
+  for (const tx of list) {
+    const key = tx.billSplitId || tx.id;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(tx);
+  }
+  return result;
+};
 
 interface HomeScreenProps {
   onNavigate: (tab: string, data?: any) => void;
@@ -50,77 +71,62 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
     transactions,
     loading: transactionsLoading,
     error: transactionsError,
-    refetch,
   } = useTransactions();
   const [counts, setCounts] = useState<{
     all: number;
     sent: number;
     received: number;
   }>({ all: 0, sent: 0, received: 0 });
-  const [balanceSummary, setBalanceSummary] = useState<{ owedToUser: number; userOwes: number }>({ owedToUser: 0, userOwes: 0 });
+  const [balanceSummary, setBalanceSummary] = useState<{
+    owedToUser: number;
+    userOwes: number;
+  }>({ owedToUser: 0, userOwes: 0 });
+  const metricsRequestRef = useRef<Promise<void> | null>(null);
+  const isMountedRef = useRef(true);
+
+  useEffect(
+    () => () => {
+      isMountedRef.current = false;
+    },
+    [],
+  );
+  const refreshMetrics = useCallback(() => {
+    if (!metricsRequestRef.current) {
+      metricsRequestRef.current = (async () => {
+        const [countsResult, summaryResult] = await Promise.allSettled([
+          apiClient("/transactions/counts"),
+          apiClient("/friends/summary"),
+        ]);
+        if (!isMountedRef.current) {
+          metricsRequestRef.current = null;
+          return;
+        }
+        if (countsResult.status === "fulfilled") {
+          const data = countsResult.value;
+          setCounts({
+            all: data?.total ?? 0,
+            sent: data?.sent ?? 0,
+            received: data?.received ?? 0,
+          });
+        }
+        if (summaryResult.status === "fulfilled") {
+          const data = summaryResult.value;
+          setBalanceSummary({
+            owedToUser: data?.owedToUser ?? 0,
+            userOwes: data?.userOwes ?? 0,
+          });
+        }
+        metricsRequestRef.current = null;
+      })().catch(() => {
+        metricsRequestRef.current = null;
+      });
+    }
+    return metricsRequestRef.current;
+  }, []);
+
   useEffect(() => {
-    let cancelled = false;
-    const fetchCounts = async () => {
-      try {
-        const data = await apiClient("/transactions/counts");
-        if (cancelled) return;
-        setCounts({
-          all: data?.total ?? 0,
-          sent: data?.sent ?? 0,
-          received: data?.received ?? 0,
-        });
-      } catch {
-        /* retain previous counts on failure */
-      }
-    };
-    const fetchBalanceSummary = async () => {
-      try {
-        const data = await apiClient("/friends/summary");
-        if (cancelled) return;
-        setBalanceSummary({
-          owedToUser: data?.owedToUser ?? 0,
-          userOwes: data?.userOwes ?? 0,
-        });
-      } catch {
-        /* retain previous summary on failure */
-      }
-    };
+    void refreshMetrics();
 
-    const refreshMetrics = async () => {
-      await Promise.allSettled([fetchCounts(), fetchBalanceSummary()]);
-      if (cancelled) return;
-    };
-
-    // Initial fetch (defer slightly to keep first paint smooth)
-    let idleHandle: number | null = null;
-    let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
-    const w = window as typeof window & {
-      requestIdleCallback?: (
-        callback: IdleRequestCallback,
-        options?: IdleRequestOptions,
-      ) => number;
-      cancelIdleCallback?: (handle: number) => void;
-    };
-    const scheduleInitialFetch = () => {
-      const run = () => {
-        timeoutHandle = null;
-        void refreshMetrics();
-      };
-      if (typeof w.requestIdleCallback === "function") {
-        idleHandle = w.requestIdleCallback(
-          () => {
-            idleHandle = null;
-            run();
-          },
-          { timeout: 700 },
-        );
-        return;
-      }
-      timeoutHandle = setTimeout(run, 300);
-    };
-    scheduleInitialFetch();
-
-    // Refresh on app-wide updates (e.g., mark-sent, confirmations)
     const onTxUpdated = () => {
       void refreshMetrics();
     };
@@ -137,17 +143,10 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
       window.addEventListener("upcomingPaymentsUpdated", onUpcomingUpdated);
       document.addEventListener("visibilitychange", onVisibility);
     } catch {
-      // non-browser envs
+      // non-browser environments
     }
 
     return () => {
-      cancelled = true;
-      if (idleHandle !== null && typeof w.cancelIdleCallback === "function") {
-        w.cancelIdleCallback(idleHandle);
-      }
-      if (timeoutHandle) {
-        clearTimeout(timeoutHandle);
-      }
       try {
         window.removeEventListener("transactionsUpdated", onTxUpdated);
         window.removeEventListener("upcomingPaymentsUpdated", onUpcomingUpdated);
@@ -156,18 +155,12 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
         // noop
       }
     };
-  }, []);
-
-  const hasAppliedFilterOnce = useRef(false);
+  }, [refreshMetrics]);
 
   useEffect(() => {
-    if (!hasAppliedFilterOnce.current) {
-      hasAppliedFilterOnce.current = true;
-      return;
-    }
-    const type = activityFilter === "all" ? undefined : activityFilter;
-    refetch({ type });
-  }, [activityFilter, refetch]);
+    void import("./UpcomingPayments");
+  }, []);
+
 
   const getTransactionCount = (filterType: "all" | "sent" | "received") => {
     if (filterType === "all") return counts.all;
@@ -184,17 +177,26 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
 
   // Collapse multiple transaction rows for the same bill split into a single
   // recent-activity item so group splits don’t appear once per participant.
-  const dedupeByBillSplit = (list: typeof transactions) => {
-    const seen = new Set<string>();
-    const result: typeof transactions = [];
-    for (const tx of list) {
-      const key = (tx as any).billSplitId || tx.id;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      result.push(tx);
+  const filteredTransactions = useMemo(() => {
+    if (activityFilter === "all") {
+      return transactions;
     }
-    return result;
-  };
+    return transactions.filter(
+      (transaction) => transaction.type === activityFilter,
+    );
+  }, [activityFilter, transactions]);
+
+  // Collapse multiple transaction rows for the same bill split into a single
+  // recent-activity item so group splits don't appear once per participant.
+  const recentTransactions = useMemo(
+    () => dedupeByBillSplit(filteredTransactions),
+    [filteredTransactions],
+  );
+
+  const completedRecentTransactions = useMemo(
+    () => recentTransactions.filter((transaction) => transaction.status === "completed"),
+    [recentTransactions],
+  );
 
   return (
     <div>
@@ -349,10 +351,7 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
               !transactionsError &&
               selectedCount > 0 && (
                 (() => {
-                  const completed = dedupeByBillSplit(transactions).filter(
-                    (t) => t.status === "completed",
-                  );
-                  if (completed.length === 0) {
+                  if (completedRecentTransactions.length === 0) {
                     return (
                       <EmptyState
                         icon={DollarSign}
@@ -364,7 +363,7 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
                   }
                   return (
                     <>
-                      {completed.slice(0, 4).map((transaction) => (
+                      {completedRecentTransactions.slice(0, 4).map((transaction) => (
                         <TransactionCard
                           key={transaction.id}
                           transaction={transaction}
@@ -372,7 +371,7 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
                           currencySymbol={currencySymbol}
                         />
                       ))}
-                      {completed.length > 4 && (
+                      {completedRecentTransactions.length > 4 && (
                         <div className="text-center mt-4">
                           <Button
                             variant="outline"

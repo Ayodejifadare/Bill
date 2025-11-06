@@ -312,7 +312,7 @@ export function RegisterScreen({
           </Button>
           <div className="text-center flex-1">
             <h1 className="text-2xl">Create Account</h1>
-            <p className="text-muted-foreground">Join SplitPay today</p>
+            <p className="text-muted-foreground">Join Bankdrop today</p>
           </div>
           <div className="w-10" /> {/* Spacer */}
         </div>

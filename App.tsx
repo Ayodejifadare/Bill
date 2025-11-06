@@ -23,6 +23,7 @@ import { NetworkErrorHandler } from "./components/NetworkErrorHandler";
 import { PageLoading } from "./components/ui/loading";
 import { toast } from "sonner";
 import { saveAuth, loadAuth, clearAuth } from "./utils/auth";
+import { clearBiometricCredential } from "./utils/biometric-storage";
 import { apiClient } from "./utils/apiClient";
 import { authService } from "./services/auth";
 import { resolveRegionForSignup } from "./utils/regions";
@@ -960,6 +961,7 @@ function AppContent() {
     const onSessionExpired = () => {
       try {
         clearAuth();
+        clearBiometricCredential();
         setIsAuthenticated(false);
         setShowLogin(true);
         toast.error("Your session expired. Please log in again.");
@@ -1113,6 +1115,7 @@ function AppContent() {
     try {
       // Clear stored authentication data
       clearAuth();
+      clearBiometricCredential();
       localStorage.removeItem("biltip_contacts_synced");
 
       // Reset app state

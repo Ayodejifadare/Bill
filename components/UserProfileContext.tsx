@@ -8,6 +8,7 @@ import {
   useCallback,
 } from "react";
 import { apiClient } from "../utils/apiClient";
+import { syncBiometricCredential } from "../utils/biometric-storage";
 
 interface LinkedBankAccount {
   id: string;
@@ -243,6 +244,7 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
         PROFILE_CACHE_KEY,
         JSON.stringify(profile),
       );
+      syncBiometricCredential(profile);
     } catch (error) {
       console.warn("Error caching user profile:", error);
     }
