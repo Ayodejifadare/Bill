@@ -192,6 +192,18 @@ const getStoredUserId = (): string | undefined => {
   }
 };
 
+const hasStoredAuthToken = (): boolean => {
+  if (typeof window === "undefined") return false;
+  try {
+    const raw = localStorage.getItem("biltip_auth");
+    if (!raw) return false;
+    const parsed = JSON.parse(raw);
+    return typeof parsed?.token === "string" && parsed.token.length > 0;
+  } catch {
+    return false;
+  }
+};
+
 // Helper function to get saved settings from localStorage
 export const getSavedSettings = (): AppSettings => {
   try {
@@ -475,7 +487,7 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
       void (async () => {
         try {
           const userId = userProfile?.id || getStoredUserId();
-          if (!userId) return;
+          if (!userId || !hasStoredAuthToken()) return;
           await apiClient(`/users/${userId}`, {
             method: "PUT",
             headers: {

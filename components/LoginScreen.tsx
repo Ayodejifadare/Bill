@@ -202,20 +202,19 @@ export function LoginScreen({
           return;
         }
 
-        if (selectedCountry) {
-          updateAppSettings({
-            region: selectedCountry.region,
-            currency: selectedCountry.currency,
-          });
-        } else if (result.user?.region && result.user?.currency) {
-          updateAppSettings({
-            region: result.user.region,
-            currency: result.user.currency,
-          });
-        }
-
         onLogin(result);
         setError("");
+
+        const regionToApply = selectedCountry?.region ?? result.user?.region;
+        const currencyToApply =
+          selectedCountry?.currency ?? result.user?.currency;
+
+        if (regionToApply && currencyToApply) {
+          updateAppSettings({
+            region: regionToApply,
+            currency: currencyToApply,
+          });
+        }
       } catch (error) {
         console.error("Google login error:", error);
         toast.error("Google sign-in failed. Please try again.");
