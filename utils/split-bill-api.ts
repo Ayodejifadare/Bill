@@ -81,24 +81,81 @@ export { getCachedFriends };
 export function getCachedGroups(): Group[] | null {
   return groupsCache ? [...groupsCache] : null;
 }
+function extractGroups(payload: any): any[] {
+  if (Array.isArray(payload?.groups)) return payload.groups as any[];
+  if (Array.isArray(payload)) return payload;
+  return [];
+}
+
+function mapGroup(
+  group: any,
+  { cacheMembers }: { cacheMembers: boolean },
+): Group {
+  const groupId = String(group?.id ?? "");
+  const rawMembers = Array.isArray(group?.members) ? group.members : [];
+  const members = rawMembers
+    .map((member) => mapMemberToFriend(member))
+    .filter((m): m is Friend => Boolean(m));
+  if (cacheMembers) {
+    groupMembersCache.set(groupId, members);
+  }
+  return {
+    id: groupId,
+    name: group?.name || "Untitled group",
+    members,
+    color: group?.color || "bg-blue-500",
+  } as Group;
+}
+
+function groupsIncludeMembers(rawGroups: any[]): boolean {
+  if (!rawGroups.length) return true;
+  return rawGroups.every((group) => group && Object.prototype.hasOwnProperty.call(group, "members"));
+}
+
+async function tryFetchGroupsWithMembers(): Promise<Group[] | null> {
+  try {
+    const data = await apiClient("/groups?include=members");
+    const rawGroups = extractGroups(data);
+    if (!groupsIncludeMembers(rawGroups)) return null;
+    return rawGroups.map((group) => mapGroup(group, { cacheMembers: true }));
+  } catch (error) {
+    console.warn("/groups?include=members failed, falling back", error);
+    return null;
+  }
+}
+
 export async function fetchGroups(): Promise<Group[]> {
   if (groupsCache) return groupsCache;
+
+  const groupsWithMembers = await tryFetchGroupsWithMembers();
+  if (groupsWithMembers) {
+    groupsCache = groupsWithMembers;
+    return groupsCache;
+  }
+
   const data = await apiClient("/groups");
-  const rawGroups = Array.isArray((data as any)?.groups) ? (data as any).groups : Array.isArray(data) ? data : [];
+  const rawGroups = extractGroups(data);
   const normalized = await Promise.all(
     rawGroups.map(async (group: any) => {
-      const groupId = String(group.id);
-      const members = Array.isArray(group?.members) && group.members.some((member: any) => typeof (member as any)?.id === "string")
-        ? (group.members as Friend[])
-        : await fetchGroupMembers(groupId);
-      return { id: groupId, name: group.name || "Untitled group", members, color: group.color || "bg-blue-500" } as Group;
-    })
+      const groupId = String(group?.id ?? "");
+      const members = await fetchGroupMembers(groupId);
+      return {
+        id: groupId,
+        name: group?.name || "Untitled group",
+        members,
+        color: group?.color || "bg-blue-500",
+      } as Group;
+    }),
   );
   groupsCache = normalized;
   return groupsCache;
 }
-export async function fetchGroupMembers(groupId: string): Promise<Friend[]> {
-  if (groupMembersCache.has(groupId)) return groupMembersCache.get(groupId)!;
+
+export async function fetchGroupMembers(
+  groupId: string,
+  { forceRefresh = false }: { forceRefresh?: boolean } = {},
+): Promise<Friend[]> {
+  if (!forceRefresh && groupMembersCache.has(groupId)) return groupMembersCache.get(groupId)!;
   try {
     const data = await apiClient(`/groups/${groupId}`);
     const group = (data as any)?.group ?? data;

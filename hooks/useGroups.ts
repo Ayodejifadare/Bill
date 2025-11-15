@@ -71,8 +71,14 @@ export function useGroups(): UseGroupsResult {
     setLoading(true);
     setError(null);
     try {
-      const data = await apiClient("/groups");
-      const rawGroups = Array.isArray(data.groups) ? data.groups : [];
+      let data: any;
+      try {
+        data = await apiClient("/groups?include=members");
+      } catch (error) {
+        console.warn("/groups?include=members unavailable, falling back", error);
+        data = await apiClient("/groups");
+      }
+      const rawGroups = Array.isArray(data?.groups) ? data.groups : Array.isArray(data) ? data : [];
       const mapped = rawGroups.map((g: any) => mapRawGroup(g));
       setGroups(mapped);
     } catch (err) {

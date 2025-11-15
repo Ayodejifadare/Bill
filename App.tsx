@@ -496,6 +496,7 @@ function AppContent() {
   const tabCacheRef = useRef<Map<string, ReactNode>>(new Map());
   const lastPrimaryTabRef = useRef<string>(initialState.activeTab);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const isAuthenticatedRef = useRef(isAuthenticated);
   const [showLogin, setShowLogin] = useState(true);
   const [isInitializing, setIsInitializing] = useState(true);
   const [pendingOTP, setPendingOTP] = useState<null | {
@@ -509,6 +510,10 @@ function AppContent() {
 
   // Performance monitoring
   usePerformanceMonitoring();
+
+  useEffect(() => {
+    isAuthenticatedRef.current = isAuthenticated;
+  }, [isAuthenticated]);
 
   // Network status for connection-aware features (not currently used)
 
@@ -812,16 +817,18 @@ function AppContent() {
       () => import("./components/NotificationsScreen"),
       () => import("./components/PaymentMethodsScreen"),
     ];
-
     let cancelled = false;
     let idleHandle: number | null = null;
     let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
+    let startTimer: ReturnType<typeof setTimeout> | null = null;
 
     const scheduleNext = () => {
-      if (cancelled || queue.length === 0) return;
+      if (cancelled || queue.length === 0 || !isAuthenticatedRef.current) {
+        return;
+      }
 
       const schedule = () => {
-        if (cancelled) return;
+        if (cancelled || !isAuthenticatedRef.current) return;
         const loader = queue.shift();
         if (!loader) return;
         loader()
@@ -847,9 +854,16 @@ function AppContent() {
       }
     };
 
-    scheduleNext();
+    startTimer = setTimeout(() => {
+      startTimer = null;
+      scheduleNext();
+    }, 300);
+
     return () => {
       cancelled = true;
+      if (startTimer !== null) {
+        clearTimeout(startTimer);
+      }
       if (idleHandle !== null && w.cancelIdleCallback) {
         w.cancelIdleCallback(idleHandle);
       }
@@ -864,7 +878,8 @@ function AppContent() {
     if (!isAuthenticated) return;
     let cancelled = false;
     let idleHandle: number | null = null;
-    let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
+    let warmupTimeoutHandle: ReturnType<typeof setTimeout> | null = null;
+    let startTimer: ReturnType<typeof setTimeout> | null = null;
     const w = window as typeof window & {
       requestIdleCallback?: (
         callback: IdleRequestCallback,
@@ -874,7 +889,7 @@ function AppContent() {
     };
 
     const warmup = () => {
-      if (cancelled) return;
+      if (cancelled || !isAuthenticatedRef.current) return;
       Promise.allSettled([
         import("./hooks/useFriends").then((mod) => mod.fetchFriends?.()),
         import("./utils/split-bill-api").then((mod) => mod.fetchGroups?.()),
@@ -886,25 +901,40 @@ function AppContent() {
       });
     };
 
-    if (w.requestIdleCallback) {
-      idleHandle = w.requestIdleCallback(
-        () => {
-          idleHandle = null;
+    const scheduleWarmup = () => {
+      if (cancelled || !isAuthenticatedRef.current) return;
+
+      if (w.requestIdleCallback) {
+        idleHandle = w.requestIdleCallback(
+          () => {
+            idleHandle = null;
+            warmup();
+          },
+          { timeout: 1600 },
+        );
+      } else {
+        warmupTimeoutHandle = setTimeout(() => {
+          warmupTimeoutHandle = null;
           warmup();
-        },
-        { timeout: 1600 },
-      );
-    } else {
-      timeoutHandle = setTimeout(warmup, 700);
-    }
+        }, 700);
+      }
+    };
+
+    startTimer = setTimeout(() => {
+      startTimer = null;
+      scheduleWarmup();
+    }, 320);
 
     return () => {
       cancelled = true;
+      if (startTimer !== null) {
+        clearTimeout(startTimer);
+      }
       if (idleHandle !== null && w.cancelIdleCallback) {
         w.cancelIdleCallback(idleHandle);
       }
-      if (timeoutHandle) {
-        clearTimeout(timeoutHandle);
+      if (warmupTimeoutHandle) {
+        clearTimeout(warmupTimeoutHandle);
       }
     };
   }, [isAuthenticated]);

@@ -39,7 +39,14 @@ describe("split-bill-api utilities", () => {
   it("fetchGroups caches results after the first request", async () => {
     const { fetchGroups } = await loadSplitBillApi();
     const groups = [
-      { id: "group-1", name: "Weekend Trip", members: [], color: "#f97316" },
+      {
+        id: "group-1",
+        name: "Weekend Trip",
+        members: [
+          { id: "friend-1", name: "Ada Lovelace", status: "active" as const },
+        ],
+        color: "#f97316",
+      },
     ];
     apiClientMock.mockResolvedValueOnce({ groups });
 
@@ -47,10 +54,73 @@ describe("split-bill-api utilities", () => {
     const secondResult = await fetchGroups();
 
     expect(apiClientMock).toHaveBeenCalledTimes(1);
-    expect(apiClientMock).toHaveBeenNthCalledWith(1, "/groups");
-    expect(firstResult).toEqual(groups);
+    expect(apiClientMock).toHaveBeenNthCalledWith(1, "/groups?include=members");
+    expect(firstResult).toEqual([
+      expect.objectContaining({
+        id: "group-1",
+        name: "Weekend Trip",
+        color: "#f97316",
+        members: [
+          expect.objectContaining({ id: "friend-1", name: "Ada Lovelace" }),
+        ],
+      }),
+    ]);
     expect(secondResult).toBe(firstResult);
     expect(fetchFriendsApiMock).not.toHaveBeenCalled();
+  });
+
+  it("falls back to per-group requests when members aren't included", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { fetchGroups } = await loadSplitBillApi();
+    apiClientMock
+      .mockRejectedValueOnce(new Error("include unsupported"))
+      .mockResolvedValueOnce({ groups: [{ id: "group-1", name: "Fallback", color: "#fff" }] })
+      .mockResolvedValueOnce({
+        group: {
+          id: "group-1",
+          members: [
+            { id: "member-1", name: "Alan Turing", status: "active" as const },
+          ],
+        },
+      });
+
+    const groups = await fetchGroups();
+
+    expect(apiClientMock).toHaveBeenCalledTimes(3);
+    expect(apiClientMock).toHaveBeenNthCalledWith(1, "/groups?include=members");
+    expect(apiClientMock).toHaveBeenNthCalledWith(2, "/groups");
+    expect(apiClientMock).toHaveBeenNthCalledWith(3, "/groups/group-1");
+    expect(groups[0].members).toEqual([
+      expect.objectContaining({ id: "member-1", name: "Alan Turing" }),
+    ]);
+    warnSpy.mockRestore();
+  });
+
+  it("reuses cached members from the initial groups response", async () => {
+    const { fetchGroups, fetchGroupMembers } = await loadSplitBillApi();
+    apiClientMock.mockResolvedValueOnce({
+      groups: [
+        {
+          id: "group-1",
+          name: "Weekend Trip",
+          members: [
+            { id: "friend-1", name: "Ada Lovelace", status: "active" as const },
+            { id: "friend-2", name: "Grace Hopper", status: "active" as const },
+          ],
+          color: "#f97316",
+        },
+      ],
+    });
+
+    await fetchGroups();
+    const members = await fetchGroupMembers("group-1");
+
+    expect(apiClientMock).toHaveBeenCalledTimes(1);
+    expect(apiClientMock).toHaveBeenCalledWith("/groups?include=members");
+    expect(members).toHaveLength(2);
+    expect(members[0]).toEqual(
+      expect.objectContaining({ id: "friend-1", name: "Ada Lovelace" }),
+    );
   });
 
   it("fetchExternalAccounts caches per group and normalizes createdDate", async () => {
