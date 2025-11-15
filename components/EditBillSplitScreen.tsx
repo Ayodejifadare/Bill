@@ -1078,5 +1078,6 @@ export function EditBillSplitScreen({
         )}
       </div>
     </div>
+  </div>
   );
 }
