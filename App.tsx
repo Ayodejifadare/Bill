@@ -10,7 +10,7 @@ import {
 } from "react";
 import { lazy } from "react";
 import { GoogleOAuthProvider } from "@react-oauth/google";
-import { UserProfileProvider } from "./components/UserProfileContext";
+import { UserProfileProvider, useUserProfile } from "./components/UserProfileContext";
 import { BottomNavigation } from "./components/BottomNavigation";
 import { ThemeProvider } from "./components/ThemeContext";
 import { LoadingStateProvider } from "./components/LoadingStateContext";
@@ -507,6 +507,7 @@ function AppContent() {
     demoOTP?: string;
   }>(null);
   const DEBUG_NAV = false;
+  const { refreshUserProfile } = useUserProfile();
 
   // Performance monitoring
   usePerformanceMonitoring();
@@ -1081,6 +1082,7 @@ function AppContent() {
       };
 
       saveAuth({ auth: authData, user });
+      void refreshUserProfile({ waitForStats: false, silent: true });
 
       setIsAuthenticated(true);
       dispatch({ type: "SET_TAB", payload: "home" });
@@ -1091,7 +1093,7 @@ function AppContent() {
     } finally {
       setIsInitializing(false);
     }
-  }, []);
+  }, [refreshUserProfile]);
 
   const handleRegister = useCallback(async (userData?: any) => {
     try {
@@ -1176,6 +1178,7 @@ function AppContent() {
           isNewUser: pendingOTP.isNewUser,
         } as const;
         saveAuth({ auth: authData, user });
+        void refreshUserProfile({ waitForStats: false, silent: true });
         setPendingOTP(null);
         setIsAuthenticated(true);
         dispatch({ type: "SET_TAB", payload: "home" });

@@ -169,6 +169,8 @@ const buildProfileFromSource = (
   };
 };
 
+const JWT_PATTERN = /^[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+$/;
+
 const loadCachedProfile = (): UserProfile | null => {
   if (typeof window === "undefined") return null;
   try {
@@ -198,7 +200,8 @@ const hasStoredAuthToken = (): boolean => {
     const raw = localStorage.getItem("biltip_auth");
     if (!raw) return false;
     const parsed = JSON.parse(raw);
-    return typeof parsed?.token === "string" && parsed.token.length > 0;
+    const token = typeof parsed?.token === "string" ? parsed.token.trim() : "";
+    return Boolean(token && JWT_PATTERN.test(token));
   } catch {
     return false;
   }
