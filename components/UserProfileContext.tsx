@@ -245,7 +245,9 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
     useState<AppSettings>(getSavedSettings());
   const [loading, setLoading] = useState(() => !cachedProfileRef.current);
   const initialUserIdRef = useRef<string | undefined>(
-    getStoredUserId() || cachedProfileRef.current?.id,
+    hasStoredAuthToken()
+      ? getStoredUserId() || cachedProfileRef.current?.id
+      : undefined,
   );
 
   const persistProfile = useCallback((profile: UserProfile) => {
@@ -351,7 +353,8 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
-    const userId = initialUserIdRef.current;
+    const hasToken = hasStoredAuthToken();
+    const userId = hasToken ? initialUserIdRef.current : undefined;
     if (!userId) {
       setLoading(false);
       return;
@@ -384,6 +387,7 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
       options: { waitForStats?: boolean; silent?: boolean } = {},
     ) => {
       const { waitForStats = true, silent = false } = options;
+      if (!hasStoredAuthToken()) return;
       const userId =
         getStoredUserId() || userProfile?.id || initialUserIdRef.current;
       if (!userId) return;
