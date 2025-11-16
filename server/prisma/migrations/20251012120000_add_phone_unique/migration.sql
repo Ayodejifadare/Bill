@@ -27,9 +27,7 @@ LOCK TABLE
   "verification_codes"
 IN SHARE ROW EXCLUSIVE MODE;
 
--- Build a CTE that maps duplicate users (by phone number) to the canonical account we will
--- retain. The canonical account is the earliest-created (and then lowest-id) user for a
--- given phone number.
+CREATE TEMP TABLE duplicate_user_map AS
 WITH ranked_users AS (
   SELECT
     id,
@@ -52,7 +50,6 @@ WITH ranked_users AS (
   FROM ranked_users
   WHERE rn > 1
 )
-CREATE TEMP TABLE duplicate_user_map AS
 SELECT *
 FROM duplicate_mapping;
 
