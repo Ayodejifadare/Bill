@@ -2,6 +2,7 @@ import express from "express";
 import crypto from "crypto";
 import { body, validationResult } from "express-validator";
 import authenticate from "../middleware/auth.js";
+import { createNotification } from "../utils/notifications.js";
 
 const ACTIVE_STATUS = "ACTIVE";
 const REVOKED_STATUS = "REVOKED";
@@ -482,7 +483,14 @@ publicRouter.post("/:token/mark-paid", async (req, res) => {
   try {
     let payLink = await req.prisma.payLink.findUnique({
       where: { token: req.params.token },
-      include: { user: { select: { id: true, name: true, avatar: true } } },
+      include: {
+        user: { select: { id: true, name: true, avatar: true } },
+        paymentRequest: {
+          include: {
+            receiver: { select: { id: true, name: true } },
+          },
+        },
+      },
     });
     if (!payLink) {
       return res.status(404).json({ error: "Pay link not found" });
@@ -500,13 +508,35 @@ publicRouter.post("/:token/mark-paid", async (req, res) => {
     const updated = await req.prisma.payLink.update({
       where: { id: payLink.id },
       data: { status: FULFILLED_STATUS },
-      include: { user: { select: { id: true, name: true, avatar: true } } },
+      include: {
+        user: { select: { id: true, name: true, avatar: true } },
+        paymentRequest: {
+          include: {
+            receiver: { select: { id: true, name: true } },
+          },
+        },
+      },
     });
 
     if (updated.paymentRequestId) {
       await req.prisma.paymentRequest.updateMany({
         where: { id: updated.paymentRequestId },
         data: { status: "ACCEPTED" },
+      });
+    }
+
+    if (updated.userId && updated.paymentRequest?.receiverId) {
+      await createNotification(req.prisma, {
+        recipientId: updated.userId,
+        actorId: updated.paymentRequest.receiverId,
+        type: "pay_link_paid",
+        title: "Pay link paid",
+        message:
+          updated.paymentRequest?.receiver?.name
+            ? `${updated.paymentRequest.receiver.name} marked ${updated.title || "a pay link"} as paid.`
+            : `A recipient marked ${updated.title || "your pay link"} as paid.`,
+        amount: updated.amount,
+        actionable: false,
       });
     }
 

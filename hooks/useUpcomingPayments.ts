@@ -7,18 +7,44 @@ export interface PaymentOrganizer {
   avatar: string;
 }
 
+export type UpcomingPaymentType = "bill_split" | "request" | "pay_link";
+export type UpcomingPaymentStatus =
+  | "overdue"
+  | "pending"
+  | "due_soon"
+  | "upcoming"
+  | "paid"
+  | "expired";
+
+export interface BankTransferInstructions {
+  type?: string | null;
+  bank?: string | null;
+  accountName?: string | null;
+  accountNumber?: string | null;
+  sortCode?: string | null;
+  routingNumber?: string | null;
+  accountType?: string | null;
+  provider?: string | null;
+  phoneNumber?: string | null;
+}
+
 export interface UpcomingPayment {
   id: string;
-  type: "bill_split" | "request";
+  type: UpcomingPaymentType;
   title: string;
   amount: number;
   dueDate: string;
   organizer: PaymentOrganizer;
-  status: "overdue" | "pending" | "due_soon" | "upcoming";
+  status: UpcomingPaymentStatus;
   participants: number | any[];
   billSplitId?: string;
   requestId?: string;
   paymentMethod?: Record<string, any>;
+  senderId?: string;
+  receiverId?: string;
+  bankTransferInstructions?: BankTransferInstructions | null;
+  payLinkSlug?: string;
+  payLinkToken?: string;
 }
 
 interface UseUpcomingPaymentsResult {

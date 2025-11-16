@@ -7,6 +7,9 @@
   Users,
   AlertTriangle,
   Undo2,
+  Copy,
+  Link as LinkIcon,
+  CheckCircle,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
@@ -20,6 +23,8 @@ import { ListSkeleton } from "./ui/loading";
 import { Alert, AlertDescription } from "./ui/alert";
 import { useUpcomingPayments } from "../hooks/useUpcomingPayments";
 import { Progress } from "./ui/progress";
+import { toast } from "sonner";
+import { apiClient } from "../utils/apiClient";
 
 interface UpcomingPaymentsScreenProps {
   onNavigate: (tab: string, data?: any) => void;
@@ -40,6 +45,87 @@ export function UpcomingPaymentsScreen({
       .slice(0, 2)
       .toUpperCase();
 
+  const buildInstructionText = (instructions: any) => {
+    if (!instructions) return "";
+    if (instructions.type === "bank") {
+      return [
+        instructions.bank && `Bank: ${instructions.bank}`,
+        instructions.accountName && `Account Name: ${instructions.accountName}`,
+        instructions.accountNumber &&
+          `Account Number: ${instructions.accountNumber}`,
+        instructions.sortCode && `Sort Code: ${instructions.sortCode}`,
+        instructions.routingNumber &&
+          `Routing Number: ${instructions.routingNumber}`,
+      ]
+        .filter(Boolean)
+        .join("\n");
+    }
+    return [
+      instructions.provider && `Provider: ${instructions.provider}`,
+      instructions.phoneNumber && `Phone: ${instructions.phoneNumber}`,
+    ]
+      .filter(Boolean)
+      .join("\n");
+  };
+
+  const copyPayLinkInstructions = async (instructions: any) => {
+    if (!instructions) {
+      toast.error("No payment instructions available");
+      return;
+    }
+    if (!navigator.clipboard || !navigator.clipboard.writeText) {
+      toast.error("Clipboard unavailable. Please copy manually.");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(buildInstructionText(instructions));
+      toast.success("Payment instructions copied");
+    } catch (err) {
+      console.error("Copy pay link instructions error", err);
+      toast.error("Failed to copy payment instructions");
+    }
+  };
+
+  const markPayLinkPaid = async (token?: string) => {
+    if (!token) {
+      toast.error("Missing pay link reference");
+      return;
+    }
+    try {
+      const origin =
+        typeof window !== "undefined" && window.location?.origin
+          ? window.location.origin
+          : null;
+      if (!origin) {
+        toast.error("Pay link is unavailable in this environment");
+        return;
+      }
+      const url = `${origin}/pay-links/${token}/mark-paid`;
+      await apiClient(url, { method: "POST" });
+      toast.success("Pay link marked as paid");
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("upcomingPaymentsUpdated"));
+        window.dispatchEvent(new Event("notificationsUpdated"));
+      }
+    } catch (error) {
+      console.error("Pay link mark-paid failed", error);
+      toast.error("Unable to mark pay link as paid");
+    }
+  };
+
+  const maskAccountNumber = (value?: string | null) =>
+    value ? `••${String(value).slice(-4)}` : "";
+
+  const summarizeInstructions = (instructions: any) => {
+    if (!instructions) return "No payment method provided";
+    if (instructions.type === "bank") {
+      const masked = maskAccountNumber(instructions.accountNumber);
+      return `${instructions.bank || "Bank"}${masked ? ` • ${masked}` : ""}`;
+    }
+    const phone = instructions.phoneNumber ? ` • ${instructions.phoneNumber}` : "";
+    return `${instructions.provider || "Mobile"}${phone}`;
+  };
+
   const dueSoonTotal = upcomingPayments
     .filter((p) => p.status === "overdue" || p.status === "due_soon")
     .reduce((sum, p) => sum + p.amount, 0);
@@ -58,6 +144,10 @@ export function UpcomingPaymentsScreen({
         return "bg-primary text-primary-foreground";
       case "upcoming":
         return "bg-secondary text-secondary-foreground";
+      case "paid":
+        return "bg-success text-success-foreground";
+      case "expired":
+        return "bg-muted text-muted-foreground";
       default:
         return "bg-secondary text-secondary-foreground";
     }
@@ -125,6 +215,10 @@ export function UpcomingPaymentsScreen({
         return <Clock className="h-3 w-3" />;
       case "upcoming":
         return <Calendar className="h-3 w-3" />;
+      case "paid":
+        return <CheckCircle className="h-3 w-3" />;
+      case "expired":
+        return <AlertCircle className="h-3 w-3" />;
       default:
         return <Clock className="h-3 w-3" />;
     }
@@ -133,6 +227,8 @@ export function UpcomingPaymentsScreen({
   const getStatusLabel = (status: string) => {
     if (status === "overdue") return "Overdue";
     if (status === "due_soon" || status === "pending") return "Pending";
+    if (status === "paid") return "Paid";
+    if (status === "expired") return "Expired";
     return "Upcoming";
   };
 
@@ -156,6 +252,80 @@ export function UpcomingPaymentsScreen({
       : "Due date unavailable";
 
     // Specialized bill split design with progress, urgency, and full-width pay button
+    if (payment.type === "pay_link") {
+      const instructions = (payment as any).bankTransferInstructions;
+      const disabled = payment.status === "paid" || payment.status === "expired";
+      const summary = summarizeInstructions(instructions);
+      return (
+        <div className="bg-card box-border flex flex-col gap-[16px] p-[20px] relative rounded-[16px] shrink-0 w-full">
+          <div aria-hidden="true" className="absolute border border-border border-solid inset-0 pointer-events-none rounded-[16px]" />
+          <div className="flex gap-[12px] items-start">
+            <div className="relative shrink-0" style={{ width: "41.999px", height: "41.999px" }}>
+              <Avatar className="h-[41.999px] w-[41.999px]">
+                <AvatarImage src={payment.organizer?.avatar} />
+                <AvatarFallback className="bg-muted text-foreground/70 text-[10.5px]">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+              <div className="absolute -bottom-1 -right-1 bg-background rounded-full p-1 border border-border">
+                <LinkIcon className="h-3.5 w-3.5 text-primary" />
+              </div>
+            </div>
+            <div className="flex-1 flex flex-col gap-[4px]">
+              <div className="flex items-start justify-between w-full">
+                <p className="font-['Roboto:Medium',_sans-serif] font-medium leading-[21px] text-[14px] text-foreground" style={{ fontVariationSettings: "'wdth' 100" }}>
+                  {payment.organizer?.name}
+                </p>
+                <p className="font-['Roboto:Medium',_sans-serif] font-medium leading-[21px] text-[14px] text-foreground whitespace-nowrap" style={{ fontVariationSettings: "'wdth' 100" }}>
+                  -{fmt(Math.abs(payment.amount))}
+                </p>
+              </div>
+              <p className="font-['Roboto:Regular',_sans-serif] font-normal leading-[17.5px] text-muted-foreground text-[12.25px]" style={{ fontVariationSettings: "'wdth' 100" }}>
+                {payment.title}
+              </p>
+              <p className="text-xs text-muted-foreground">{summary}</p>
+            </div>
+          </div>
+          <div className="bg-muted/40 rounded-[12px] p-[12px] text-xs text-muted-foreground space-y-1">
+            {instructions ? (
+              <>
+                {instructions.accountName && <p>Account Name: {instructions.accountName}</p>}
+                {instructions.accountNumber && <p>Account Number: {instructions.accountNumber}</p>}
+                {instructions.sortCode && <p>Sort Code: {instructions.sortCode}</p>}
+                {instructions.routingNumber && <p>Routing Number: {instructions.routingNumber}</p>}
+                {instructions.phoneNumber && <p>Phone: {instructions.phoneNumber}</p>}
+              </>
+            ) : (
+              <p>No bank transfer instructions provided.</p>
+            )}
+          </div>
+          <div className="flex gap-[12px] w-full">
+            <button
+              onClick={() => copyPayLinkInstructions(instructions)}
+              className="flex-1 bg-background border border-solid border-border h-[44px] py-[10px] rounded-[8px] hover:bg-muted transition-colors flex items-center justify-center gap-2 text-sm"
+            >
+              <Copy className="h-4 w-4" /> Copy Details
+            </button>
+            <button
+              onClick={() => !disabled && markPayLinkPaid(payment.payLinkToken)}
+              disabled={disabled}
+              className={`flex-1 h-[44px] py-[10px] rounded-[8px] text-sm font-medium ${
+                disabled
+                  ? "bg-muted text-muted-foreground cursor-not-allowed"
+                  : "bg-primary text-primary-foreground hover:bg-primary/90"
+              }`}
+            >
+              {payment.status === "paid"
+                ? "Completed"
+                : payment.status === "expired"
+                  ? "Expired"
+                  : "Mark Paid"}
+            </button>
+          </div>
+        </div>
+      );
+    }
+
     if (payment.type === "bill_split") {
       const participants = Array.isArray(payment.participants)
         ? payment.participants
@@ -590,12 +760,20 @@ export function UpcomingPaymentsScreen({
         <TabsContent value="pending" className="mt-4">
           <div className="space-y-3">
             {upcomingPayments
-              .filter((p) => p.status === "upcoming" || p.status === "due_soon")
+              .filter(
+                (p) =>
+                  p.status === "upcoming" ||
+                  p.status === "due_soon" ||
+                  p.status === "pending",
+              )
               .map((payment) => (
                 <NewPaymentCard key={payment.id} payment={payment} />
               ))}
             {upcomingPayments.filter(
-              (p) => p.status === "upcoming" || p.status === "due_soon",
+              (p) =>
+                p.status === "upcoming" ||
+                p.status === "due_soon" ||
+                p.status === "pending",
             ).length === 0 && (
               <div className="text-center py-8">
                 <Calendar className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />

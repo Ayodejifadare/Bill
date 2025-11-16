@@ -1,7 +1,7 @@
 import { ListSkeleton } from "./ui/loading";
 import { Alert, AlertDescription } from "./ui/alert";
 import { useUpcomingPayments } from "../hooks/useUpcomingPayments";
-import { Users, Clock } from "lucide-react";
+import { Users, Clock, Copy, Link as LinkIcon } from "lucide-react";
 import { formatDueDate } from "../utils/formatDueDate";
 import { useUserProfile } from "./UserProfileContext";
 import { formatCurrencyForRegion } from "../utils/regions";
@@ -19,6 +19,74 @@ export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
   const fmt = (n: number) => formatCurrencyForRegion(appSettings.region, n);
 
   const handleSeeAll = () => onNavigate("upcoming-payments");
+
+  const buildInstructionText = (instructions: any) => {
+    if (!instructions) return "";
+    if (instructions.type === "bank") {
+      return [
+        instructions.bank && `Bank: ${instructions.bank}`,
+        instructions.accountName && `Account Name: ${instructions.accountName}`,
+        instructions.accountNumber &&
+          `Account Number: ${instructions.accountNumber}`,
+        instructions.sortCode && `Sort Code: ${instructions.sortCode}`,
+        instructions.routingNumber &&
+          `Routing Number: ${instructions.routingNumber}`,
+      ]
+        .filter(Boolean)
+        .join("\n");
+    }
+    return [
+      instructions.provider && `Provider: ${instructions.provider}`,
+      instructions.phoneNumber && `Phone: ${instructions.phoneNumber}`,
+    ]
+      .filter(Boolean)
+      .join("\n");
+  };
+
+  const copyInstructions = async (instructions: any) => {
+    if (!instructions) {
+      toast.error("No payment instructions available");
+      return;
+    }
+    if (!navigator.clipboard || !navigator.clipboard.writeText) {
+      toast.error("Clipboard unavailable. Please copy manually.");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(buildInstructionText(instructions));
+      toast.success("Payment instructions copied");
+    } catch (err) {
+      console.error("Copy instructions error", err);
+      toast.error("Failed to copy payment instructions");
+    }
+  };
+
+  const markPayLinkPaid = async (token?: string) => {
+    if (!token) {
+      toast.error("Missing pay link reference");
+      return;
+    }
+    try {
+      const origin =
+        typeof window !== "undefined" && window.location?.origin
+          ? window.location.origin
+          : null;
+      if (!origin) {
+        toast.error("Pay link is unavailable in this environment");
+        return;
+      }
+      const url = `${origin}/pay-links/${token}/mark-paid`;
+      await apiClient(url, { method: "POST" });
+      toast.success("Pay link marked as paid");
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("upcomingPaymentsUpdated"));
+        window.dispatchEvent(new Event("notificationsUpdated"));
+      }
+    } catch (error) {
+      console.error("Pay link mark paid error", error);
+      toast.error("Unable to mark this pay link as paid");
+    }
+  };
 
   const getInitials = (name: string) =>
     name
@@ -56,10 +124,19 @@ export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
         youOwe = (p as any).receiverId && userProfile?.id
           ? String((p as any).receiverId) === String(userProfile.id)
           : false;
+      } else if (p.type === "pay_link") {
+        youOwe = (p as any).receiverId && userProfile?.id
+          ? String((p as any).receiverId) === String(userProfile.id)
+          : false;
       }
       return {
         id: p.id,
-        type: p.type === "bill_split" ? "payment" : "request",
+        type:
+          p.type === "bill_split"
+            ? "payment"
+            : p.type === "pay_link"
+              ? "pay_link"
+              : "request",
         name: p.organizer?.name || "",
         initials: getInitials(p.organizer?.name || ""),
         avatar: p.organizer?.avatar || "",
@@ -77,6 +154,9 @@ export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
         organizerId: p.organizer?.id,
         senderId: (p as any).senderId,
         receiverId: (p as any).receiverId,
+        bankInstructions: (p as any).bankTransferInstructions,
+        payLinkToken: (p as any).payLinkToken,
+        status: p.status,
         youOwe,
       } as any;
     });
@@ -174,6 +254,84 @@ export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
               }
             }
           };
+
+          if (transaction.type === 'pay_link') {
+            const disabled = transaction.status === 'paid' || transaction.status === 'expired';
+            const instructions = transaction.bankInstructions;
+            const summary = instructions
+              ? instructions.type === 'bank'
+                ? `${instructions.bank || 'Bank'} • ${instructions.accountNumber ? `••${String(instructions.accountNumber).slice(-4)}` : ''}`
+                : `${instructions.provider || 'Mobile'} • ${instructions.phoneNumber || ''}`
+              : 'No payment method provided';
+            return (
+              <div
+                key={transaction.id}
+                className="bg-card box-border flex flex-col gap-3 p-4 relative rounded-[16px] shrink-0 w-full"
+              >
+                <div aria-hidden="true" className="absolute border border-border border-solid inset-0 pointer-events-none rounded-[16px]" />
+                <div className="flex gap-3 items-start">
+                  <div className="relative shrink-0" style={{ width: "41.999px", height: "41.999px" }}>
+                    <Avatar className="h-[41.999px] w-[41.999px]">
+                      <AvatarImage src={transaction.avatar} />
+                      <AvatarFallback className="bg-muted text-foreground/70 text-[10.5px]">
+                        {transaction.initials}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="absolute bg-background rounded-full p-1 border border-border -bottom-1 -right-1">
+                      <LinkIcon className="h-3.5 w-3.5 text-primary" />
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="font-medium text-sm text-foreground">{transaction.name}</p>
+                        <p className="text-xs text-muted-foreground">{transaction.description}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-medium text-sm">{fmt(transaction.amount)}</p>
+                        <p className="text-xs text-muted-foreground">{transaction.date}</p>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">{summary}</p>
+                  </div>
+                </div>
+                {instructions ? (
+                  <div className="bg-muted/40 rounded-lg p-3 text-xs text-muted-foreground space-y-1">
+                    {instructions.accountName && <p>Account Name: {instructions.accountName}</p>}
+                    {instructions.accountNumber && <p>Account Number: {instructions.accountNumber}</p>}
+                    {instructions.sortCode && <p>Sort Code: {instructions.sortCode}</p>}
+                    {instructions.routingNumber && <p>Routing Number: {instructions.routingNumber}</p>}
+                    {instructions.phoneNumber && <p>Phone: {instructions.phoneNumber}</p>}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">No bank instructions available.</p>
+                )}
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => copyInstructions(instructions)}
+                    className="flex-1 border border-border rounded-lg h-10 text-sm text-foreground flex items-center justify-center gap-2 hover:bg-muted/60"
+                  >
+                    <Copy className="h-4 w-4" /> Copy details
+                  </button>
+                  <button
+                    onClick={() => !disabled && markPayLinkPaid(transaction.payLinkToken)}
+                    disabled={disabled}
+                    className={`flex-1 rounded-lg h-10 text-sm font-medium ${
+                      disabled
+                        ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                        : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                    }`}
+                  >
+                    {transaction.status === 'paid'
+                      ? 'Completed'
+                      : transaction.status === 'expired'
+                        ? 'Expired'
+                        : 'Mark paid'}
+                  </button>
+                </div>
+              </div>
+            );
+          }
 
           if (transaction.type === 'payment') {
             return (

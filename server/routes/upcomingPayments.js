@@ -3,6 +3,11 @@ import authenticate from "../middleware/auth.js";
 
 const router = express.Router();
 
+const PAY_LINK_ACTIVE = "ACTIVE";
+const PAY_LINK_FULFILLED = "FULFILLED";
+const PAY_LINK_EXPIRED = "EXPIRED";
+const PAY_LINK_REVOKED = "REVOKED";
+
 export function classifyStatus(dueDate) {
   const now = new Date();
   const date = new Date(dueDate);
@@ -17,6 +22,50 @@ export function classifyStatus(dueDate) {
   if (date < now) return "overdue";
   if (date <= soonThreshold) return "due_soon";
   return "upcoming";
+}
+
+function resolvePayLinkDueDate(payLink) {
+  return (
+    payLink?.expiresAt ||
+    payLink?.paymentRequest?.nextDueDate ||
+    payLink?.paymentRequest?.createdAt ||
+    payLink?.createdAt ||
+    new Date().toISOString()
+  );
+}
+
+function classifyPayLinkStatus(payLink) {
+  if (!payLink) return "pending";
+  if (payLink.status === PAY_LINK_FULFILLED) return "paid";
+
+  const dueDate = resolvePayLinkDueDate(payLink);
+  const due = dueDate ? new Date(dueDate) : null;
+  const now = new Date();
+  const expired =
+    payLink.status === PAY_LINK_EXPIRED ||
+    payLink.status === PAY_LINK_REVOKED ||
+    (due && due < now && payLink.status !== PAY_LINK_ACTIVE);
+  if (expired) return "expired";
+
+  if (!due) return "pending";
+  const base = classifyStatus(due);
+  if (base === "due_soon" || base === "overdue") return "due_soon";
+  return "pending";
+}
+
+function buildBankTransferInstructions(paymentMethod) {
+  if (!paymentMethod) return null;
+  return {
+    type: paymentMethod.type,
+    bank: paymentMethod.bank,
+    accountName: paymentMethod.accountName,
+    accountNumber: paymentMethod.accountNumber,
+    sortCode: paymentMethod.sortCode,
+    routingNumber: paymentMethod.routingNumber,
+    accountType: paymentMethod.accountType,
+    provider: paymentMethod.provider,
+    phoneNumber: paymentMethod.phoneNumber,
+  };
 }
 
 router.get("/upcoming-payments", authenticate, async (req, res) => {
@@ -186,11 +235,73 @@ router.get("/upcoming-payments", authenticate, async (req, res) => {
       };
     });
 
+    const payLinks = await req.prisma.payLink.findMany({
+      where: {
+        paymentRequest: {
+          receiverId: userId,
+        },
+      },
+      include: {
+        user: { select: { id: true, name: true, email: true, avatar: true } },
+        paymentMethod: true,
+        paymentRequest: {
+          include: {
+            sender: { select: { id: true, name: true, email: true, avatar: true } },
+            receiver: { select: { id: true, name: true, email: true, avatar: true } },
+          },
+        },
+      },
+    });
+
+    const payLinkPayments = payLinks
+      .filter((link) => link.paymentRequest)
+      .map((link) => {
+        const dueDate = new Date(resolvePayLinkDueDate(link));
+        const sender = link.paymentRequest?.sender || link.user;
+        const receiver = link.paymentRequest?.receiver;
+        return {
+          id: link.id,
+          type: "pay_link",
+          title:
+            link.title ||
+            link.paymentRequest?.description ||
+            "Pay link payment",
+          amount: link.amount,
+          dueDate: dueDate.toISOString(),
+          status: classifyPayLinkStatus(link),
+          organizer: sender,
+          participants: [sender, receiver].filter(Boolean),
+          senderId: sender?.id,
+          receiverId: receiver?.id,
+          requestId: link.paymentRequestId,
+          paymentMethod: link.paymentMethod
+            ? {
+                id: link.paymentMethod.id,
+                type: link.paymentMethod.type,
+                bank: link.paymentMethod.bank,
+                accountNumber: link.paymentMethod.accountNumber,
+                accountName: link.paymentMethod.accountName,
+                sortCode: link.paymentMethod.sortCode,
+                routingNumber: link.paymentMethod.routingNumber,
+                accountType: link.paymentMethod.accountType,
+                provider: link.paymentMethod.provider,
+                phoneNumber: link.paymentMethod.phoneNumber,
+              }
+            : null,
+          bankTransferInstructions: buildBankTransferInstructions(
+            link.paymentMethod,
+          ),
+          payLinkSlug: link.slug,
+          payLinkToken: link.token,
+        };
+      });
+
     let payments = [
       ...billPayments,
       ...creatorPayments,
       ...directRequestPayments,
       ...directRequestPaymentsSent,
+      ...payLinkPayments,
     ];
     // Deduplicate potential overlaps for requests (edge cases during state transitions)
     const seen = new Set();
