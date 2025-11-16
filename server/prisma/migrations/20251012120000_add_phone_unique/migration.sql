@@ -1,3 +1,9 @@
+-- First normalize existing phone numbers to the same format enforced by the API
+-- Example transformation: "+1 (234) 567-8901" -> "+12345678901"
+UPDATE "users"
+SET phone = '+' || regexp_replace(regexp_replace(phone, '\\D', '', 'g'), '^0+', '')
+WHERE phone IS NOT NULL;
+
 -- Remove duplicate phone numbers prior to enforcing uniqueness while keeping the oldest entry
 WITH duplicates AS (
   SELECT ctid
