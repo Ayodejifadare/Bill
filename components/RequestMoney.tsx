@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   ArrowLeft,
   Search,
@@ -9,6 +9,8 @@ import {
   UserPlus,
   Repeat,
   Loader2,
+  Share2,
+  Link as LinkIcon,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -32,6 +34,7 @@ import { Badge } from "./ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Checkbox } from "./ui/checkbox";
 import { Switch } from "./ui/switch";
+import { Tabs, TabsList, TabsTrigger } from "./ui/tabs";
 import { toast } from "sonner";
 import { useUserProfile } from "./UserProfileContext";
 import {
@@ -46,6 +49,9 @@ import { createRequest } from "../utils/request-api";
 import { PaymentMethodSelector, PaymentMethod } from "./PaymentMethodSelector";
 import { useFriends, Friend } from "../hooks/useFriends";
 import { apiClient } from "../utils/apiClient";
+import { ShareSheet } from "./ui/share-sheet";
+import { getDocumentData, generateShareText, ShareData } from "./ShareUtils";
+import { createPayLink, PayLink } from "@/api/pay-links";
 
 interface Group {
   id: string;
@@ -82,7 +88,116 @@ export function RequestMoney({ onNavigate, prefillData }: RequestMoneyProps) {
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [methodsLoading, setMethodsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [requestMode, setRequestMode] = useState<"request" | "pay_link">(
+    "request",
+  );
+  const [payLinkRecipientName, setPayLinkRecipientName] = useState("");
+  const [payLinkRecipientEmail, setPayLinkRecipientEmail] = useState("");
+  const [latestPayLink, setLatestPayLink] = useState<PayLink | null>(null);
+  const [latestPayLinkMethod, setLatestPayLinkMethod] =
+    useState<PaymentMethod | null>(null);
+  const [showPayLinkShareSheet, setShowPayLinkShareSheet] = useState(false);
   const { friends } = useFriends();
+  const isPayLinkMode = requestMode === "pay_link";
+
+  const formatAmountForRegion = useCallback(
+    (value: number) => formatCurrencyForRegion(appSettings.region, value),
+    [appSettings.region],
+  );
+
+  const summarizePaymentMethod = useCallback((method: PaymentMethod | null) => {
+    if (!method) return undefined;
+    if (method.type === "bank") {
+      const masked = method.accountNumber
+        ? `••${String(method.accountNumber).slice(-4)}`
+        : "";
+      return `${method.bankName || method.bank || "Bank"}${masked ? ` • ${masked}` : ""}`;
+    }
+    const phone = method.phoneNumber ? ` • ${method.phoneNumber}` : "";
+    return `${method.provider || "Mobile Money"}${phone}`;
+  }, []);
+
+  const triggerGlobalRefresh = useCallback(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.dispatchEvent(new Event("upcomingPaymentsUpdated"));
+      window.dispatchEvent(new Event("notificationsUpdated"));
+    } catch {
+      // no-op
+    }
+  }, []);
+
+  const payLinkUrl = useMemo(() => {
+    if (!latestPayLink?.token) return "";
+    const origin =
+      typeof window !== "undefined" && window.location?.origin
+        ? window.location.origin
+        : "https://biltip.app";
+    return `${origin}/pay-links/${latestPayLink.token}`;
+  }, [latestPayLink?.token]);
+
+  const payLinkShareData: ShareData | null = useMemo(() => {
+    if (!latestPayLink) return null;
+    return {
+      type: "pay_link",
+      title:
+        latestPayLink.title ||
+        (latestPayLink.amount
+          ? `Payment link for ${formatAmountForRegion(latestPayLink.amount)}`
+          : "Payment link"),
+      amount: latestPayLink.amount,
+      description: latestPayLink.message || undefined,
+      paymentMethod: summarizePaymentMethod(latestPayLinkMethod),
+      deepLink: payLinkUrl || undefined,
+      payLinkUrl: payLinkUrl || undefined,
+      recipientName: latestPayLink.recipientName || undefined,
+    };
+  }, [
+    latestPayLink,
+    latestPayLinkMethod,
+    payLinkUrl,
+    summarizePaymentMethod,
+    formatAmountForRegion,
+  ]);
+
+  const payLinkShareText = useMemo(
+    () =>
+      payLinkShareData
+        ? generateShareText(payLinkShareData, formatAmountForRegion, userProfile)
+        : "",
+    [payLinkShareData, formatAmountForRegion, userProfile],
+  );
+
+  const payLinkDocumentData = useMemo(
+    () => (payLinkShareData ? getDocumentData(payLinkShareData) : undefined),
+    [payLinkShareData],
+  );
+
+  const copyPayLinkToClipboard = useCallback(async () => {
+    if (!payLinkUrl) {
+      toast.error("Pay link is unavailable");
+      return;
+    }
+    if (!navigator.clipboard || !navigator.clipboard.writeText) {
+      toast.error("Clipboard not supported. Please copy manually.");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(payLinkUrl);
+      toast.success("Pay link copied to clipboard");
+    } catch (error) {
+      console.error("Copy pay link failed", error);
+      toast.error("Failed to copy pay link. Please try again.");
+    }
+  }, [payLinkUrl]);
+
+  const handleOpenPayLinkShare = useCallback(() => {
+    if (!payLinkShareData) {
+      toast.error("Pay link is unavailable");
+      return;
+    }
+    setShowPayLinkShareSheet(true);
+  }, [payLinkShareData]);
 
   const loadGroups = useCallback(async () => {
     try {
@@ -203,6 +318,19 @@ export function RequestMoney({ onNavigate, prefillData }: RequestMoneyProps) {
     }
   }, [prefillData, friends]);
 
+  useEffect(() => {
+    if (requestMode === "request") {
+      setLatestPayLink(null);
+      setLatestPayLinkMethod(null);
+      setPayLinkRecipientName("");
+      setPayLinkRecipientEmail("");
+      setShowPayLinkShareSheet(false);
+      return;
+    }
+    setSelectedFriends([]);
+    setIsRecurring(false);
+  }, [requestMode]);
+
   const filteredFriends = friends.filter((friend) =>
     friend.name.toLowerCase().includes(searchTerm.toLowerCase()),
   );
@@ -229,6 +357,9 @@ export function RequestMoney({ onNavigate, prefillData }: RequestMoneyProps) {
   };
 
   const handleSendRequest = async () => {
+    if (isPayLinkMode) {
+      return;
+    }
     if (selectedFriends.length === 0) {
       toast.error("Please select at least one friend");
       return;
@@ -297,6 +428,58 @@ export function RequestMoney({ onNavigate, prefillData }: RequestMoneyProps) {
           ? error.message
           : "Failed to send request. Please try again.";
       toast.error(message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleCreatePayLink = async () => {
+    if (!isPayLinkMode) {
+      setRequestMode("pay_link");
+      return;
+    }
+
+    if (!amount || parseFloat(amount) <= 0) {
+      toast.error("Please enter a valid amount");
+      return;
+    }
+
+    if (!selectedPaymentMethod) {
+      toast.error("Please select a payment method for receiving payments");
+      return;
+    }
+
+    setIsSubmitting(true);
+    const trimmedMessage = message.trim();
+    const defaultTitle = `Payment link${
+      amount ? ` for ${formatAmountForRegion(parseFloat(amount))}` : ""
+    }`;
+
+    try {
+      const payLink = await createPayLink({
+        amount: parseFloat(amount),
+        paymentMethodId: selectedPaymentMethod.id,
+        message: trimmedMessage || undefined,
+        title: trimmedMessage || defaultTitle,
+        recipientName: payLinkRecipientName.trim() || undefined,
+        recipientEmail: payLinkRecipientEmail.trim() || undefined,
+      });
+      setLatestPayLink(payLink);
+      setLatestPayLinkMethod(selectedPaymentMethod);
+      toast.success("Pay link created");
+      setAmount("");
+      setMessage("");
+      setPayLinkRecipientName("");
+      setPayLinkRecipientEmail("");
+      setShowPayLinkShareSheet(true);
+      triggerGlobalRefresh();
+    } catch (error) {
+      console.error("Failed to create pay link", error);
+      const errMessage =
+        error instanceof Error
+          ? error.message
+          : "Failed to create pay link. Please try again.";
+      toast.error(errMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -469,6 +652,18 @@ export function RequestMoney({ onNavigate, prefillData }: RequestMoneyProps) {
 
       {/* Main Content */}
       <div className="p-4 space-y-6">
+        <Tabs
+          value={requestMode}
+          onValueChange={(value) =>
+            setRequestMode(value as "request" | "pay_link")
+          }
+        >
+          <TabsList className="grid grid-cols-2 w-full">
+            <TabsTrigger value="request">Friends request</TabsTrigger>
+            <TabsTrigger value="pay_link">Pay link</TabsTrigger>
+          </TabsList>
+        </Tabs>
+
         {/* Amount */}
         <Card>
           <CardHeader>
@@ -528,15 +723,56 @@ export function RequestMoney({ onNavigate, prefillData }: RequestMoneyProps) {
           </CardContent>
         </Card>
 
-        {/* Select Friends */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Send Request To</CardTitle>
-            <CardDescription>
-              Select friends to send this payment request
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        {isPayLinkMode && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <LinkIcon className="h-5 w-5" />
+                Pay link recipient
+              </CardTitle>
+              <CardDescription>
+                Personalize this link with an optional name and email.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="recipientName">Recipient name (optional)</Label>
+                <Input
+                  id="recipientName"
+                  value={payLinkRecipientName}
+                  onChange={(e) => setPayLinkRecipientName(e.target.value)}
+                  placeholder="Jamie Lee"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="recipientEmail">Recipient email (optional)</Label>
+                <Input
+                  id="recipientEmail"
+                  type="email"
+                  value={payLinkRecipientEmail}
+                  onChange={(e) => setPayLinkRecipientEmail(e.target.value)}
+                  placeholder="jamie@example.com"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Leave these blank to generate a general-purpose link you can
+                share with anyone.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {!isPayLinkMode && (
+          <>
+            {/* Select Friends */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Send Request To</CardTitle>
+                <CardDescription>
+                  Select friends to send this payment request
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
             {/* Search and Group Toggle */}
             <div className="space-y-3">
               <div className="relative">
@@ -687,11 +923,16 @@ export function RequestMoney({ onNavigate, prefillData }: RequestMoneyProps) {
                 <p className="text-sm">No friends found</p>
               </div>
             )}
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+          </>
+        )}
 
         {/* Request Summary */}
-        {selectedFriends.length > 0 && amount && selectedPaymentMethod && (
+        {!isPayLinkMode &&
+          selectedFriends.length > 0 &&
+          amount &&
+          selectedPaymentMethod && (
           <Card className="border-primary">
             <CardHeader>
               <CardTitle className="text-base">Request Summary</CardTitle>
@@ -736,15 +977,108 @@ export function RequestMoney({ onNavigate, prefillData }: RequestMoneyProps) {
           </Card>
         )}
 
+        {isPayLinkMode && amount && selectedPaymentMethod && (
+          <Card className="border-primary/60">
+            <CardHeader>
+              <CardTitle className="text-base">Pay link summary</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Amount:</span>
+                <span className="font-medium">
+                  {formatAmountForRegion(parseFloat(amount))}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Recipient:</span>
+                <span className="font-medium">
+                  {payLinkRecipientName.trim() || "Anyone with the link"}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Send to:</span>
+                <span className="font-medium">
+                  {summarizePaymentMethod(selectedPaymentMethod)}
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {isPayLinkMode && latestPayLink && (
+          <Card className="border-primary bg-primary/5">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-primary">
+                <LinkIcon className="h-5 w-5" />
+                Pay link ready
+              </CardTitle>
+              <CardDescription>
+                Share this link to collect {formatAmountForRegion(latestPayLink.amount)}.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="text-sm text-muted-foreground">
+                {latestPayLink.recipientName
+                  ? `Personalized for ${latestPayLink.recipientName}`
+                  : "Anyone with the link can pay you."}
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Link</Label>
+                <div className="flex gap-2 mt-1">
+                  <Input
+                    value={payLinkUrl}
+                    readOnly
+                    className="font-mono text-xs"
+                  />
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={copyPayLinkToClipboard}
+                    aria-label="Copy pay link"
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={copyPayLinkToClipboard}
+                >
+                  <Copy className="h-4 w-4 mr-2" />
+                  Copy link
+                </Button>
+                <Button
+                  className="flex-1"
+                  onClick={handleOpenPayLinkShare}
+                  disabled={!payLinkShareData}
+                >
+                  <Share2 className="h-4 w-4 mr-2" />
+                  Share options
+                </Button>
+              </div>
+              <Button
+                variant="ghost"
+                className="w-full"
+                onClick={() => onNavigate("home")}
+              >
+                Back to home
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Recurring Options */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Repeat className="h-5 w-5" />
-              Recurring Request
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        {!isPayLinkMode && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Repeat className="h-5 w-5" />
+                Recurring Request
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-medium">Make this a recurring request</p>
@@ -880,45 +1214,82 @@ export function RequestMoney({ onNavigate, prefillData }: RequestMoneyProps) {
                 </div>
               </div>
             )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Actions */}
-        <div className="flex gap-3">
-          <Button
-            variant="outline"
-            onClick={shareRequestDetails}
-            disabled={
-              selectedFriends.length === 0 || !amount || !selectedPaymentMethod
-            }
-            className="flex-1"
-          >
-            <Copy className="h-4 w-4 mr-2" />
-            Copy Details
-          </Button>
-          <Button
-            onClick={handleSendRequest}
-            disabled={
-              selectedFriends.length === 0 ||
-              !amount ||
-              !selectedPaymentMethod ||
-              isSubmitting
-            }
-            className="flex-1"
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                Sending...
-              </>
-            ) : (
-              <>
-                <Send className="h-4 w-4 mr-2" />
-                {isRecurring ? "Create Recurring Request" : "Send Request"}
-              </>
-            )}
-          </Button>
-        </div>
+        {!isPayLinkMode ? (
+          <div className="flex gap-3">
+            <Button
+              variant="outline"
+              onClick={shareRequestDetails}
+              disabled={
+                selectedFriends.length === 0 || !amount || !selectedPaymentMethod
+              }
+              className="flex-1"
+            >
+              <Copy className="h-4 w-4 mr-2" />
+              Copy Details
+            </Button>
+            <Button
+              onClick={handleSendRequest}
+              disabled={
+                selectedFriends.length === 0 ||
+                !amount ||
+                !selectedPaymentMethod ||
+                isSubmitting
+              }
+              className="flex-1"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <Send className="h-4 w-4 mr-2" />
+                  {isRecurring ? "Create Recurring Request" : "Send Request"}
+                </>
+              )}
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <Button
+              onClick={handleCreatePayLink}
+              disabled={
+                !amount ||
+                parseFloat(amount) <= 0 ||
+                !selectedPaymentMethod ||
+                isSubmitting
+              }
+              className="w-full"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Creating link...
+                </>
+              ) : (
+                <>
+                  <LinkIcon className="h-4 w-4 mr-2" />
+                  Create pay link
+                </>
+              )}
+            </Button>
+          </div>
+        )}
+        {payLinkShareData && (
+          <ShareSheet
+            isOpen={showPayLinkShareSheet}
+            onClose={() => setShowPayLinkShareSheet(false)}
+            title="Share pay link"
+            shareText={payLinkShareText}
+            documentData={payLinkDocumentData}
+          />
+        )}
       </div>
     </div>
   );
