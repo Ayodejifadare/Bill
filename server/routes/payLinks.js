@@ -12,6 +12,17 @@ const EXPIRED_STATUS = "EXPIRED";
 const router = express.Router();
 const publicRouter = express.Router();
 
+const PAYMENT_METHOD_PUBLIC_SELECT = {
+  type: true,
+  bank: true,
+  accountName: true,
+  accountNumber: true,
+  sortCode: true,
+  routingNumber: true,
+  provider: true,
+  phoneNumber: true,
+};
+
 router.use(authenticate);
 
 const sanitizePrivate = (payLink) => ({
@@ -30,6 +41,20 @@ const sanitizePrivate = (payLink) => ({
   paymentMethodId: payLink.paymentMethodId,
   paymentRequestId: payLink.paymentRequestId,
 });
+
+const buildBankTransferInstructions = (paymentMethod) => {
+  if (!paymentMethod) return null;
+  return {
+    type: paymentMethod.type,
+    bank: paymentMethod.bank,
+    accountName: paymentMethod.accountName,
+    accountNumber: paymentMethod.accountNumber,
+    sortCode: paymentMethod.sortCode,
+    routingNumber: paymentMethod.routingNumber,
+    provider: paymentMethod.provider,
+    phoneNumber: paymentMethod.phoneNumber,
+  };
+};
 
 const sanitizePublic = (payLink) => {
   const base = {
@@ -50,6 +75,11 @@ const sanitizePublic = (payLink) => {
       name: payLink.user.name,
       avatar: payLink.user.avatar,
     };
+  }
+  if (payLink.paymentMethod) {
+    base.bankTransferInstructions = buildBankTransferInstructions(
+      payLink.paymentMethod,
+    );
   }
   return base;
 };
@@ -108,7 +138,11 @@ const ensurePaymentMethod = async (prisma, userId, paymentMethodId) =>
 const isExpired = (payLink) =>
   !!payLink.expiresAt && new Date(payLink.expiresAt) < new Date();
 
-const refreshStatus = async (prisma, payLink, { includeUser = false } = {}) => {
+const refreshStatus = async (
+  prisma,
+  payLink,
+  { includeUser = false, includePaymentMethod = false } = {},
+) => {
   if (payLink && payLink.status === ACTIVE_STATUS && isExpired(payLink)) {
     await prisma.payLink.update({
       where: { id: payLink.id },
@@ -116,9 +150,17 @@ const refreshStatus = async (prisma, payLink, { includeUser = false } = {}) => {
     });
     return prisma.payLink.findUnique({
       where: { id: payLink.id },
-      include: includeUser
-        ? { user: { select: { name: true, avatar: true } } }
-        : undefined,
+      include:
+        includeUser || includePaymentMethod
+          ? {
+              ...(includeUser
+                ? { user: { select: { name: true, avatar: true } } }
+                : {}),
+              ...(includePaymentMethod
+                ? { paymentMethod: { select: PAYMENT_METHOD_PUBLIC_SELECT } }
+                : {}),
+            }
+          : undefined,
     });
   }
   return payLink;
@@ -452,7 +494,10 @@ publicRouter.get("/:token", async (req, res) => {
   try {
     let payLink = await req.prisma.payLink.findUnique({
       where: { token: req.params.token },
-      include: { user: { select: { id: true, name: true, avatar: true } } },
+      include: {
+        user: { select: { id: true, name: true, avatar: true } },
+        paymentMethod: { select: PAYMENT_METHOD_PUBLIC_SELECT },
+      },
     });
     if (!payLink) {
       return res.status(404).json({ error: "Pay link not found" });
@@ -460,6 +505,7 @@ publicRouter.get("/:token", async (req, res) => {
 
     payLink = await refreshStatus(req.prisma, payLink, {
       includeUser: true,
+      includePaymentMethod: true,
     });
     if (
       payLink.status !== ACTIVE_STATUS &&
@@ -490,6 +536,7 @@ publicRouter.post("/:token/mark-paid", async (req, res) => {
             receiver: { select: { id: true, name: true } },
           },
         },
+        paymentMethod: { select: PAYMENT_METHOD_PUBLIC_SELECT },
       },
     });
     if (!payLink) {
@@ -515,6 +562,7 @@ publicRouter.post("/:token/mark-paid", async (req, res) => {
             receiver: { select: { id: true, name: true } },
           },
         },
+        paymentMethod: { select: PAYMENT_METHOD_PUBLIC_SELECT },
       },
     });
 
