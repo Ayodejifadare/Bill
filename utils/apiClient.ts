@@ -14,6 +14,14 @@ import { clearBiometricCredential } from "./biometric-storage";
 
 type MockHandler = (path: string, init?: RequestInit) => Promise<any>;
 
+interface JoinUrlOptions {
+  skipApiPrefix?: boolean;
+}
+
+export interface ApiClientInit extends RequestInit {
+  skipApiPrefix?: boolean;
+}
+
 const mockRoutes: Array<{ test: RegExp; handler: MockHandler }> = [
   { test: /^\/contacts/, handler: mockContacts },
   { test: /^\/friends/, handler: mockFriends },
@@ -86,12 +94,14 @@ function readStoredUserId(): string | null {
   return cachedUserId;
 }
 
-function joinUrl(base: string, resource: string): string {
+function joinUrl(base: string, resource: string, options: JoinUrlOptions = {}): string {
+  const { skipApiPrefix = false } = options;
   // Absolute resource wins
   if (/^https?:\/\//i.test(resource)) return resource;
 
   // Normalize base (remove trailing slashes)
   const baseNorm = (base || "").replace(/\/+$/, "");
+  const normalizedResource = resource.startsWith("/") ? resource : `/${resource}`;
 
   // If base is absolute, preserve its pathname when joining
   const isAbsoluteBase = /^https?:\/\//i.test(baseNorm);
@@ -100,14 +110,15 @@ function joinUrl(base: string, resource: string): string {
     const basePath = u.pathname.replace(/\/+$/, "");
     const baseHasApi = /(^|\/)api(\/|$)/.test(basePath);
     // Ensure resource has a leading slash
-    let resPath = resource.startsWith("/") ? resource : `/${resource}`;
+    let resPath = normalizedResource;
     // If base path doesn't include '/api' and resource doesn't start with it, prefix '/api'
-    if (!baseHasApi && !resPath.startsWith("/api/")) {
+    if (!skipApiPrefix && !baseHasApi && !resPath.startsWith("/api/")) {
       resPath = `/api${resPath}`;
     }
     // If resource already includes the basePath prefix, avoid duplicating it
-    const finalPath =
-      resPath.startsWith(basePath + "/") || resPath === basePath
+    const finalPath = skipApiPrefix
+      ? resPath
+      : resPath.startsWith(basePath + "/") || resPath === basePath
         ? resPath
         : `${basePath}${resPath}`;
     return `${u.origin}${finalPath}`;
@@ -115,11 +126,14 @@ function joinUrl(base: string, resource: string): string {
 
   // Relative base (e.g., '/api'): ensure exactly one slash between base and resource
   // If resource already starts with '/api', avoid duplicating when base is also '/api'.
-  if (resource.startsWith("/api/")) {
-    return resource.replace(/\/{2,}/g, "/");
+  if (skipApiPrefix) {
+    return normalizedResource.replace(/\/{2,}/g, "/");
+  }
+  if (normalizedResource.startsWith("/api/")) {
+    return normalizedResource.replace(/\/{2,}/g, "/");
   }
   const left = baseNorm || "";
-  const right = resource.replace(/^\/+/, "");
+  const right = normalizedResource.replace(/^\/+/, "");
   const joined = `${left}/${right}`;
   // Collapse multiple slashes in the path (but leave protocol intact — not applicable here)
   return joined.replace(/\/{2,}/g, "/");
@@ -127,12 +141,13 @@ function joinUrl(base: string, resource: string): string {
 
 export async function apiClient(
   input: RequestInfo | URL,
-  init: RequestInit = {},
+  init: ApiClientInit = {},
 ) {
+  const { skipApiPrefix, ...requestInit } = init;
   const token = readAuthToken();
 
   const headers: Record<string, string> = {
-    ...(init.headers as Record<string, string> | undefined),
+    ...(requestInit.headers as Record<string, string> | undefined),
   };
   // token is expected to be a JWT (three base64url segments)
   // Only attach the Authorization header for syntactically valid JWTs.
@@ -174,7 +189,7 @@ export async function apiClient(
       : input instanceof URL
         ? input.pathname + input.search
         : String(input);
-  const url = joinUrl(apiBaseUrl, resource);
+  const url = joinUrl(apiBaseUrl, resource, { skipApiPrefix });
 
   if (useMockApi) {
     const path = resource.startsWith("http")
@@ -185,11 +200,11 @@ export async function apiClient(
       : path;
     const route = mockRoutes.find((r) => r.test.test(normalized));
     if (route) {
-      return route.handler(normalized, { ...init, headers });
+      return route.handler(normalized, { ...requestInit, headers });
     }
   }
 
-  const response = await fetch(url, { ...init, headers });
+  const response = await fetch(url, { ...requestInit, headers });
   if (!response.ok) {
     let message = `Request failed with status ${response.status}`;
     try {
