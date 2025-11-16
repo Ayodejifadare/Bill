@@ -1,11 +1,8 @@
 import { useState, useEffect } from "react";
 import {
   ArrowLeft,
-  Building2,
-  Copy,
   CheckCircle,
   ExternalLink,
-  Smartphone,
   Users,
   Clock,
 } from "lucide-react";
@@ -22,18 +19,12 @@ import { Avatar, AvatarFallback } from "./ui/avatar";
 // import { Separator } from './ui/separator';
 import { toast } from "sonner";
 import { useUserProfile } from "./UserProfileContext";
-import {
-  formatCurrencyForRegion,
-  requiresRoutingNumber,
-  getBankIdentifierLabel,
-  formatBankAccountForRegion,
-  formatMobileAccountNumberForRegion,
-} from "../utils/regions";
 import { apiClient } from "../utils/apiClient";
 import {
   type PaymentMethod,
   fetchUserPaymentMethods,
 } from "@/api/payment-methods";
+import { BankTransferInstructions } from "./BankTransferInstructions";
 
 interface PaymentFlowScreenProps {
   paymentRequest: {
@@ -118,42 +109,6 @@ export function PaymentFlowScreen({
     );
   }
 
-  const copyPaymentDetails = async () => {
-    if (!recipientPaymentMethod) return;
-
-    if (!navigator.clipboard || !navigator.clipboard.writeText) {
-      toast.error("Clipboard not supported. Please copy manually.");
-      return;
-    }
-
-    try {
-      if (recipientPaymentMethod.type === "bank") {
-        const usesRouting = requiresRoutingNumber(appSettings.region);
-        const label = getBankIdentifierLabel(appSettings.region);
-        const idValue = usesRouting
-          ? recipientPaymentMethod.routingNumber
-          : recipientPaymentMethod.sortCode;
-        const bankInfo = `${recipientPaymentMethod.bank}\nAccount Name: ${recipientPaymentMethod.accountName}\n${label}: ${idValue ?? ""}\nAccount Number: ${recipientPaymentMethod.accountNumber}`;
-        await navigator.clipboard.writeText(bankInfo);
-        toast.success("Bank account details copied to clipboard");
-      } else {
-        const mobileInfo = `${recipientPaymentMethod.provider}\nPhone Number: ${formatMobileAccountNumberForRegion(
-          appSettings.region,
-          recipientPaymentMethod.phoneNumber || "",
-        )}`;
-        await navigator.clipboard.writeText(mobileInfo);
-        toast.success("Mobile money details copied to clipboard");
-      }
-    } catch (error) {
-      toast.error("Failed to copy details. Please copy manually.");
-    }
-  };
-
-  const copyAmount = () => {
-    navigator.clipboard.writeText(paymentRequest.amount.toFixed(2));
-    toast.success("Amount copied to clipboard");
-  };
-
   const copyReference = async () => {
     try {
       let reference: string | null = null;
@@ -233,20 +188,6 @@ export function PaymentFlowScreen({
     } catch (error) {
       console.error("Failed to mark payment as sent", error);
       toast.error("Failed to mark payment as sent");
-    }
-  };
-
-  const formatAccountNumber = (accountNumber: string) =>
-    formatBankAccountForRegion(appSettings.region, accountNumber);
-
-  const getPaymentInstructions = () => {
-    if (!recipientPaymentMethod)
-      return "Payment method information not available.";
-
-    if (recipientPaymentMethod.type === "bank") {
-      return "Use your banking app (mobile or web), or visit a branch to send this payment.";
-    } else {
-      return `Open your ${recipientPaymentMethod.provider} app and send money to the phone number above.`;
     }
   };
 
@@ -337,187 +278,51 @@ export function PaymentFlowScreen({
                 </div>
               </div>
 
-              {/* Amount - Prominent display */}
-              <div className="text-center py-4 bg-background/50 rounded-lg">
-                <div className="text-2xl sm:text-3xl font-bold text-primary mb-2">
-                  {formatCurrencyForRegion(
-                    appSettings.region,
-                    paymentRequest.amount,
-                  )}
-                </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <BankTransferInstructions
+          amount={paymentRequest.amount}
+          currency={appSettings.currency}
+          region={appSettings.region}
+          recipientName={paymentRequest.recipient}
+          paymentMethod={recipientPaymentMethod}
+          isMethodLoading={isMethodLoading}
+          methodError={methodError}
+          referenceDisplay={`Biltip-${paymentRequest.id}-${paymentRequest.description
+            .replace(/\s+/g, "")
+            .slice(0, 10)}`}
+          onCopyReference={copyReference}
+          status={paymentStatus}
+          onMarkAsSent={recipientPaymentMethod ? markAsSent : undefined}
+          actionsPlacement="fixed"
+          actionSlot={
+            paymentStatus === "pending" && recipientPaymentMethod ? (
+              <div className="grid grid-cols-2 gap-3">
+                <Button variant="outline" className="h-12">
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  Open Banking App
+                </Button>
                 <Button
                   variant="outline"
-                  size="sm"
-                  onClick={copyAmount}
-                  className="min-h-[40px]"
+                  className="h-12"
+                  onClick={() => onNavigate("home")}
                 >
-                  <Copy className="h-4 w-4 mr-2" />
-                  Copy Amount
+                  Cancel
                 </Button>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Payment Destination */}
-        {isMethodLoading ? (
-          <Card>
-            <CardContent className="p-6 text-center">
-              <div className="text-muted-foreground text-sm">
-                Loading payment method...
-              </div>
-            </CardContent>
-          </Card>
-        ) : methodError ? (
-          <Card>
-            <CardContent className="p-6 text-center">
-              <div className="text-sm text-destructive">{methodError}</div>
-            </CardContent>
-          </Card>
-        ) : recipientPaymentMethod ? (
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                {recipientPaymentMethod.type === "bank" ? (
-                  <Building2 className="h-5 w-5" />
-                ) : (
-                  <Smartphone className="h-5 w-5" />
-                )}
-                Payment Destination
-              </CardTitle>
-              <CardDescription>
-                Send your payment to {paymentRequest.recipient}'s account
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Card className="bg-muted/50">
-                <CardContent className="p-4">
-                  <div className="space-y-3">
-                    <div className="flex items-start justify-between">
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium text-base mb-2">
-                          {recipientPaymentMethod.type === "bank"
-                            ? recipientPaymentMethod.bank
-                            : recipientPaymentMethod.provider}
-                        </p>
-
-                        {recipientPaymentMethod.type === "bank" ? (
-                          <div className="space-y-2 text-sm">
-                            <div className="flex justify-between">
-                              <span className="text-muted-foreground">
-                                Account Name:
-                              </span>
-                              <span className="font-medium">
-                                {recipientPaymentMethod.accountName}
-                              </span>
-                            </div>
-                            {(() => {
-                              const label = getBankIdentifierLabel(
-                                appSettings.region,
-                              );
-                              const usesRouting = requiresRoutingNumber(
-                                appSettings.region,
-                              );
-                              const value = usesRouting
-                                ? recipientPaymentMethod.routingNumber
-                                : recipientPaymentMethod.sortCode;
-                              return (
-                                <>
-                                  <div className="flex justify-between">
-                                    <span className="text-muted-foreground">
-                                      {label}:
-                                    </span>
-                                    <span className="font-mono">{value}</span>
-                                  </div>
-                                  <div className="flex justify-between">
-                                    <span className="text-muted-foreground">
-                                      Account Number:
-                                    </span>
-                                    <span className="font-mono">
-                                      {formatAccountNumber(
-                                        recipientPaymentMethod.accountNumber!,
-                                      )}
-                                    </span>
-                                  </div>
-                                </>
-                              );
-                            })()}
-                          </div>
-                        ) : (
-                          <div className="text-sm">
-                            <div className="flex justify-between">
-                              <span className="text-muted-foreground">
-                                Phone Number:
-                              </span>
-                              <span className="font-mono">
-                                {formatMobileAccountNumberForRegion(
-                                  appSettings.region,
-                                  recipientPaymentMethod.phoneNumber || "",
-                                )}
-                              </span>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={copyPaymentDetails}
-                        className="min-h-[40px] min-w-[40px] ml-2"
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <div className="text-sm text-muted-foreground bg-muted/30 p-3 rounded-lg">
-                💡 {getPaymentInstructions()}
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
-          <Card>
-            <CardContent className="p-6 text-center">
-              <div className="space-y-3">
-                <div className="text-muted-foreground text-sm">
-                  ⚠️ Payment method information not available for{" "}
-                  {paymentRequest.recipient}.
-                </div>
-                <p className="text-sm">
-                  Please contact them directly for payment details.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Payment Reference */}
-        <Card>
-          <CardHeader className="pb-4">
-            <CardTitle className="text-lg">Payment Reference</CardTitle>
-            <CardDescription>
-              Include this reference in your payment description
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-              <span className="font-mono text-sm min-w-0 flex-1 break-all">
-                Biltip-{paymentRequest.id}-
-                {paymentRequest.description.replace(/\s+/g, "").slice(0, 10)}
-              </span>
+            ) : (
               <Button
-                variant="ghost"
-                size="sm"
-                onClick={copyReference}
-                className="min-h-[40px] min-w-[40px] flex-shrink-0"
+                variant="outline"
+                className="w-full h-12"
+                onClick={() => onNavigate("home")}
               >
-                <Copy className="h-4 w-4" />
+                {paymentStatus === "sent" ? "Back to Home" : "Cancel"}
               </Button>
-            </div>
-          </CardContent>
-        </Card>
+            )
+          }
+        />
 
         {/* Payment Details */}
         <Card>
@@ -578,43 +383,6 @@ export function PaymentFlowScreen({
         </Card>
       </div>
 
-      {/* Fixed Action Buttons at Bottom */}
-      <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border p-4">
-        <div className="max-w-md mx-auto space-y-3">
-          {paymentStatus === "pending" && recipientPaymentMethod ? (
-            <>
-              <Button
-                className="w-full h-12 text-base font-medium"
-                onClick={markAsSent}
-              >
-                <CheckCircle className="h-5 w-5 mr-2" />
-                Mark as Sent
-              </Button>
-              <div className="grid grid-cols-2 gap-3">
-                <Button variant="outline" className="h-12">
-                  <ExternalLink className="h-4 w-4 mr-2" />
-                  Open Banking App
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-12"
-                  onClick={() => onNavigate("home")}
-                >
-                  Cancel
-                </Button>
-              </div>
-            </>
-          ) : (
-            <Button
-              variant="outline"
-              className="w-full h-12"
-              onClick={() => onNavigate("home")}
-            >
-              {paymentStatus === "sent" ? "Back to Home" : "Cancel"}
-            </Button>
-          )}
-        </div>
-      </div>
     </div>
   );
 }
