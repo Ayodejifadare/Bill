@@ -45,4 +45,24 @@ describe("generateShareText", () => {
 
     expect(shareText).toContain("📅 Due: This weekend");
   });
+
+  it("includes link and summary when sharing a pay link", () => {
+    const shareText = generateShareText(
+      {
+        type: "pay_link",
+        title: "Payment link",
+        amount: 64,
+        description: "January rent",
+        paymentMethod: "Chase Bank • ••6789",
+        payLinkUrl: "https://biltip.app/pay-links/example-token",
+        recipientName: "Sam",
+      },
+      formatAmount,
+      userProfile,
+    );
+
+    expect(shareText).toContain("example-token");
+    expect(shareText).toContain("Sam");
+    expect(shareText).toContain("Chase Bank");
+  });
 });

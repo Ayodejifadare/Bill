@@ -12,7 +12,8 @@ export interface ShareData {
     | "payment_request"
     | "transaction"
     | "payment_confirmation"
-    | "group_summary";
+    | "group_summary"
+    | "pay_link";
   title: string;
   amount: number;
   description?: string;
@@ -23,6 +24,8 @@ export interface ShareData {
   paymentMethod?: string;
   transactionId?: string;
   deepLink?: string;
+  recipientName?: string;
+  payLinkUrl?: string;
 }
 
 /**
@@ -42,6 +45,9 @@ export function generateShareText(
     dueDate,
     status,
     groupName,
+    paymentMethod,
+    recipientName,
+    payLinkUrl,
   } = shareData;
   const formattedAmount = formatAmount(amount);
   const formattedDueDate = dueDate ? formatDueDate(dueDate) || dueDate : "";
@@ -54,7 +60,7 @@ export function generateShareText(
       return `*${title}*
 
  Amount: ${formattedAmount}
-   Split with: ${participantsList}${formattedDueDate ? `\n Due: ${formattedDueDate}` : ""}${description ? `\n ${description}` : ""}
+   Split with: ${participantsList}${formattedDueDate ? `\n 📅 Due: ${formattedDueDate}` : ""}${description ? `\n ${description}` : ""}
 
 _Shared via Biltip _`;
     }
@@ -64,7 +70,7 @@ _Shared via Biltip _`;
 
  Amount: ${formattedAmount}
  From: ${userProfile.name}
-   For: ${title}${formattedDueDate ? `\n Due: ${formattedDueDate}` : ""}${description ? `\n ${description}` : ""}
+   For: ${title}${formattedDueDate ? `\n 📅 Due: ${formattedDueDate}` : ""}${description ? `\n ${description}` : ""}
 
 _Send via Biltip _`;
     }
@@ -95,6 +101,20 @@ _Paid via Biltip _`;
 _Tracked with Biltip _`;
     }
 
+    case "pay_link": {
+      const ownerName = userProfile?.name || "A Biltip user";
+      const link = payLinkUrl || shareData.deepLink;
+      const sections = [
+        `*Pay link from ${ownerName}*`,
+        `\n 💰 Amount: ${formattedAmount}`,
+        recipientName ? `\n 👤 Recipient: ${recipientName}` : "",
+        description ? `\n 📝 Note: ${description}` : "",
+        paymentMethod ? `\n 🏦 Send to: ${paymentMethod}` : "",
+        link ? `\n 🔗 Pay now: ${link}` : "",
+      ].filter(Boolean);
+      return `${sections.join("")}\n\n _Share securely via Biltip _`;
+    }
+
     default:
       return `Check out this ${title} for ${formattedAmount} on Biltip!`;
   }
@@ -110,7 +130,7 @@ export function getDocumentData(shareData: ShareData) {
     type:
       shareData.type === "bill_split"
         ? ("bill_split" as const)
-        : shareData.type === "payment_request"
+        : shareData.type === "payment_request" || shareData.type === "pay_link"
           ? ("invoice" as const)
           : ("receipt" as const),
   };
@@ -144,7 +164,7 @@ export function ShareUtils({
   size = "lg",
   className = "",
 }: ShareUtilsProps) {
-  const { appSettings } = useUserProfile();
+  const { userProfile, appSettings } = useUserProfile();
   const fmt = (n: number) => formatCurrencyForRegion(appSettings.region, n);
   const [showShareSheet, setShowShareSheet] = useState(false);
 
