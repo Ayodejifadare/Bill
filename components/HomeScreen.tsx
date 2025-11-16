@@ -29,7 +29,7 @@ const UpcomingPaymentsSection = lazy(() =>
 );
 
 const quickActions = [
-  { id: "send", icon: Send, label: "Send", color: "bg-blue-500" },
+  { id: "send", icon: Send, label: "Pay", color: "bg-blue-500" },
   { id: "request", icon: Plus, label: "Request", color: "bg-green-500" },
   { id: "split", icon: Users, label: "Split", color: "bg-purple-500" },
   { id: "bills", icon: Receipt, label: "Bills", color: "bg-orange-500" },
