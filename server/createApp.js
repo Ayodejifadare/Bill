@@ -25,6 +25,7 @@ import receiptRoutes from "./routes/receipts.js";
 import spendingInsightsRoutes from "./routes/spendingInsights.js";
 import recurringPaymentRoutes from "./routes/recurringPayments.js";
 import transferRoutes from "./routes/transfers.js";
+import payLinkRoutes, { publicPayLinkRoutes } from "./routes/payLinks.js";
 import { cleanupExpiredCodes } from "./utils/verificationCodes.js";
 import { initSchedulers } from "./utils/schedulerInit.js";
 
@@ -148,6 +149,7 @@ export default function createApp({ enableSchedulers = true } = {}) {
   });
 
   // Routes
+  app.use("/pay-links", publicPayLinkRoutes);
   app.use("/api/auth", authRoutes);
   app.use("/api", authenticate);
   app.use("/api", onboardingRedirect);
@@ -166,6 +168,7 @@ export default function createApp({ enableSchedulers = true } = {}) {
   app.use("/api/receipts", receiptRoutes);
   app.use("/api", spendingInsightsRoutes);
   app.use("/api", transferRoutes);
+  app.use("/api/pay-links", payLinkRoutes);
 
   app.use((err, req, res, next) => {
     console.error(err.stack);

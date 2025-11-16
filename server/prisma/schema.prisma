@@ -64,6 +64,7 @@ model User {
   remindersSent           BillSplitReminder[]     @relation("BillSplitReminderSender")
   remindersReceived       BillSplitReminder[]     @relation("BillSplitReminderRecipient")
   paymentReferences       PaymentReference[]
+  payLinks                PayLink[]
 
   @@map("users")
 }
@@ -118,6 +119,8 @@ model PaymentRequest {
   // Relationships
   sender   User @relation("PaymentRequestSender", fields: [senderId], references: [id])
   receiver User @relation("PaymentRequestReceiver", fields: [receiverId], references: [id])
+
+  payLink PayLink?
 
   @@map("payment_requests")
 }
@@ -396,8 +399,35 @@ model PaymentMethod {
   userId        String
 
   user User @relation(fields: [userId], references: [id])
+  payLinks PayLink[]
 
   @@map("payment_methods")
+}
+
+model PayLink {
+  id                String    @id @default(cuid())
+  userId            String
+  paymentMethodId   String
+  paymentRequestId  String?  @unique
+  slug              String    @unique
+  token             String    @unique
+  title             String?
+  message           String?
+  amount            Float
+  currency          String    @default("USD")
+  status            String    @default("ACTIVE")
+  recipientName     String?
+  recipientEmail    String?
+  recipientPhone    String?
+  expiresAt         DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  user            User            @relation(fields: [userId], references: [id])
+  paymentMethod   PaymentMethod   @relation(fields: [paymentMethodId], references: [id])
+  paymentRequest  PaymentRequest? @relation(fields: [paymentRequestId], references: [id])
+
+  @@map("pay_links")
 }
 
 model Receipt {
