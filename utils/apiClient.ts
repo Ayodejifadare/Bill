@@ -11,6 +11,7 @@ import { handle as mockUsers } from "../mocks/users";
 import { handle as mockContacts } from "../mocks/contacts";
 import { clearAuth } from "./auth";
 import { clearBiometricCredential } from "./biometric-storage";
+import { handle as mockPayLinks } from "../mocks/pay-links";
 
 type MockHandler = (path: string, init?: RequestInit) => Promise<any>;
 
@@ -25,6 +26,8 @@ const mockRoutes: Array<{ test: RegExp; handler: MockHandler }> = [
   { test: /^\/api\/users/, handler: mockUsers },
   { test: /^\/api\/transactions(\/|$)/, handler: mockTransactions },
   { test: /^\/api\/notifications(\/|$)/, handler: mockNotifications },
+  { test: /^\/api\/pay-links(\/|$)/, handler: mockPayLinks },
+  { test: /^\/pay-links(\/|$)/, handler: mockPayLinks },
   { test: /^\/bill-splits(\/|$)/, handler: mockBillSplits },
 ];
 
