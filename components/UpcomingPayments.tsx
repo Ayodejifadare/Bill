@@ -67,7 +67,10 @@ export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
       return;
     }
     try {
-      await apiClient(`/pay-links/${token}/mark-paid`, { method: "POST" });
+      await apiClient(`/pay-links/${token}/mark-paid`, {
+        method: "POST",
+        skipApiPrefix: true,
+      });
       toast.success("Pay link marked as paid");
       if (typeof window !== "undefined") {
         window.dispatchEvent(new Event("upcomingPaymentsUpdated"));
