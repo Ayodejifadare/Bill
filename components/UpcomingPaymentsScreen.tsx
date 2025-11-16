@@ -92,16 +92,7 @@ export function UpcomingPaymentsScreen({
       return;
     }
     try {
-      const origin =
-        typeof window !== "undefined" && window.location?.origin
-          ? window.location.origin
-          : null;
-      if (!origin) {
-        toast.error("Pay link is unavailable in this environment");
-        return;
-      }
-      const url = `${origin}/pay-links/${token}/mark-paid`;
-      await apiClient(url, { method: "POST" });
+      await apiClient(`/pay-links/${token}/mark-paid`, { method: "POST" });
       toast.success("Pay link marked as paid");
       if (typeof window !== "undefined") {
         window.dispatchEvent(new Event("upcomingPaymentsUpdated"));
