@@ -235,23 +235,29 @@ router.get("/upcoming-payments", authenticate, async (req, res) => {
       };
     });
 
-    const payLinks = await req.prisma.payLink.findMany({
-      where: {
-        paymentRequest: {
-          receiverId: userId,
-        },
-      },
-      include: {
-        user: { select: { id: true, name: true, email: true, avatar: true } },
-        paymentMethod: true,
-        paymentRequest: {
-          include: {
-            sender: { select: { id: true, name: true, email: true, avatar: true } },
-            receiver: { select: { id: true, name: true, email: true, avatar: true } },
+    if (!req.prisma.payLink?.findMany) {
+      console.warn("[upcoming-payments] payLink model missing on prisma client");
+    }
+
+    const payLinks = req.prisma.payLink?.findMany
+      ? await req.prisma.payLink.findMany({
+          where: {
+            paymentRequest: {
+              receiverId: userId,
+            },
           },
-        },
-      },
-    });
+          include: {
+            user: { select: { id: true, name: true, email: true, avatar: true } },
+            paymentMethod: true,
+            paymentRequest: {
+              include: {
+                sender: { select: { id: true, name: true, email: true, avatar: true } },
+                receiver: { select: { id: true, name: true, email: true, avatar: true } },
+              },
+            },
+          },
+        })
+      : [];
 
     const payLinkPayments = payLinks
       .filter((link) => link.paymentRequest)
