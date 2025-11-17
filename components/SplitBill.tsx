@@ -139,7 +139,6 @@ export function SplitBill({
 
   // Progressive disclosure states - recurring expanded by default
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
-  const [showSplitDetails, setShowSplitDetails] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
 
@@ -155,6 +154,28 @@ export function SplitBill({
     const normalized = String(v).replace(/,/g, "").trim();
     const n = parseFloat(normalized);
     return isNaN(n) ? 0 : n;
+  };
+
+  const currentPaymentMethod = selectedPaymentMethod
+    ? paymentMethods.find((m) => m.id === selectedPaymentMethod.id) ||
+      selectedPaymentMethod
+    : null;
+
+  const getPaymentMethodLabel = (method: PaymentMethod | null) => {
+    if (!method) return "None selected";
+    if (method.isExternal) {
+      return (
+        method.externalName ||
+        method.name ||
+        method.bankName ||
+        method.provider ||
+        "External account"
+      );
+    }
+    if (method.type === "bank") {
+      return method.bankName || method.bank || method.accountName || "Bank account";
+    }
+    return method.provider || method.accountName || "Mobile money";
   };
 
   // Round to currency cents to avoid floating errors
@@ -611,12 +632,17 @@ export function SplitBill({
       ([id, amount]) => ({ id, amount }),
     );
 
-    const splitTotalCents = Math.round(
-      dedupParticipants.reduce((sum, p) => sum + p.amount, 0) * 100,
+    const toCents = (value: number | string) =>
+      Math.round(Number(value) * 100);
+    const splitTotalCents = dedupParticipants.reduce(
+      (sum, p) => sum + toCents(p.amount),
+      0,
     );
-    const expectedTotalCents = Math.round(parseAmountValue(totalAmount) * 100);
+    const expectedTotalCents = toCents(parseAmountValue(totalAmount));
+    const delta = Math.abs(splitTotalCents - expectedTotalCents);
+    const EPSILON_CENTS = 1; // allow up to 1 cent rounding difference
 
-    if (splitTotalCents !== expectedTotalCents) {
+    if (delta > EPSILON_CENTS) {
       toast.error(
         `Split amounts (${formatCurrencyForRegion(appSettings.region, splitTotalCents / 100)}) don't match total (${formatCurrencyForRegion(appSettings.region, expectedTotalCents / 100)})`,
       );
@@ -1036,10 +1062,20 @@ export function SplitBill({
                     of{" "}
                     {formatCurrencyForRegion(
                       appSettings.region,
-                      Number(totalAmount || 0),
+                      parseAmountValue(totalAmount || "0"),
                     )}
                   </span>
                 </div>
+                {(() => {
+                  const totalValue = parseAmountValue(totalAmount || "0");
+                  const splitSum = getTotalSplit();
+                  const exceedsTotal = totalValue > 0 && splitSum - totalValue > 0.01;
+                  return exceedsTotal ? (
+                    <p className="text-xs text-destructive">
+                      Split total exceeds the bill total. Please reduce shares.
+                    </p>
+                  ) : null;
+                })()}
 
                 {participants.map((participant) => (
                   <div
@@ -1073,7 +1109,14 @@ export function SplitBill({
                           {splitMethod === "percentage" ? (
                             <Input
                               type="number"
-                              value={participant.percentage?.toFixed(0) || "0"}
+                              placeholder="0"
+                              value={
+                                participant.percentage !== undefined &&
+                                !Number.isNaN(participant.percentage) &&
+                                participant.percentage !== 0
+                                  ? String(participant.percentage)
+                                  : ""
+                              }
                               onChange={(e) =>
                                 updateParticipantPercentage(
                                   participant.friend.id,
@@ -1088,7 +1131,14 @@ export function SplitBill({
                             <Input
                               type="number"
                               step="0.01"
-                              value={participant.amount?.toFixed(2) || "0.00"}
+                              placeholder="0.00"
+                              value={
+                                participant.amount !== undefined &&
+                                !Number.isNaN(participant.amount) &&
+                                participant.amount !== 0
+                                  ? String(participant.amount)
+                                  : ""
+                              }
                               onChange={(e) =>
                                 updateParticipantAmount(
                                   participant.friend.id,
@@ -1372,78 +1422,58 @@ export function SplitBill({
             </Button>
           </CollapsibleTrigger>
           <CollapsibleContent className="space-y-4 mt-4">
-            {/* Split Details Preview - Collapsible */}
-            <Collapsible
-              open={showSplitDetails}
-              onOpenChange={setShowSplitDetails}
-            >
-              <CollapsibleTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="w-full min-h-[44px] justify-between"
-                >
-                  <span>Preview Split Details</span>
-                  {showSplitDetails ? (
-                    <ChevronUp className="h-4 w-4" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4" />
-                  )}
-                </Button>
-              </CollapsibleTrigger>
-              <CollapsibleContent className="mt-4">
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="space-y-3">
-                      <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">
-                          Bill Name:
-                        </span>
-                        <span className="text-sm font-medium">
-                          {billName || "Untitled Bill"}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">
-                          Total Amount:
-                        </span>
-                        <span className="text-sm font-medium">
-                          {formatCurrencyForRegion(
-                            appSettings.region,
-                            Number(totalAmount || 0),
-                          )}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">
-                          Participants:
-                        </span>
-                        <span className="text-sm font-medium">
-                          {participants.length}
-                        </span>
-                      </div>
-                      {description && (
-                        <div>
-                          <span className="text-sm text-muted-foreground">
-                            Description:
-                          </span>
-                          <p className="text-sm mt-1">{description}</p>
-                        </div>
-                      )}
-                      <Separator />
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={shareSplitDetails}
-                        className="w-full min-h-[44px]"
+            <Card className="border-primary">
+              <CardHeader>
+                <CardTitle className="text-base">Split Summary</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">
+                    Total bill amount:
+                  </span>
+                  <span className="font-medium">
+                    {currencySymbol}
+                    {parseAmountValue(totalAmount).toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Split total:</span>
+                  {(() => {
+                    const parsedTotal = parseAmountValue(totalAmount);
+                    const splitTotal = getTotalSplit();
+                    const mismatch = Math.abs(splitTotal - parsedTotal) > 0.01;
+                    return (
+                      <span
+                        className={`font-medium ${
+                          mismatch ? "text-destructive" : "text-success"
+                        }`}
                       >
-                        <Send className="h-4 w-4 mr-2" />
-                        Share Split Details
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </CollapsibleContent>
-            </Collapsible>
+                        {currencySymbol}
+                        {splitTotal.toFixed(2)}
+                      </span>
+                    );
+                  })()}
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Participants:</span>
+                  <span className="font-medium">{participants.length}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Payment method:</span>
+                  <span className="font-medium">
+                    {getPaymentMethodLabel(currentPaymentMethod)}
+                  </span>
+                </div>
+                {isRecurring && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Recurring:</span>
+                    <span className="font-medium capitalize">
+                      {recurringFrequency}
+                    </span>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </CollapsibleContent>
         </Collapsible>
 
@@ -1479,19 +1509,21 @@ export function SplitBill({
                 Split{" "}
                 {formatCurrencyForRegion(
                   appSettings.region,
-                  Number(totalAmount || 0),
+                  parseAmountValue(totalAmount || "0"),
                 )}{" "}
                 among {participants.length}{" "}
                 {participants.length === 1 ? "person" : "people"}
               </p>
               {(() => {
-                const total = parseFloat(totalAmount || "0");
+                const total = parseAmountValue(totalAmount || "0");
                 const sum = getTotalSplit();
                 const mismatch = total > 0 && Math.abs(sum - total) > 0.01;
-                const shouldWarn = mismatch && (splitMethod !== "equal" || sum > 0);
+                const shouldWarn =
+                  mismatch && (splitMethod !== "equal" || sum > 0);
                 return shouldWarn ? (
                   <p className="text-xs text-destructive mt-1">
-                    Warning: Split amounts don't match total. Please adjust amounts.
+                    Warning: Split amounts don't match total. Please adjust
+                    amounts.
                   </p>
                 ) : null;
               })()}
