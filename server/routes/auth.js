@@ -9,7 +9,12 @@ import {
   generateCode,
   cleanupExpiredCodes,
 } from "../utils/verificationCodes.js";
-import { sendSms } from "../utils/sms.js";
+import {
+  sendSms,
+  startPhoneVerification,
+  checkPhoneVerification,
+  isTwilioVerifyEnabled,
+} from "../utils/sms.js";
 
 const { JWT_SECRET } = process.env;
 if (!JWT_SECRET) {
@@ -130,6 +135,17 @@ router.post(
 
       const { phone } = req.body;
       const key = normalizePhone(phone);
+      if (isTwilioVerifyEnabled()) {
+        const started = await startPhoneVerification(key);
+        if (!started) {
+          console.error("Failed to initiate Twilio Verify for OTP");
+          return res
+            .status(500)
+            .json({ error: "Failed to send verification code. Try again later." });
+        }
+        return res.json({ message: "OTP sent" });
+      }
+
       await cleanupExpiredCodes(req.prisma);
       const otp = generateCode();
       const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
@@ -173,14 +189,21 @@ router.post(
 
       const { phone, otp } = req.body;
       const key = normalizePhone(phone);
-      await cleanupExpiredCodes(req.prisma);
-      const entry = await req.prisma.verificationCode.findUnique({
-        where: { target_type: { target: key, type: "auth" } },
-      });
-      if (!entry || entry.code !== otp || entry.expiresAt < new Date()) {
-        return res.status(400).json({ error: "Invalid or expired OTP" });
+      if (isTwilioVerifyEnabled()) {
+        const { success } = await checkPhoneVerification(key, otp);
+        if (!success) {
+          return res.status(400).json({ error: "Invalid or expired OTP" });
+        }
+      } else {
+        await cleanupExpiredCodes(req.prisma);
+        const entry = await req.prisma.verificationCode.findUnique({
+          where: { target_type: { target: key, type: "auth" } },
+        });
+        if (!entry || entry.code !== otp || entry.expiresAt < new Date()) {
+          return res.status(400).json({ error: "Invalid or expired OTP" });
+        }
+        await req.prisma.verificationCode.delete({ where: { id: entry.id } });
       }
-      await req.prisma.verificationCode.delete({ where: { id: entry.id } });
 
       let user = await req.prisma.user.findFirst({ where: { phone: key } });
       if (!user) {
