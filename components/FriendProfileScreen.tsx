@@ -57,6 +57,7 @@ interface Friend {
   id: string;
   name: string;
   username: string;
+  phoneNumber?: string | null;
   status: "active" | "pending" | "blocked";
   avatar?: string;
   joinedDate: string;
@@ -275,7 +276,9 @@ export function FriendProfileScreen({
             </Avatar>
             <div className="flex-1">
               <h2>{friend.name}</h2>
-              <p className="text-muted-foreground">{friend.username}</p>
+              <p className="text-muted-foreground">
+                {friend.phoneNumber || friend.username}
+              </p>
               <p className="text-sm text-muted-foreground mt-1">
                 Friends since{" "}
                 {new Date(friend.joinedDate).toLocaleDateString("en-US", {

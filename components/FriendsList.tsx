@@ -18,6 +18,7 @@ interface Friend {
   id: string;
   name: string;
   username: string;
+  phoneNumber?: string;
   status: "active" | "pending" | "blocked";
   avatar?: string;
   lastTransaction?: {
@@ -65,6 +66,7 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
           name: string;
           username?: string;
           email?: string;
+          phoneNumber?: string;
           avatar?: string;
           lastTransaction?: Friend["lastTransaction"];
           status?: Friend["status"];
@@ -74,6 +76,7 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
           id: f.id,
           name: f.name,
           username: f.username || f.email || "",
+          phoneNumber: f.phoneNumber,
           status: f.status || "active",
           avatar: f.avatar,
           lastTransaction: f.lastTransaction,
@@ -116,11 +119,17 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
     return () => window.removeEventListener("friendsUpdated", handler);
   }, []);
 
-  const filteredFriends = friends.filter(
-    (friend) =>
-      friend.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      friend.username.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
+  const normalizedQuery = searchQuery.toLowerCase();
+  const filteredFriends = friends.filter((friend) => {
+    const matchesName = friend.name.toLowerCase().includes(normalizedQuery);
+    const matchesUsername = friend.username
+      .toLowerCase()
+      .includes(normalizedQuery);
+    const matchesPhone = friend.phoneNumber
+      ? friend.phoneNumber.toLowerCase().includes(normalizedQuery)
+      : false;
+    return matchesName || matchesUsername || matchesPhone;
+  });
 
   const activeFriends = filteredFriends.filter((f) => f.status === "active");
   const pendingFriends = filteredFriends.filter((f) => f.status === "pending");
@@ -239,7 +248,7 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
                           <div>
                             <p>{friend.name}</p>
                             <p className="text-sm text-muted-foreground">
-                              {friend.username}
+                              {friend.phoneNumber || friend.username}
                             </p>
                           </div>
                         </div>
@@ -329,7 +338,7 @@ export function FriendsList({ onNavigate }: FriendsListProps) {
                           <div className="flex-1">
                             <p>{friend.name}</p>
                             <p className="text-sm text-muted-foreground">
-                              {friend.username}
+                              {friend.phoneNumber || friend.username}
                             </p>
                             {friend.lastTransaction && (
                               <Badge

@@ -1,3 +1,5 @@
+import { useState, MouseEvent } from "react";
+import { useState, MouseEvent } from "react";
 import { ListSkeleton } from "./ui/loading";
 import { Alert, AlertDescription } from "./ui/alert";
 import { useUpcomingPayments } from "../hooks/useUpcomingPayments";
@@ -8,6 +10,7 @@ import { formatCurrencyForRegion } from "../utils/regions";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { apiClient } from "../utils/apiClient";
 import { toast } from "sonner";
+import { confirmPendingBillParticipants } from "../utils/confirmPendingBillParticipants";
 
 interface UpcomingPaymentsProps {
   onNavigate: (tab: string, data?: any) => void;
@@ -17,6 +20,7 @@ export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
   const { upcomingPayments, loading, error } = useUpcomingPayments();
   const { appSettings, userProfile } = useUserProfile();
   const fmt = (n: number) => formatCurrencyForRegion(appSettings.region, n);
+  const [settlingBillId, setSettlingBillId] = useState<string | null>(null);
 
   const handleSeeAll = () => onNavigate("upcoming-payments");
 
@@ -96,6 +100,44 @@ export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
       .join("")
       .slice(0, 2)
       .toUpperCase();
+
+  const handleSettleBill = async (
+    event: MouseEvent<HTMLButtonElement>,
+    billSplitId?: string,
+  ) => {
+    event.stopPropagation();
+    if (!billSplitId || settlingBillId) return;
+    setSettlingBillId(billSplitId);
+    try {
+      const summary = await confirmPendingBillParticipants(billSplitId);
+      if (summary.confirmed > 0) {
+        toast.success(
+          `Confirmed ${summary.confirmed} participant${summary.confirmed === 1 ? "" : "s"} before settlement`,
+        );
+      }
+      if (summary.skippedCount > 0) {
+        toast.info(
+          `${summary.skippedCount} participant${summary.skippedCount === 1 ? "" : "s"} could not be confirmed automatically. Please review manually.`,
+        );
+      }
+      const remaining = summary.pendingOwingCount - summary.confirmed;
+      if (remaining > 0) {
+        toast.error(
+          `${remaining} participant${remaining === 1 ? "" : "s"} still need confirmation before settling.`,
+        );
+        return;
+      }
+      onNavigate("settlement", { billSplitId });
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Unable to confirm participant shares";
+      toast.error(message);
+    } finally {
+      setSettlingBillId(null);
+    }
+  };
 
   const transactions = upcomingPayments
     .filter(
@@ -207,13 +249,13 @@ export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
         {transactions.slice(0, 2).map((transaction: any) => {
           const percentage = transaction.total > 0 ? Math.round((transaction.paid / transaction.total) * 100) : 0;
 
-          const handlePayNow = (e: React.MouseEvent, id: string) => {
+          const handlePayNow = (e: React.MouseEvent) => {
             e.stopPropagation();
             if (transaction.billSplitId) {
               onNavigate("pay-bill", { billId: transaction.billSplitId });
             }
           };
-          const handleCancel = (e: React.MouseEvent, id: string) => {
+          const handleCancel = (e: React.MouseEvent) => {
             e.stopPropagation();
             const cancelRequestId =
               transaction.requestId ||
@@ -398,7 +440,7 @@ export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
 
                   {transaction.youOwe ? (
                     <button
-                      onClick={(e) => handlePayNow(e, transaction.id)}
+                      onClick={(e) => handlePayNow(e)}
                       className="bg-primary h-[44px] py-[10px] rounded-[8px] hover:bg-primary/90 transition-colors w-full"
                     >
                       <p className="font-['Inter:Regular',_sans-serif] font-normal leading-[20px] not-italic text-[14px] text-center text-primary-foreground">
@@ -408,16 +450,12 @@ export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
                   ) : transaction.isCreator && transaction.paid < transaction.total ? (
                     <div className="flex gap-[12px] w-full">
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (transaction.billSplitId) {
-                            onNavigate('bill-split-details', { billSplitId: transaction.billSplitId });
-                          }
-                        }}
-                        className="flex-1 bg-background border border-solid border-border h-[44px] py-[10px] rounded-[8px] hover:bg-muted transition-colors"
+                        onClick={(e) => handleSettleBill(e, transaction.billSplitId)}
+                        disabled={!transaction.billSplitId || settlingBillId === transaction.billSplitId}
+                        className="flex-1 bg-background border border-solid border-border h-[44px] py-[10px] rounded-[8px] hover:bg-muted transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                       >
                         <p className="font-['Inter:Regular',_sans-serif] font-normal leading-[20px] not-italic text-[14px] text-center text-foreground">
-                          Settle
+                          {settlingBillId === transaction.billSplitId ? "Confirming..." : "Settle"}
                         </p>
                       </button>
                       <button
@@ -436,7 +474,7 @@ export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
                     </div>
                   ) : (
                     <button
-                      onClick={(e) => handlePayNow(e, transaction.id)}
+                      onClick={(e) => handlePayNow(e)}
                       className="bg-primary h-[44px] py-[10px] rounded-[8px] hover:bg-primary/90 transition-colors w-full"
                     >
                       <p className="font-['Inter:Regular',_sans-serif] font-normal leading-[20px] not-italic text-[14px] text-center text-primary-foreground">
@@ -506,7 +544,7 @@ export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
               <div className="flex gap-[12px] flex-1 ml-[54px]">
                 {isRequester ? (
                   <>
-                    <button onClick={(e) => handleCancel(e, transaction.id)} className="flex-1 bg-background border border-solid border-border h-[44px] py-[10px] rounded-[8px] hover:bg-muted transition-colors">
+                    <button onClick={(e) => handleCancel(e)} className="flex-1 bg-background border border-solid border-border h-[44px] py-[10px] rounded-[8px] hover:bg-muted transition-colors">
                       <p className="font-['Inter:Regular',_sans-serif] font-normal leading-[20px] not-italic text-[14px] text-center text-foreground">
                         Cancel
                       </p>
