@@ -59,6 +59,7 @@ import { createDeepLink } from "./ShareUtils";
 import { PageLoading } from "./ui/loading";
 import { apiClient } from "../utils/apiClient";
 import { formatBillDate } from "../utils/formatBillDate";
+import { confirmPendingBillParticipants } from "../utils/confirmPendingBillParticipants";
 
 interface BillSplitDetailsScreenProps {
   billSplitId: string | null;
@@ -131,6 +132,7 @@ export function BillSplitDetailsScreen({
   const [billSplit, setBillSplit] = useState<BillSplit | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [settling, setSettling] = useState(false);
 
   const fetchBillSplit = useCallback(async () => {
     if (!billSplitId) {
@@ -339,8 +341,38 @@ export function BillSplitDetailsScreen({
     }
   };
 
-  const handleSettle = () => {
-    onNavigate("settlement", { billSplitId });
+  const handleSettle = async () => {
+    if (!billSplitId || settling) return;
+    setSettling(true);
+    try {
+      const summary = await confirmPendingBillParticipants(billSplitId);
+      if (summary.confirmed > 0) {
+        toast.success(
+          `Confirmed ${summary.confirmed} participant${summary.confirmed === 1 ? "" : "s"} before settlement`,
+        );
+      }
+      if (summary.skippedCount > 0) {
+        toast.info(
+          `${summary.skippedCount} participant${summary.skippedCount === 1 ? "" : "s"} could not be confirmed automatically. Please review manually.`,
+        );
+      }
+      const remaining = summary.pendingOwingCount - summary.confirmed;
+      if (remaining > 0) {
+        toast.error(
+          `${remaining} participant${remaining === 1 ? "" : "s"} still need confirmation before settling.`,
+        );
+        return;
+      }
+      onNavigate("settlement", { billSplitId });
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Unable to confirm participant shares";
+      toast.error(message);
+    } finally {
+      setSettling(false);
+    }
   };
 
   const copyPaymentDetails = async () => {
@@ -819,9 +851,13 @@ export function BillSplitDetailsScreen({
             <>
               {/* Creator actions */}
               {progressPercentage === 100 && (
-                <Button className="w-full h-12" onClick={handleSettle}>
+                <Button
+                  className="w-full h-12"
+                  onClick={handleSettle}
+                  disabled={settling}
+                >
                   <CreditCard className="h-5 w-5 mr-2" />
-                  Settle & Transfer Funds
+                  {settling ? "Confirming..." : "Settle & Transfer Funds"}
                 </Button>
               )}
               <div className="grid grid-cols-2 gap-3">
