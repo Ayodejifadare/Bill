@@ -143,12 +143,13 @@ const refreshStatus = async (
   payLink,
   { includeUser = false, includePaymentMethod = false } = {},
 ) => {
-  if (payLink && payLink.status === ACTIVE_STATUS && isExpired(payLink)) {
+  if (!payLink) return null;
+  if (payLink.status === ACTIVE_STATUS && isExpired(payLink)) {
     await prisma.payLink.update({
       where: { id: payLink.id },
       data: { status: EXPIRED_STATUS },
     });
-    return prisma.payLink.findUnique({
+    const refreshed = await prisma.payLink.findUnique({
       where: { id: payLink.id },
       include:
         includeUser || includePaymentMethod
@@ -162,6 +163,7 @@ const refreshStatus = async (
             }
           : undefined,
     });
+    return refreshed || payLink;
   }
   return payLink;
 };
@@ -507,6 +509,9 @@ publicRouter.get("/:token", async (req, res) => {
       includeUser: true,
       includePaymentMethod: true,
     });
+    if (!payLink) {
+      return res.status(404).json({ error: "Pay link not found" });
+    }
     if (
       payLink.status !== ACTIVE_STATUS &&
       payLink.status !== FULFILLED_STATUS

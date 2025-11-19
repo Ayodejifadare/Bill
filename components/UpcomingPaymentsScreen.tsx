@@ -126,6 +126,9 @@ export function UpcomingPaymentsScreen({
     return `${instructions.provider || "Mobile"}${phone}`;
   };
 
+  const resolveCancelRequestId = (item: any) =>
+    item?.requestId || (item?.type === "request" ? item?.id : null);
+
   const dueSoonTotal = upcomingPayments
     .filter((p) => p.status === "overdue" || p.status === "due_soon")
     .reduce((sum, p) => sum + p.amount, 0);
@@ -153,6 +156,14 @@ export function UpcomingPaymentsScreen({
     }
 
     if (payment.type === "request") {
+      const handleCancelRequest = () => {
+        const cancelRequestId = resolveCancelRequestId(payment);
+        if (!cancelRequestId) {
+          toast.error("This request is no longer available.");
+          return;
+        }
+        onNavigate("payment-request-cancel", { requestId: cancelRequestId });
+      };
       return (
         <Card className="p-4 hover:bg-muted/50 transition-colors">
           <div className="space-y-3">
@@ -187,9 +198,9 @@ export function UpcomingPaymentsScreen({
               <Button
                 variant="outline"
                 className="w-full h-12 rounded-xl"
-                onClick={() => onNavigate("payment-request-cancel", { requestId: payment.requestId || payment.id })}
+                onClick={handleCancelRequest}
               >
-                Settle
+                Cancel
               </Button>
               <Button
                 variant="default"
@@ -652,7 +663,14 @@ export function UpcomingPaymentsScreen({
           {payment.senderId && userProfile?.id === payment.senderId ? (
             <>
               <button
-                onClick={() => onNavigate("payment-request-cancel", { requestId: payment.requestId || payment.id })}
+                onClick={() => {
+                  const cancelRequestId = resolveCancelRequestId(payment);
+                  if (!cancelRequestId) {
+                    toast.error("This request is no longer available.");
+                    return;
+                  }
+                  onNavigate("payment-request-cancel", { requestId: cancelRequestId });
+                }}
                 className="flex-1 bg-background border border-solid border-border h-[44px] py-[10px] rounded-[8px] hover:bg-muted transition-colors"
               >
                 <p className="font-['Inter:Regular',_sans-serif] font-normal leading-[20px] not-italic text-[14px] text-center text-foreground">
@@ -834,6 +852,3 @@ export function UpcomingPaymentsScreen({
     </div>
   );
 }
-
-
-

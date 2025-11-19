@@ -92,7 +92,7 @@ export function RequestMoney({ onNavigate, prefillData }: RequestMoneyProps) {
     "request",
   );
   const [payLinkRecipientName, setPayLinkRecipientName] = useState("");
-  const [payLinkRecipientEmail, setPayLinkRecipientEmail] = useState("");
+  const [payLinkRecipientPhone, setPayLinkRecipientPhone] = useState("");
   const [latestPayLink, setLatestPayLink] = useState<PayLink | null>(null);
   const [latestPayLinkMethod, setLatestPayLinkMethod] =
     useState<PaymentMethod | null>(null);
@@ -323,7 +323,7 @@ export function RequestMoney({ onNavigate, prefillData }: RequestMoneyProps) {
       setLatestPayLink(null);
       setLatestPayLinkMethod(null);
       setPayLinkRecipientName("");
-      setPayLinkRecipientEmail("");
+      setPayLinkRecipientPhone("");
       setShowPayLinkShareSheet(false);
       return;
     }
@@ -462,7 +462,7 @@ export function RequestMoney({ onNavigate, prefillData }: RequestMoneyProps) {
         message: trimmedMessage || undefined,
         title: trimmedMessage || defaultTitle,
         recipientName: payLinkRecipientName.trim() || undefined,
-        recipientEmail: payLinkRecipientEmail.trim() || undefined,
+        recipientPhone: payLinkRecipientPhone.trim() || undefined,
       });
       setLatestPayLink(payLink);
       setLatestPayLinkMethod(selectedPaymentMethod);
@@ -470,7 +470,7 @@ export function RequestMoney({ onNavigate, prefillData }: RequestMoneyProps) {
       setAmount("");
       setMessage("");
       setPayLinkRecipientName("");
-      setPayLinkRecipientEmail("");
+      setPayLinkRecipientPhone("");
       setShowPayLinkShareSheet(true);
       triggerGlobalRefresh();
     } catch (error) {
@@ -731,7 +731,7 @@ export function RequestMoney({ onNavigate, prefillData }: RequestMoneyProps) {
                 Pay link recipient
               </CardTitle>
               <CardDescription>
-                Personalize this link with an optional name and email.
+                Personalize this link with an optional name and phone number.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -745,13 +745,16 @@ export function RequestMoney({ onNavigate, prefillData }: RequestMoneyProps) {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="recipientEmail">Recipient email (optional)</Label>
+                <Label htmlFor="recipientPhone">
+                  Recipient phone number (optional)
+                </Label>
                 <Input
-                  id="recipientEmail"
-                  type="email"
-                  value={payLinkRecipientEmail}
-                  onChange={(e) => setPayLinkRecipientEmail(e.target.value)}
-                  placeholder="jamie@example.com"
+                  id="recipientPhone"
+                  type="tel"
+                  inputMode="tel"
+                  value={payLinkRecipientPhone}
+                  onChange={(e) => setPayLinkRecipientPhone(e.target.value)}
+                  placeholder="+1 555 000 1234"
                 />
               </div>
               <p className="text-xs text-muted-foreground">

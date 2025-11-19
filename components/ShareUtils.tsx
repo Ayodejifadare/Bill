@@ -103,16 +103,15 @@ _Tracked with Biltip _`;
 
     case "pay_link": {
       const ownerName = userProfile?.name || "A Biltip user";
+      const payeeName = recipientName || ownerName;
       const link = payLinkUrl || shareData.deepLink;
       const sections = [
-        `*Pay link from ${ownerName}*`,
-        `\n 💰 Amount: ${formattedAmount}`,
-        recipientName ? `\n 👤 Recipient: ${recipientName}` : "",
-        description ? `\n 📝 Note: ${description}` : "",
-        paymentMethod ? `\n 🏦 Send to: ${paymentMethod}` : "",
-        link ? `\n 🔗 Pay now: ${link}` : "",
+        `*Payment of ${formattedAmount} to ${payeeName}*.`,
+        description ? `\n${description}` : "",
+        paymentMethod ? `\nSend to: ${paymentMethod}` : "",
+        link ? `\n\n🔗 Pay now: ${link}` : "",
       ].filter(Boolean);
-      return `${sections.join("")}\n\n _Share securely via Biltip _`;
+      return sections.join("");
     }
 
     default:
@@ -242,6 +241,7 @@ _Shared via Biltip _`;
         onClose={() => setShowShareSheet(false)}
         title="Share"
         shareText={generateQuickShareText()}
+        shareModes={shareData.type === "pay_link" ? ["whatsapp"] : undefined}
         documentData={{
           title: shareData.title,
           content: shareData,
@@ -361,3 +361,4 @@ export function SharePaymentRequestButton({
     />
   );
 }
+

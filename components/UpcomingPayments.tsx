@@ -215,7 +215,14 @@ export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
           };
           const handleCancel = (e: React.MouseEvent, id: string) => {
             e.stopPropagation();
-            onNavigate("payment-request-cancel", { requestId: transaction.requestId || id });
+            const cancelRequestId =
+              transaction.requestId ||
+              (transaction.type === "request" ? transaction.id : null);
+            if (!cancelRequestId) {
+              toast.error("This request is no longer available.");
+              return;
+            }
+            onNavigate("payment-request-cancel", { requestId: cancelRequestId });
           };
           const handleRemind = (e: React.MouseEvent, id: string) => {
             e.stopPropagation();
@@ -501,7 +508,7 @@ export function UpcomingPayments({ onNavigate }: UpcomingPaymentsProps) {
                   <>
                     <button onClick={(e) => handleCancel(e, transaction.id)} className="flex-1 bg-background border border-solid border-border h-[44px] py-[10px] rounded-[8px] hover:bg-muted transition-colors">
                       <p className="font-['Inter:Regular',_sans-serif] font-normal leading-[20px] not-italic text-[14px] text-center text-foreground">
-                        Settle
+                        Cancel
                       </p>
                     </button>
                     <button onClick={(e) => handleRemind(e, transaction.id)} className="flex-1 bg-primary h-[44px] py-[10px] rounded-[8px] hover:bg-primary/90 transition-colors">

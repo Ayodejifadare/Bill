@@ -67,6 +67,7 @@ import { formatCurrencyForRegion } from "../utils/regions";
 import { useBillSplits } from "../hooks/useBillSplits";
 import { formatBillDate } from "../utils/formatBillDate";
 import { getInitials } from "../utils/name";
+import { confirmPendingBillParticipants } from "../utils/confirmPendingBillParticipants";
 
 interface GroupDetailsScreenProps {
   groupId: string | null;
@@ -142,6 +143,7 @@ export function GroupDetailsScreen({
   const { appSettings, userProfile } = useUserProfile();
   const fmt = (n: number) => formatCurrencyForRegion(appSettings.region, n);
   const { billSplits } = useBillSplits({ groupId: group?.id });
+  const [settlingBillId, setSettlingBillId] = useState<string | null>(null);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -186,6 +188,40 @@ export function GroupDetailsScreen({
     };
     toast.success( `Using ${bill.title} as template...`); 
     onNavigate("split", reuseData);
+  };
+
+  const handleSettleBill = async (billId: string) => {
+    if (settlingBillId) return;
+    setSettlingBillId(billId);
+    try {
+      const summary = await confirmPendingBillParticipants(billId);
+      if (summary.confirmed > 0) {
+        toast.success(
+          `Confirmed ${summary.confirmed} participant${summary.confirmed === 1 ? "" : "s"} before settlement`,
+        );
+      }
+      if (summary.skippedCount > 0) {
+        toast.info(
+          `${summary.skippedCount} participant${summary.skippedCount === 1 ? "" : "s"} could not be confirmed automatically. Please review manually.`,
+        );
+      }
+      const remaining = summary.pendingOwingCount - summary.confirmed;
+      if (remaining > 0) {
+        toast.error(
+          `${remaining} participant${remaining === 1 ? "" : "s"} still need confirmation before settling.`,
+        );
+        return;
+      }
+      onNavigate("settlement", { billSplitId: billId });
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Unable to confirm participant shares";
+      toast.error(message);
+    } finally {
+      setSettlingBillId(null);
+    }
   };
 
   useEffect(() => {
@@ -709,12 +745,15 @@ export function GroupDetailsScreen({
                                   <Button
                                     size="sm"
                                     className="flex-1"
+                                    disabled={settlingBillId === bill.id}
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      onNavigate("settlement", { billSplitId: bill.id });
+                                      handleSettleBill(bill.id);
                                     }}
                                   >
-                                    Settle
+                                    {settlingBillId === bill.id
+                                      ? "Confirming..."
+                                      : "Settle"}
                                   </Button>
                                   <Button
                                     size="sm"

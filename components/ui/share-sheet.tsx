@@ -39,6 +39,8 @@ interface ShareOption {
   action: () => Promise<void> | void;
 }
 
+type ShareMode = "whatsapp" | "pdf" | "image";
+
 interface ShareSheetProps {
   isOpen: boolean;
   onClose: () => void;
@@ -49,6 +51,7 @@ interface ShareSheetProps {
     content: any;
     type: "receipt" | "invoice" | "bill_split";
   };
+  shareModes?: ShareMode[];
 }
 
 export function ShareSheet({
@@ -57,6 +60,7 @@ export function ShareSheet({
   title,
   shareText,
   documentData,
+  shareModes,
 }: ShareSheetProps) {
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
 
@@ -499,8 +503,8 @@ export function ShareSheet({
     }
   };
 
-  const shareOptions: ShareOption[] = [
-    {
+  const allShareOptions: Record<ShareMode, ShareOption> = {
+    whatsapp: {
       id: "whatsapp",
       label: "Share on WhatsApp",
       icon: MessageCircle,
@@ -508,7 +512,7 @@ export function ShareSheet({
       textColor: "text-white",
       action: handleWhatsAppShare,
     },
-    {
+    pdf: {
       id: "pdf",
       label: "PDF",
       icon: FileText,
@@ -516,7 +520,7 @@ export function ShareSheet({
       textColor: "text-foreground",
       action: handlePDFShare,
     },
-    {
+    image: {
       id: "image",
       label: "Image",
       icon: Image,
@@ -524,7 +528,16 @@ export function ShareSheet({
       textColor: "text-foreground",
       action: handleImageShare,
     },
-  ];
+  };
+
+  const enabledModes =
+    shareModes && shareModes.length > 0
+      ? shareModes
+      : (["whatsapp", "pdf", "image"] as ShareMode[]);
+  const shareOptions = enabledModes
+    .map((mode) => allShareOptions[mode])
+    .filter(Boolean);
+  const hasMultipleOptions = shareOptions.length > 1;
 
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
@@ -543,8 +556,9 @@ export function ShareSheet({
             </Button>
           </div>
           <SheetDescription className="sr-only">
-            Choose how you'd like to share this content - as a WhatsApp message,
-            PDF document, or image file
+            {hasMultipleOptions
+              ? "Choose how you'd like to share this content - as a WhatsApp message, PDF document, or image file"
+              : "Share this content instantly via WhatsApp"}
           </SheetDescription>
         </SheetHeader>
 
@@ -594,11 +608,13 @@ export function ShareSheet({
         </div>
 
         {/* Footer info */}
-        <div className="pt-6 text-center">
-          <p className="text-xs text-muted-foreground">
-            Choose your sharing format
-          </p>
-        </div>
+        {hasMultipleOptions && (
+          <div className="pt-6 text-center">
+            <p className="text-xs text-muted-foreground">
+              Choose your sharing format
+            </p>
+          </div>
+        )}
       </SheetContent>
     </Sheet>
   );
