@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   Minus,
@@ -47,13 +47,12 @@ import {
 } from "../utils/regions";
 import {
   fetchFriends,
-  fetchGroups,
   fetchExternalAccounts,
+  fetchGroupMembers,
   Friend,
   Group,
   ExternalAccount,
   getCachedFriends,
-  getCachedGroups,
 } from "../utils/split-bill-api";
 import { PaymentMethodSelector, PaymentMethod } from "./PaymentMethodSelector";
 import {
@@ -118,7 +117,7 @@ export function SplitBill({
 
   // Async data states
   const [groups, setGroups] = useState<Group[]>(() => {
-    const cached = getCachedGroups();
+    const cached = null;
     return cached ? [...cached] : [];
   });
   const [externalAccounts, setExternalAccounts] = useState<ExternalAccount[]>(
@@ -130,7 +129,7 @@ export function SplitBill({
   });
   const [loading, setLoading] = useState(() => {
     const hasFriends = Boolean(getCachedFriends());
-    const hasGroups = Boolean(getCachedGroups());
+    const hasGroups = Boolean(null);
     return !(hasFriends && hasGroups);
   });
   const [error, setError] = useState<string | null>(null);
@@ -240,9 +239,34 @@ export function SplitBill({
   // Fetch friends and groups
   useEffect(() => {
     let cancelled = false;
+    const mapGroupsFromApi = (friends: Friend[], rawGroups: any[]): Group[] => {
+      return rawGroups.map((g: any) => {
+        const ids: string[] =
+          Array.isArray(g?.memberIds) && g.memberIds.length
+            ? g.memberIds.map((id: any) => String(id))
+            : Array.isArray(g?.members)
+              ? g.members.map((id: any) => String(id))
+              : [];
+        const members = ids
+          .map((id) => friends.find((f) => String(f.id) === id))
+          .filter((f): f is Friend => Boolean(f));
+        return {
+          id: String(g.id),
+          name: g.name || "Untitled group",
+          members,
+          color: g.color || "bg-blue-500",
+        };
+      });
+    };
+
     const applyData = (friends: Friend[], fetchedGroups: Group[]) => {
       if (cancelled) return;
-      setGroups(fetchedGroups);
+      setGroups(
+        fetchedGroups.map((g) => ({
+          ...g,
+          members: Array.isArray(g.members) ? g.members : [],
+        })),
+      );
       const creatorParticipant: SplitParticipant = {
         friend: currentUser,
         amount: 0,
@@ -251,7 +275,9 @@ export function SplitBill({
 
       if (groupId) {
         const group = fetchedGroups.find((g) => g.id === groupId);
-        const groupMembers = group ? group.members : [];
+        const groupMembers = Array.isArray(group?.members)
+          ? group.members
+          : [];
         const filteredMembers = groupMembers.filter(
           (m) => m.id !== (userProfile?.id ?? currentUser.id),
         );
@@ -272,29 +298,32 @@ export function SplitBill({
       }
     };
 
-    const cachedFriends = getCachedFriends();
-    const cachedGroups = getCachedGroups();
-    if (cachedFriends && cachedGroups) {
-      applyData(cachedFriends, cachedGroups);
-      setLoading(false);
-    } else {
+    const loadData = async () => {
       setLoading(true);
-    }
-
-    setError(null);
-    Promise.all([fetchFriends(), fetchGroups()])
-      .then(([friends, fetchedGroups]) => {
-        applyData(friends, fetchedGroups);
-        if (!cancelled) {
-          setLoading(false);
-        }
-      })
-      .catch(() => {
+      setError(null);
+      try {
+        const cachedFriends = getCachedFriends();
+        const friends = cachedFriends ?? (await fetchFriends());
+        const groupResp = await apiClient("/groups");
+        const rawGroups: any[] = Array.isArray((groupResp as any)?.groups)
+          ? (groupResp as any).groups
+          : Array.isArray(groupResp)
+            ? groupResp
+            : [];
+        const mappedGroups = mapGroupsFromApi(friends, rawGroups);
+        applyData(friends, mappedGroups);
+      } catch {
         if (!cancelled) {
           setError("Failed to load data");
+        }
+      } finally {
+        if (!cancelled) {
           setLoading(false);
         }
-      });
+      }
+    };
+
+    void loadData();
 
     return () => {
       cancelled = true;
@@ -395,13 +424,31 @@ export function SplitBill({
     }
   };
 
-  const addGroupMembers = (group: Group) => {
+  const addGroupMembers = async (group: Group) => {
     const currentId = userProfile?.id ?? currentUser.id;
-    const newMembers = group.members.filter(
+    let members = Array.isArray(group.members) ? group.members : [];
+    if (members.length === 0) {
+      members = await fetchGroupMembers(group.id, { forceRefresh: true });
+      if (members.length > 0) {
+        setGroups((prev) =>
+          prev.map((g) => (g.id === group.id ? { ...g, members } : g)),
+        );
+      }
+    }
+    const newMembers = members.filter(
       (member) =>
         member.id !== currentId &&
         !participants.some((p) => p.friend.id === member.id),
     );
+
+    if (newMembers.length === 0) {
+      toast.error(
+        members.length === 0
+          ? `No members available for ${group.name || "this group"}`
+          : "Everyone in this group is already added",
+      );
+      return;
+    }
 
     const newParticipants = newMembers.map((member) => ({
       friend: member,
@@ -1208,7 +1255,10 @@ export function SplitBill({
                   <div className="grid grid-cols-1 gap-2">
                     {groups.map((group) => {
                       const currentId = userProfile?.id ?? currentUser.id;
-                      const unselectedMembers = group.members.filter(
+                      const members = Array.isArray(group.members)
+                        ? group.members
+                        : [];
+                      const unselectedMembers = members.filter(
                         (member) =>
                           member.id !== currentId &&
                           !participants.some((p) => p.friend.id === member.id),
@@ -1218,8 +1268,12 @@ export function SplitBill({
                         <Button
                           key={group.id}
                           variant="outline"
-                          onClick={() => addGroupMembers(group)}
-                          disabled={unselectedMembers.length === 0}
+                          onClick={() => {
+                            void addGroupMembers(group);
+                          }}
+                          disabled={
+                            members.length > 0 && unselectedMembers.length === 0
+                          }
                           className="h-auto p-3 justify-start min-h-[52px]"
                         >
                           <div className="flex items-center gap-3 w-full">
@@ -1233,8 +1287,9 @@ export function SplitBill({
                                 {group.name}
                               </p>
                               <p className="text-xs text-muted-foreground">
-                                {unselectedMembers.length} of{" "}
-                                {group.members.length} members available
+                                {members.length > 0
+                                  ? `${unselectedMembers.length} of ${members.length} members available`
+                                  : "Tap to load members"}
                               </p>
                             </div>
                             <UserPlus className="h-4 w-4 flex-shrink-0" />
@@ -1534,3 +1589,4 @@ export function SplitBill({
     </div>
   );
 }
+
