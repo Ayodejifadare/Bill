@@ -103,6 +103,21 @@ const authUserSelect = {
 
 const router = express.Router();
 
+const allowDevOtpFallback =
+  process.env.ALLOW_TWILIO_DEV_FALLBACK === "true" ||
+  process.env.NODE_ENV !== "production";
+
+function isTwilioInvalidPhoneError(error) {
+  if (!error) return false;
+  const code = Number(error?.code);
+  if (code === 60200 || code === 60203 || code === 21211) {
+    return true;
+  }
+  const message = String(error?.message || "");
+  return /invalid (parameter|phone).*to/i.test(message) ||
+    /not a valid phone number/i.test(message);
+}
+
 // Normalize phone to a consistent E.164-like key for OTP store and DB lookup
 function normalizePhone(input = "") {
   const digits = String(input).replace(/\D/g, "");
@@ -135,17 +150,44 @@ router.post(
 
       const { phone } = req.body;
       const key = normalizePhone(phone);
-      if (isTwilioVerifyEnabled()) {
-        const started = await startPhoneVerification(key);
-        if (!started) {
-          console.error("Failed to initiate Twilio Verify for OTP");
-          return res
-            .status(500)
-            .json({ error: "Failed to send verification code. Try again later." });
+      let shouldUseLocalOtp = !isTwilioVerifyEnabled();
+      if (!shouldUseLocalOtp) {
+        try {
+          const started = await startPhoneVerification(key);
+          if (started) {
+            return res.json({ message: "OTP sent" });
+          }
+          console.warn(
+            "Twilio Verify client unavailable; falling back to in-app OTP codes",
+          );
+          shouldUseLocalOtp = true;
+        } catch (error) {
+          if (isTwilioInvalidPhoneError(error)) {
+            if (allowDevOtpFallback) {
+              console.warn(
+                "Twilio rejected phone number; using local OTP fallback for testing",
+                { phone: key, code: error?.code },
+              );
+              shouldUseLocalOtp = true;
+            } else {
+              return res.status(400).json({
+                error:
+                  "Invalid phone number. Please confirm the digits and include your country code.",
+              });
+            }
+          } else {
+            console.error("Failed to initiate Twilio Verify for OTP:", error);
+            return res.status(500).json({
+              error: "Failed to send verification code. Try again later.",
+            });
+          }
         }
-        return res.json({ message: "OTP sent" });
       }
 
+      if (!shouldUseLocalOtp) {
+        // Should not reach here; Twilio path already returned success.
+        return res.status(500).json({ error: "Unable to send OTP" });
+      }
       await cleanupExpiredCodes(req.prisma);
       const otp = generateCode();
       const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
@@ -189,12 +231,47 @@ router.post(
 
       const { phone, otp } = req.body;
       const key = normalizePhone(phone);
-      if (isTwilioVerifyEnabled()) {
-        const { success } = await checkPhoneVerification(key, otp);
-        if (!success) {
-          return res.status(400).json({ error: "Invalid or expired OTP" });
+      let requireLocalVerification = !isTwilioVerifyEnabled();
+      if (!requireLocalVerification) {
+        try {
+          const { success, status } = await checkPhoneVerification(key, otp);
+          if (success) {
+            requireLocalVerification = false;
+          } else if (
+            status === "unavailable" ||
+            status === "client_unavailable"
+          ) {
+            console.warn(
+              "Twilio Verify unavailable during OTP check; falling back to in-app validation",
+            );
+            requireLocalVerification = true;
+          } else {
+            return res.status(400).json({ error: "Invalid or expired OTP" });
+          }
+        } catch (error) {
+          if (isTwilioInvalidPhoneError(error)) {
+            if (allowDevOtpFallback) {
+              console.warn(
+                "Twilio rejected phone number during OTP verification; using local fallback",
+                { phone: key, code: error?.code },
+              );
+              requireLocalVerification = true;
+            } else {
+              return res.status(400).json({
+                error:
+                  "Invalid phone number. Please confirm the digits and include your country code.",
+              });
+            }
+          } else {
+            console.error("Twilio verify check failed:", error);
+            return res
+              .status(500)
+              .json({ error: "Failed to verify the code. Try again later." });
+          }
         }
-      } else {
+      }
+
+      if (requireLocalVerification) {
         await cleanupExpiredCodes(req.prisma);
         const entry = await req.prisma.verificationCode.findUnique({
           where: { target_type: { target: key, type: "auth" } },

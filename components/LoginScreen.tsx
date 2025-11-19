@@ -399,7 +399,7 @@ export function LoginScreen({
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/5 to-purple-50">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/5 via-white to-purple-50 dark:from-[#05060a] dark:via-[#040312] dark:to-black">
       <div className="w-full max-w-md space-y-6">
         {/* Logo and Welcome */}
         <div className="text-center space-y-2">
@@ -413,7 +413,7 @@ export function LoginScreen({
         </div>
 
         {/* Login Form */}
-        <Card className="p-6 rounded-2xl shadow-sm">
+        <Card className="p-6 rounded-2xl shadow-lg bg-card/95 dark:bg-gray-900/80 border border-border/80 dark:border-white/10 backdrop-blur">
           <form onSubmit={handleSendCode} className="space-y-4">
             {/* Country and Phone Number */}
             <div className="grid grid-cols-3 gap-4">

@@ -27,14 +27,27 @@ import { apiClientWithRetry } from "../utils/apiClientWithRetry";
 
 interface Notification {
   id: string;
-  type: "payment" | "request" | "split" | "friend" | "reminder" | "payment_confirm" | "payment_confirmed" | "payment_declined";
+  type:
+    | "payment"
+    | "request"
+    | "split"
+    | "friend"
+    | "friend_request"
+    | "friend_request_accepted"
+    | "friend_request_declined"
+    | "reminder"
+    | "payment_confirm"
+    | "payment_confirmed"
+    | "payment_declined";
   title: string;
   message: string;
   time: string;
   read: boolean;
   actionable?: boolean;
   user?: {
+    id?: string;
     name: string;
+    email?: string;
     avatar?: string;
   };
   amount?: number;
@@ -50,6 +63,18 @@ interface NotificationsResponse {
 
 interface NotificationSettingsResponse {
   settings?: NotificationSettings;
+}
+
+interface FriendRequestEntry {
+  requestId: string;
+  sender?: {
+    id?: string;
+    name?: string;
+  };
+}
+
+interface FriendRequestsResponse {
+  incoming?: FriendRequestEntry[];
 }
 
 interface NotificationSettings {
@@ -276,6 +301,9 @@ export function NotificationsScreen({ onNavigate }: NotificationsScreenProps) {
       case "split":
         return <Users className="h-4 w-4 text-purple-600" />;
       case "friend":
+      case "friend_request":
+      case "friend_request_accepted":
+      case "friend_request_declined":
         return <Users className="h-4 w-4 text-orange-600" />;
       case "reminder":
         return <AlertTriangle className="h-4 w-4 text-yellow-600" />;
@@ -287,6 +315,25 @@ export function NotificationsScreen({ onNavigate }: NotificationsScreenProps) {
   const extractTxId = (message: string) => {
     const m = /TX:([a-zA-Z0-9_-]+)/.exec(message || "");
     return m ? m[1] : null;
+  };
+
+  const resolveFriendRequestId = async (
+    notification: Notification,
+  ): Promise<string | null> => {
+    if (!notification.user?.id) return null;
+    try {
+      const data = await apiClientWithRetry<FriendRequestsResponse>(
+        "/friends/requests",
+      );
+      const incoming = Array.isArray(data?.incoming) ? data.incoming : [];
+      const match = incoming.find(
+        (request) => request.sender?.id === notification.user?.id,
+      );
+      return match?.requestId || null;
+    } catch (error) {
+      console.error("Failed to resolve friend request:", error);
+      return null;
+    }
   };
 
   const handleNotificationAction = async (
@@ -311,6 +358,23 @@ export function NotificationsScreen({ onNavigate }: NotificationsScreenProps) {
           });
           toast.success("Confirmation declined");
         }
+      } else if (notification.type === "friend_request") {
+        const requestId = await resolveFriendRequestId(notification);
+        if (!requestId) {
+          toast.error("Friend request not found or already handled");
+          return;
+        }
+        const endpoint =
+          action === "accept"
+            ? `/friends/requests/${requestId}/accept`
+            : `/friends/requests/${requestId}/decline`;
+        await apiClientWithRetry(endpoint, { method: "POST" });
+        toast.success(
+          action === "accept"
+            ? "Friend request accepted"
+            : "Friend request declined",
+        );
+        window.dispatchEvent(new Event("friendsUpdated"));
       } else if (notification.type === "request" || notification.type === "friend") {
         alert(
           `${action === "accept" ? "Accepted" : "Declined"} ${notification.type} from ${notification.user?.name}`,

@@ -361,6 +361,7 @@ router.post("/request", [body("receiverId").notEmpty()], async (req, res) => {
       type: "friend_request",
       title: "Friend request",
       message: `${friendRequest.sender.name} sent you a friend request`,
+      actionable: true,
     });
 
     res.status(201).json({

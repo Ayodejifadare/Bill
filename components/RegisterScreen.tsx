@@ -298,7 +298,7 @@ export function RegisterScreen({
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/5 to-purple-50">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/5 via-white to-purple-50 dark:from-[#05060a] dark:via-[#040312] dark:to-black">
       <div className="w-full max-w-md space-y-6">
         {/* Header */}
         <div className="flex items-center space-x-4">
@@ -318,7 +318,7 @@ export function RegisterScreen({
         </div>
 
         {/* Registration Form */}
-        <Card className="p-6">
+        <Card className="p-6 rounded-2xl shadow-lg bg-card/95 dark:bg-gray-900/80 border border-border/80 dark:border-white/10 backdrop-blur">
           {errors.api && (
             <div className="mb-4 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
               {errors.api}
