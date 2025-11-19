@@ -118,7 +118,7 @@ export function PayLinkPublicPage({ token }: PayLinkPublicPageProps) {
       <div className="max-w-md mx-auto px-4 py-10 space-y-6">
         <header className="text-center space-y-2">
           <p className="text-sm uppercase tracking-wide text-muted-foreground">
-            Biltip Pay Link
+            Bankdrop Pay Link
           </p>
           <h1 className="text-2xl font-semibold">
             {payLink?.title || "Send a secure bank transfer"}
