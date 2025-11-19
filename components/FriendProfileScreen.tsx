@@ -87,6 +87,7 @@ export function FriendProfileScreen({
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [sharedGroups, setSharedGroups] = useState<SharedGroup[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showAllSharedGroups, setShowAllSharedGroups] = useState(false);
 
   useEffect(() => {
     if (!friendId) return;
@@ -381,7 +382,7 @@ export function FriendProfileScreen({
         <div>
           <div className="flex items-center justify-between mb-3">
             <h3>Shared Groups</h3>
-            {sharedGroups.length > 0 && (
+            {sharedGroups.length > 0 ? (
               <Button
                 variant="ghost"
                 size="sm"
@@ -389,40 +390,53 @@ export function FriendProfileScreen({
               >
                 Create New
               </Button>
-            )}
+            ) : null}
           </div>
 
           {sharedGroups.length > 0 ? (
-            <div className="grid gap-3 mb-6">
-              {sharedGroups.map((group) => (
-                <Card
-                  key={group.id}
-                  className="p-4 cursor-pointer hover:bg-muted/50 transition-colors"
-                  onClick={() => handleGroupClick(group.id)}
+            <div className="space-y-3 mb-6">
+              {(showAllSharedGroups ? sharedGroups : sharedGroups.slice(0, 1)).map(
+                (group) => (
+                  <Card
+                    key={group.id}
+                    className="p-4 cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => handleGroupClick(group.id)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div
+                          className={`${group.color} p-2 rounded-full text-white`}
+                        >
+                          <Users className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <p className="font-medium">{group.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {group.memberCount} members • $
+                            {group.totalSpent.toFixed(2)} total spent
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <Button variant="ghost" size="sm">
+                          View
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                ),
+              )}
+              {sharedGroups.length > 1 && !showAllSharedGroups && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => setShowAllSharedGroups(true)}
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div
-                        className={`${group.color} p-2 rounded-full text-white`}
-                      >
-                        <Users className="h-4 w-4" />
-                      </div>
-                      <div>
-                        <p className="font-medium">{group.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {group.memberCount} members • $
-                          {group.totalSpent.toFixed(2)} total spent
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <Button variant="ghost" size="sm">
-                        View
-                      </Button>
-                    </div>
-                  </div>
-                </Card>
-              ))}
+                  View {sharedGroups.length - 1} more group
+                  {sharedGroups.length - 1 === 1 ? "" : "s"}
+                </Button>
+              )}
             </div>
           ) : (
             <Card className="p-6 text-center mb-6">
@@ -515,3 +529,4 @@ export function FriendProfileScreen({
   );
 }
 import { getInitials } from "../utils/name";
+

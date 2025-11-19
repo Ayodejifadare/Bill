@@ -575,6 +575,7 @@ router.get("/:groupId", authenticate, async (req, res) => {
       name: m.user.name,
       avatar: m.user.avatar || getInitials(m.user.name),
       email: m.user.email || "",
+      phoneNumber: m.user.phone || "",
       isAdmin: m.role === "ADMIN",
       balance: Number(memberBalanceMap.get(m.userId) || 0),
       totalSpent: Number(memberSpentMap.get(m.userId) || 0),

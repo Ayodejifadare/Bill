@@ -84,6 +84,7 @@ interface GroupMember {
   name: string;
   avatar: string;
   email: string;
+  phoneNumber?: string;
   isAdmin: boolean;
   balance?: number; // positive = owed money, negative = owes money
   totalSpent?: number;
@@ -1076,7 +1077,7 @@ export function GroupDetailsScreen({
                             )}
                           </div>
                           <p className="text-xs sm:text-sm text-muted-foreground truncate">
-                            {member.email}
+                            {member.phoneNumber || member.email}
                           </p>
                           <p className="text-xs text-muted-foreground">
                             <span className="hidden sm:inline">
@@ -1226,7 +1227,8 @@ export function GroupDetailsScreen({
                       )}
                     </SheetTitle>
                     <SheetDescription>
-                      {selectedMemberForActions.email}
+                      {selectedMemberForActions.phoneNumber ||
+                        selectedMemberForActions.email}
                     </SheetDescription>
                     <div className="text-xs text-muted-foreground mt-1">
                       <span>Joined {selectedMemberForActions.joinedDate}</span>
