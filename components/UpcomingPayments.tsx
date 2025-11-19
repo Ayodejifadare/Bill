@@ -1,5 +1,5 @@
-import { useState, MouseEvent } from "react";
-import { useState, MouseEvent } from "react";
+import { useState } from "react";
+import type { MouseEvent } from "react";
 import { ListSkeleton } from "./ui/loading";
 import { Alert, AlertDescription } from "./ui/alert";
 import { useUpcomingPayments } from "../hooks/useUpcomingPayments";
