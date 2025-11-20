@@ -62,7 +62,7 @@ export function generateShareText(
  Amount: ${formattedAmount}
    Split with: ${participantsList}${formattedDueDate ? `\n 📅 Due: ${formattedDueDate}` : ""}${description ? `\n ${description}` : ""}
 
-_Shared via Biltip _`;
+_Shared via Bankdrop _`;
     }
 
     case "payment_request": {
@@ -72,7 +72,7 @@ _Shared via Biltip _`;
  From: ${userProfile.name}
    For: ${title}${formattedDueDate ? `\n 📅 Due: ${formattedDueDate}` : ""}${description ? `\n ${description}` : ""}
 
-_Send via Biltip _`;
+_Send via Bankdrop _`;
     }
 
     case "transaction": {
@@ -81,7 +81,7 @@ _Send via Biltip _`;
  ${title}: ${formattedAmount}
  Status: ${status || "Completed"}${shareData.transactionId ? `\n Ref: ${shareData.transactionId}` : ""}${shareData.paymentMethod ? `\n Via: ${shareData.paymentMethod}` : ""}
 
-_Powered by Biltip _`;
+_Powered by Bankdrop _`;
     }
 
     case "payment_confirmation": {
@@ -90,7 +90,7 @@ _Powered by Biltip _`;
  Amount: ${formattedAmount}
  To: ${title}${shareData.transactionId ? `\n Reference: ${shareData.transactionId}` : ""}${shareData.paymentMethod ? `\n Method: ${shareData.paymentMethod}` : ""}
 
-_Paid via Biltip _`;
+_Paid via Bankdrop _`;
     }
 
     case "group_summary": {
@@ -98,7 +98,7 @@ _Paid via Biltip _`;
 
  Total: ${formattedAmount}${participantNames ? `\n Members: ${participantNames.join(", ")}` : ""}${description ? `\n ${description}` : ""}
 
-_Tracked with Biltip _`;
+_Tracked with Bankdrop _`;
     }
 
     case "pay_link": {
@@ -139,7 +139,7 @@ export function getDocumentData(shareData: ShareData) {
  * Create shareable deep links
  */
 export const createDeepLink = (type: string, id: string): string => {
-  const baseUrl = "https://biltip.app"; // This would be your actual app URL
+  const baseUrl = "https://bankdrop.io"; // This would be your actual app URL
   return `${baseUrl}/${type}/${id}`;
 };
 
@@ -221,7 +221,7 @@ export function QuickShareButton({
 
  ${formattedAmount}${shareData.description ? `\n ${shareData.description}` : ""}
 
-_Shared via Biltip _`;
+_Shared via Bankdrop _`;
   };
 
   return (
